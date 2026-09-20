@@ -75,7 +75,7 @@ function resolveEnvRef(path: string, field: string, value: string): string {
 
 // `env` mirrors auth/geolocation's `$VAR` convention but at arbitrary depth, since setup data
 // (dataset lookups, feature flags, ...) is naturally nested (`env.user.name`, not `env["user.name"]`).
-function resolveEnvBlock(path: string, field: string, raw: Record<string, unknown>): Record<string, unknown> {
+export function resolveEnvBlock(path: string, field: string, raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
     const childField = `${field}.${key}`;

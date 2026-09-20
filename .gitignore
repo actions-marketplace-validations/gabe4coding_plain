@@ -2,3 +2,6 @@ node_modules/
 dist/**/*.test.js
 .DS_Store
 .env
+
+# Runtime caches created by plugin launchers; source dependencies live at the root.
+plugins/*/.runtime/

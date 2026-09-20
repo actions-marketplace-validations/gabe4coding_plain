@@ -3,7 +3,7 @@ import { experimental_evaluate as evaluate, APICallError } from 'ai';
 import { TypeSafeClient, UnprocessableEntityError, noul, choice } from '@typesafe-ai/sdk';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { Candidate } from './page.js';
+import type { Candidate } from './automation.js';
 
 export const ProviderSchema = z.enum(['typesafe', 'gateway']);
 export type Provider = z.infer<typeof ProviderSchema>;

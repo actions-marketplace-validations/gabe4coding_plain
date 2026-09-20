@@ -2,30 +2,24 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-
-// stdout is the MCP JSON-RPC channel, so all install output goes to stderr (fd 2).
+const require = createRequire(import.meta.url);
 function runOrExit(cmd, args) {
-  const result = spawnSync(cmd, args, { cwd: root, stdio: ['ignore', 2, 2] });
-  if (result.status !== 0) {
-    console.error(`plainwright: "${cmd} ${args.join(' ')}" failed`);
-    process.exit(1);
-  }
+  const result = spawnSync(cmd, args, { cwd: root, stdio: ['ignore', 2, 2], shell: process.platform === 'win32' && cmd.endsWith('.cmd') });
+  if (result.status !== 0) { console.error(`plainwright: "${cmd} ${args.join(' ')}" failed`); process.exit(1); }
 }
-
-if (!existsSync(join(root, 'node_modules', 'playwright'))) {
+// Resolve normally: npm may hoist dependencies next to the shared runtime package.
+try { require.resolve('playwright'); }
+catch {
   console.error('plainwright: installing dependencies (first run)…');
-  // --ignore-scripts: this is a runtime install, not a dev checkout; no build step needed here.
-  runOrExit('npm', ['ci', '--omit=dev', '--no-audit', '--no-fund', '--ignore-scripts']);
+  runOrExit(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['ci', '--omit=dev', '--no-audit', '--no-fund', '--ignore-scripts']);
 }
-
-const { chromium } = await import(pathToFileURL(join(root, 'node_modules/playwright/index.mjs')).href);
-
+const { chromium } = await import('playwright');
 if (!existsSync(chromium.executablePath())) {
   console.error('plainwright: installing Chromium (first run)…');
-  runOrExit('npx', ['playwright', 'install', 'chromium']);
+  const playwrightRoot = dirname(require.resolve('playwright/package.json'));
+  runOrExit(process.execPath, [join(playwrightRoot, 'cli.js'), 'install', 'chromium']);
 }
-
 await import(pathToFileURL(join(root, 'dist/cli.js')).href);

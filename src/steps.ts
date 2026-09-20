@@ -1,7 +1,4 @@
 import { StepKind } from './step-kind.js';
-import { z } from 'zod';
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { Page, Locator } from 'playwright';
 import type { Spec, Step } from './spec.js';
@@ -16,65 +13,10 @@ import {
   type CandidateKind,
   type Snapshot,
 } from './page.js';
-import { pickElements, judge, decide, isTooLong, MAX_CANDIDATES } from './jev.js';
-
-export const StatusSchema = z.enum(['pass', 'fail', 'inconclusive', 'error', 'skipped']);
-export type Status = z.infer<typeof StatusSchema>;
-
-export const StepResultSchema = z.object({
-  step: z.string(),
-  status: StatusSchema,
-  detail: z.string().optional(),
-  ms: z.record(z.string(), z.number()).optional(),
-});
-export type StepResult = z.infer<typeof StepResultSchema>;
-
-// Formats a step's `ms` phase timings for --timing output, e.g. "total=3985 settle=512 jev=1830" —
-// `total` first (if present), then the rest in insertion order, only phases actually recorded.
-export function formatMs(ms: Record<string, number>): string {
-  const keys = Object.keys(ms);
-  const ordered = keys.includes('total') ? ['total', ...keys.filter((k) => k !== 'total')] : keys;
-  return ordered.map((k) => `${k}=${ms[k]}`).join(' ');
-}
-
-export function label(step: Step): string {
-  switch (step.kind) {
-    case StepKind.goto:
-      return `goto ${step.url}`;
-    case StepKind.fill:
-      return `fill "${step.target}"`;
-    case StepKind.click:
-      return `click "${step.target}"`;
-    case StepKind.hover:
-      return `hover "${step.target}"`;
-    case StepKind.dblclick:
-      return `dblclick "${step.target}"`;
-    case StepKind.rightclick:
-      return `rightclick "${step.target}"`;
-    case StepKind.select:
-      return `select "${step.value}" in "${step.target}"`;
-    case StepKind.check:
-      return `check "${step.target}"`;
-    case StepKind.uncheck:
-      return `uncheck "${step.target}"`;
-    case StepKind.upload:
-      return `upload ${step.files.length} file(s) to "${step.target}"`;
-    case StepKind.scroll:
-      return `scroll "${step.target}"`;
-    case StepKind.wait:
-      return `wait "${step.condition}"`;
-    case StepKind.press:
-      return `press ${step.key}`;
-    case StepKind.drag:
-      return `drag "${step.source}" to "${step.target}"`;
-    case StepKind.mouse:
-      return `mouse to (${step.x}, ${step.y})`;
-    case StepKind.expect: {
-      const claim = step.expectations.length > 1 ? step.expectations.join(' | ') : step.expectations[0];
-      return step.within ? `expect "${claim}" within "${step.within}"` : `expect "${claim}"`;
-    }
-  }
-}
+import { decide, MAX_CANDIDATES } from './jev.js';
+import { resolveTargets, judgeState } from './automation.js';
+import { label, dumpDebug, type Status, type StepResult } from './results.js';
+export { label, formatMs, StatusSchema, StepResultSchema, type Status, type StepResult } from './results.js';
 
 // Adds the elapsed ms of `fn` into ctx.ms[phase] — phases accumulate across multiple calls in the
 // same step (e.g. one `settle` per wait poll) since this is a per-step accumulator reset in runStep().
@@ -164,27 +106,6 @@ function resolveUrl(base: string, path: string): string {
   return new URL(rel, baseWithSlash).toString();
 }
 
-let dumpSeq = 0;
-
-/** Dump debug data to a temp file for a rejection/timeout/fail detail line, and return its path. */
-function dumpDebug(kind: string, data: unknown): string {
-  const dir = path.join(os.tmpdir(), 'plainwright');
-  fs.mkdirSync(dir, { recursive: true });
-  // pid + a per-process counter: concurrent specs must not overwrite each other's dump.
-  const file = path.join(dir, `${Date.now()}-${process.pid}-${++dumpSeq}-${kind}.json`);
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-  return file;
-}
-
-/** Top 3 candidates by probability, formatted for a pick-rejection detail line. */
-function topGuesses(probabilities: Record<string, number>, candidates: Candidate[]): string {
-  return Object.entries(probabilities)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([k, p]) => `${k === 'none' ? 'none' : candidates.find((c) => String(c.id) === k)?.desc} (p=${p.toFixed(2)})`)
-    .join(' | ');
-}
-
 // What to try instead when a step kind finds nothing at all to choose from.
 const NO_CANDIDATES_HINT: Partial<Record<CandidateKind, string>> = {
   [StepKind.check]: ' (no checkbox, radio, switch or aria-pressed toggle); for a plain button or chip use click',
@@ -226,34 +147,14 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
     await timed(ctx, 'settle', () => settle(page).catch(() => {}));
     const cands = await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES));
     const title = await page.title();
-    const picks = await timed(ctx, 'jev', () => pickElements(cands, jevTargets, { url: page.url(), title }));
-
-    jevIndices.forEach((origIndex, j) => {
-      const { id, probability, confidence, probabilities, tokens } = picks[j];
-      const score = confidence ?? probability;
-      const accepted = id !== null && decide(score, 'pick') === 'pass';
-      const usedJev = j === 0; // one request for the whole batch — only the first result carries it
-      const cPart = confidence !== undefined ? ` c=${confidence.toFixed(2)}` : '';
-
-      if (!accepted) {
-        // Show what Jev was torn between — the wording of the step is the lever to fix this.
-        const file = dumpDebug('pick', { instruction: jevTargets[j], probabilities, confidence, candidates: cands });
-        const detail =
-          cands.length === 0
-            ? `no candidates: nothing on the page matches a ${kind} target${NO_CANDIDATES_HINT[kind] ?? ''}`
-            : `${id === null ? 'no matching element' : 'low confidence'} (${cands.length} candidates)${cPart} — top: ${topGuesses(probabilities, cands)} — candidates: ${file}`;
-        results[origIndex] = { locator: null, detail, tokens, usedJev, confidence };
-        return;
-      }
-
-      const cand = cands.find((c) => c.id === id)!;
-      results[origIndex] = {
-        locator: elementById(page, id as number, cand.frameIndex),
-        detail: `→ ${cand.desc} (p=${probability.toFixed(2)}${cPart})`,
-        tokens,
-        usedJev,
-        confidence,
-      };
+    const resolved = await timed(ctx, 'jev', () => resolveTargets({
+      candidates: cands,
+      state: { url: page.url(), title },
+      element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
+    }, jevTargets));
+    resolved.forEach((r, j) => {
+      results[jevIndices[j]] = { ...r, locator: r.element, detail: cands.length ? r.detail :
+        `no candidates: nothing on the page matches a ${kind} target${NO_CANDIDATES_HINT[kind] ?? ''}` };
     });
   }
 
@@ -301,21 +202,9 @@ async function withResolved(
 // aria) plus the shared token accounting — every judge() call site goes through this. One request
 // judges every claim (each still its own Noul question, so its own probability).
 async function judgeSnapshot(ctx: StepContext, snap: Snapshot, claims: string[]): Promise<{ probabilities: number[] }> {
-  let s = snap;
-  for (;;) {
-    try {
-      const { url, title, aria } = s;
-      const { probabilities, tokens } = await timed(ctx, 'jev', () => judge({ url, title, aria, events: ctx.events }, claims));
-      ctx.track(tokens);
-      return { probabilities };
-    } catch (err) {
-      // A char cap can't guarantee the model's token limit (dense tables ≈ 2x tokens per char): halve and retry.
-      if (!isTooLong(err) || s.aria.length < 4000) throw err;
-      const half = s.aria.slice(0, Math.floor(s.aria.length / 2));
-      s = { ...s, aria: half };
-      console.error(`plainwright: state too long for the model, aria cut to ${half.length} chars — scope the expect with \`within\` for precision`);
-    }
-  }
+  const result = await timed(ctx, 'jev', () => judgeState(snap, claims, ctx.events));
+  ctx.track(result.tokens);
+  return result;
 }
 
 // `check`/`uncheck` mean "make it (un)selected", whatever keeps the state: a form control's `checked`

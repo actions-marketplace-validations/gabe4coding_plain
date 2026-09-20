@@ -1,17 +1,19 @@
 {
   "name": "plainwright",
   "version": "1.0.0",
-  "description": "YAML-driven end-to-end browser tests, with Jev resolving natural-language steps and expectations",
+  "description": "Natural-language browser and desktop automation with Playwright, xa11y and Jev",
   "repository": "github:gabe4coding/plainwright",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "plainwright": "bin/plainwright.mjs"
+    "plainwright": "bin/plainwright.mjs",
+    "plainwright-computer": "bin/plainwright-computer.mjs"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/build-plugins.mjs",
     "test": "npm run build && node --test 'dist/**/*.test.js'",
-    "example": "npm run build && node dist/cli.js examples/*.yaml"
+    "example": "npm run build && node dist/cli.js examples/*.yaml",
+    "test:computer:mac": "npm run build && node scripts/smoke-computer-macos.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -24,5 +26,8 @@
   "devDependencies": {
     "@types/node": "^22.20.4",
     "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {
+    "@crowecawcaw/xa11y": "0.15.0"
   }
 }

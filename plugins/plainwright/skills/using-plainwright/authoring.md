@@ -11,7 +11,7 @@
 4. Edit the YAML: `optional: true` where the page is nondeterministic (a cookie banner, a promo), a `#` comment
    where a phrasing is non-obvious, a `wait` before anything that appears after a delay. Credentials become
    `$VAR` references in the `env` block, used as `${env.*}` in steps.
-5. Replay headless: `node <plainwright dir>/dist/cli.js --headless spec.yaml` (the plugin dir is
+5. Replay headless: `node <plugin dir>/bin/launch.mjs --headless spec.yaml` (the plugin dir is
    `${CLAUDE_PLUGIN_ROOT}`). Run it twice. Green twice is done. Anything else goes back to step 2 with the dump
    file named in `detail`.
 

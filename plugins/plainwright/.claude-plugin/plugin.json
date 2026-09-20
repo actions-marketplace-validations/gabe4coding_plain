@@ -1,7 +1,7 @@
 {
   "name": "plainwright",
+  "version": "0.6.0",
   "description": "YAML e2e tests where Playwright acts and the Jev model decides; MCP server for agents to drive a browser step by step",
-  "version": "0.5.0",
   "author": {
     "name": "Gabriele Pavanello"
   }

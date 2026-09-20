@@ -28,6 +28,18 @@ small decision model, answers two questions per step: *which element does this s
 The same engine runs as an MCP server, so a coding agent (Claude Code, Codex) can drive a real browser
 one sentence at a time and save the session as a replayable spec.
 
+## Native desktop applications
+
+The separate **plainwright-computer** plugin adds computer use through [xa11y](https://xa11y.dev),
+with the same Jev decisions, YAML steps, assertions, and hooks behind shared adapters. It exposes
+`apps`, `open`, `step`, `find`, `snapshot`, `screenshot`, `save`, and `close` for native apps on
+macOS, Windows and Linux. See [computer use](docs/computer-use.md) for setup, backend comparison,
+desktop syntax, platform limitations, and native testing.
+
+```sh
+node plugins/plainwright-computer/bin/launch.mjs mcp
+```
+
 ## Quick start
 
 Requirements: Node 22+, a [TypeSafe](https://typesafe.ai) API key.
@@ -113,6 +125,25 @@ a role and its visible text.
 
 `examples/` holds specs against public demo sites. `examples/login-fails.yaml` is meant to fail.
 
+## Plugin layout
+
+One root `package.json` and `package-lock.json` own both engines. The two agent plugins live side by side:
+
+```text
+package.json                 shared dependencies, CLI binaries and build
+src/                         browser, desktop and shared adapters
+dist/                        compiled runtime
+plugins/
+  plainwright/               browser manifests, skill and launcher
+  plainwright-computer/      computer manifests, skill and launcher
+```
+
+Each plugin includes portable and Claude manifests plus a Codex compatibility manifest. Both root
+marketplaces point at these directories. The build packages the root runtime into an identical
+`runtime.tgz` in each plugin; a cached plugin installation can therefore run independently without
+another dependency manifest or paths outside the plugin. First use installs that package into an
+ignored `.runtime/` cache. The archive contains a shrinkwrap derived from the single root lockfile.
+
 ## Let an agent drive the browser
 
 `plainwright mcp` serves the engine as an MCP server with one persistent browser session and six tools:
@@ -145,7 +176,8 @@ Both read the key from `~/.config/plainwright/.env`. Details, alternatives and k
 ```sh
 npm install && npx playwright install chromium
 npm test          # build + node --test, no API key needed
-npm run build     # src/ → dist/; dist/ is committed because the plugins run it directly
+npm run build     # src/ → dist/ and both plugin runtime archives; generated output is committed
+npm run test:computer:mac # opt-in native smoke using a disposable Cocoa fixture
 ```
 
 `CLAUDE.md` describes the code layout.

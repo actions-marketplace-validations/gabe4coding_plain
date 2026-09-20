@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "plainwright": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "bin/launch.mjs",
+        "--headless",
+        "mcp"
+      ],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

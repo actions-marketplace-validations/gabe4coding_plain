@@ -2,61 +2,12 @@ import { z } from 'zod';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fork } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { interpolate } from './spec.js';
 import { runStep, label, StatusSchema, StepResultSchema, holdActivity } from './steps.js';
 import { installSettleObserver } from './page.js';
-// Forks src/hooks-child.ts (compiled next to this file) to import and validate a hooks module in its
-// own process — one child per spec run, so module-level state never leaks between specs and
-// concurrent specs (--workers) never share a module instance. Shared by the batch runner and the MCP
-// server's `open {hooks}`, so both fail the same way on a broken module. Requests are sequential
-// (one in flight at a time): a simple one-pending-reply pattern is enough for setup/teardown.
-export async function startHooks(file) {
-    const child = fork(fileURLToPath(new URL('./hooks-child.js', import.meta.url)), [file]);
-    let pending = null;
-    child.on('message', (msg) => {
-        pending?.resolve(msg);
-        pending = null;
-    });
-    const onGone = (reason) => {
-        pending?.reject(new Error(`hooks child for ${file} ${reason}`));
-        pending = null;
-    };
-    child.on('exit', (code) => onGone(`exited (code ${code}) before responding`));
-    child.on('error', (err) => onGone(`failed: ${err.message}`));
-    function next() {
-        return new Promise((resolve, reject) => (pending = { resolve, reject }));
-    }
-    const first = await next(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
-    if (first.type === 'error') {
-        child.kill();
-        throw new Error(first.message);
-    }
-    async function call(msg) {
-        const reply = next();
-        child.send(msg);
-        return reply;
-    }
-    return {
-        has: first.has ?? { setup: false, teardown: false },
-        async setup(spec) {
-            const reply = await call({ type: 'setup', spec });
-            if (!reply.ok)
-                throw new Error(reply.message);
-            return reply.data ?? {};
-        },
-        async teardown(args) {
-            const reply = await call({ type: 'teardown', ...args });
-            if (!reply.ok)
-                throw new Error(reply.message);
-        },
-        close() {
-            child.kill();
-        },
-    };
-}
+import { startHooks } from './hooks.js';
+export { startHooks } from './hooks.js';
 export const TestResultSchema = z.object({
     name: z.string(),
     status: StatusSchema,
@@ -77,6 +28,8 @@ export const RunOptionsSchema = z.object({
     cdp: z.string().optional(),
     /** Playwright browser channel to launch instead of the bundled Chromium. */
     channel: z.string().optional(),
+    /** Internal: MCP owns shutdown so Playwright must not race its cleanup on process signals. */
+    handleSignals: z.boolean().optional(),
 });
 // One Chromium per launch profile for the whole process; each spec gets its own context (isolation
 // unchanged) and only the context is closed per spec. Relaunched if headed/channel change or it died.
@@ -84,7 +37,7 @@ export const RunOptionsSchema = z.object({
 // (--workers > 1) then all await the same launch instead of each starting its own Chromium.
 let shared = null;
 export async function sharedBrowser(opts) {
-    const key = `${!opts.headed}|${opts.channel ?? ''}`;
+    const key = `${!opts.headed}|${opts.channel ?? ''}|${opts.handleSignals ?? true}`;
     if (shared && shared.key === key) {
         const b = await shared.browser;
         if (b.isConnected())
@@ -96,7 +49,7 @@ export async function sharedBrowser(opts) {
     if (shared)
         await closeSharedBrowser();
     if (!shared) {
-        const entry = { key, browser: chromium.launch({ headless: !opts.headed, channel: opts.channel }) };
+        const entry = { key, browser: chromium.launch({ headless: !opts.headed, channel: opts.channel, handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals }) };
         shared = entry;
         entry.browser.catch(() => {
             if (shared === entry)
@@ -166,7 +119,7 @@ async function openPage(spec, opts) {
         };
     }
     if (opts.profile) {
-        const context = await chromium.launchPersistentContext(opts.profile, { headless: !opts.headed, channel: opts.channel, ...contextOptions });
+        const context = await chromium.launchPersistentContext(opts.profile, { headless: !opts.headed, channel: opts.channel, handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals, ...contextOptions });
         return { page: context.pages()[0] ?? (await context.newPage()), close: () => context.close() };
     }
     const browser = await sharedBrowser(opts);

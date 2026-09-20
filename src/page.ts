@@ -2,12 +2,8 @@ import { StepKind } from './step-kind.js';
 import { z } from 'zod';
 import type { Page, Frame, Locator, BrowserContext } from 'playwright';
 
-export const CandidateSchema = z.object({
-  id: z.number(),
-  desc: z.string(),
-  frameIndex: z.number(),
-});
-export type Candidate = z.infer<typeof CandidateSchema>;
+import { CandidateSchema, type Candidate, SnapshotSchema, type Snapshot } from './automation.js';
+export { CandidateSchema, type Candidate, SnapshotSchema, type Snapshot } from './automation.js';
 
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 export type CandidateKind = z.infer<typeof CandidateKindSchema>;
@@ -277,14 +273,6 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
 export function elementById(page: Page, id: number, frameIndex = 0): Locator {
   return page.frames()[frameIndex].locator(`[data-jev-id="${id}"]`);
 }
-
-export const SnapshotSchema = z.object({
-  url: z.string(),
-  title: z.string(),
-  aria: z.string(),
-  truncated: z.boolean(),
-});
-export type Snapshot = z.infer<typeof SnapshotSchema>;
 
 const ARIA_MAX_CHARS = 60_000; // ponytail: hard truncate, no smart summarization — ≈15k tokens, ≈$0.0006/call
 

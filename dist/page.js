@@ -1,10 +1,6 @@
 import { StepKind } from './step-kind.js';
 import { z } from 'zod';
-export const CandidateSchema = z.object({
-    id: z.number(),
-    desc: z.string(),
-    frameIndex: z.number(),
-});
+export { CandidateSchema, SnapshotSchema } from './automation.js';
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 const CLICK_SELECTOR = 'a, button, input, select, textarea, [role=button], [role=link], [role=tab], [role=menuitem], [role=checkbox], [role=radio], [role=option], [role=listbox] li, [role=menuitemradio], [onclick]';
 const FILL_SELECTOR = 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), textarea, [contenteditable=true]';
@@ -256,12 +252,6 @@ export async function candidates(page, kind, max) {
 export function elementById(page, id, frameIndex = 0) {
     return page.frames()[frameIndex].locator(`[data-jev-id="${id}"]`);
 }
-export const SnapshotSchema = z.object({
-    url: z.string(),
-    title: z.string(),
-    aria: z.string(),
-    truncated: z.boolean(),
-});
 const ARIA_MAX_CHARS = 60_000; // ponytail: hard truncate, no smart summarization — ≈15k tokens, ≈$0.0006/call
 function capAria(s) {
     return s.length > ARIA_MAX_CHARS ? { aria: s.slice(0, ARIA_MAX_CHARS), truncated: true } : { aria: s, truncated: false };

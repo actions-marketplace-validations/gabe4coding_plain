@@ -56,7 +56,7 @@ kept as written when \`save\` writes the spec, so the saved spec stays dataset-d
 not available in this session — add it to the YAML yourself after saving.`;
 export async function serveMcp(opts) {
     let session = null;
-    const sessionOpts = { ...opts }; // `open {headed}` may flip headed per session
+    const sessionOpts = { ...opts, handleSignals: false }; // `open {headed}` may flip headed per session
     const spec = { name: 'plainwright session', url: '', dir: process.cwd(), dialogs: 'accept', steps: [] };
     const transcript = [];
     let totalTokens = 0;
@@ -224,21 +224,35 @@ export async function serveMcp(opts) {
         return ok({ path: filePath, steps: transcript.length });
     });
     const transport = new StdioServerTransport();
+    let shuttingDown = false;
     const shutdown = async () => {
+        if (shuttingDown)
+            return;
+        shuttingDown = true;
+        let code = 0;
         try {
             await runTeardown();
         }
         catch (err) {
-            console.error('plainwright: teardown failed: ' + (err instanceof Error ? err.message : String(err)));
+            code = 1;
+            console.error(`plainwright: teardown failed: ${err}`);
         }
-        await session?.close();
-        await closeSharedBrowser();
-        process.exit(0);
+        try {
+            await session?.close();
+        }
+        catch (err) {
+            code = 1;
+            console.error(`plainwright: session cleanup failed: ${err}`);
+        }
+        finally {
+            await closeSharedBrowser();
+        }
+        process.exit(code);
     };
-    transport.onclose = () => {
-        void shutdown();
-    };
-    process.on('SIGINT', () => void shutdown());
-    process.on('SIGTERM', () => void shutdown());
+    // connect() owns transport.onclose; register with the server so EOF reaches our cleanup.
+    server.server.onclose = () => { void shutdown(); };
+    process.once('SIGINT', () => { void shutdown(); });
+    process.once('SIGTERM', () => { void shutdown(); });
+    process.once('SIGHUP', () => { void shutdown(); });
     await server.connect(transport);
 }

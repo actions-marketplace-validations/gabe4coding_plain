@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "plainwright-computer": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs",
+        "mcp"
+      ]
+    }
+  }
+}

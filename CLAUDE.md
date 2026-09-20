@@ -27,8 +27,7 @@ node dist/cli.js --headless mcp
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
 persistent context; `--channel chrome` launches an installed browser instead of the bundled Chromium; `--cdp <url>` attaches
 to a running Chrome (`openPage()` in `src/runner.ts` picks one of the three; env fallbacks `PLAINWRIGHT_PROFILE`/
-`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/cli.ts`). `.mcp.json` runs the same
-entry via `${CLAUDE_PLUGIN_ROOT}/bin/plainwright.mjs --headless mcp`.
+`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/cli.ts`). The browser plugin `.mcp.json` runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs --headless mcp`, which installs and dispatches to the shared runtime.
 
 Environment: `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` (`TYPESAFE_API_KEY` wins if both set), or force one with
 `JEV_PROVIDER=typesafe|gateway` (`src/jev.ts`, `selectProvider`). `src/cli.ts` loads `.env` from the cwd, then
@@ -89,13 +88,15 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   saved file. `${env.*}` is not available in an MCP session, only `${hooks.*}`. stdout is the JSON-RPC channel,
   so all logging (here and in `src/cli.ts`/`src/steps.ts`) goes to `console.error`.
 - `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.
-- Claude Code plugin: `.claude-plugin/{plugin.json,marketplace.json}` + root `.mcp.json` +
-  `skills/using-plainwright/` (`SKILL.md` = the rules both modes share and a router; `browsing.md` = do or read
-  something on a site, nothing saved; `authoring.md` = save, edit, replay a spec). Keep the skill's thresholds and tool names in sync with `src/jev.ts`
-  and `src/mcp.ts` when either changes.
-- Codex plugin (Agent Plugins portable format): root `plugin.json` + `mcp.json` + `.agents/plugins/marketplace.json`.
-  They mirror the Claude Code files above; change name, version and description in both sets. `mcp.json` runs
-  the same launcher with `cwd: ${PLUGIN_ROOT}`. `AGENTS.md` is a symlink to this file.
+- Plugins live at `plugins/plainwright/` (browser) and `plugins/plainwright-computer/` (desktop), each
+  with portable `plugin.json`/`mcp.json`, `.claude-plugin/plugin.json`/`.mcp.json`, a Codex compatibility
+  manifest, its skill, and a generated `runtime.tgz`. Both root marketplaces point at these directories.
+  Keep identity/version/description aligned across each plugin's manifests. Browser skill lives at
+  `plugins/plainwright/skills/using-plainwright/` (SKILL.md, browsing.md, authoring.md).
+- One root `package.json` and lockfile own all dependencies and both CLI binaries. `scripts/build-plugins.mjs`
+  packages compiled runtime plus the root manifest/lockfile into the same archive for both plugins.
+  `scripts/plugin-launcher.mjs` is copied into each plugin and caches the installed runtime by archive hash.
+  Never add per-plugin package manifests, symlinks or parent-directory runtime imports.
 - Docs: `README.md` is the quick start; `docs/spec-reference.md`, `docs/phrasing.md`, `docs/hooks.md` and
   `docs/agent-mode.md` are the reference. A change to step kinds, thresholds, MCP tools, env loading or plugin
   install steps lands in the matching doc too (and in the skill, for thresholds and tool names).
@@ -108,5 +109,15 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   `${env.*}`.
 - `examples/*.yaml` run against public demo sites; `examples/fixtures/` and `examples/hooks/` back the
   `login-dataset.yaml` example.
-- Per `skills/using-plainwright/SKILL.md`: test environments only, stop before the last irreversible step
+- Per `plugins/plainwright/skills/using-plainwright/SKILL.md`: test environments only, stop before the last irreversible step
   (payment, booking, sending), never bypass bot protection.
+
+## Computer use
+
+- `src/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Both browser and desktop paths use it. `src/results.ts` shares labels/status/debug output.
+- `src/hooks.ts` owns the generic isolated hook runner; browser exports remain available through `runner.ts`.
+- `src/computer-adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports).
+- `src/computer-spec.ts`, `computer.ts`, `computer-mcp.ts`, `computer-cli.ts` provide desktop parsing/execution, eight serialized MCP tools, and sequential batch replay. Desktop specs have `app`, not `url`.
+- `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates both plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
+- Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.md` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
+- `npm run test:computer:mac` is an opt-in native smoke against a disposable Cocoa fixture (Accessibility/Screen Recording permissions required); regular `npm test` uses injected desktop adapters and no model keys. Windows/Linux native parity requires testing on those platforms.

@@ -1,5 +1,8 @@
 # Agent mode
 
+For native desktop applications, use the separate [plainwright-computer plugin](computer-use.md).
+The browser server and its tool names below are unchanged.
+
 `plainwright mcp` serves the engine as an [MCP](https://modelcontextprotocol.io) server over stdio with
 one persistent browser session. An agent explores a flow one sentence at a time, then saves it as a
 spec that the batch runner replays. Jev still makes every pick and every judgment, so the agent never
@@ -37,7 +40,7 @@ evaluate { js: '[...document.querySelectorAll("article")].map(a => a.querySelect
 Neither is a step: `save` does not record them and a spec has no equivalent. They are for the agent's own
 reading, after plainwright's steps got the page there.
 
-The plugin's skill, `skills/using-plainwright/`, teaches the agent the [phrasing rules](phrasing.md) in
+The plugin's skill, `plugins/plainwright/skills/using-plainwright/`, teaches the agent the [phrasing rules](phrasing.md) in
 `SKILL.md`, then one of two workflows: `browsing.md` to do or read something on a site (nothing is saved),
 `authoring.md` to save, edit and replay a spec.
 
@@ -106,8 +109,8 @@ tool error, where the agent can read it.
 /plugin install plainwright@plainwright-marketplace
 ```
 
-A local clone path works in place of `gabe4coding/plainwright`. The plugin ships the MCP server (root
-`.mcp.json`), the skill and the built CLI. On first start it installs its own npm dependencies and
+A local clone path works in place of `gabe4coding/plainwright`. The plugin lives in `plugins/plainwright/` and ships its MCP configurations, skill, and generated
+shared runtime archive. On first start it installs its own npm dependencies and
 Chromium, with progress on stderr. That first connection can take a minute or two; if it times out,
 `/mcp` reconnects once the install is done.
 
@@ -116,9 +119,9 @@ Key alternatives: export it in your shell profile, or put it in the `env` block 
 
 Pitfalls:
 
-- To try a clone without installing, run `claude --plugin-dir /path/to/plainwright` from any directory
-  other than the clone itself. Inside the clone, Claude Code also loads the repo's `.mcp.json` as a
-  project server, where `${CLAUDE_PLUGIN_ROOT}` is undefined, and that duplicate fails.
+- To try the browser plugin from a clone without installing it, run
+  `claude --plugin-dir /path/to/plainwright/plugins/plainwright`. The repository root holds the
+  shared npm package and marketplaces; plugin manifests live in the two `plugins/` directories.
 - A server registered by hand with `claude mcp add plainwright ...` silently replaces the plugin's server
   of the same name. Remove it.
 
@@ -131,8 +134,7 @@ claude mcp add plainwright -- node /path/to/plainwright/bin/plainwright.mjs --he
 ## Codex
 
 The same clone is a Codex plugin in the [Agent Plugins](https://agent-plugins.org) portable format:
-root `plugin.json`, `mcp.json` and `.agents/plugins/marketplace.json`. Skills are picked up from
-`skills/`. `AGENTS.md` is a symlink to `CLAUDE.md`, so Codex reads the same repo guidance.
+`plugins/plainwright/plugin.json`, `plugins/plainwright/mcp.json` and the root `.agents/plugins/marketplace.json`. Skills are picked up from each plugin’s `skills/` directory. `AGENTS.md` is a symlink to `CLAUDE.md`, so Codex reads the same repo guidance.
 
 ```sh
 codex plugin marketplace add gabe4coding/plainwright   # or a local clone path
@@ -143,8 +145,9 @@ Then put the key in `~/.config/plainwright/.env` and start a new Codex session.
 
 Pitfalls, checked with codex-cli 0.154:
 
-- Codex copies the whole clone, untracked files included, into `~/.codex/plugins/cache/`. Remove any
-  `.env` from the clone first, or install from a git source.
+- Codex installs the selected plugin directory into `~/.codex/plugins/cache/`. Keep `.env` files
+  and `.runtime/` development caches out of plugin distribution directories. The generated archive
+  contains only the package manifest/shrinkwrap, compiled runtime, CLI launchers and license.
 - Plugin MCP servers get only `PLUGIN_ROOT` and `PLUGIN_DATA` in their environment. The `env` and
   `env_vars` overrides in `config.toml` had no effect. `~/.config/plainwright/.env` is the way in.
 - Plugin tools need approval. In a non-interactive run (`codex exec`) pass `--approve-for-me`, or every

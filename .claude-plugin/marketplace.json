@@ -1,14 +1,19 @@
 {
   "name": "plainwright-marketplace",
-  "description": "Single-repo marketplace for the plainwright plugin",
+  "description": "Browser and computer-use plugins for natural-language testing",
   "owner": {
     "name": "Gabriele Pavanello"
   },
   "plugins": [
     {
       "name": "plainwright",
-      "source": "./",
+      "source": "./plugins/plainwright",
       "description": "YAML e2e tests where Playwright acts and the Jev model decides; MCP server for agents to drive a browser step by step"
+    },
+    {
+      "name": "plainwright-computer",
+      "source": "./plugins/plainwright-computer",
+      "description": "Native desktop automation with xa11y actions and Jev decisions; record and replay natural-language YAML tests"
     }
   ]
 }

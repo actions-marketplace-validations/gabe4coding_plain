@@ -3,7 +3,7 @@
 // concurrent specs (--workers) never share a module instance. Only JSON crosses the IPC channel, so
 // a function or class instance in what `setup` returns is silently dropped — return plain data only.
 import { pathToFileURL } from 'node:url';
-import type { HooksModule } from './runner.js';
+import type { HooksModule } from './hooks.js';
 
 const file = process.argv[2];
 let hooks: HooksModule = {};

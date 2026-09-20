@@ -1,5 +1,8 @@
 # Spec reference
 
+This page describes browser specs. [Desktop specs](computer-use.md#desktop-specs) use `app`
+instead of `url` and a documented subset of the shared step vocabulary.
+
 A spec is one YAML file: a name, a start URL, optional settings, and a list of steps run in order.
 
 Specs are validated with Zod when loaded. Invalid fields report the source file and, for steps,

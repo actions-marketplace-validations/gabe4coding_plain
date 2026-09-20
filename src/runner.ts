@@ -2,83 +2,13 @@ import { z } from 'zod';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fork, type ChildProcess } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type BrowserContextOptions, type Page } from 'playwright';
 import { interpolate, type Spec } from './spec.js';
 import { runStep, label, StatusSchema, StepResultSchema, holdActivity, type StepContext, type StepResult, type Status } from './steps.js';
 import { installSettleObserver } from './page.js';
 
-// What a hooks module (`spec.hooks`) may export. Both are optional; anything else is rejected once
-// imported, before the browser opens. Exported so the MCP server can lease the same module shape.
-// No `page`: hooks run in their own child process (see hooks-child.ts), so only JSON-serializable
-// arguments cross the IPC channel.
-export interface HooksModule {
-  setup?: (args: { spec: Spec }) => unknown;
-  teardown?: (args: { spec: Spec; data: Record<string, unknown>; result: { status: Status; steps: StepResult[] } }) => unknown;
-}
-
-export type HooksRunner = {
-  has: { setup: boolean; teardown: boolean };
-  setup(spec: Spec): Promise<Record<string, unknown>>;
-  teardown(args: { spec: Spec; data: Record<string, unknown>; result: { status: Status; steps: StepResult[] } }): Promise<void>;
-  close(): void; // kills the child
-};
-
-type ChildReply = { type: string; ok?: boolean; data?: Record<string, unknown>; message?: string; has?: { setup: boolean; teardown: boolean } };
-
-// Forks src/hooks-child.ts (compiled next to this file) to import and validate a hooks module in its
-// own process — one child per spec run, so module-level state never leaks between specs and
-// concurrent specs (--workers) never share a module instance. Shared by the batch runner and the MCP
-// server's `open {hooks}`, so both fail the same way on a broken module. Requests are sequential
-// (one in flight at a time): a simple one-pending-reply pattern is enough for setup/teardown.
-export async function startHooks(file: string): Promise<HooksRunner> {
-  const child: ChildProcess = fork(fileURLToPath(new URL('./hooks-child.js', import.meta.url)), [file]);
-
-  let pending: { resolve: (msg: ChildReply) => void; reject: (err: Error) => void } | null = null;
-  child.on('message', (msg: ChildReply) => {
-    pending?.resolve(msg);
-    pending = null;
-  });
-  const onGone = (reason: string): void => {
-    pending?.reject(new Error(`hooks child for ${file} ${reason}`));
-    pending = null;
-  };
-  child.on('exit', (code) => onGone(`exited (code ${code}) before responding`));
-  child.on('error', (err) => onGone(`failed: ${err.message}`));
-
-  function next(): Promise<ChildReply> {
-    return new Promise((resolve, reject) => (pending = { resolve, reject }));
-  }
-
-  const first = await next(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
-  if (first.type === 'error') {
-    child.kill();
-    throw new Error(first.message);
-  }
-
-  async function call(msg: Record<string, unknown>): Promise<ChildReply> {
-    const reply = next();
-    child.send(msg);
-    return reply;
-  }
-
-  return {
-    has: first.has ?? { setup: false, teardown: false },
-    async setup(spec) {
-      const reply = await call({ type: 'setup', spec });
-      if (!reply.ok) throw new Error(reply.message);
-      return reply.data ?? {};
-    },
-    async teardown(args) {
-      const reply = await call({ type: 'teardown', ...args });
-      if (!reply.ok) throw new Error(reply.message);
-    },
-    close() {
-      child.kill();
-    },
-  };
-}
+import { startHooks, type HooksRunner } from './hooks.js';
+export { startHooks, type HooksRunner, type HooksModule } from './hooks.js';
 
 export const TestResultSchema = z.object({
   name: z.string(),
@@ -110,6 +40,8 @@ export const RunOptionsSchema = z.object({
   cdp: z.string().optional(),
   /** Playwright browser channel to launch instead of the bundled Chromium. */
   channel: z.string().optional(),
+  /** Internal: MCP owns shutdown so Playwright must not race its cleanup on process signals. */
+  handleSignals: z.boolean().optional(),
 });
 export type RunOptions = z.infer<typeof RunOptionsSchema>;
 
@@ -119,7 +51,7 @@ export type RunOptions = z.infer<typeof RunOptionsSchema>;
 // (--workers > 1) then all await the same launch instead of each starting its own Chromium.
 let shared: { key: string; browser: Promise<Browser> } | null = null;
 export async function sharedBrowser(opts: RunOptions): Promise<Browser> {
-  const key = `${!opts.headed}|${opts.channel ?? ''}`;
+  const key = `${!opts.headed}|${opts.channel ?? ''}|${opts.handleSignals ?? true}`;
   if (shared && shared.key === key) {
     const b = await shared.browser;
     if (b.isConnected()) return b;
@@ -129,7 +61,7 @@ export async function sharedBrowser(opts: RunOptions): Promise<Browser> {
   // below and concurrent callers see it before racing off to launch their own browser.
   if (shared) await closeSharedBrowser();
   if (!shared) {
-    const entry = { key, browser: chromium.launch({ headless: !opts.headed, channel: opts.channel }) };
+    const entry = { key, browser: chromium.launch({ headless: !opts.headed, channel: opts.channel, handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals }) };
     shared = entry;
     entry.browser.catch(() => {
       if (shared === entry) shared = null; // don't cache a failed launch — let the next call retry
@@ -198,7 +130,7 @@ async function openPage(spec: Spec, opts: RunOptions): Promise<{ page: Page; clo
     };
   }
   if (opts.profile) {
-    const context = await chromium.launchPersistentContext(opts.profile, { headless: !opts.headed, channel: opts.channel, ...contextOptions });
+    const context = await chromium.launchPersistentContext(opts.profile, { headless: !opts.headed, channel: opts.channel, handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals, ...contextOptions });
     return { page: context.pages()[0] ?? (await context.newPage()), close: () => context.close() };
   }
   const browser = await sharedBrowser(opts);

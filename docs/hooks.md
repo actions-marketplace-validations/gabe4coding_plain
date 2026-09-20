@@ -1,5 +1,8 @@
 # Setup and teardown hooks
 
+The same isolated hook runner is used by [computer-use specs](computer-use.md). Their hook
+`spec` contains `app` instead of the browser `url`; desktop setup runs before attachment.
+
 A spec can lease test data before its first step and release it after the last one, whatever the
 outcome. The data is used in steps as `${hooks.*}`.
 
