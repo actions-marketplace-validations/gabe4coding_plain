@@ -39,7 +39,7 @@ All tools explicitly use `strict: false` in the model API adapter, while retaini
 server's own argument validation. This preserves genuinely optional MCP fields and free-form
 step objects. Leaving strictness unspecified can cause Responses to normalize schemas and
 require optional fields; see [OpenAI's function-calling documentation](https://developers.openai.com/api/docs/guides/function-calling#strict-mode).
-A preliminary sample was stopped after 45 recorded trials when a controlled probe demonstrated
+During the original benchmark's preparation, a sample was stopped after 45 recorded trials when a controlled probe demonstrated
 that a raw snapshot request acquired an unwanted `intent` argument under that default. The
 entire preliminary sample, both stacks, was excluded. The product code and tasks were unchanged;
 the corrected adapter was verified before restarting the formal sample. Two further preparation
@@ -56,9 +56,14 @@ network inspection, screenshots, shell access, hooks, and application source ins
 The baseline retains bulk form filling, accessible selectors, snapshot search, scoped snapshots,
 and the default snapshot-file behavior of `@playwright/mcp@0.0.82`. Both agents can read browser
 snapshot artifacts through the same restricted `read_artifact` helper. The baseline is not forced
-to reread an entire tree after each action. Plainwright exposes `open`, `step`, `find`, and
-`snapshot`; all snapshot modes are available and none is forced. Natural-language targeting is
+to reread an entire tree after each action. Current plainwright runs expose `open`, `step`, `batch`,
+`find`, and `snapshot`; the original run predates `batch`. All snapshot modes are available and none is forced. Natural-language targeting is
 required in its arm. This compares two tool stacks, not an isolated causal ablation of Jev.
+
+The corrected harness at `0c1698e` canonicalizes artifact directories and requested paths before
+checking containment. Earlier baseline comparisons rejected valid files under macOS's `/tmp`
+symlink and required inline-snapshot recovery. See the [correction record](current-browser-comparison.md);
+the old relative cost/time figures are qualified and must not support current savings claims.
 
 ## Cost and timing accounting
 

@@ -31,6 +31,7 @@ test('analysis and publication retain both arms and their costs for legacy and b
       assert.equal(summary.byModel['test/model'].comparison.costRatio, 2);
       assert.equal(summary.byModel['test/model'].comparison.timeRatio, .5);
       assert.equal(summary.byModel['test/model'][control].successes, 1);
+      assert.equal(summary.pairedSuccessfulCompleteNatural['test/model'].pairs, 1);
       const out = join(dir, 'published');
       execFileSync(process.execPath, [new URL('./report.mjs', import.meta.url).pathname, dir, out]);
       const report = readFileSync(join(out, 'README.md'), 'utf8');
@@ -38,6 +39,21 @@ test('analysis and publication retain both arms and their costs for legacy and b
       const hashes = JSON.parse(readFileSync(join(out, 'sha256.json')));
       assert.ok(hashes[`${control}-tools.json`]);
       if (comparison === 'batch') assert.match(report, /control is \*\*not Playwright MCP\*\*/);
+      // Oracle success must not conceal an aborted request with missing billing.
+      runs[1].usageComplete = false;
+      runs[1].ended = 'GatewayResponseError';
+      writeFileSync(join(dir, 'runs.jsonl'), runs.map(r => JSON.stringify(r)).join('\n'));
+      execFileSync(process.execPath, [new URL('./analyze.mjs', import.meta.url).pathname, dir]);
+      const incomplete = JSON.parse(readFileSync(join(dir, 'summary.json')));
+      assert.equal(incomplete.totalCost, 3);
+      assert.equal(incomplete.byModel['test/model'][control].successes, 1);
+      assert.equal(incomplete.byModel['test/model'][control].naturalCompletions, 0);
+      assert.equal(incomplete.pairedSuccessfulCompleteNatural['test/model'].pairs, 0);
+      assert.equal(incomplete.pairedSuccessfulCompleteNatural['test/model'].costRatio, null);
+      execFileSync(process.execPath, [new URL('./report.mjs', import.meta.url).pathname, dir, out]);
+      const flagged = readFileSync(join(out, 'README.md'), 'utf8');
+      assert.match(flagged, /\*\*Incomplete billing:\*\* 1 trial/);
+      assert.match(flagged, /\| model \| 0 \| — \| — \|/);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }
 });

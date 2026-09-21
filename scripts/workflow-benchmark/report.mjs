@@ -13,6 +13,7 @@ const [treatment, control] = armNames;
 const toolFiles = armNames.map(arm => `${arm}-tools.json`);
 const runsText = readFileSync(resolve(source, 'runs.jsonl'), 'utf8');
 const runs = runsText.trim().split('\n').map(s => JSON.parse(s));
+const incomplete = runs.filter(r => !r.usageComplete);
 if (!summary.complete || runs.length !== manifest.schedule.length) throw new Error('Cannot publish an incomplete sample');
 for (let i = 0; i < runs.length; i++) {
   for (const key of ['model', 'task', 'repeat', 'arm']) if (runs[i][key] !== manifest.schedule[i][key]) throw new Error(`Schedule mismatch in ${runs[i].id}`);
@@ -20,28 +21,31 @@ for (let i = 0; i < runs.length; i++) {
 mkdirSync(destination, { recursive: true });
 // Keep exact measured costs and usage. Scrub host home/temp prefixes from artifact paths only.
 const sanitize = text => text.replaceAll(process.env.HOME, '<home>').replace(/\/private\/var\/folders\/[^"\s]+?(?=\/plainwright\/)/g, '<tmp>').replace(/\/var\/folders\/[^"\s]+?(?=\/plainwright\/)/g, '<tmp>');
-for (const file of ['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', ...toolFiles]) {
+const dataFiles = ['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', ...toolFiles,
+  ...(existsSync(resolve(source, 'audit.json')) ? ['audit.json'] : [])];
+for (const file of dataFiles) {
   writeFileSync(resolve(destination, file), sanitize(readFileSync(resolve(source, file), 'utf8')));
 }
 const traces = runs.map(r => JSON.stringify({ id: r.id, ...JSON.parse(readFileSync(resolve(source, `${r.id}-trace.json`), 'utf8')) })).join('\n') + '\n';
 const compressed = gzipSync(sanitize(traces));
 writeFileSync(resolve(destination, 'traces.jsonl.gz'), compressed);
-const hashes = Object.fromEntries(['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', ...toolFiles, 'traces.jsonl.gz'].map(file => [file, createHash('sha256').update(readFileSync(resolve(destination, file))).digest('hex')]));
+const hashes = Object.fromEntries([...dataFiles, 'traces.jsonl.gz'].map(file => [file, createHash('sha256').update(readFileSync(resolve(destination, file))).digest('hex')]));
 writeFileSync(resolve(destination, 'sha256.json'), JSON.stringify(hashes, null, 2) + '\n');
 
-const money = v => v.toFixed(4);
+const money = v => v.toFixed(6);
 const ratio = v => Number.isFinite(v) ? `${v.toFixed(2)}×` : '—';
 const tier = model => model.split('/')[1];
 const lines = [
   `# Browser workflow results — ${manifest.startedAt.slice(0, 10)}`, '',
   `${runs.length} trials; ${manifest.tasks.length} synthetic workflows, ${manifest.repeats} repetition${manifest.repeats === 1 ? '' : 's'}, two tool configurations and ${manifest.models.length} main models. Total recorded API cost: **$${summary.totalCost.toFixed(4)}**. Development pilots and the benchmarking agent’s own work are excluded.`, '',
+  ...(incomplete.length ? [`**Incomplete billing:** ${incomplete.length} trial(s) lack final usage for at least one request. Costs below are recorded charges and may underestimate actual spending. Affected trials: ${incomplete.map(r => r.id).join(', ')}. Ratios involving these trials are not exact total-cost comparisons.`, ''] : []),
   'See the [protocol and reproduction instructions](../browser-workflows.md). These are measurements of this harness and task suite, not a general website-performance guarantee.', '',
   ...(manifest.comparison === 'batch' ? ['This is a batching ablation: both arms use the same plainwright/Jev implementation. Only `plainwright` exposes `batch` and its usage guidance; `plainwright-unbatched` uses individual steps. The control is **not Playwright MCP**.', ''] : []),
   ...(existsSync(resolve(destination, 'findings.md')) ? ['Read the [interpretation and failure analysis](findings.md).', ''] : []),
   ...(existsSync(resolve(destination, 'comparison.svg')) ? ['![Cost, elapsed time and task success by main model](comparison.svg)', ''] : []),
   '## Full-sample results', '',
-  'All trials, including failures, contribute to cost and time. Success means the independent task oracle passed. Natural completions additionally require the agent to finish before a limit/error.', '',
-  '| Main model | Stack | Oracle successes | Natural completions | Mean cost/task | Cost/success (failures included) | Mean seconds | Median seconds | p95 seconds |',
+  'All trials, including failures, contribute to cost and time. Success means the independent task oracle passed. Successful natural completions additionally require the agent to finish before a limit/error.', '',
+  '| Main model | Stack | Oracle successes | Successful natural completions | Mean cost/task | Cost/success (failures included) | Mean seconds | Median seconds | p95 seconds |',
   '|---|---|---:|---:|---:|---:|---:|---:|---:|',
 ];
 for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of [...armNames].reverse()) {
@@ -71,7 +75,6 @@ for (const model of manifest.models) {
   }
 }
 const limited = runs.filter(r => !['finish', 'text'].includes(r.ended));
-const incomplete = runs.filter(r => !r.usageComplete);
 const outputCapped = runs.filter(r => r.main.some(m => m.usage.outputTokens >= 4096));
 lines.push('', '## Limits and evidence', '',
   `- Non-natural terminations: ${limited.length}. ${limited.map(r => `${r.id}: ${r.ended}, oracle ${r.success ? 'passed' : 'failed'}`).join('; ') || 'None.'}`,
@@ -87,5 +90,12 @@ lines.push('', '## Limits and evidence', '',
 lines.push('## Sensitivity: pairs without an output-capped generation', '', 'This diagnostic excludes **both** arms of a pair if either reached the generation output cap. It is not the headline sample. It shows whether generation failures dominate the comparison.', '', '| Main model | Remaining trials | Cost ratio | Time ratio |', '|---|---:|---:|---:|');
 for (const [model, s] of Object.entries(summary.noOutputCapSensitivity)) lines.push(`| ${tier(model)} | ${s.trials} | ${ratio(s.costRatio)} | ${ratio(s.timeRatio)} |`);
 lines.push('');
+if (summary.pairedSuccessfulCompleteNatural) {
+  lines.push('## Sensitivity: successful, naturally completed pairs with complete usage', '',
+    'This diagnostic retains a pair only when both arms succeeded, finished naturally and have complete usage. The full sample above retains every trial; this filtered subset is not a replacement for it.', '',
+    '| Main model | Remaining pairs | Cost ratio | Time ratio |', '|---|---:|---:|---:|');
+  for (const [model, s] of Object.entries(summary.pairedSuccessfulCompleteNatural)) lines.push(`| ${tier(model)} | ${s.pairs} | ${ratio(s.costRatio)} | ${ratio(s.timeRatio)} |`);
+  lines.push('');
+}
 writeFileSync(resolve(destination, 'README.md'), lines.join('\n'));
 console.log(JSON.stringify({ destination, trials: runs.length, cost: summary.totalCost, incompleteUsage: incomplete.length, traceBytes: compressed.length }));

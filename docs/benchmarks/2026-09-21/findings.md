@@ -1,5 +1,11 @@
 # What the measurements support
 
+> **Baseline limitation discovered during the later audit:** the benchmark helper rejected all 8
+> attempted snapshot-file reads because it compared canonical `/private/tmp` paths with `/tmp`.
+> Baseline agents recovered using inline snapshots, adding potential cost and time. These figures
+> do not establish savings against a fully functioning baseline. See the
+> [corrected comparison](../current-browser-comparison.md). Raw measurements are preserved.
+
 The current implementation does **not** support a general “cheaper and faster” claim. The
 complete sample shows a tradeoff: some workflows finish sooner, but main-agent spending and
 recovery work increase. Results apply to this natural-language-targeting harness and six local

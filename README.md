@@ -90,39 +90,35 @@ Raw remains the default; see [snapshot views and tradeoffs](docs/snapshots.md).
 
 ### Measured browser costs and speed
 
-**Whether the current version is cheaper than Playwright MCP across the full suite remains
-unmeasured.** The experiments below answer different questions; their percentages cannot be
-combined into a claim about current savings against Playwright MCP.
+In a [108-trial whole-workflow comparison](docs/benchmarks/current-browser-comparison.md),
+current plainwright used **24% less API cost with Terra and 10% less with Astra**, while Luna
+cost **7% more**, than Playwright MCP 0.0.82. Mean elapsed time was **25–52% lower**.
+These are observed results on six synthetic browser workflows, not a general website guarantee.
 
-The latest [36-trial batching experiment](docs/benchmarks/browser-batching.md) compared batching
-with individual steps, using the same contextual-targeting implementation and Jev in **both arms**.
-Across six workflows, batching reduced main-agent calls by **26%**, with 18/18 successful
-workflows in each arm.
+| Main model | API cost per task: plainwright / Playwright MCP | Cost change | Mean seconds: plainwright / Playwright MCP | Time change |
+|---|---:|---:|---:|---:|
+| GPT-5.6 Luna (small) | $0.001344 / $0.001262 | +7% | 17.0 / 35.4 | −52% |
+| GPT-5.6 Terra (medium) | $0.010184 / $0.013374 | −24% | 17.0 / 22.9 | −25% |
+| GPT-6 Astra (top) | $0.044577 / $0.049695 | −10% | 20.4 / 41.8 | −51% |
 
-| Main model | Measured API cost change: batching vs individual steps | Mean elapsed-time change |
-|---|---:|---:|
-| GPT-5.6 Luna (small) | −15% | −29% |
-| GPT-5.6 Terra (medium) | −7% | −20% |
-| GPT-6 Astra (top) | −13% | −10% |
+Costs include main-agent and Jev usage, caching, recovery and verification. Luna and Astra's
+95% task-cluster cost intervals include parity; Terra's is 0.66–0.91×. Astra account editing
+still cost 20% more, and Terra catalog browsing was 54% slower. Main-agent calls fell **19%**
+(333 versus 412). Timing includes provider latency and each stack's browser waiting behavior.
 
-This first pass used one repetition per task/model. Terra's cost interval includes parity;
-record-editing costs increased for Terra and Astra. Timing includes provider latency, with large
-differences even on a task that used no batch. These are observed results, not general guarantees.
+Both stacks reached the requested values or answer in 54/54 trials. Plainwright passed all
+54 strict oracle checks; the baseline passed 53 because it saved the correct account twice.
+The fixture resets its display on reload, so this is not evidence of a wrong-account edit or
+a general reliability advantage. Excluding that entire pair still leaves Terra **20% cheaper**.
+All 108 trials had complete usage accounting and finished naturally. Three repetitions per
+workflow/model are insufficient to establish production reliability.
 
-Earlier comparisons against Playwright MCP remain available:
-
-- [Contextual targeting: 36 trials, two workflows](docs/benchmarks/contextual-targeting.md).
-  After adding row/card evidence, completion rose from 10/18 historically to 18/18, matching the
-  fresh baseline. Measured cost was 19% higher for Luna, 19% lower for Terra and 21% lower for Astra.
-  All cost intervals included parity; this covered only the two previously problematic workflows.
-- [Original implementation: 108 trials, six workflows](docs/benchmarks/2026-09-21/README.md).
-  Before contextual targeting and batching, cost per successful task was higher in all three
-  tiers. Astra matched the baseline's 18/18 successes at 31% higher cost and 22% lower mean elapsed
-  time; its time interval included parity. These historical figures do not describe the current version.
-
-All costs include recorded main-agent and Jev usage. A fresh full-suite comparison of the current
-implementation against Playwright MCP is needed to establish its relative cost. See the
-[measurement and reproduction protocol](docs/benchmarks/browser-workflows.md).
+The [full report and audit](docs/benchmarks/2026-09-21-current/README.md) retain every trial,
+per-task results, intervals, costs per success and traces. The comparison fixes an artifact-reader
+bug that restricted snapshot-file access in the earlier baseline experiments; those historical
+reports are marked accordingly. The separate [batching ablation](docs/benchmarks/browser-batching.md)
+compares two Jev-assisted configurations and is not evidence of savings against Playwright MCP.
+See the [protocol and reproduction instructions](docs/benchmarks/browser-workflows.md).
 
 ### Run from a checkout
 

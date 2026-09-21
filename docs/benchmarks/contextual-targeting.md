@@ -1,5 +1,10 @@
 # Contextual action targeting experiment
 
+> **Baseline limitation:** two snapshot-file reads were incorrectly rejected by the benchmark
+> helper. Baseline recovery may inflate the cost and time below. See the
+> [corrected comparison](current-browser-comparison.md); do not use these historical ratios as
+> evidence of savings against a fully functioning baseline.
+
 This follow-up tests the information-loss diagnosis from the [initial benchmark](2026-09-21/findings.md).
 The implementation at `8812f8e` adds bounded row/card/group evidence to browser action candidates.
 It preserves candidate IDs and duplicate-label ordinals, rebuilds context on each action, and keeps
