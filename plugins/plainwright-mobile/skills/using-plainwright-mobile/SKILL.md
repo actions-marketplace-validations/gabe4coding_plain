@@ -43,8 +43,11 @@ session without uninstalling or clearing the app.
 20,000 in default `mode:"raw"`, or 6,000 in `compact`/`smart`, with a maximum of 60,000.
 Compact returns exact `observed.aria`, `coverage` omission counts, timings and `jevTokens`
 without classification. Smart adds advisory `inferred` state in one Jev request; optional
-smart-only `intent` is literal task context for ranking evidence at relevance p >= 0.5, below
-recognized alerts/dialogs. Screen classification
+smart-only `intent` filters UI regions at relevance p >= 0.5, plus recognized alerts/dialogs
+and necessary context. Unused space is not filled. `inferred.selection` reports `focused`,
+`no-confident-match`, or an unfiltered `fallback`. Check `coverage.filteredLines` and
+`unassessedRegions` (up to 64 assessed regions). Without intent, smart returns a compact overview.
+Screen classification
 requires confidence >= 0.9 (probability fallback); signals are present at p >= 0.9, absent at
 p <= 0.1, otherwise inconclusive. Source truncation prevents absence claims. Failed
 classification returns compact evidence with unavailable inference. Omitted content is not

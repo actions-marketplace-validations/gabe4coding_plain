@@ -300,7 +300,9 @@ export async function describeSnapshot(state: SnapshotEvidence, intent?: string,
     { kind: 'choice', instructions: prefix + 'What is the main kind of interface in this capture?', criteria: SCREEN_TYPES },
     ...Object.values(SNAPSHOT_SIGNALS).map((claim): Question => ({ kind: 'boolean', instructions: prefix + claim })),
     ...(intent ? state.blocks.map((_, i): Question => ({ kind: 'boolean', instructions: prefix +
-      `Does block \`blocks[${i}]\` contain controls or information directly relevant to the task in \`intent\`?` })) : []),
+      `Does UI region \`blocks[${i}].aria\` itself contain controls or information needed for the task in \`intent\`? ` +
+      'Ancestor context identifies the region but is not evidence that this region is relevant. ' +
+      'Topic overlap alone is insufficient: navigation, promotions, or recommendations only qualify when the task needs them.' })) : []),
   ];
   const result = await evaluate({ ...state, intent }, questions);
   const probability = z.number().min(0).max(1);
