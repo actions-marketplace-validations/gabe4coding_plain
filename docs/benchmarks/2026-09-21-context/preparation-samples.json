@@ -1,0 +1,110 @@
+{
+  "includedInFinalResults": false,
+  "reason": "Stopped during code review to retain wrapped headings in semantic containers; all preparation trials excluded before restarting on commit 8812f8e.",
+  "commit": "062318ee7eb37d9f1f16384a038cdf295668ca65",
+  "recordedTrials": 10,
+  "reportedCost": 0.12714223000000002,
+  "caveat": "The last trial was interrupted; unreported in-flight charges may be missing. This is recorded API usage, not a complete development invoice.",
+  "trials": [
+    {
+      "id": "run-001",
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 1,
+      "arm": "plainwright",
+      "success": true,
+      "ended": "finish",
+      "totalCost": 0.0022012079999999996
+    },
+    {
+      "id": "run-002",
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 1,
+      "arm": "playwright",
+      "success": true,
+      "ended": "finish",
+      "totalCost": 0.0019427000000000001
+    },
+    {
+      "id": "run-003",
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 2,
+      "arm": "plainwright",
+      "success": true,
+      "ended": "finish",
+      "totalCost": 0.021290138
+    },
+    {
+      "id": "run-004",
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 2,
+      "arm": "playwright",
+      "success": true,
+      "ended": "finish",
+      "totalCost": 0.029672699999999996
+    },
+    {
+      "id": "run-005",
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "playwright",
+      "success": true,
+      "ended": "text",
+      "totalCost": 0.0015724899999999997
+    },
+    {
+      "id": "run-006",
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "plainwright",
+      "success": true,
+      "ended": "text",
+      "totalCost": 0.001544512
+    },
+    {
+      "id": "run-007",
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "playwright",
+      "success": true,
+      "ended": "text",
+      "totalCost": 0.00157102
+    },
+    {
+      "id": "run-008",
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "plainwright",
+      "success": true,
+      "ended": "text",
+      "totalCost": 0.0015723719999999998
+    },
+    {
+      "id": "run-009",
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "plainwright",
+      "success": true,
+      "ended": "finish",
+      "totalCost": 0.04765759000000001
+    },
+    {
+      "id": "run-010",
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "playwright",
+      "success": false,
+      "ended": "GatewayResponseError",
+      "totalCost": 0.0181175
+    }
+  ]
+}
