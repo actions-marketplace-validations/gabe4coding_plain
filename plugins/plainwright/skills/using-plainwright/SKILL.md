@@ -60,6 +60,21 @@ A claim is one fact about something that is visible when the condition holds.
 - Nondeterministic pages: claim what is stable (`a notification bar is shown at the top`), not the random text.
 - `wait` when the thing appears after a delay or animation; `expect` for a settled page.
 
+## Snapshot views
+
+Known actions need no preliminary snapshot; `step` finds its own targets. For discovery,
+`snapshot {mode:"compact"}` returns exact excerpts without a classification call;
+`snapshot {mode:"smart",intent:"the task"}` adds Jev screen/error/loading/dialog classifications
+and ranks task-relevant blocks at p >= 0.5 below recognized alerts/dialogs. Raw remains the default. `maxChars` defaults to 20,000
+for raw and 6,000 for compact/smart (maximum 60,000). `intent` is smart-only, literal text.
+Compact/smart return `observed.aria`, omission counts in `coverage`, timings and `jevTokens`.
+Smart `inferred` is advisory: screen confidence must reach 0.9 (probability fallback), signals
+are present at p >= 0.9, absent at p <= 0.1, otherwise inconclusive; truncated captures cannot
+establish absence. Failed classification returns compact evidence with unavailable inference.
+Omitted content is not absent. Expand using `within` or raw mode when reading exact data;
+do not infer total row counts from excerpts. Classification adds a model call and may cost more
+on small trees; action targeting and assertion thresholds are unchanged.
+
 ## After a miss
 
 Read `detail` first: the top guesses say what Jev thought you meant.
