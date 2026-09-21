@@ -83,7 +83,8 @@ Use `save` to turn successful steps into a YAML spec. Desktop `open` attaches to
 and [mobile agent tools](docs/mobile-use.md#agent-tools).
 
 For UI discovery, opt into `snapshot {mode:"compact"}` for selected exact excerpts or
-`snapshot {mode:"smart",intent:"the task"}` for Jev classifications and task relevance.
+`snapshot {mode:"smart",intent:"the task"}` for Jev classifications and only task-relevant UI
+regions, necessary context, and recognized critical messages.
 Raw remains the default; see [snapshot views and tradeoffs](docs/snapshots.md).
 
 ### Run from a checkout

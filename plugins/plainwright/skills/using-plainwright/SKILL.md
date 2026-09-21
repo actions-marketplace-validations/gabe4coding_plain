@@ -65,7 +65,11 @@ A claim is one fact about something that is visible when the condition holds.
 Known actions need no preliminary snapshot; `step` finds its own targets. For discovery,
 `snapshot {mode:"compact"}` returns exact excerpts without a classification call;
 `snapshot {mode:"smart",intent:"the task"}` adds Jev screen/error/loading/dialog classifications
-and ranks task-relevant blocks at p >= 0.5 below recognized alerts/dialogs. Raw remains the default. `maxChars` defaults to 20,000
+and filters to relevant UI regions at p >= 0.5, plus recognized alerts/dialogs and necessary
+context. It does not fill spare space with unrelated content. `inferred.selection` reports
+`focused`, `no-confident-match`, or an unfiltered `fallback` if classification fails. Check
+`coverage.filteredLines` and `unassessedRegions` (up to 64 regions are assessed).
+Without intent, smart returns a compact overview. Raw remains the default. `maxChars` defaults to 20,000
 for raw and 6,000 for compact/smart (maximum 60,000). `intent` is smart-only, literal text.
 Compact/smart return `observed.aria`, omission counts in `coverage`, timings and `jevTokens`.
 Smart `inferred` is advisory: screen confidence must reach 0.9 (probability fallback), signals

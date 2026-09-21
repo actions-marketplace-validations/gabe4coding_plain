@@ -103,15 +103,15 @@ test('missing and out-of-range model answers cannot turn into absent signals', a
   }
 });
 
-test('smart relevance promotes late task evidence, keeps critical context, and bounds question count', async () => {
+test('smart relevance filters late task evidence and keeps critical context without filling the budget', async () => {
   const source = snap('- main:\n' + Array.from({ length: 1400 }, (_, i) => `  - text: "News ${i}"`).join('\n') +
     '\n  - region "Delivery address":\n    - text: "48 Example Road"\n- alert: "Session expires soon"');
   const view = await snapshotView(source, { mode: 'smart', intent: 'Change the delivery address', maxChars: 3000 }, async (state, intent) => {
     assert.equal(intent, 'Change the delivery address');
-    assert.ok(state.blocks.length <= 24);
+    assert.ok(state.blocks.length <= 64);
     assert.ok(state.blocks.length > 1);
     // The classifier sees the full capture, not the output budget's prefix.
-    assert.match(state.blocks.at(-1)!.aria, /Delivery address/);
+    assert.ok(state.blocks.some(b => b.aria.includes('Delivery address')));
     return { screen: { type: 'form', probability: .99, confidence: .99 }, signals: {},
       relevance: state.blocks.map(b => b.aria.includes('Delivery address') ? .79 : .01), tokens: 500 };
   });
@@ -119,8 +119,76 @@ test('smart relevance promotes late task evidence, keeps critical context, and b
   assert.match(view.observed!.aria, /Delivery address/);
   assert.match(view.observed!.aria, /48 Example Road/);
   assert.match(view.observed!.aria, /Session expires soon/);
+  assert.doesNotMatch(view.observed!.aria, /News/);
+  assert.ok(view.observed!.aria.length < 200);
+  assert.equal(view.inferred?.selection?.status, 'focused');
+  assert.equal(view.coverage!.filteredLines, 1400);
   assert.equal(view.jevTokens, 500);
   assert.equal(view.inferred?.status, 'available');
+});
+
+const classifyRegions = (match: (aria: string) => boolean): typeof describeSnapshot => async state => ({
+  screen: { type: 'form', probability: .99, confidence: .99 }, signals: {},
+  relevance: state.blocks.map(b => match(b.aria) ? .85 : .02), tokens: 100,
+});
+
+test('adjacent navigation and form are separate regions even in a short tree', async () => {
+  const source = snap('- banner:\n  - navigation:\n    - link "Hotels"\n- search "Journey":\n  - combobox "Origin": Turin\n' +
+    '  - combobox "Destination"\n  - button "Search"\n- main:\n  - heading "Recommended trips"\n  - button "Browse offers"\n- alert: "Session expires soon"');
+  const view = await snapshotView(source, { mode: 'smart', intent: 'Find journey search controls', maxChars: 6000 },
+    classifyRegions(aria => aria.includes('search "Journey"')));
+  assert.ok('observed' in view);
+  assert.equal(view.observed.aria, '- search "Journey":\n  - combobox "Origin": Turin\n  - combobox "Destination"\n  - button "Search"\n- alert: "Session expires soon"');
+  assert.ok(view.coverage.filteredLines > 0);
+  assert.equal(view.coverage.omittedCriticalLines, 0);
+});
+
+test('heading sections preserve their labels and nested region context without unrelated siblings', async () => {
+  const source = snap('- main:\n  - heading "News"\n  - text: "Sale today"\n  - heading "Delivery address"\n' +
+    '  - group "Saved addresses":\n    - text: "48 Example Road"\n  - heading "Help"\n  - link "Contact us"');
+  const view = await snapshotView(source, { mode: 'smart', intent: 'Read my address' }, classifyRegions(a => a.includes('48 Example Road')));
+  assert.ok('observed' in view);
+  assert.equal(view.observed.aria, '- main:\n  - heading "Delivery address"\n  - group "Saved addresses":\n    - text: "48 Example Road"');
+});
+
+test('named native groups keep unrelated components out of a task-focused view', async () => {
+  for (const group of ['AXGroup', 'XCUIElementTypeOther', 'android.view.ViewGroup']) {
+    const source = snap(`window "Fixture"\n  ${group} "Navigation"\n    button "Help"\n  ${group} "Address form"\n    text_field "Street" value="48 Example Road"`);
+    const view = await snapshotView(source, { mode: 'smart', intent: 'Read the address form' }, classifyRegions(a => a.includes('48 Example Road')));
+    assert.ok('observed' in view);
+    assert.match(view.observed.aria, /window "Fixture"/);
+    assert.match(view.observed.aria, /48 Example Road/);
+    assert.doesNotMatch(view.observed.aria, /Navigation|Help/);
+  }
+});
+
+test('no relevant region returns only critical messages with an explicit no-match result', async () => {
+  const view = await snapshotView(snap('- button "Unrelated"\n- alert: "Connection lost"'),
+    { mode: 'smart', intent: 'Find the address' }, classifyRegions(() => false));
+  assert.ok('observed' in view);
+  assert.equal(view.observed.aria, '- alert: "Connection lost"');
+  assert.equal(view.inferred?.selection?.status, 'no-confident-match');
+  assert.equal(view.inferred?.selection?.matchedRegions, 0);
+});
+
+test('region cap is explicit and cannot establish absence from unassessed evidence', async () => {
+  const source = snap(Array.from({ length: 100 }, (_, i) => `- region "Section ${i}":\n  - text: "Content ${i}"`).join('\n') + '\n- alert: "Late alert"');
+  const view = await snapshotView(source, { mode: 'smart', intent: 'Find something' }, async state => {
+    assert.equal(state.blocks.length, 64);
+    assert.equal(state.truncated, true);
+    assert.ok(state.blocks.some(b => b.aria.includes('Late alert')));
+    return classifyRegions(() => false)(state);
+  });
+  assert.ok('observed' in view);
+  assert.equal(view.coverage.unassessedRegions, 37);
+  assert.equal(view.observed.aria, '- alert: "Late alert"');
+});
+
+test('failed task filtering explicitly falls back to a compact overview', async () => {
+  const view = await snapshotView(snap('- button "Retry"'), { mode: 'smart', intent: 'Sign in' }, async () => { throw new Error('offline'); });
+  assert.ok('observed' in view);
+  assert.equal(view.observed.aria, '- button "Retry"');
+  assert.equal(view.inferred?.selection?.status, 'fallback');
 });
 
 test('provider failure returns compact evidence with explicit unavailable inference and unknown token usage', async () => {

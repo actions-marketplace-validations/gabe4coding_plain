@@ -92,7 +92,7 @@ The cross-platform API is implemented; native verification in this repository cu
 | `open {app}` or `open {pid}` | Attach to exactly one running app. `activate` defaults to true; false leaves focus alone. Optional `hooks` runs setup before attachment. |
 | `step {step}` | Execute one natural-language action/assertion and return status, detail, timings, and token count. |
 | `find {kind, target}` | Dry-run a target with Jev. Kinds: click, fill, check, hover, region, scroll. |
-| `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. `within` resolves a region with Jev. Smart-only `intent` prioritizes relevant evidence. See [snapshot views](snapshots.md). |
+| `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. `within` resolves a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
 | `screenshot {}` | Return a PNG of an attached app window. Not supplied to Jev. |
 | `save {path, name?}` | Save successful steps as desktop YAML. Rejects an empty recording. |
 | `close {}` | Detach and run teardown; leave the application running. |

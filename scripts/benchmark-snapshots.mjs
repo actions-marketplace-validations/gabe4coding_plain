@@ -26,11 +26,11 @@ for (const fixture of fixtures.filter(f => !fixtureName || f.name === fixtureNam
   const snap = { url: 'fixture://snapshot-benchmark', title: fixture.name, aria: fixture.aria, truncated: false };
   for (const mode of live ? ['raw', 'compact', 'smart'] : ['raw', 'compact']) {
     const start = performance.now();
-    let blockRelevance;
+    let regionRelevance;
     // Same evidence budget isolates selection quality from different mode defaults.
     const view = await snapshotView(snap, { mode, maxChars: 6000, ...(mode === 'smart' ? { intent: fixture.intent } : {}) }, async (state, intent) => {
       const result = await describeSnapshot(state, intent);
-      blockRelevance = result.relevance;
+      regionRelevance = result.relevance;
       return result;
     });
     const aria = mode === 'raw' ? view.aria : view.observed.aria;
@@ -39,7 +39,7 @@ for (const fixture of fixtures.filter(f => !fixtureName || f.name === fixtureNam
       expectedTextCount: fixture.expected.length, jevTokens: view.jevTokens ?? (mode === 'smart' ? null : 0),
       elapsedMs: Math.round(performance.now() - start), inferenceStatus: view.inferred?.status,
       screen: view.inferred?.screen, signals: view.inferred?.signals,
-      blockRelevance,
+      regionRelevance, selection: view.inferred?.selection, filteredLines: view.coverage?.filteredLines,
       inferenceReason: view.inferred?.reason });
   }
 }

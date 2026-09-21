@@ -9,7 +9,7 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
 2. Drive with `step`, one action per call. Read `status`, `detail`, `notes` and `url` after every call. A cookie
    or consent dialog comes first: `click: the button that accepts all cookies`.
    When the next action is unknown, use `snapshot {mode:"compact"}` for an overview or
-   `snapshot {mode:"smart",intent:"the task"}` for Jev classifications. Check omission counts;
+   `snapshot {mode:"smart",intent:"the task"}` for task-focused evidence and Jev classifications. Check omission counts;
    use scoped raw snapshots for exact data. These are optional discovery reads, not prerequisites.
 3. Read the data once the page is there:
    - `snapshot` with `within: "the results list"` (or `css=...`) returns only that region's tree. A table comes as
