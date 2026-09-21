@@ -90,36 +90,39 @@ Raw remains the default; see [snapshot views and tradeoffs](docs/snapshots.md).
 
 ### Measured browser costs and speed
 
-In the initial **108 local UI-workflow trials**, before contextual action candidates, results against
-Playwright MCP 0.0.82 depended on the main model. GPT-6 Astra completed 18/18 tasks with each stack;
-plainwright averaged **22% less elapsed time at 31% higher API cost**. This benchmark does not
-establish a general cost-saving claim.
+**Whether the current version is cheaper than Playwright MCP across the full suite remains
+unmeasured.** The experiments below answer different questions; their percentages cannot be
+combined into a claim about current savings against Playwright MCP.
 
-| Main model | Cost per 1,000 successes: plainwright / baseline | Mean seconds per attempt: plainwright / baseline | Successes: plainwright / baseline |
-|---|---:|---:|---:|
-| GPT-5.6 Luna (small) | $2.54 / $1.31 | 23.1 / 33.4 | 14/18 / 18/18 |
-| GPT-5.6 Terra (medium) | $16.89 / $12.64 | 22.0 / 22.7 | 14/18 / 18/18 |
-| GPT-6 Astra (top) | $65.73 / $50.29 | 24.9 / 31.8 | 18/18 / 18/18 |
+The latest [36-trial batching experiment](docs/benchmarks/browser-batching.md) compared batching
+with individual steps, using the same contextual-targeting implementation and Jev in **both arms**.
+Across six workflows, batching reduced main-agent calls by **26%**, with 18/18 successful
+workflows in each arm.
 
-Costs are scaled from measured spending, including failed attempts, cached input, output/reasoning
-and Jev calls. Six synthetic tasks, three repetitions, natural-language Jev targeting, low reasoning
-effort; CSS fallbacks and arbitrary code were excluded. Astra's 95% time-ratio interval was 0.62–1.02,
-so the observed speed difference is not a guaranteed speedup. See the
-[full results and traces](docs/benchmarks/2026-09-21/README.md) and
-[reproduction protocol](docs/benchmarks/browser-workflows.md).
+| Main model | Measured API cost change: batching vs individual steps | Mean elapsed-time change |
+|---|---:|---:|
+| GPT-5.6 Luna (small) | −15% | −29% |
+| GPT-5.6 Terra (medium) | −7% | −20% |
+| GPT-6 Astra (top) | −13% | −10% |
 
-A subsequent [36-trial contextual-targeting experiment](docs/benchmarks/contextual-targeting.md)
-reran the two problematic workflows after adding row/card evidence to action candidates.
-Jev-assisted completion rose from 10/18 historically to **18/18**, matching the fresh baseline.
-Measured API cost was **19% lower with Terra and 21% lower with Astra**, but **19% higher with Luna**,
-than the fresh baseline. Cost intervals include parity. These targeted results do not replace the
-six-workflow measurements above or establish general savings.
+This first pass used one repetition per task/model. Terra's cost interval includes parity;
+record-editing costs increased for Terra and Astra. Timing includes provider latency, with large
+differences even on a task that used no batch. These are observed results, not general guarantees.
 
-A separate [36-trial batching experiment](docs/benchmarks/browser-batching.md), using Jev in **both**
-arms across all six workflows, reduced main-agent calls by **26%**. Measured API cost fell **15%, 7%
-and 13%** for Luna, Terra and Astra, with 18/18 successful workflows in each arm. This first pass
-used one repetition per task/model; it does not establish general savings, and record-editing
-costs increased for Terra and Astra.
+Earlier comparisons against Playwright MCP remain available:
+
+- [Contextual targeting: 36 trials, two workflows](docs/benchmarks/contextual-targeting.md).
+  After adding row/card evidence, completion rose from 10/18 historically to 18/18, matching the
+  fresh baseline. Measured cost was 19% higher for Luna, 19% lower for Terra and 21% lower for Astra.
+  All cost intervals included parity; this covered only the two previously problematic workflows.
+- [Original implementation: 108 trials, six workflows](docs/benchmarks/2026-09-21/README.md).
+  Before contextual targeting and batching, cost per successful task was higher in all three
+  tiers. Astra matched the baseline's 18/18 successes at 31% higher cost and 22% lower mean elapsed
+  time; its time interval included parity. These historical figures do not describe the current version.
+
+All costs include recorded main-agent and Jev usage. A fresh full-suite comparison of the current
+implementation against Playwright MCP is needed to establish its relative cost. See the
+[measurement and reproduction protocol](docs/benchmarks/browser-workflows.md).
 
 ### Run from a checkout
 
