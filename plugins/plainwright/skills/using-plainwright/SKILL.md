@@ -1,6 +1,6 @@
 ---
 name: using-plainwright
-description: Use when driving a website through the plainwright MCP tools (open, step, find, snapshot, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
+description: Use when driving a website through the plainwright MCP tools (open, step, batch, find, snapshot, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
 ---
 
 # Using plainwright
@@ -38,6 +38,9 @@ sets it apart from its siblings.
 
 - `the Login button`, `the username textbox`, `the edit link in the 5th table row`
 - `the cuisine search input (not the location field)`
+- `the Edit button for Account 32`: browser candidates retain bounded surrounding row/card context,
+  including headings and visible text. Duplicate-button ordinals still work. Context is rebuilt per
+  action, but can be omitted or truncated in deeply nested or unlabeled layouts.
 - `the earliest available day`, never `an available day`: several valid answers split the probability
 - `check` and `uncheck` mean "make it selected, or not". They work on checkboxes, radios, switches, and filter
   chips or toggle buttons that expose their state, and do nothing when the state is already right. A chip with
@@ -59,6 +62,31 @@ A claim is one fact about something that is visible when the condition holds.
 - Name things as the tree does: `a heading with the text "Secure Area"`, not `a title`.
 - Nondeterministic pages: claim what is stable (`a notification bar is shown at the top`), not the random text.
 - `wait` when the thing appears after a delay or animation; `expect` for a settled page.
+
+## Snapshot views
+
+For a sequence of already-known actions, use `batch {steps:[...]}` with 1–16 ordinary step objects.
+It validates the whole request before acting, resolves fresh targets for each action, and stops
+on the first non-pass, including `skipped`. Read the indexed results and `stoppedAt` before recovery;
+earlier actions are not rolled back. Only passing actions are saved, as individual YAML steps.
+When a later action depends on reading new information, end the batch and inspect first.
+
+Known actions need no preliminary snapshot; `step` finds its own targets. For discovery,
+`snapshot {mode:"compact"}` returns exact excerpts without a classification call;
+`snapshot {mode:"smart",intent:"the task"}` adds Jev screen/error/loading/dialog classifications
+and filters to relevant UI regions at p >= 0.5, plus recognized alerts/dialogs and necessary
+context. It does not fill spare space with unrelated content. `inferred.selection` reports
+`focused`, `no-confident-match`, or an unfiltered `fallback` if classification fails. Check
+`coverage.filteredLines` and `unassessedRegions` (up to 64 regions are assessed).
+Without intent, smart returns a compact overview. Raw remains the default. `maxChars` defaults to 20,000
+for raw and 6,000 for compact/smart (maximum 60,000). `intent` is smart-only, literal text.
+Compact/smart return `observed.aria`, omission counts in `coverage`, timings and `jevTokens`.
+Smart `inferred` is advisory: screen confidence must reach 0.9 (probability fallback), signals
+are present at p >= 0.9, absent at p <= 0.1, otherwise inconclusive; truncated captures cannot
+establish absence. Failed classification returns compact evidence with unavailable inference.
+Omitted content is not absent. Expand using `within` or raw mode when reading exact data;
+do not infer total row counts from excerpts. Classification adds a model call and may cost more
+on small trees; action targeting and assertion thresholds are unchanged.
 
 ## After a miss
 

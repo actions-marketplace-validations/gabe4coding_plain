@@ -66,7 +66,8 @@ plugin does not install itself into your personal plugin cache during a reposito
 Environment lookup is shared with plainwright: process environment, cwd `.env`, then
 `~/.config/plainwright/.env` (or the equivalent under `XDG_CONFIG_HOME`). Existing variables win.
 Use `TYPESAFE_API_KEY`, or `AI_GATEWAY_API_KEY`; `JEV_PROVIDER` can force the provider. MCP discovery,
-`apps`, unscoped `snapshot`, and `screenshot` do not require a Jev key.
+`apps`, unscoped raw/compact `snapshot`, and `screenshot` do not require a Jev key. Smart snapshots
+use Jev for classification; if unavailable they return compact evidence with an explicit fallback.
 
 ## Platform setup
 
@@ -91,7 +92,7 @@ The cross-platform API is implemented; native verification in this repository cu
 | `open {app}` or `open {pid}` | Attach to exactly one running app. `activate` defaults to true; false leaves focus alone. Optional `hooks` runs setup before attachment. |
 | `step {step}` | Execute one natural-language action/assertion and return status, detail, timings, and token count. |
 | `find {kind, target}` | Dry-run a target with Jev. Kinds: click, fill, check, hover, region, scroll. |
-| `snapshot {within?, maxChars?}` | Read accessibility text; default 20,000 chars, maximum 60,000. `within` resolves a region with Jev. |
+| `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. `within` resolves a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
 | `screenshot {}` | Return a PNG of an attached app window. Not supplied to Jev. |
 | `save {path, name?}` | Save successful steps as desktop YAML. Rejects an empty recording. |
 | `close {}` | Detach and run teardown; leave the application running. |

@@ -21,6 +21,13 @@ everything inside same-page iframes (prefixed `[iframe ...]`). For `check`, a la
 size stands in for it, and `aria-pressed` toggles count. Identical descriptions get `#1`, `#2`... in
 list order, so "the first ..." has one answer.
 
+Browser candidates also include bounded context from their nearest row, article, list item,
+named group or container with a direct heading. For example, `the Edit button for Account 32`
+can match the account name in that button's row. Context is rebuilt for every pick; it excludes
+hidden text, nested items and form values, and does not flatten a whole table or page. Duplicate
+ordinals remain available. Context is limited to six ancestors, 256 visited nodes, and a
+240-character evidence excerpt, so deeply nested or unlabeled layouts may still need inspection.
+
 A Jev Choice takes at most 255 options, so up to 254 candidates go in one question. A denser page is
 split into equal chunks asked in parallel: one round trip, one request's tokens per chunk. When two
 chunks are each sure of a different element, the score is split between them as a single question

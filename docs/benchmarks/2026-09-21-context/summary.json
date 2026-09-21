@@ -1,0 +1,722 @@
+{
+  "trials": 36,
+  "plannedTrials": 36,
+  "complete": true,
+  "totalCost": 0.9231000739999999,
+  "byModel": {
+    "openai/gpt-5.6-luna": {
+      "plainwright": {
+        "trials": 6,
+        "successes": 6,
+        "naturalCompletions": 6,
+        "terminations": {
+          "finish": 3,
+          "text": 3
+        },
+        "totalCost": 0.011915048000000001,
+        "meanCost": 0.0019858413333333335,
+        "costPerSuccess": 0.0019858413333333335,
+        "meanNoCacheCost": 0.005264354666666666,
+        "meanSeconds": 17.834371965166653,
+        "medianSeconds": 17.876931791499985,
+        "p95Seconds": 24.983045843749977,
+        "mainCalls": 44,
+        "browserCalls": 38,
+        "jevCalls": 25,
+        "inputTokens": 128585,
+        "cachedInputTokens": 113451,
+        "cacheWriteTokens": 15002,
+        "outputTokens": 2095,
+        "reasoningTokens": 646,
+        "jevInputTokens": 79884,
+        "mainSeconds": 88.39495041099961,
+        "browserSeconds": 18.609001418999917,
+        "mainCost": 0.008559919999999999,
+        "jevCost": 0.0033551280000000006,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 5.421010862427522e-20
+      },
+      "playwright": {
+        "trials": 6,
+        "successes": 6,
+        "naturalCompletions": 6,
+        "terminations": {
+          "finish": 2,
+          "text": 4
+        },
+        "totalCost": 0.010048950000000001,
+        "meanCost": 0.0016748250000000002,
+        "costPerSuccess": 0.0016748250000000002,
+        "meanNoCacheCost": 0.0052753666666666655,
+        "meanSeconds": 28.617642965166656,
+        "medianSeconds": 24.33392641649999,
+        "p95Seconds": 50.12555688524999,
+        "mainCalls": 44,
+        "browserCalls": 38,
+        "jevCalls": 0,
+        "inputTokens": 149369,
+        "cachedInputTokens": 126370,
+        "cacheWriteTokens": 22867,
+        "outputTokens": 1482,
+        "reasoningTokens": 290,
+        "jevInputTokens": 0,
+        "mainSeconds": 145.86322133299976,
+        "browserSeconds": 25.841074666999816,
+        "mainCost": 0.010048950000000001,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 2.168404344971009e-19
+      },
+      "comparison": {
+        "costRatio": 1.1857007946103821,
+        "costRatio95": [
+          0.9338298587760591,
+          1.4122372910188925
+        ],
+        "timeRatio": 0.6231949985145393,
+        "timeRatio95": [
+          0.5819931398368701,
+          0.7139231504521957
+        ]
+      }
+    },
+    "openai/gpt-5.6-terra": {
+      "plainwright": {
+        "trials": 6,
+        "successes": 6,
+        "naturalCompletions": 6,
+        "terminations": {
+          "finish": 6
+        },
+        "totalCost": 0.078172296,
+        "meanCost": 0.013028716000000001,
+        "costPerSuccess": 0.013028716000000001,
+        "meanNoCacheCost": 0.04298296599999999,
+        "meanSeconds": 18.691762486166667,
+        "medianSeconds": 19.13528095849999,
+        "p95Seconds": 23.54184351025,
+        "mainCalls": 43,
+        "browserCalls": 37,
+        "jevCalls": 26,
+        "inputTokens": 116640,
+        "cachedInputTokens": 103470,
+        "cacheWriteTokens": 13041,
+        "outputTokens": 1764,
+        "reasoningTokens": 308,
+        "jevInputTokens": 82138,
+        "mainSeconds": 94.07504595699993,
+        "browserSeconds": 18.073945334999994,
+        "mainCost": 0.0747225,
+        "jevCost": 0.0034497960000000006,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 8.673617379884035e-19
+      },
+      "playwright": {
+        "trials": 6,
+        "successes": 6,
+        "naturalCompletions": 6,
+        "terminations": {
+          "finish": 6
+        },
+        "totalCost": 0.096248,
+        "meanCost": 0.016041333333333335,
+        "costPerSuccess": 0.016041333333333335,
+        "meanNoCacheCost": 0.04794333333333333,
+        "meanSeconds": 18.806250305833313,
+        "medianSeconds": 17.015122271,
+        "p95Seconds": 31.171817614999945,
+        "mainCalls": 40,
+        "browserCalls": 34,
+        "jevCalls": 0,
+        "inputTokens": 135670,
+        "cachedInputTokens": 112690,
+        "cacheWriteTokens": 22860,
+        "outputTokens": 1360,
+        "reasoningTokens": 229,
+        "jevInputTokens": 0,
+        "mainSeconds": 87.60333149899994,
+        "browserSeconds": 25.232538333999777,
+        "mainCost": 0.096248,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 4.336808689942018e-19
+      },
+      "comparison": {
+        "costRatio": 0.8121965755132574,
+        "costRatio95": [
+          0.4970272833104033,
+          1.1160590576087177
+        ],
+        "timeRatio": 0.9939122463114757,
+        "timeRatio95": [
+          0.826192538421998,
+          1.4456020036709474
+        ]
+      }
+    },
+    "openai/gpt-6-astra": {
+      "plainwright": {
+        "trials": 6,
+        "successes": 6,
+        "naturalCompletions": 6,
+        "terminations": {
+          "finish": 6
+        },
+        "totalCost": 0.31998878,
+        "meanCost": 0.05333146333333333,
+        "costPerSuccess": 0.05333146333333333,
+        "meanNoCacheCost": 0.18943246333333333,
+        "meanSeconds": 16.042309888999995,
+        "medianSeconds": 15.825755729499999,
+        "p95Seconds": 20.261047333250012,
+        "mainCalls": 40,
+        "browserCalls": 34,
+        "jevCalls": 21,
+        "inputTokens": 107552,
+        "cachedInputTokens": 94364,
+        "cacheWriteTokens": 13068,
+        "outputTokens": 1158,
+        "reasoningTokens": 0,
+        "jevInputTokens": 75590,
+        "mainSeconds": 78.2590047049998,
+        "browserSeconds": 17.99348778900018,
+        "mainCost": 0.316814,
+        "jevCost": 0.0031747800000000003,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 3.469446951953614e-18
+      },
+      "playwright": {
+        "trials": 6,
+        "successes": 6,
+        "naturalCompletions": 6,
+        "terminations": {
+          "finish": 6
+        },
+        "totalCost": 0.40672699999999995,
+        "meanCost": 0.06778783333333332,
+        "costPerSuccess": 0.06778783333333332,
+        "meanNoCacheCost": 0.21523500000000004,
+        "meanSeconds": 27.381208812333323,
+        "medianSeconds": 28.41216597949996,
+        "p95Seconds": 36.51346342674998,
+        "mainCalls": 41,
+        "browserCalls": 35,
+        "jevCalls": 0,
+        "inputTokens": 123946,
+        "cachedInputTokens": 103847,
+        "cacheWriteTokens": 19976,
+        "outputTokens": 1039,
+        "reasoningTokens": 0,
+        "jevInputTokens": 0,
+        "mainSeconds": 139.14547108299996,
+        "browserSeconds": 25.140180708000088,
+        "mainCost": 0.40672699999999995,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 6.938893903907228e-18
+      },
+      "comparison": {
+        "costRatio": 0.786740934336791,
+        "costRatio95": [
+          0.43230207264881687,
+          1.2307814094149319
+        ],
+        "timeRatio": 0.5858875697910771,
+        "timeRatio95": [
+          0.5736579610185483,
+          0.6057623724039469
+        ]
+      }
+    }
+  },
+  "byTask": {
+    "openai/gpt-5.6-luna/catalog": {
+      "plainwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "text": 3
+        },
+        "totalCost": 0.004443536,
+        "meanCost": 0.0014811786666666666,
+        "costPerSuccess": 0.0014811786666666666,
+        "meanNoCacheCost": 0.0029100519999999998,
+        "meanSeconds": 12.761112360999988,
+        "medianSeconds": 12.356418540999991,
+        "p95Seconds": 14.822143329099973,
+        "mainCalls": 15,
+        "browserCalls": 12,
+        "jevCalls": 9,
+        "inputTokens": 28296,
+        "cachedInputTokens": 24779,
+        "cacheWriteTokens": 3472,
+        "outputTokens": 574,
+        "reasoningTokens": 72,
+        "jevInputTokens": 56718,
+        "mainSeconds": 30.75731774499989,
+        "browserSeconds": 7.52557791699993,
+        "mainCost": 0.00206138,
+        "jevCost": 0.0023821560000000003,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 2.710505431213761e-20
+      },
+      "playwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "text": 3
+        },
+        "totalCost": 0.0047583999999999994,
+        "meanCost": 0.0015861333333333331,
+        "costPerSuccess": 0.0015861333333333331,
+        "meanNoCacheCost": 0.0040662,
+        "meanSeconds": 17.874630277666665,
+        "medianSeconds": 19.48110787499999,
+        "p95Seconds": 20.799123562499993,
+        "mainCalls": 15,
+        "browserCalls": 12,
+        "jevCalls": 0,
+        "inputTokens": 58425,
+        "cachedInputTokens": 45040,
+        "cacheWriteTokens": 13340,
+        "outputTokens": 428,
+        "reasoningTokens": 51,
+        "jevInputTokens": 0,
+        "mainSeconds": 50.15945016699988,
+        "browserSeconds": 3.46393083399997,
+        "mainCost": 0.0047583999999999994,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 2.168404344971009e-19
+      }
+    },
+    "openai/gpt-5.6-luna/record": {
+      "plainwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.0074715120000000005,
+        "meanCost": 0.002490504,
+        "costPerSuccess": 0.002490504,
+        "meanNoCacheCost": 0.007618657333333334,
+        "meanSeconds": 22.90763156933332,
+        "medianSeconds": 22.131624124999973,
+        "p95Seconds": 25.553330187499977,
+        "mainCalls": 29,
+        "browserCalls": 26,
+        "jevCalls": 16,
+        "inputTokens": 100289,
+        "cachedInputTokens": 88672,
+        "cacheWriteTokens": 11530,
+        "outputTokens": 1521,
+        "reasoningTokens": 574,
+        "jevInputTokens": 23166,
+        "mainSeconds": 57.63763266599972,
+        "browserSeconds": 11.083423501999984,
+        "mainCost": 0.00649854,
+        "jevCost": 0.0009729720000000001,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 5.421010862427522e-20
+      },
+      "playwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 2,
+          "text": 1
+        },
+        "totalCost": 0.00529055,
+        "meanCost": 0.0017635166666666667,
+        "costPerSuccess": 0.0017635166666666667,
+        "meanNoCacheCost": 0.006484533333333333,
+        "meanSeconds": 39.36065565266665,
+        "medianSeconds": 35.28841204199998,
+        "p95Seconds": 53.09298585389999,
+        "mainCalls": 29,
+        "browserCalls": 26,
+        "jevCalls": 0,
+        "inputTokens": 90944,
+        "cachedInputTokens": 81330,
+        "cacheWriteTokens": 9527,
+        "outputTokens": 1054,
+        "reasoningTokens": 239,
+        "jevInputTokens": 0,
+        "mainSeconds": 95.7037711659999,
+        "browserSeconds": 22.377143832999845,
+        "mainCost": 0.00529055,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 5.421010862427522e-20
+      }
+    },
+    "openai/gpt-5.6-terra/catalog": {
+      "plainwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.023482054000000002,
+        "meanCost": 0.007827351333333335,
+        "costPerSuccess": 0.007827351333333335,
+        "meanNoCacheCost": 0.02443125133333333,
+        "meanSeconds": 14.722691402999994,
+        "medianSeconds": 13.537271000000008,
+        "p95Seconds": 16.81446942559998,
+        "mainCalls": 17,
+        "browserCalls": 14,
+        "jevCalls": 9,
+        "inputTokens": 31799,
+        "cachedInputTokens": 28559,
+        "cacheWriteTokens": 3189,
+        "outputTokens": 615,
+        "reasoningTokens": 86,
+        "jevInputTokens": 55137,
+        "mainSeconds": 37.44702891699987,
+        "browserSeconds": 6.720348377000132,
+        "mainCost": 0.0211663,
+        "jevCost": 0.0023157540000000006,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 4.336808689942018e-19
+      },
+      "playwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.047244999999999995,
+        "meanCost": 0.015748333333333333,
+        "costPerSuccess": 0.015748333333333333,
+        "meanNoCacheCost": 0.04052733333333333,
+        "meanSeconds": 10.184470805666662,
+        "medianSeconds": 9.37068858299998,
+        "p95Seconds": 11.793328983300032,
+        "mainCalls": 15,
+        "browserCalls": 12,
+        "jevCalls": 0,
+        "inputTokens": 58325,
+        "cachedInputTokens": 44990,
+        "cacheWriteTokens": 13290,
+        "outputTokens": 411,
+        "reasoningTokens": 25,
+        "jevInputTokens": 0,
+        "mainSeconds": 27.009476833999916,
+        "browserSeconds": 3.543397458999883,
+        "mainCost": 0.047244999999999995,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 2.168404344971009e-19
+      }
+    },
+    "openai/gpt-5.6-terra/record": {
+      "plainwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.054690242,
+        "meanCost": 0.018230080666666666,
+        "costPerSuccess": 0.018230080666666666,
+        "meanNoCacheCost": 0.06153468066666667,
+        "meanSeconds": 22.660833569333334,
+        "medianSeconds": 23.252125042,
+        "p95Seconds": 23.5997872039,
+        "mainCalls": 26,
+        "browserCalls": 23,
+        "jevCalls": 17,
+        "inputTokens": 84841,
+        "cachedInputTokens": 74911,
+        "cacheWriteTokens": 9852,
+        "outputTokens": 1149,
+        "reasoningTokens": 222,
+        "jevInputTokens": 27001,
+        "mainSeconds": 56.628017040000046,
+        "browserSeconds": 11.353596957999864,
+        "mainCost": 0.0535562,
+        "jevCost": 0.001134042,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 8.673617379884035e-19
+      },
+      "playwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.049003000000000005,
+        "meanCost": 0.016334333333333336,
+        "costPerSuccess": 0.016334333333333336,
+        "meanNoCacheCost": 0.05535933333333334,
+        "meanSeconds": 27.428029805999966,
+        "medianSeconds": 28.130898959000014,
+        "p95Seconds": 31.78000134619993,
+        "mainCalls": 25,
+        "browserCalls": 22,
+        "jevCalls": 0,
+        "inputTokens": 77345,
+        "cachedInputTokens": 67700,
+        "cacheWriteTokens": 9570,
+        "outputTokens": 949,
+        "reasoningTokens": 204,
+        "jevInputTokens": 0,
+        "mainSeconds": 60.59385466500002,
+        "browserSeconds": 21.689140874999893,
+        "mainCost": 0.049003000000000005,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 4.336808689942018e-19
+      }
+    },
+    "openai/gpt-6-astra/catalog": {
+      "plainwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.09777981200000001,
+        "meanCost": 0.03259327066666667,
+        "costPerSuccess": 0.03259327066666667,
+        "meanNoCacheCost": 0.104933604,
+        "meanSeconds": 12.636673319666665,
+        "medianSeconds": 12.562879874999984,
+        "p95Seconds": 12.893254387800011,
+        "mainCalls": 15,
+        "browserCalls": 12,
+        "jevCalls": 9,
+        "inputTokens": 28807,
+        "cachedInputTokens": 25124,
+        "cacheWriteTokens": 3638,
+        "outputTokens": 487,
+        "reasoningTokens": 0,
+        "jevInputTokens": 56686,
+        "mainSeconds": 30.28769370599993,
+        "browserSeconds": 7.621777206000086,
+        "mainCost": 0.095399,
+        "jevCost": 0.0023808120000000004,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 1.734723475976807e-18
+      },
+      "playwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.226184,
+        "meanCost": 0.07539466666666667,
+        "costPerSuccess": 0.07539466666666667,
+        "meanNoCacheCost": 0.1990966666666667,
+        "meanSeconds": 20.86077626366667,
+        "medianSeconds": 22.747490457999987,
+        "p95Seconds": 27.145427946099957,
+        "mainCalls": 15,
+        "browserCalls": 12,
+        "jevCalls": 0,
+        "inputTokens": 57954,
+        "cachedInputTokens": 44859,
+        "cacheWriteTokens": 13050,
+        "outputTokens": 355,
+        "reasoningTokens": 0,
+        "jevInputTokens": 0,
+        "mainSeconds": 59.208000125999966,
+        "browserSeconds": 3.3738337910001572,
+        "mainCost": 0.226184,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 6.938893903907228e-18
+      }
+    },
+    "openai/gpt-6-astra/record": {
+      "plainwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.222208968,
+        "meanCost": 0.074069656,
+        "costPerSuccess": 0.074069656,
+        "meanNoCacheCost": 0.27393132266666664,
+        "meanSeconds": 19.447946458333327,
+        "medianSeconds": 18.911341207999968,
+        "p95Seconds": 20.53098855830002,
+        "mainCalls": 25,
+        "browserCalls": 22,
+        "jevCalls": 12,
+        "inputTokens": 78745,
+        "cachedInputTokens": 69240,
+        "cacheWriteTokens": 9430,
+        "outputTokens": 671,
+        "reasoningTokens": 0,
+        "jevInputTokens": 18904,
+        "mainSeconds": 47.97131099899986,
+        "browserSeconds": 10.371710583000095,
+        "mainCost": 0.221415,
+        "jevCost": 0.000793968,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 3.469446951953614e-18
+      },
+      "playwright": {
+        "trials": 3,
+        "successes": 3,
+        "naturalCompletions": 3,
+        "terminations": {
+          "finish": 3
+        },
+        "totalCost": 0.18054299999999998,
+        "meanCost": 0.06018099999999999,
+        "costPerSuccess": 0.06018099999999999,
+        "meanNoCacheCost": 0.23137333333333335,
+        "meanSeconds": 33.901641360999974,
+        "medianSeconds": 35.745092833,
+        "p95Seconds": 36.66713754549997,
+        "mainCalls": 26,
+        "browserCalls": 23,
+        "jevCalls": 0,
+        "inputTokens": 65992,
+        "cachedInputTokens": 58988,
+        "cacheWriteTokens": 6926,
+        "outputTokens": 684,
+        "reasoningTokens": 0,
+        "jevInputTokens": 0,
+        "mainSeconds": 79.93747095700002,
+        "browserSeconds": 21.76634691699993,
+        "mainCost": 0.18054299999999998,
+        "jevCost": 0,
+        "incompleteUsageTrials": 0,
+        "outputLimitGenerations": 0,
+        "nonObjectToolArguments": 0,
+        "maxReportedCostDrift": 4.336808689942018e-19
+      }
+    }
+  },
+  "pairedSuccessful": {
+    "openai/gpt-5.6-luna": {
+      "costRatio": 1.1857007946103821,
+      "costRatio95": [
+        0.9338298587760591,
+        1.4122372910188925
+      ],
+      "timeRatio": 0.6231949985145393,
+      "timeRatio95": [
+        0.5819931398368701,
+        0.7139231504521957
+      ]
+    },
+    "openai/gpt-5.6-terra": {
+      "costRatio": 0.8121965755132574,
+      "costRatio95": [
+        0.4970272833104033,
+        1.1160590576087177
+      ],
+      "timeRatio": 0.9939122463114757,
+      "timeRatio95": [
+        0.826192538421998,
+        1.4456020036709474
+      ]
+    },
+    "openai/gpt-6-astra": {
+      "costRatio": 0.786740934336791,
+      "costRatio95": [
+        0.43230207264881687,
+        1.2307814094149319
+      ],
+      "timeRatio": 0.5858875697910771,
+      "timeRatio95": [
+        0.5736579610185483,
+        0.6057623724039469
+      ]
+    }
+  },
+  "noOutputCapSensitivity": {
+    "openai/gpt-5.6-luna": {
+      "trials": 12,
+      "costRatio": 1.1857007946103821,
+      "costRatio95": [
+        0.9338298587760591,
+        1.4122372910188925
+      ],
+      "timeRatio": 0.6231949985145393,
+      "timeRatio95": [
+        0.5819931398368701,
+        0.7139231504521957
+      ]
+    },
+    "openai/gpt-5.6-terra": {
+      "trials": 12,
+      "costRatio": 0.8121965755132574,
+      "costRatio95": [
+        0.4970272833104033,
+        1.1160590576087177
+      ],
+      "timeRatio": 0.9939122463114757,
+      "timeRatio95": [
+        0.826192538421998,
+        1.4456020036709474
+      ]
+    },
+    "openai/gpt-6-astra": {
+      "trials": 12,
+      "costRatio": 0.786740934336791,
+      "costRatio95": [
+        0.43230207264881687,
+        1.2307814094149319
+      ],
+      "timeRatio": 0.5858875697910771,
+      "timeRatio95": [
+        0.5736579610185483,
+        0.6057623724039469
+      ]
+    }
+  }
+}

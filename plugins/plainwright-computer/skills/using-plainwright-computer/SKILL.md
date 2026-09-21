@@ -11,6 +11,20 @@ Stop before the final irreversible action (payment, booking, sending), and never
 
 ## Attach and act
 
+Snapshot modes: `raw` (default, 20,000 chars), `compact` (6,000, no classification call), and
+`smart` (6,000, Jev classifications). `maxChars` allows 1–60,000; smart-only `intent` supplies
+literal task context to filter UI regions at relevance p >= 0.5, plus recognized alerts/dialogs
+and necessary context. Unused space is not filled. `inferred.selection` reports `focused`,
+`no-confident-match`, or an unfiltered `fallback`. Check `coverage.filteredLines` and
+`unassessedRegions` (up to 64 assessed regions). Without intent, smart returns a compact overview.
+Compact/smart return exact `observed.aria`,
+`coverage` omission counts, timings and `jevTokens`; smart adds advisory `inferred` state.
+Screen classification requires confidence >= 0.9 (probability fallback). Signals are present
+at p >= 0.9, absent at p <= 0.1, otherwise inconclusive; source truncation prevents absence
+claims. Classification failure returns compact evidence with unavailable inference. Missing
+excerpt content is not absent; expand with `within` or raw mode. Known actions need no snapshot
+first. Unscoped raw/compact reads need no model key; smart classification uses one.
+
 - `apps` lists running applications and their pids without focusing them. `open` attaches by exact
   `app` name or `pid`, never both. It does not launch an app. `activate: true` (default) brings a
   window forward; use `activate: false` for reading without activation.

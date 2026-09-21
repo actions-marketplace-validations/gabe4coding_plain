@@ -9,6 +9,7 @@ import { intelligence, type Intelligence } from './automation.js';
 import { MobileSession } from './mobile.js';
 import { MobileTargetSchema, parseMobileStep, type MobileSpec } from './mobile-spec.js';
 import { interpolate } from './spec.js';
+import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { startHooks, type HooksRunner } from './hooks.js';
 import type { StepResult, Status } from './results.js';
 import { LocalMobileDiscovery, AppListingSchema, type MobileDiscovery } from './mobile-discovery.js';
@@ -97,12 +98,18 @@ export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000
     return ok({ found: r.element !== null, detail: r.detail, confidence: r.confidence, jevTokens: r.tokens });
   }));
   server.registerTool('snapshot', {
-    description: 'Read the device native UI tree, optionally within a natural-language region. This reading is not recorded.',
-    inputSchema: { within: z.string().optional(), maxChars: z.number().int().min(1).max(60000).default(20000) }, annotations: { readOnlyHint: true },
-  }, ({ within, maxChars }) => queue(async () => {
+    description: 'Read the device native UI tree, optionally within a natural-language region. This reading is not recorded.' + SNAPSHOT_MODES_DESCRIPTION,
+    inputSchema: { within: z.string().optional(), ...SnapshotOptions }, annotations: { readOnlyHint: true },
+  }, ({ within, maxChars, mode, intent }) => queue(async () => {
     requireOpen();
+    const started = performance.now();
+    const before = session.tokens;
     const snap = await session.snapshot(within ? interpolate(within, { env: {}, hooks: data }, 'mobile MCP') : undefined);
-    return ok({ ...snap, aria: snap.aria.slice(0, maxChars), truncated: snap.truncated || snap.aria.length > maxChars });
+    const view = await snapshotView(snap, { maxChars, mode, intent }, ai.describe);
+    return ok({ ...view, ...(mode !== 'raw' && 'jevTokens' in view ? {
+      jevTokens: view.jevTokens === null ? null : view.jevTokens + session.tokens - before,
+      ms: { ...view.ms, total: performance.now() - started },
+    } : {}) });
   }));
   server.registerTool('screenshot', {
     description: 'Capture the device screen as a PNG for inspection. Screenshot pixels do not feed Jev targeting.',

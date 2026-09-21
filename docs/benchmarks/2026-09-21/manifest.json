@@ -1,0 +1,715 @@
+{
+  "startedAt": "2026-09-21T10:52:28.165Z",
+  "commit": "6eb64c95fd5b79c7588ea115541ffd7a47b1bd2b",
+  "sourceHashes": {
+    "run.mjs": "66566522f4643bde86e6ec3d73291ffa32d985db3e7c5d409cfb455fa39f6f5d",
+    "fixtures.mjs": "ac0e0f2778b4eb91357480c76dfdb24ef3c61d10d6e95e9827f8a9bb81131a17",
+    "jev-usage.mjs": "44325089be418a189c074657f4f2582668f96f6316485ebb8ffbcbda5bfb4bd3",
+    "accounting.mjs": "0731c2dc14a4c8cdd32f3193f06683ce96b8fe0b11c8714d14b83575d3beaad2"
+  },
+  "node": "v22.22.3",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpu": "Apple M4 Pro",
+  "playwright": "1.63.0",
+  "baseline": "0.0.82",
+  "baselinePlaywright": "1.64.0-alpha-1789764292000",
+  "executable": "<home>/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "models": [
+    "openai/gpt-5.6-luna",
+    "openai/gpt-5.6-terra",
+    "openai/gpt-6-astra"
+  ],
+  "tasks": [
+    "contact",
+    "preferences",
+    "catalog",
+    "record",
+    "wizard",
+    "validation"
+  ],
+  "repeats": 3,
+  "seed": 210926,
+  "budget": 25,
+  "maxTurns": 20,
+  "trialTimeoutMs": 180000,
+  "reasoningEffort": "low",
+  "strictTools": false,
+  "maxOutputTokens": 4096,
+  "prompts": {
+    "plainwright": "Complete the requested task using the browser tools. Work efficiently and verify the visible result before finishing. You may issue multiple tool calls in a turn; they execute in order. Use only the supplied UI tools: no JavaScript, hidden application state, source inspection, direct HTTP calls, hooks, custom file output, or external sites. read_artifact can read snapshot files linked by browser tools. End with finish, including any requested answer. All pages are disposable test fixtures; saving changes is authorized. Use open first. Known actions can go directly to step, which finds targets through Jev. Each step contains one action. For discovery use snapshot with mode compact, or mode smart with intent describing the task. The intent argument is valid ONLY in smart mode; omit it in compact/raw modes. Use scoped/raw snapshots to read exact data. Read each result. Rephrase ambiguous targets after a miss. Use natural-language targets, not css= selectors.",
+    "playwright": "Complete the requested task using the browser tools. Work efficiently and verify the visible result before finishing. You may issue multiple tool calls in a turn; they execute in order. Use only the supplied UI tools: no JavaScript, hidden application state, source inspection, direct HTTP calls, hooks, custom file output, or external sites. read_artifact can read snapshot files linked by browser tools. End with finish, including any requested answer. All pages are disposable test fixtures; saving changes is authorized. Use browser_navigate first. Action responses link to accessibility snapshot files, available through read_artifact. browser_snapshot returns a snapshot inline when filename is omitted. Use references or accessible selectors for targets. browser_fill_form can fill several fields at once. Use browser_find or a scoped browser_snapshot when needed. Read each result and recover from errors."
+  },
+  "allowed": {
+    "plainwright": [
+      "open",
+      "step",
+      "snapshot",
+      "find"
+    ],
+    "playwright": [
+      "browser_navigate",
+      "browser_navigate_back",
+      "browser_snapshot",
+      "browser_find",
+      "browser_click",
+      "browser_type",
+      "browser_fill_form",
+      "browser_select_option",
+      "browser_press_key",
+      "browser_wait_for",
+      "browser_handle_dialog",
+      "browser_hover"
+    ]
+  },
+  "schedule": [
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "preferences",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "preferences",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "wizard",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "wizard",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "validation",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "validation",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "contact",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "contact",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "wizard",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "wizard",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "contact",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "contact",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "validation",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "validation",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "preferences",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "preferences",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "validation",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "validation",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "validation",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "validation",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "contact",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "contact",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "validation",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "validation",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "wizard",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "wizard",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "wizard",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "wizard",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "validation",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "validation",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "contact",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "contact",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "preferences",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "preferences",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "record",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "record",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "validation",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "validation",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "contact",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "contact",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "record",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "record",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "validation",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "validation",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "preferences",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "preferences",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "contact",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "contact",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "validation",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "validation",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "contact",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "contact",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "wizard",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "wizard",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "wizard",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "wizard",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "preferences",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "preferences",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "record",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "record",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "preferences",
+      "repeat": 1,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "preferences",
+      "repeat": 1,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "wizard",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "wizard",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "preferences",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "preferences",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "wizard",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "wizard",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "preferences",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "preferences",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "preferences",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "preferences",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "wizard",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-6-astra",
+      "task": "wizard",
+      "repeat": 2,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "contact",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "contact",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "contact",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-terra",
+      "task": "contact",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "plainwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "catalog",
+      "repeat": 0,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 2,
+      "arm": "playwright"
+    },
+    {
+      "model": "openai/gpt-5.6-luna",
+      "task": "record",
+      "repeat": 2,
+      "arm": "plainwright"
+    }
+  ]
+}

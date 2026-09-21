@@ -1,0 +1,9 @@
+{
+  "manifest.json": "bd706024353f26b181619ed9d30661a638a1bb93b38664b48ace6d473e79de0b",
+  "pricing.json": "3d57488836f59b4d9e1f04ffa9bd6c6c674d7336f9e268825e82c733b6f33e6d",
+  "summary.json": "1633ed7cd99951f8b949e4021ced52305984572fa1910a1050b7886496c0c3d2",
+  "runs.jsonl": "e7aa58c2048ac0ad746c81ec45dad6d5355ac988579bfd6b530af6f546e911fe",
+  "plainwright-tools.json": "c05deb662652ddf20d61f9c75c4bcd6db03413b2937f1d55fef2162105437df6",
+  "playwright-tools.json": "9da3df31ab8df40c44a90f642a2e7ca054271d989b0a4cfcde29e3f426b24e67",
+  "traces.jsonl.gz": "a95eebaa1d9316c3d00d3252da6e2fcfba96b36def38871ab67226e217ca57d2"
+}
