@@ -19,6 +19,7 @@ node bin/plainwright.mjs [--headless] [--timeout <ms>] mcp
 |---|---|---|
 | `open` | `url`, optional `hooks`, optional `headed` | Starts the browser (first call) or navigates. `headed: true` shows the window, `false` hides it; the default is the server's `--headless` flag, and changing it later relaunches the browser (session cookies are lost; ignored with `--cdp`). `hooks` is a setup/teardown module path, relative to the server's working directory. Setup runs before the navigation and its result is available as `${hooks.*}`, listed by path (never by value) in the response. Teardown runs when the session ends, or right away when `open` is called again with a new `hooks`. |
 | `step` | `step` | Runs one YAML-shaped step: `{click: "the Login button"}`, `{fill: {target, value}}`, `{expect: [...]}`, any kind from the [spec reference](spec-reference.md). Returns `status`, `detail`, `notes`, `url` and `jevTokens`. |
+| `batch` | `steps` | Runs 1–16 known step objects sequentially with fresh target resolution for each action. Validates every step and hook placeholder before acting; stops on the first non-pass, including `skipped`. Returns indexed `results`, `status`, `completed`, `remaining`, zero-based `stoppedAt` (or `null`), final `url` and total `jevTokens`. |
 | `find` | `kind`, `target` | Dry run of a pick: what Jev would choose, without acting. `kind` is `click`, `hover`, `fill`, `select`, `check`, `upload` or `region`. |
 | `snapshot` | optional `within`, `maxChars`, `mode`, `intent` | Raw accessibility tree by default; `compact` selects exact excerpts and `smart` adds Jev classifications. `intent` is smart-only. Scope with `within` (`the results list`, `css=main`) to read data. See [snapshot views](snapshots.md). |
 | `evaluate` | `js` | Runs a JavaScript expression in the page and returns its JSON value. The raw way to pull data once the flow got there. |
@@ -26,6 +27,34 @@ node bin/plainwright.mjs [--headless] [--timeout <ms>] mcp
 
 A rejected pick comes back `inconclusive` with the top guesses in `detail`, so the agent rephrases and
 retries. `${env.*}` is not available in a session, only `${hooks.*}`.
+As in YAML replay, `optional: true` converts an inconclusive result or runtime error to `skipped`;
+it does not suppress a failed expectation. Skipped actions are not recorded.
+
+## Batching known actions
+
+Use `batch` when the next actions and values are already known, for example filling a form and
+submitting it. Each entry uses the same shape as `step`:
+
+```json
+{"steps":[
+  {"fill":{"target":"the Full name field","value":"Alex Morgan"}},
+  {"fill":{"target":"the Email field","value":"alex@example.test"}},
+  {"click":"the Save contact button"}
+]}
+```
+
+Actions run in order; each uses the current page and resolves its own target through Jev.
+`batch` reduces agent round trips, not the number of Jev decisions per action. End the batch
+when the next action depends on discovering or reading new information, then inspect the result.
+Passing actions are recorded individually, so `save` writes ordinary replayable YAML steps with
+hook placeholders preserved. There is no new YAML step kind.
+
+All syntax and placeholders are validated before any action. Runtime failures may leave a passing
+prefix applied; there is no rollback. A non-pass (`fail`, `inconclusive`, `error`, or `skipped`)
+stops execution, and later entries are not attempted. `completed` counts passing entries;
+`remaining` counts unattempted entries. Each result includes its zero-based index, status, detail,
+URL, notes and Jev token usage. Inspect these before deciding how to recover. Browser tools share
+a queue, so snapshots, navigation, saves and other actions cannot interleave with a running batch.
 
 ## Reading data
 

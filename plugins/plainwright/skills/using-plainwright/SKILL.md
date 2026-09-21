@@ -1,6 +1,6 @@
 ---
 name: using-plainwright
-description: Use when driving a website through the plainwright MCP tools (open, step, find, snapshot, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
+description: Use when driving a website through the plainwright MCP tools (open, step, batch, find, snapshot, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
 ---
 
 # Using plainwright
@@ -64,6 +64,12 @@ A claim is one fact about something that is visible when the condition holds.
 - `wait` when the thing appears after a delay or animation; `expect` for a settled page.
 
 ## Snapshot views
+
+For a sequence of already-known actions, use `batch {steps:[...]}` with 1–16 ordinary step objects.
+It validates the whole request before acting, resolves fresh targets for each action, and stops
+on the first non-pass, including `skipped`. Read the indexed results and `stoppedAt` before recovery;
+earlier actions are not rolled back. Only passing actions are saved, as individual YAML steps.
+When a later action depends on reading new information, end the batch and inspect first.
 
 Known actions need no preliminary snapshot; `step` finds its own targets. For discovery,
 `snapshot {mode:"compact"}` returns exact excerpts without a classification call;

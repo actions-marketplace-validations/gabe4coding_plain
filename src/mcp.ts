@@ -5,12 +5,13 @@ import { z } from 'zod';
 import { stringify } from 'yaml';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import type { Spec } from './spec.js';
+import type { Spec, Step } from './spec.js';
 import { parseStep, interpolate } from './spec.js';
 import { openSession, startHooks, closeSharedBrowser, type Session, type HooksRunner, type RunOptions } from './runner.js';
 import { runStep, label, resolveLocators, type StepResult } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
+import { serialQueue } from './serial-queue.js';
 
 // Leaf paths of `data` as `${hooks.a.b}` placeholders for the `open` response — never the values
 // themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
@@ -49,7 +50,8 @@ A \`css=\` prefix on any target bypasses Jev and uses that CSS selector directly
 Rules: describe ONE element with one clear answer — "the earliest available day", never "an
 available day". Disambiguate siblings — "the cuisine input (not the where field)". Name things as
 the accessibility tree does (heading, button, link, textbox). Expect claims are atomic, one fact
-each. status is pass | fail | inconclusive | error; on inconclusive the detail lists the top
+each. status is pass | fail | inconclusive | error | skipped; optional:true converts inconclusive/error
+to skipped, matching YAML replay. On inconclusive the detail lists the top
 guesses with probabilities — rephrase and retry.
 
 When \`open\` was called with \`hooks\`, any string in a step may contain \`\${hooks.a.b}\` placeholders
@@ -72,6 +74,9 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   const results: StepResult[] = []; // every step result, pass or not, in order — teardown sees the full run
 
   const server = new McpServer({ name: 'plainwright', version: '1.0.0' });
+  // Candidate IDs, token accounting and the recording belong to one browser session. Reads and
+  // other actions must not interleave with a batch (or with another individual tool call).
+  const queue = serialQueue();
 
   function ok(data: unknown) {
     return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] };
@@ -105,7 +110,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
         'attached to a running Chrome (--cdp).',
       inputSchema: { url: z.string(), hooks: z.string().optional(), headed: z.boolean().optional() },
     },
-    async ({ url, hooks: hooksPath, headed }) => {
+    ({ url, hooks: hooksPath, headed }) => queue(async () => {
       const notes: string[] = [];
       if (session && headed !== undefined && headed !== sessionOpts.headed && !sessionOpts.cdp) {
         await session.close();
@@ -141,12 +146,11 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       const response: Record<string, unknown> = { url: session.ctx.page.url(), title, notes: [...notes, ...session.drainNotes()] };
       if (hooksFile) response.placeholders = placeholderPaths(data, 'hooks');
       return ok(response);
-    }
+    })
   );
 
-  server.registerTool('step', { description: STEP_DESCRIPTION, inputSchema: { step: z.record(z.string(), z.unknown()) } }, async ({ step }) => {
+  async function execute(step: Record<string, unknown>, parsed: Step) {
     if (!session) throw new Error('call open first');
-    const parsed = parseStep('mcp', transcript.length, step);
     const before = totalTokens;
     let result;
     try {
@@ -155,10 +159,46 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     } catch (err) {
       result = { step: label(parsed), status: 'error' as const, detail: err instanceof Error ? err.message : String(err) };
     }
+    if (parsed.optional && (result.status === 'inconclusive' || result.status === 'error')) {
+      result = { ...result, status: 'skipped' as const };
+    }
     results.push(result);
     if (result.status === 'pass') transcript.push(step); // failed attempts are exploration, not spec — placeholders kept intact for `save`
-    return ok({ status: result.status, detail: result.detail, notes: session.drainNotes(), url: session.ctx.page.url(), jevTokens: totalTokens - before });
-  });
+    return { status: result.status, detail: result.detail, notes: session.drainNotes(), url: session.ctx.page.url(), jevTokens: totalTokens - before };
+  }
+
+  server.registerTool('step', { description: STEP_DESCRIPTION, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
+    if (!session) throw new Error('call open first');
+    return ok(await execute(step, parseStep('mcp', transcript.length, step)));
+  }));
+
+  server.registerTool('batch', {
+    description: 'Run 1–16 already-known steps in order in one browser tool call (call open first). ' +
+      'Use the same one-action objects as step, e.g. {steps:[{fill:{target:"the Name field",value:"Alex"}},' +
+      '{fill:{target:"the Email field",value:"alex@example.test"}},{click:"Save"}]}. ' +
+      'All syntax and hook placeholders are checked before acting. Each action resolves fresh targets after the previous action. ' +
+      'Stops on the first non-pass, including optional steps returning skipped; later steps are not attempted. ' +
+      'Returns status, indexed results with per-step tokens/URL/notes, completed (passing steps), remaining, stoppedAt (zero-based or null), and total jevTokens. ' +
+      'Passing steps are recorded individually for save; completed actions are not rolled back. ' +
+      'Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.',
+    inputSchema: { steps: z.array(z.record(z.string(), z.unknown())).min(1).max(16) },
+  }, ({ steps }) => queue(async () => {
+    if (!session) throw new Error('call open first');
+    const parsed = steps.map((step, i) => parseStep('mcp batch', i, step));
+    // Preflight every placeholder too: a bad later step must not partially execute the batch.
+    for (const step of parsed) interpolate(step, { env: {}, hooks: data }, 'mcp batch');
+    const before = totalTokens;
+    const outcomes = [];
+    for (const [index, step] of steps.entries()) {
+      const result = await execute(step, parsed[index]);
+      outcomes.push({ index, ...result });
+      if (result.status !== 'pass') break;
+    }
+    const last = outcomes.at(-1)!;
+    return ok({ status: last.status, results: outcomes, completed: outcomes.filter(r => r.status === 'pass').length,
+      remaining: steps.length - outcomes.length, stoppedAt: last.status === 'pass' ? null : last.index,
+      url: session.ctx.page.url(), jevTokens: totalTokens - before });
+  }));
 
   server.registerTool(
     'find',
@@ -166,14 +206,14 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       description: "Dry run of a step target: tells you what Jev would pick, without acting.",
       inputSchema: { kind: CandidateKindSchema, target: z.string() },
     },
-    async ({ kind, target }) => {
+    ({ kind, target }) => queue(async () => {
       if (!session) throw new Error('call open first');
       target = interpolate(target, { env: {}, hooks: data }, 'mcp');
       const before = totalTokens;
       const [r] = await resolveLocators(session.ctx, kind, [target]);
       if (r.usedJev) track(r.tokens);
       return ok({ found: r.locator !== null, detail: r.detail, confidence: r.confidence, jevTokens: totalTokens - before });
-    }
+    })
   );
 
   server.registerTool(
@@ -186,7 +226,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
         'inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
       inputSchema: { ...SnapshotOptions, within: z.string().optional() },
     },
-    async ({ maxChars, within, mode, intent }) => {
+    ({ maxChars, within, mode, intent }) => queue(async () => {
       if (!session) throw new Error('call open first');
       const started = performance.now();
       const before = totalTokens;
@@ -207,7 +247,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
         jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
         ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
       } : {}) });
-    }
+    })
   );
 
   server.registerTool(
@@ -219,11 +259,11 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
         'The expression may be async (a promise is awaited). Read-only by convention: it is not a step, so `save` does not record it.',
       inputSchema: { js: z.string() },
     },
-    async ({ js }) => {
+    ({ js }) => queue(async () => {
       if (!session) throw new Error('call open first');
       const value: unknown = await session.ctx.page.evaluate(js);
       return ok({ value: value === undefined ? null : value, url: session.ctx.page.url() });
-    }
+    })
   );
 
   server.registerTool(
@@ -235,7 +275,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
         'and ${hooks.*} placeholders are kept as written.',
       inputSchema: { path: z.string(), name: z.string().optional() },
     },
-    async ({ path, name }) => {
+    ({ path, name }) => queue(async () => {
       const filePath = resolve(path);
       const doc: Record<string, unknown> = { name: name ?? spec.name, url: spec.url };
       if (hooksFile) {
@@ -246,7 +286,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       doc.steps = transcript;
       writeFileSync(filePath, stringify(doc));
       return ok({ path: filePath, steps: transcript.length });
-    }
+    })
   );
 
   const transport = new StdioServerTransport();

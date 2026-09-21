@@ -10,11 +10,13 @@ import numpy as np
 directory = pathlib.Path(sys.argv[1])
 summary = json.loads((directory / "summary.json").read_text())
 manifest = json.loads((directory / "manifest.json").read_text())
+arms = manifest.get("arms", ["plainwright", "playwright"])
+treatment, control = arms
 models = manifest["models"]
 labels = [model.split("/")[1] for model in models]
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "svg.fonttype": "none"})
 fig, axes = plt.subplots(1, 3, figsize=(14, 4.6), gridspec_kw={"width_ratios": [1, 1, 1.2]})
-fig.suptitle("Whole browser workflows: plainwright with Jev vs Playwright MCP", fontsize=16, fontweight="bold", y=.98)
+fig.suptitle(f"Whole browser workflows: {treatment} vs {control}", fontsize=16, fontweight="bold", y=.98)
 for ax, key, title in zip(axes[:2], ["cost", "time"], ["API cost ratio", "Elapsed-time ratio"]):
     values = [summary["byModel"][m]["comparison"][key + "Ratio"] for m in models]
     intervals = [summary["byModel"][m]["comparison"][key + "Ratio95"] for m in models]
@@ -37,7 +39,7 @@ for ax, key, title in zip(axes[:2], ["cost", "time"], ["API cost ratio", "Elapse
     ax.spines[["top", "right", "left"]].set_visible(False)
     ax.tick_params(axis="y", length=0)
 ax = axes[2]
-for arm, offset, color, label in [("playwright", -.17, "#4167a5", "Playwright MCP"), ("plainwright", .17, "#c76728", "plainwright + Jev")]:
+for arm, offset, color, label in [(control, -.17, "#4167a5", control), (treatment, .17, "#c76728", treatment)]:
     values = [summary["byModel"][m][arm] for m in models]
     positions = np.arange(len(models)) + offset
     ax.barh(positions, [v["successes"] / v["trials"] * 100 for v in values], height=.28, color=color, label=label)

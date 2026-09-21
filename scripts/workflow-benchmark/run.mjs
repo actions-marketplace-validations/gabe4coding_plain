@@ -26,6 +26,10 @@ const tasks = arg('tasks', taskNames.join(',')).split(',');
 const repeats = Number(arg('repeats', '3'));
 const seed = Number(arg('seed', '210926'));
 const budget = Number(arg('budget', '25'));
+const comparison = arg('comparison', 'playwright');
+if (!['playwright', 'batch'].includes(comparison)) throw new Error('comparison must be playwright or batch');
+const controlArm = comparison === 'batch' ? 'plainwright-unbatched' : 'playwright';
+const arms = ['plainwright', controlArm];
 const maxTurns = 20;
 const trialTimeoutMs = 180_000;
 const stopped = new AbortController();
@@ -44,8 +48,11 @@ const prompts = {
   plainwright: common + ' Use open first. Known actions can go directly to step, which finds targets through Jev. Each step contains one action. For discovery use snapshot with mode compact, or mode smart with intent describing the task. The intent argument is valid ONLY in smart mode; omit it in compact/raw modes. Use scoped/raw snapshots to read exact data. Read each result. Rephrase ambiguous targets after a miss. Use natural-language targets, not css= selectors.',
   playwright: common + ' Use browser_navigate first. Action responses link to accessibility snapshot files, available through read_artifact. browser_snapshot returns a snapshot inline when filename is omitted. Use references or accessible selectors for targets. browser_fill_form can fill several fields at once. Use browser_find or a scoped browser_snapshot when needed. Read each result and recover from errors.',
 };
+prompts['plainwright-unbatched'] = prompts.plainwright;
+prompts.plainwright += ' Use batch for sequences of already-known actions, such as filling a form and saving it. A batch stops at its first non-pass. Inspect results before planning actions that depend on new information.';
 const allowed = {
-  plainwright: ['open', 'step', 'snapshot', 'find'],
+  plainwright: ['open', 'step', 'batch', 'snapshot', 'find'],
+  'plainwright-unbatched': ['open', 'step', 'snapshot', 'find'],
   playwright: ['browser_navigate', 'browser_navigate_back', 'browser_snapshot', 'browser_find', 'browser_click', 'browser_type', 'browser_fill_form', 'browser_select_option', 'browser_press_key', 'browser_wait_for', 'browser_handle_dialog', 'browser_hover'],
 };
 let rng = seed >>> 0;
@@ -53,9 +60,9 @@ const random = () => { rng ^= rng << 13; rng ^= rng >>> 17; rng ^= rng << 5; ret
 const pairs = [];
 for (let repeat = 0; repeat < repeats; repeat++) for (const model of models) for (const task of tasks) pairs.push({ model, task, repeat });
 for (let i = pairs.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
-const schedule = pairs.flatMap(pair => (random() < 0.5 ? ['plainwright', 'playwright'] : ['playwright', 'plainwright']).map(arm => ({ ...pair, arm })));
+const schedule = pairs.flatMap(pair => (random() < 0.5 ? arms : [...arms].reverse()).map(arm => ({ ...pair, arm })));
 const sourceFiles = ['run.mjs', 'fixtures.mjs', 'jev-usage.mjs', 'accounting.mjs'];
-const manifest = { startedAt: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceHashes: Object.fromEntries(sourceFiles.map(f => [f, createHash('sha256').update(readFileSync(resolve(here, f))).digest('hex')])), node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0].model, playwright: JSON.parse(readFileSync(resolve(root, 'node_modules/playwright/package.json'))).version, baseline: JSON.parse(readFileSync(resolve(dirname(baseline), 'package.json'))).version, baselinePlaywright: JSON.parse(readFileSync(createRequire(baseline).resolve('playwright/package.json'))).version, executable: chromium.executablePath(), models, tasks, repeats, seed, budget, maxTurns, trialTimeoutMs, reasoningEffort: 'low', strictTools: false, maxOutputTokens: 4096, prompts, allowed, schedule };
+const manifest = { startedAt: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceHashes: Object.fromEntries(sourceFiles.map(f => [f, createHash('sha256').update(readFileSync(resolve(here, f))).digest('hex')])), node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0].model, playwright: JSON.parse(readFileSync(resolve(root, 'node_modules/playwright/package.json'))).version, baseline: comparison === 'playwright' ? JSON.parse(readFileSync(resolve(dirname(baseline), 'package.json'))).version : null, baselinePlaywright: comparison === 'playwright' ? JSON.parse(readFileSync(createRequire(baseline).resolve('playwright/package.json'))).version : null, executable: chromium.executablePath(), comparison, arms, models, tasks, repeats, seed, budget, maxTurns, trialTimeoutMs, reasoningEffort: 'low', strictTools: false, maxOutputTokens: 4096, prompts, allowed, schedule };
 writeFileSync(resolve(out, 'manifest.json'), JSON.stringify(manifest, null, 2));
 const fixtures = await startFixtures();
 let spent = 0;
@@ -72,7 +79,7 @@ try {
     const env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => typeof v === 'string'));
     for (const key of ['PLAINWRIGHT_PROFILE', 'PLAINWRIGHT_CHANNEL', 'PLAINWRIGHT_CDP', 'TYPESAFE_BASE_URL']) delete env[key];
     env.JEV_PROVIDER = 'typesafe'; env.BENCH_JEV_USAGE = jevFile;
-    const args = row.arm === 'plainwright'
+    const args = row.arm !== 'playwright'
       ? ['--import', resolve(here, 'jev-usage.mjs'), resolve(root, 'dist/cli.js'), '--headless', '--channel', 'chromium', '--timeout', '10000', 'mcp']
       : [baseline, '--headless', '--isolated', '--executable-path', chromium.executablePath(), '--viewport-size', '1280x720', '--timeout-action', '10000', '--timeout-navigation', '10000', '--output-dir', resolve(out, `${id}-browser`)];
     const transport = new StdioClientTransport({ command: process.execPath, args, cwd: root, env, stderr: 'pipe' });
@@ -109,6 +116,7 @@ try {
           const toolStart = performance.now();
           let response;
           try {
+            if (call.toolName !== 'read_artifact' && !allowed[row.arm].includes(call.toolName)) throw new Error('Tool not allowed in this benchmark arm');
             const serialized = JSON.stringify(call.input);
             if (call.input.hooks || call.input.filename || serialized.includes('css=') || call.input.headed === true) throw new Error('Outside benchmark UI-only protocol');
             if (call.toolName === 'read_artifact') {
