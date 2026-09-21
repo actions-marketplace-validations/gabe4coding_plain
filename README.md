@@ -89,9 +89,10 @@ Raw remains the default; see [snapshot views and tradeoffs](docs/snapshots.md).
 
 ### Measured browser costs and speed
 
-In **108 local UI-workflow trials** against Playwright MCP 0.0.82, results depended on the main
-model. GPT-6 Astra completed 18/18 tasks with each stack; plainwright averaged **22% less
-elapsed time at 31% higher API cost**. This benchmark does not establish a general cost-saving claim.
+In the initial **108 local UI-workflow trials**, before contextual action candidates, results against
+Playwright MCP 0.0.82 depended on the main model. GPT-6 Astra completed 18/18 tasks with each stack;
+plainwright averaged **22% less elapsed time at 31% higher API cost**. This benchmark does not
+establish a general cost-saving claim.
 
 | Main model | Cost per 1,000 successes: plainwright / baseline | Mean seconds per attempt: plainwright / baseline | Successes: plainwright / baseline |
 |---|---:|---:|---:|
@@ -105,6 +106,13 @@ effort; CSS fallbacks and arbitrary code were excluded. Astra's 95% time-ratio i
 so the observed speed difference is not a guaranteed speedup. See the
 [full results and traces](docs/benchmarks/2026-09-21/README.md) and
 [reproduction protocol](docs/benchmarks/browser-workflows.md).
+
+A subsequent [36-trial contextual-targeting experiment](docs/benchmarks/contextual-targeting.md)
+reran the two problematic workflows after adding row/card evidence to action candidates.
+Jev-assisted completion rose from 10/18 historically to **18/18**, matching the fresh baseline.
+Measured API cost was **19% lower with Terra and 21% lower with Astra**, but **19% higher with Luna**,
+than the fresh baseline. Cost intervals include parity. These targeted results do not replace the
+six-workflow measurements above or establish general savings.
 
 ### Run from a checkout
 
