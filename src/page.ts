@@ -223,7 +223,10 @@ function collectCandidatesInPage(args: {
         }
         if (!(node instanceof Element)) return;
         if (node !== container) {
-          if (node === el || node.matches(`${OMIT}, ${ITEM}, ${GROUP}`) || hasHeading(node)) return;
+          if (node === el || node.matches(`${OMIT}, ${ITEM}, ${GROUP}`)) return;
+          // An article's heading may live in a header/div. Only use the extra generic-card
+          // boundary when the selected container itself is a generic card.
+          if (!item && !group && hasHeading(node)) return;
         }
         const style = window.getComputedStyle(node);
         if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden') return;
