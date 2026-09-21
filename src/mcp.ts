@@ -10,6 +10,7 @@ import { parseStep, interpolate } from './spec.js';
 import { openSession, startHooks, closeSharedBrowser, type Session, type HooksRunner, type RunOptions } from './runner.js';
 import { runStep, label, resolveLocators, type StepResult } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
+import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 
 // Leaf paths of `data` as `${hooks.a.b}` placeholders for the `open` response — never the values
 // themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
@@ -182,16 +183,16 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
         'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
         '("the results list", "the hotel table", or css=...). Reading data: prefer `within` so you get the table or list ' +
         'and not the whole page, or `evaluate` when you want clean JSON. Debugging: only when a step came back ' +
-        'inconclusive and rephrasing did not help.',
-      inputSchema: { maxChars: z.number().optional(), within: z.string().optional() },
+        'inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
+      inputSchema: { ...SnapshotOptions, within: z.string().optional() },
     },
-    async ({ maxChars, within }) => {
+    async ({ maxChars, within, mode, intent }) => {
       if (!session) throw new Error('call open first');
-      const max = maxChars ?? 20000;
+      const started = performance.now();
+      const before = totalTokens;
       let region: string | undefined;
       let snap;
       if (within) {
-        const before = totalTokens;
         const [r] = await resolveLocators(session.ctx, 'region', [interpolate(within, { env: {}, hooks: data }, 'mcp')]);
         if (r.usedJev) track(r.tokens);
         if (!r.locator) return ok({ found: false, detail: r.detail, jevTokens: totalTokens - before });
@@ -200,7 +201,12 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       } else {
         snap = await snapshot(session.ctx.page);
       }
-      return ok({ url: snap.url, title: snap.title, region, aria: snap.aria.slice(0, max), truncated: snap.truncated || snap.aria.length > max });
+      const view = await snapshotView(snap, { maxChars, mode, intent });
+      if ('jevTokens' in view && view.jevTokens !== null) track(view.jevTokens);
+      return ok({ ...view, region, ...(mode !== 'raw' ? {
+        jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
+        ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
+      } : {}) });
     }
   );
 

@@ -38,3 +38,13 @@ test('evaluate returns the JSON value of a page expression', async () => {
   const listed = await client.listTools();
   assert.ok(listed.tools.some((t) => t.name === 'evaluate'));
 });
+
+test('compact browser snapshots preserve scoped data without Jev and expose coverage', async () => {
+  const r = await call('snapshot', { mode: 'compact', within: 'css=main', maxChars: 500 });
+  assert.equal(r.mode, 'compact');
+  assert.match((r.observed as { aria: string }).aria, /Hotel Roma/);
+  assert.doesNotMatch((r.observed as { aria: string }).aria, /Footer link/);
+  assert.equal(r.jevTokens, 0);
+  assert.equal((r.coverage as { sourceTruncated: boolean }).sourceTruncated, false);
+  assert.ok((r.ms as { total: number }).total >= 0);
+});

@@ -29,6 +29,7 @@ class FakeAdapter implements ComputerAdapter<string> {
 const ai: Intelligence = {
   pick: async (_c, targets) => targets.map((_, i) => ({ id: 0, probability: .95, probabilities: { '0': .95 }, tokens: i === 0 ? 10 : 0 })),
   judge: async (_state, claims) => ({ probabilities: claims.map(() => .95), tokens: 7 }),
+  describe: async () => ({ screen: { type: 'other', probability: .99, confidence: .99 }, signals: {}, relevance: [], tokens: 100 }),
 };
 test('desktop schema accepts shared steps and rejects browser-only vocabulary before acting', () => {
   for (const raw of [{ goto: '/' }, { upload: { target: 'file', files: ['a'] } }, { select: { target: 'list', value: 'a' } }, { click: 'css=button' }, { scroll: 'bottom' }]) assert.throws(() => parseComputerStep(raw));
@@ -124,6 +125,11 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     assert.deepEqual(adapter.log.at(-1), ['fill', 'control', 'leased value']);
     await call('step', { step: { press: 'bad' } });
     await call('snapshot');
+    const compact = await call('snapshot', { mode: 'compact' });
+    assert.equal(compact.observed.aria, 'Ready'); assert.equal(compact.jevTokens, 0);
+    const smart = await call('snapshot', { mode: 'smart', within: 'panel', intent: 'inspect the controls' });
+    assert.equal(smart.inferred.screen.type, 'other'); assert.equal(smart.jevTokens, 110);
+    assert.ok(smart.ms.total >= smart.ms.jev);
     const path = join(dir, 'saved.yaml'); await call('save', { path });
     assert.match(readFileSync(path, 'utf8'), /\$\{hooks.text\}/);
     const spec = loadComputerSpec(path); assert.equal(spec.app, 'Fixture'); assert.equal(spec.steps.length, 1); assert.equal(spec.hooks, hook);
