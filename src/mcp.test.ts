@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
+import { createServer } from 'node:http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
@@ -118,4 +119,36 @@ test('batch stops on an optional skipped target instead of silently running depe
   assert.equal(result.completed, 0);
   assert.equal(result.remaining, 1);
   assert.equal((await call('evaluate', { js: 'document.querySelector("p").textContent' })).value, 'Before');
+});
+
+test('canceling a batch allows its in-flight action to finish but prevents later actions', { timeout: 10000 }, async () => {
+  let started!: () => void;
+  const clicked = new Promise<void>(resolve => { started = resolve; });
+  const server = createServer((req, res) => {
+    if (req.url === '/started') {
+      started();
+      setTimeout(() => res.end('ok'), 150);
+    } else {
+      res.setHeader('Content-Type', 'text/html');
+      res.end('<button onclick="fetch(\'/started\');this.textContent=\'Clicked\'">Start</button><input>');
+    }
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const address = server.address() as { port: number };
+    await call('open', { url: `http://127.0.0.1:${address.port}` });
+    const controller = new AbortController();
+    const pending = client.callTool({ name: 'batch', arguments: { steps: [
+      { click: 'css=button' }, { fill: { target: 'css=input', value: 'must not happen' } },
+    ] } }, undefined, { signal: controller.signal });
+    const canceled = assert.rejects(pending);
+    await clicked;
+    controller.abort();
+    await canceled;
+    const state = await call('evaluate', { js: '({button:document.querySelector("button").textContent,value:document.querySelector("input").value})' });
+    assert.deepEqual(state.value, { button: 'Clicked', value: '' });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
 });

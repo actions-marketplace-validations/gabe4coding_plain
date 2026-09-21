@@ -55,6 +55,7 @@ stops execution, and later entries are not attempted. `completed` counts passing
 `remaining` counts unattempted entries. Each result includes its zero-based index, status, detail,
 URL, notes and Jev token usage. Inspect these before deciding how to recover. Browser tools share
 a queue, so snapshots, navigation, saves and other actions cannot interleave with a running batch.
+Canceling a batch prevents later entries from starting; an action already in flight may finish.
 
 ## Reading data
 
