@@ -40,7 +40,19 @@ same device from another server concurrently. `close` runs teardown and deletes 
 session without uninstalling or clearing the app.
 
 `snapshot` reads the native UI tree; `within` selects a region with Jev. `maxChars` defaults to
-20,000 with a maximum of 60,000. `screenshot` returns the device PNG for inspection. Neither
+20,000 in default `mode:"raw"`, or 6,000 in `compact`/`smart`, with a maximum of 60,000.
+Compact returns exact `observed.aria`, `coverage` omission counts, timings and `jevTokens`
+without classification. Smart adds advisory `inferred` state in one Jev request; optional
+smart-only `intent` filters UI regions at relevance p >= 0.5, plus recognized alerts/dialogs
+and necessary context. Unused space is not filled. `inferred.selection` reports `focused`,
+`no-confident-match`, or an unfiltered `fallback`. Check `coverage.filteredLines` and
+`unassessedRegions` (up to 64 assessed regions). Without intent, smart returns a compact overview.
+Screen classification
+requires confidence >= 0.9 (probability fallback); signals are present at p >= 0.9, absent at
+p <= 0.1, otherwise inconclusive. Source truncation prevents absence claims. Failed
+classification returns compact evidence with unavailable inference. Omitted content is not
+absent; expand with `within` or raw mode to read exact data. Known actions need no snapshot first.
+`screenshot` returns the device PNG for inspection. Neither
 reading is recorded. Jev uses text, not screenshots; inaccessible canvas controls require app
 accessibility support. React Native controls work through their native accessibility labels,
 roles and states; the plugin does not inspect React internals or switch to webview contexts.
@@ -138,5 +150,5 @@ install these tools, start emulators, install apps or alter device settings auto
 
 Provider keys are `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`, optionally `JEV_PROVIDER`.
 The CLI loads cwd `.env`, then `~/.config/plainwright/.env`; existing variables win. Tool
-discovery, list_devices, list_apps, open, unscoped snapshots, screenshots and close require no Jev key. Native parity
+discovery, list_devices, list_apps, open, unscoped raw/compact snapshots, screenshots and close require no Jev key. Smart classification uses a key. Native parity
 must be verified on each target device; protocol tests alone are not real-device validation.

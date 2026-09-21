@@ -1,0 +1,17 @@
+{
+  "reason": "Entire attempt stopped and excluded after verified artifact-reader path canonicalization bug; replaced with fresh full sample after fix 0c1698e. No trials selected by outcome.",
+  "recordedTrials": 23,
+  "recordedCost": 0.372098602,
+  "incompleteUsage": [
+    {
+      "id": "run-005",
+      "ended": "GatewayResponseError"
+    },
+    {
+      "id": "run-023",
+      "ended": "Error"
+    }
+  ],
+  "interruptedTrial": "run-023",
+  "costCaveat": "Recorded charges are a lower bound: aborted in-flight calls returned no final usage."
+}

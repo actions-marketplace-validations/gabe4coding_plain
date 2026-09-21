@@ -179,6 +179,73 @@ function collectCandidatesInPage(args: {
     return parts.join(' ');
   }
 
+  // Keep the control's identity and its surrounding evidence together. In particular, an Edit
+  // button's own text says nothing about which row it edits. Never flatten a whole table/list or
+  // borrow text from another item. These limits bound both DOM work and additional model input.
+  const ITEM = 'article, li, tr, [role=article], [role=listitem], [role=row]';
+  const GROUP = 'section, form, fieldset, dialog, [role=group], [role=region], [role=dialog], [role=alertdialog]';
+  const HEADING = 'h1, h2, h3, h4, h5, h6, [role=heading], legend';
+  const OMIT = 'script, style, template, noscript, input, textarea, select, button, [role=button], nav, footer';
+  function parent(el: Element): Element | null {
+    return el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null);
+  }
+  function hasHeading(el: Element): boolean {
+    let scanned = 0;
+    for (const child of el.children) {
+      if (++scanned > 256) break;
+      if (child.matches(HEADING)) return true;
+    }
+    return false;
+  }
+  function context(el: Element): string {
+    let container = parent(el);
+    for (let depth = 0; container && depth < 6; depth++, container = parent(container)) {
+      if (container.matches('body, main, nav, footer, table, ul, ol, [role=main], [role=table], [role=list]')) break;
+      const item = container.matches(ITEM);
+      const group = container.matches(GROUP);
+      // Plain div cards are common too. Only consider a direct heading, never a heading in a
+      // neighboring child card; all other generic wrappers are skipped.
+      const headed = hasHeading(container);
+      if (!item && !group && !headed) continue;
+
+      let visited = 0;
+      let heading = '';
+      let nearby = '';
+      function read(node: Node, inHeading = false) {
+        if (++visited > 256 || (heading.length >= 80 && nearby.length >= 160)) return;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const text = node.textContent?.trim();
+          if (text) {
+            if (inHeading) heading = truncate(`${heading} ${text}`, 80);
+            else if (item || headed) nearby = truncate(`${nearby} ${text}`, 160);
+          }
+          return;
+        }
+        if (!(node instanceof Element)) return;
+        if (node !== container) {
+          if (node === el || node.matches(`${OMIT}, ${ITEM}, ${GROUP}`)) return;
+          // An article's heading may live in a header/div. Only use the extra generic-card
+          // boundary when the selected container itself is a generic card.
+          if (!item && !group && hasHeading(node)) return;
+        }
+        const style = window.getComputedStyle(node);
+        if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden') return;
+        const isHeading = inHeading || node.matches(HEADING);
+        for (const child of node.childNodes) {
+          if (visited >= 256) break;
+          read(child, isHeading);
+        }
+      }
+      read(container);
+      const name = container.getAttribute('aria-label');
+      const parts = [name && `name=${JSON.stringify(truncate(name, 80))}`, heading && `heading=${JSON.stringify(heading)}`, nearby && `text=${JSON.stringify(nearby)}`].filter(Boolean);
+      // Stop at the nearest item/group even when it has no usable context. Looking beyond an
+      // empty row/card would risk attributing a sibling's identity to this control.
+      return parts.length ? ` context: ${container.getAttribute('role') ?? container.tagName.toLowerCase()} ${truncate(parts.join(' '), 240)}` : '';
+    }
+    return '';
+  }
+
   // `[draggable=true]` catches HTML5 drag-and-drop sources/targets — the-internet's /drag_and_drop
   // boxes are plain <div draggable="true"> with `cursor: move`, not `pointer`, so isPointer() alone
   // would never surface them for a `drag` step.
@@ -220,11 +287,12 @@ function collectCandidatesInPage(args: {
   const counts = new Map<string, number>();
   for (const d of descs) counts.set(d, (counts.get(d) ?? 0) + 1);
   const seen = new Map<string, number>();
-  return descs.map((d) => {
-    if ((counts.get(d) ?? 0) < 2) return d;
+  return descs.map((d, i) => {
+    const surrounding = context(final[i]);
+    if ((counts.get(d) ?? 0) < 2) return d + surrounding;
     const n = (seen.get(d) ?? 0) + 1;
     seen.set(d, n);
-    return `${d} #${n}`;
+    return `${d} #${n}${surrounding}`;
   });
 }
 

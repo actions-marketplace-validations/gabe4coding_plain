@@ -1,0 +1,41 @@
+{
+  "excludedFromFinalSample": true,
+  "samples": [
+    {
+      "sample": "pilot-1",
+      "trials": 4,
+      "recordedCost": 0.0051109960000000005,
+      "reason": "Development pilot",
+      "incompleteUsageTrials": 0
+    },
+    {
+      "sample": "pilot-2",
+      "trials": 4,
+      "recordedCost": 0.125859858,
+      "reason": "Development pilot",
+      "incompleteUsageTrials": 0
+    },
+    {
+      "sample": "formal-2026-09-21",
+      "trials": 45,
+      "recordedCost": 1.4779493600000004,
+      "reason": "Default tool-schema normalization forced optional arguments",
+      "incompleteUsageTrials": 1
+    },
+    {
+      "sample": "pilot-nonstrict",
+      "trials": 2,
+      "recordedCost": 0.09685266799999999,
+      "reason": "Development pilot",
+      "incompleteUsageTrials": 0
+    },
+    {
+      "sample": "formal-nonstrict-2026-09-21",
+      "trials": 2,
+      "recordedCost": 0.01770687,
+      "reason": "Preparation run stopped to clarify smart-only intent in usage guide",
+      "incompleteUsageTrials": 1
+    }
+  ],
+  "notes": "Interrupted in-flight model calls and standalone schema probes may incur additional charges not captured here. These costs are not part of the formal workflow comparison."
+}

@@ -1,0 +1,471 @@
+{
+  "trials": 108,
+  "recordedCost": 2.1678536819999996,
+  "maxReportedCostDrift": 3.469446951953614e-18,
+  "exceptions": [
+    {
+      "id": "run-064",
+      "model": "openai/gpt-5.6-terra",
+      "task": "record",
+      "arm": "playwright",
+      "success": false,
+      "ended": "finish",
+      "usageComplete": true,
+      "totalCost": 0.035131
+    }
+  ],
+  "artifactReads": [
+    {
+      "id": "run-052",
+      "error": false
+    },
+    {
+      "id": "run-058",
+      "error": false
+    },
+    {
+      "id": "run-060",
+      "error": false
+    },
+    {
+      "id": "run-060",
+      "error": false
+    },
+    {
+      "id": "run-060",
+      "error": false
+    }
+  ],
+  "batches": [
+    {
+      "id": "run-002",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-006",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-010",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-010",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-012",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-013",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-016",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-016",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-017",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-020",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-020",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-022",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-023",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-023",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-026",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-030",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-030",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-031",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-031",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-034",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-036",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-036",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-040",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-040",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-042",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-042",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-046",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-046",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-047",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-050",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-051",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-053",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-053",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-056",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-057",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-059",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-059",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-061",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-063",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-068",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-069",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-071",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-071",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-073",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-075",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-075",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-079",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-079",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-081",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-084",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-086",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-087",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-087",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-092",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-094",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-094",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-095",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-098",
+      "status": "pass",
+      "actions": 5
+    },
+    {
+      "id": "run-100",
+      "status": "pass",
+      "actions": 2
+    },
+    {
+      "id": "run-100",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-102",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-103",
+      "status": "pass",
+      "actions": 3
+    },
+    {
+      "id": "run-108",
+      "status": "pass",
+      "actions": 2
+    }
+  ],
+  "conditionalValidationChecks": [
+    {
+      "id": "run-015",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-016",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-023",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-024",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-029",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-030",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-031",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-032",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-035",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-036",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-045",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-046",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-053",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-054",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-059",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-060",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-071",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    },
+    {
+      "id": "run-072",
+      "rejectedStudio": true,
+      "observedUnavailable": true
+    }
+  ],
+  "pairedSuccessfulCompleteNatural": {
+    "openai/gpt-5.6-luna": {
+      "pairs": 18,
+      "costRatio": 1.065288232525228,
+      "timeRatio": 0.4793518399286593
+    },
+    "openai/gpt-5.6-terra": {
+      "pairs": 17,
+      "costRatio": 0.8006315526309262,
+      "timeRatio": 0.7827596891601768
+    },
+    "openai/gpt-6-astra": {
+      "pairs": 18,
+      "costRatio": 0.8970117415320222,
+      "timeRatio": 0.488490147243411
+    }
+  },
+  "diagnosticExcludedTrialIds": [
+    "run-063",
+    "run-064"
+  ],
+  "sourceHashesVerified": true,
+  "runtimeMatchesMeasuredCommit": true
+}

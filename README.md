@@ -73,6 +73,7 @@ Each server keeps one session, and the agent sends natural-language actions thro
 |---|---|
 | `open`, `step`, `find`, `snapshot`, `save` | All plugins |
 | `evaluate` | Browser: read a JavaScript expression's value |
+| `batch` | Browser: run up to 16 known steps in order, stopping on the first non-pass |
 | `apps` | Desktop: list running apps |
 | `list_devices`, `list_apps` | Mobile: discover local devices and installed apps |
 | `screenshot`, `close` | Desktop and mobile: capture native UI and release the session |
@@ -81,6 +82,43 @@ Use `save` to turn successful steps into a YAML spec. Desktop `open` attaches to
 `close` leaves it running. For tool arguments and session behavior, see
 [browser agent mode](docs/agent-mode.md), [desktop agent tools](docs/computer-use.md#agent-tools),
 and [mobile agent tools](docs/mobile-use.md#agent-tools).
+
+For UI discovery, opt into `snapshot {mode:"compact"}` for selected exact excerpts or
+`snapshot {mode:"smart",intent:"the task"}` for Jev classifications and only task-relevant UI
+regions, necessary context, and recognized critical messages.
+Raw remains the default; see [snapshot views and tradeoffs](docs/snapshots.md).
+
+### Measured browser costs and speed
+
+In a [108-trial whole-workflow comparison](docs/benchmarks/current-browser-comparison.md),
+current plainwright used **24% less API cost with Terra and 10% less with Astra**, while Luna
+cost **7% more**, than Playwright MCP 0.0.82. Mean elapsed time was **25–52% lower**.
+These are observed results on six synthetic browser workflows, not a general website guarantee.
+
+| Main model | API cost per task: plainwright / Playwright MCP | Cost change | Mean seconds: plainwright / Playwright MCP | Time change |
+|---|---:|---:|---:|---:|
+| GPT-5.6 Luna (small) | $0.001344 / $0.001262 | +7% | 17.0 / 35.4 | −52% |
+| GPT-5.6 Terra (medium) | $0.010184 / $0.013374 | −24% | 17.0 / 22.9 | −25% |
+| GPT-6 Astra (top) | $0.044577 / $0.049695 | −10% | 20.4 / 41.8 | −51% |
+
+Costs include main-agent and Jev usage, caching, recovery and verification. Luna and Astra's
+95% task-cluster cost intervals include parity; Terra's is 0.66–0.91×. Astra account editing
+still cost 20% more, and Terra catalog browsing was 54% slower. Main-agent calls fell **19%**
+(333 versus 412). Timing includes provider latency and each stack's browser waiting behavior.
+
+Both stacks reached the requested values or answer in 54/54 trials. Plainwright passed all
+54 strict oracle checks; the baseline passed 53 because it saved the correct account twice.
+The fixture resets its display on reload, so this is not evidence of a wrong-account edit or
+a general reliability advantage. Excluding that entire pair still leaves Terra **20% cheaper**.
+All 108 trials had complete usage accounting and finished naturally. Three repetitions per
+workflow/model are insufficient to establish production reliability.
+
+The [full report and audit](docs/benchmarks/2026-09-21-current/README.md) retain every trial,
+per-task results, intervals, costs per success and traces. The comparison fixes an artifact-reader
+bug that restricted snapshot-file access in the earlier baseline experiments; those historical
+reports are marked accordingly. The separate [batching ablation](docs/benchmarks/browser-batching.md)
+compares two Jev-assisted configurations and is not evidence of savings against Playwright MCP.
+See the [protocol and reproduction instructions](docs/benchmarks/browser-workflows.md).
 
 ### Run from a checkout
 

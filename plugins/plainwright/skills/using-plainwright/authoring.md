@@ -7,6 +7,9 @@
    keeps them as written.
 2. Drive with `step`, one action or one check per call. Read `status`, `detail`, `notes` and `url` after every
    call. Only steps that pass go in the spec, so an inconclusive attempt costs nothing but a retry.
+   Use `batch {steps:[...]}` for up to 16 known actions; it stops on the first non-pass (even `skipped`).
+   Inspect the indexed results before recovery. Successful entries save as ordinary individual steps,
+   with hook placeholders preserved. End a batch before a decision that requires new page information.
 3. `save` when the flow is complete.
 4. Edit the YAML: `optional: true` where the page is nondeterministic (a cookie banner, a promo), a `#` comment
    where a phrasing is non-obvious, a `wait` before anything that appears after a delay. Credentials become

@@ -48,8 +48,9 @@ authenticated device-cloud connections are not provided.
 Environment loading follows the other CLIs: existing process variables win, then cwd `.env`,
 then `~/.config/plainwright/.env` (respecting `XDG_CONFIG_HOME`). Targeting/assertions require
 `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`, with optional `JEV_PROVIDER=typesafe|gateway`.
-MCP discovery, `list_devices`, `list_apps`, `open`, unscoped `snapshot`, `screenshot` and `close`
-need no model key.
+MCP discovery, `list_devices`, `list_apps`, `open`, unscoped raw/compact `snapshot`, `screenshot` and
+`close` need no model key. Smart snapshots use Jev for classification, falling back explicitly
+to compact evidence if unavailable.
 
 ## Plugin formats
 
@@ -84,7 +85,7 @@ All nine tools are serialized, including reads, so a snapshot cannot race anothe
 | `open {platform, device, app, capabilities?, hooks?}` | Launch/activate an installed app. `platform` is `ios` or `android`; `device` is a UDID/ADB serial; `app` is a bundle ID/package. Starts a new recording and tears down the old session. |
 | `step {step}` | Execute one YAML-style action or assertion; return status, detail, timing and Jev tokens. |
 | `find {kind, target}` | Resolve without acting. Kinds: `click`, `fill`, `check`, `region`, `scroll`. Use `click` for tap/longpress targets. |
-| `snapshot {within?, maxChars?}` | Read native UI text. Default 20,000 chars; maximum 60,000. Scoped reads resolve a region with Jev. |
+| `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. Scoped reads resolve a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
 | `screenshot {}` | Return a device PNG for inspection; pixels are not supplied to Jev. |
 | `save {path, name?}` | Write passing recorded steps with platform, device, app, capabilities and relative hooks path. Rejects empty recordings. |
 | `close {}` | Run teardown and delete the Appium session. Does not uninstall or clear app data. |

@@ -9,6 +9,7 @@ import { intelligence } from './automation.js';
 import { ComputerSession } from './computer.js';
 import { ComputerTargetSchema, parseComputerStep } from './computer-spec.js';
 import { interpolate } from './spec.js';
+import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { startHooks } from './hooks.js';
 // Desktop input is a shared resource. Serialize reads too: a second snapshot must not race an action.
 import { serialQueue } from './serial-queue.js';
@@ -113,12 +114,18 @@ export function createComputerServer(adapter, timeout = 15000, ai = intelligence
         return ok({ found: r.element !== null, detail: r.detail, confidence: r.confidence, jevTokens: r.tokens });
     }));
     server.registerTool('snapshot', {
-        description: 'Read the attached app accessibility tree, optionally within a natural-language region. This reading is not recorded.',
-        inputSchema: { within: z.string().optional(), maxChars: z.number().int().min(1).max(60000).default(20000) }, annotations: { readOnlyHint: true },
-    }, ({ within, maxChars }) => queue(async () => {
+        description: 'Read the attached app accessibility tree, optionally within a natural-language region. This reading is not recorded.' + SNAPSHOT_MODES_DESCRIPTION,
+        inputSchema: { within: z.string().optional(), ...SnapshotOptions }, annotations: { readOnlyHint: true },
+    }, ({ within, maxChars, mode, intent }) => queue(async () => {
         requireOpen();
+        const started = performance.now();
+        const before = session.tokens;
         const snap = await session.snapshot(within ? interpolate(within, { env: {}, hooks: data }, 'computer MCP') : undefined);
-        return ok({ ...snap, aria: snap.aria.slice(0, maxChars), truncated: snap.truncated || snap.aria.length > maxChars });
+        const view = await snapshotView(snap, { maxChars, mode, intent }, ai.describe);
+        return ok({ ...view, ...(mode !== 'raw' && 'jevTokens' in view ? {
+                jevTokens: view.jevTokens === null ? null : view.jevTokens + session.tokens - before,
+                ms: { ...view.ms, total: performance.now() - started },
+            } : {}) });
     }));
     server.registerTool('screenshot', {
         description: 'Capture an attached application window as a PNG for inspection. May require screen-recording permission. Screenshot pixels do not feed Jev targeting.',
