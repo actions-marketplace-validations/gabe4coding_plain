@@ -10,6 +10,7 @@ import { openSession, startHooks, closeSharedBrowser } from './runner.js';
 import { runStep, label, resolveLocators } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
+import { serialQueue } from './serial-queue.js';
 // Leaf paths of `data` as `${hooks.a.b}` placeholders for the `open` response — never the values
 // themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
 function placeholderPaths(obj, prefix) {
@@ -48,7 +49,8 @@ A \`css=\` prefix on any target bypasses Jev and uses that CSS selector directly
 Rules: describe ONE element with one clear answer — "the earliest available day", never "an
 available day". Disambiguate siblings — "the cuisine input (not the where field)". Name things as
 the accessibility tree does (heading, button, link, textbox). Expect claims are atomic, one fact
-each. status is pass | fail | inconclusive | error; on inconclusive the detail lists the top
+each. status is pass | fail | inconclusive | error | skipped; optional:true converts inconclusive/error
+to skipped, matching YAML replay. On inconclusive the detail lists the top
 guesses with probabilities — rephrase and retry.
 
 When \`open\` was called with \`hooks\`, any string in a step may contain \`\${hooks.a.b}\` placeholders
@@ -68,6 +70,9 @@ export async function serveMcp(opts) {
     let data = {};
     const results = []; // every step result, pass or not, in order — teardown sees the full run
     const server = new McpServer({ name: 'plainwright', version: '1.0.0' });
+    // Candidate IDs, token accounting and the recording belong to one browser session. Reads and
+    // other actions must not interleave with a batch (or with another individual tool call).
+    const queue = serialQueue();
     function ok(data) {
         return { content: [{ type: 'text', text: JSON.stringify(data) }] };
     }
@@ -94,7 +99,7 @@ export async function serveMcp(opts) {
             'later call relaunches the browser, so cookies and logins of the current session are lost. Ignored when ' +
             'attached to a running Chrome (--cdp).',
         inputSchema: { url: z.string(), hooks: z.string().optional(), headed: z.boolean().optional() },
-    }, async ({ url, hooks: hooksPath, headed }) => {
+    }, ({ url, hooks: hooksPath, headed }) => queue(async () => {
         const notes = [];
         if (session && headed !== undefined && headed !== sessionOpts.headed && !sessionOpts.cdp) {
             await session.close();
@@ -136,11 +141,10 @@ export async function serveMcp(opts) {
         if (hooksFile)
             response.placeholders = placeholderPaths(data, 'hooks');
         return ok(response);
-    });
-    server.registerTool('step', { description: STEP_DESCRIPTION, inputSchema: { step: z.record(z.string(), z.unknown()) } }, async ({ step }) => {
+    }));
+    async function execute(step, parsed) {
         if (!session)
             throw new Error('call open first');
-        const parsed = parseStep('mcp', transcript.length, step);
         const before = totalTokens;
         let result;
         try {
@@ -150,15 +154,53 @@ export async function serveMcp(opts) {
         catch (err) {
             result = { step: label(parsed), status: 'error', detail: err instanceof Error ? err.message : String(err) };
         }
+        if (parsed.optional && (result.status === 'inconclusive' || result.status === 'error')) {
+            result = { ...result, status: 'skipped' };
+        }
         results.push(result);
         if (result.status === 'pass')
             transcript.push(step); // failed attempts are exploration, not spec — placeholders kept intact for `save`
-        return ok({ status: result.status, detail: result.detail, notes: session.drainNotes(), url: session.ctx.page.url(), jevTokens: totalTokens - before });
-    });
+        return { status: result.status, detail: result.detail, notes: session.drainNotes(), url: session.ctx.page.url(), jevTokens: totalTokens - before };
+    }
+    server.registerTool('step', { description: STEP_DESCRIPTION, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
+        if (!session)
+            throw new Error('call open first');
+        return ok(await execute(step, parseStep('mcp', transcript.length, step)));
+    }));
+    server.registerTool('batch', {
+        description: 'Run 1–16 already-known steps in order in one browser tool call (call open first). ' +
+            'Use the same one-action objects as step, e.g. {steps:[{fill:{target:"the Name field",value:"Alex"}},' +
+            '{fill:{target:"the Email field",value:"alex@example.test"}},{click:"Save"}]}. ' +
+            'All syntax and hook placeholders are checked before acting. Each action resolves fresh targets after the previous action. ' +
+            'Stops on the first non-pass, including optional steps returning skipped; later steps are not attempted. ' +
+            'Returns status, indexed results with per-step tokens/URL/notes, completed (passing steps), remaining, stoppedAt (zero-based or null), and total jevTokens. ' +
+            'Passing steps are recorded individually for save; completed actions are not rolled back. ' +
+            'Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.',
+        inputSchema: { steps: z.array(z.record(z.string(), z.unknown())).min(1).max(16) },
+    }, ({ steps }) => queue(async () => {
+        if (!session)
+            throw new Error('call open first');
+        const parsed = steps.map((step, i) => parseStep('mcp batch', i, step));
+        // Preflight every placeholder too: a bad later step must not partially execute the batch.
+        for (const step of parsed)
+            interpolate(step, { env: {}, hooks: data }, 'mcp batch');
+        const before = totalTokens;
+        const outcomes = [];
+        for (const [index, step] of steps.entries()) {
+            const result = await execute(step, parsed[index]);
+            outcomes.push({ index, ...result });
+            if (result.status !== 'pass')
+                break;
+        }
+        const last = outcomes.at(-1);
+        return ok({ status: last.status, results: outcomes, completed: outcomes.filter(r => r.status === 'pass').length,
+            remaining: steps.length - outcomes.length, stoppedAt: last.status === 'pass' ? null : last.index,
+            url: session.ctx.page.url(), jevTokens: totalTokens - before });
+    }));
     server.registerTool('find', {
         description: "Dry run of a step target: tells you what Jev would pick, without acting.",
         inputSchema: { kind: CandidateKindSchema, target: z.string() },
-    }, async ({ kind, target }) => {
+    }, ({ kind, target }) => queue(async () => {
         if (!session)
             throw new Error('call open first');
         target = interpolate(target, { env: {}, hooks: data }, 'mcp');
@@ -167,14 +209,14 @@ export async function serveMcp(opts) {
         if (r.usedJev)
             track(r.tokens);
         return ok({ found: r.locator !== null, detail: r.detail, confidence: r.confidence, jevTokens: totalTokens - before });
-    });
+    }));
     server.registerTool('snapshot', {
         description: 'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
             '("the results list", "the hotel table", or css=...). Reading data: prefer `within` so you get the table or list ' +
             'and not the whole page, or `evaluate` when you want clean JSON. Debugging: only when a step came back ' +
             'inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
         inputSchema: { ...SnapshotOptions, within: z.string().optional() },
-    }, async ({ maxChars, within, mode, intent }) => {
+    }, ({ maxChars, within, mode, intent }) => queue(async () => {
         if (!session)
             throw new Error('call open first');
         const started = performance.now();
@@ -200,24 +242,24 @@ export async function serveMcp(opts) {
                 jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
                 ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
             } : {}) });
-    });
+    }));
     server.registerTool('evaluate', {
         description: 'Run a JavaScript expression in the page and return its JSON value: the raw escape hatch for pulling data ' +
             'once the flow got there, e.g. `[...document.querySelectorAll("article")].map(a => ({ name: a.querySelector("h3")?.innerText, price: a.querySelector("[data-testid=price]")?.innerText }))`. ' +
             'The expression may be async (a promise is awaited). Read-only by convention: it is not a step, so `save` does not record it.',
         inputSchema: { js: z.string() },
-    }, async ({ js }) => {
+    }, ({ js }) => queue(async () => {
         if (!session)
             throw new Error('call open first');
         const value = await session.ctx.page.evaluate(js);
         return ok({ value: value === undefined ? null : value, url: session.ctx.page.url() });
-    });
+    }));
     server.registerTool('save', {
         description: 'Save the steps that passed so far in this session as a YAML spec the batch runner can replay (failed or ' +
             'inconclusive attempts are left out). The `hooks` module given to `open` is written as a relative path, ' +
             'and ${hooks.*} placeholders are kept as written.',
         inputSchema: { path: z.string(), name: z.string().optional() },
-    }, async ({ path, name }) => {
+    }, ({ path, name }) => queue(async () => {
         const filePath = resolve(path);
         const doc = { name: name ?? spec.name, url: spec.url };
         if (hooksFile) {
@@ -229,7 +271,7 @@ export async function serveMcp(opts) {
         doc.steps = transcript;
         writeFileSync(filePath, stringify(doc));
         return ok({ path: filePath, steps: transcript.length });
-    });
+    }));
     const transport = new StdioServerTransport();
     let shuttingDown = false;
     const shutdown = async () => {

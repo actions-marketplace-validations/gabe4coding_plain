@@ -8,6 +8,9 @@ const source = resolve(process.argv[2]);
 const destination = resolve(process.argv[3]);
 const summary = JSON.parse(readFileSync(resolve(source, 'summary.json')));
 const manifest = JSON.parse(readFileSync(resolve(source, 'manifest.json')));
+const armNames = manifest.arms ?? ['plainwright', 'playwright'];
+const [treatment, control] = armNames;
+const toolFiles = armNames.map(arm => `${arm}-tools.json`);
 const runsText = readFileSync(resolve(source, 'runs.jsonl'), 'utf8');
 const runs = runsText.trim().split('\n').map(s => JSON.parse(s));
 if (!summary.complete || runs.length !== manifest.schedule.length) throw new Error('Cannot publish an incomplete sample');
@@ -17,13 +20,13 @@ for (let i = 0; i < runs.length; i++) {
 mkdirSync(destination, { recursive: true });
 // Keep exact measured costs and usage. Scrub host home/temp prefixes from artifact paths only.
 const sanitize = text => text.replaceAll(process.env.HOME, '<home>').replace(/\/private\/var\/folders\/[^"\s]+?(?=\/plainwright\/)/g, '<tmp>').replace(/\/var\/folders\/[^"\s]+?(?=\/plainwright\/)/g, '<tmp>');
-for (const file of ['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', 'plainwright-tools.json', 'playwright-tools.json']) {
+for (const file of ['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', ...toolFiles]) {
   writeFileSync(resolve(destination, file), sanitize(readFileSync(resolve(source, file), 'utf8')));
 }
 const traces = runs.map(r => JSON.stringify({ id: r.id, ...JSON.parse(readFileSync(resolve(source, `${r.id}-trace.json`), 'utf8')) })).join('\n') + '\n';
 const compressed = gzipSync(sanitize(traces));
 writeFileSync(resolve(destination, 'traces.jsonl.gz'), compressed);
-const hashes = Object.fromEntries(['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', 'plainwright-tools.json', 'playwright-tools.json', 'traces.jsonl.gz'].map(file => [file, createHash('sha256').update(readFileSync(resolve(destination, file))).digest('hex')]));
+const hashes = Object.fromEntries(['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', ...toolFiles, 'traces.jsonl.gz'].map(file => [file, createHash('sha256').update(readFileSync(resolve(destination, file))).digest('hex')]));
 writeFileSync(resolve(destination, 'sha256.json'), JSON.stringify(hashes, null, 2) + '\n');
 
 const money = v => v.toFixed(4);
@@ -33,6 +36,7 @@ const lines = [
   `# Browser workflow results — ${manifest.startedAt.slice(0, 10)}`, '',
   `${runs.length} trials; ${manifest.tasks.length} synthetic workflows, ${manifest.repeats} repetitions, two tool stacks and ${manifest.models.length} main models. Total recorded API cost: **$${summary.totalCost.toFixed(4)}**. Development pilots and the benchmarking agent’s own work are excluded.`, '',
   'See the [protocol and reproduction instructions](../browser-workflows.md). These are measurements of this harness and task suite, not a general website-performance guarantee.', '',
+  ...(manifest.comparison === 'batch' ? ['This is a batching ablation: both arms use the same plainwright/Jev implementation. Only `plainwright` exposes `batch` and its usage guidance; `plainwright-unbatched` uses individual steps. The control is **not Playwright MCP**.', ''] : []),
   ...(existsSync(resolve(destination, 'findings.md')) ? ['Read the [interpretation and failure analysis](findings.md).', ''] : []),
   ...(existsSync(resolve(destination, 'comparison.svg')) ? ['![Cost, elapsed time and task success by main model](comparison.svg)', ''] : []),
   '## Full-sample results', '',
@@ -40,29 +44,29 @@ const lines = [
   '| Main model | Stack | Oracle successes | Natural completions | Mean cost/task | Cost/success (failures included) | Mean seconds | Median seconds | p95 seconds |',
   '|---|---|---:|---:|---:|---:|---:|---:|---:|',
 ];
-for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of ['playwright', 'plainwright']) {
+for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of [...armNames].reverse()) {
   const m = arms[arm];
   lines.push(`| ${tier(model)} | ${arm} | ${m.successes}/${m.trials} | ${m.naturalCompletions}/${m.trials} | $${money(m.meanCost)} | ${m.costPerSuccess == null ? '—' : '$' + money(m.costPerSuccess)} | ${m.meanSeconds.toFixed(1)} | ${m.medianSeconds.toFixed(1)} | ${m.p95Seconds.toFixed(1)} |`);
 }
-lines.push('', '## Paired comparisons', '', 'Ratios are plainwright / Playwright MCP. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.', '', '| Main model | Cost ratio [95% interval] | Time ratio [95% interval] | Cost ratio, both succeeded | Time ratio, both succeeded |', '|---|---:|---:|---:|---:|');
+lines.push('', '## Paired comparisons', '', `Ratios are ${treatment} / ${control}. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.`, '', '| Main model | Cost ratio [95% interval] | Time ratio [95% interval] | Cost ratio, both succeeded | Time ratio, both succeeded |', '|---|---:|---:|---:|---:|');
 for (const [model, arms] of Object.entries(summary.byModel)) {
   const c = arms.comparison, s = summary.pairedSuccessful[model];
   lines.push(`| ${tier(model)} | ${ratio(c.costRatio)} [${c.costRatio95.map(ratio).join(', ')}] | ${ratio(c.timeRatio)} [${c.timeRatio95.map(ratio).join(', ')}] | ${ratio(s.costRatio)} | ${ratio(s.timeRatio)} |`);
 }
 lines.push('', '## Usage and cost sensitivity', '', 'Main-agent input totals include repeatedly supplied conversation context. Cached reads and writes are subsets of that input. Output includes reasoning. The uncached column is a hypothetical repricing of measured usage, not a second experiment.', '', '| Main model | Stack | Main calls | Browser/helper calls | Main input | Cache reads | Cache writes | Main output | Reasoning | Jev calls | Jev input | Jev cost | Hypothetical uncached mean cost |', '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|');
-for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of ['playwright', 'plainwright']) {
+for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of [...armNames].reverse()) {
   const m = arms[arm];
   lines.push(`| ${tier(model)} | ${arm} | ${m.mainCalls} | ${m.browserCalls} | ${m.inputTokens} | ${m.cachedInputTokens} | ${m.cacheWriteTokens} | ${m.outputTokens} | ${m.reasoningTokens} | ${m.jevCalls} | ${m.jevInputTokens} | $${money(m.jevCost)} | $${money(m.meanNoCacheCost)} |`);
 }
 lines.push('', '## Where elapsed time goes', '', 'Means per trial. Model time includes API latency and inference; tool time includes browser work and Jev calls. Different tool stacks and provider latency both affect the observed speed; this is not an isolated measure of Jev inference speed.', '', '| Main model | Stack | Main-model seconds | Browser/helper seconds |', '|---|---|---:|---:|');
-for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of ['playwright', 'plainwright']) {
+for (const [model, arms] of Object.entries(summary.byModel)) for (const arm of [...armNames].reverse()) {
   const m = arms[arm];
   lines.push(`| ${tier(model)} | ${arm} | ${(m.mainSeconds / m.trials).toFixed(1)} | ${(m.browserSeconds / m.trials).toFixed(1)} |`);
 }
 for (const model of manifest.models) {
-  lines.push('', `## Tasks: ${tier(model)}`, '', '| Task | Successes: plainwright / baseline | Mean cost: plainwright / baseline | Mean seconds: plainwright / baseline |', '|---|---:|---:|---:|');
+  lines.push('', `## Tasks: ${tier(model)}`, '', `Treatment: ${treatment}; control: ${control}.`, '', '| Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |', '|---|---:|---:|---:|');
   for (const task of manifest.tasks) {
-    const { plainwright: p, playwright: b } = summary.byTask[`${model}/${task}`];
+    const p = summary.byTask[`${model}/${task}`][treatment], b = summary.byTask[`${model}/${task}`][control];
     lines.push(`| ${task} | ${p.successes}/${p.trials} / ${b.successes}/${b.trials} | $${money(p.meanCost)} / $${money(b.meanCost)} | ${p.meanSeconds.toFixed(1)} / ${b.meanSeconds.toFixed(1)} |`);
   }
 }

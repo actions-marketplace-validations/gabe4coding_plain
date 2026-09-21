@@ -73,6 +73,7 @@ Each server keeps one session, and the agent sends natural-language actions thro
 |---|---|
 | `open`, `step`, `find`, `snapshot`, `save` | All plugins |
 | `evaluate` | Browser: read a JavaScript expression's value |
+| `batch` | Browser: run up to 16 known steps in order, stopping on the first non-pass |
 | `apps` | Desktop: list running apps |
 | `list_devices`, `list_apps` | Mobile: discover local devices and installed apps |
 | `screenshot`, `close` | Desktop and mobile: capture native UI and release the session |

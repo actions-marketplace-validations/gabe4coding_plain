@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 const dir = resolve(process.argv[2] ?? '/tmp/plainwright-workflow-benchmark');
 const runs = readFileSync(resolve(dir, 'runs.jsonl'), 'utf8').trim().split('\n').map(s => JSON.parse(s));
 const manifest = JSON.parse(readFileSync(resolve(dir, 'manifest.json')));
+const arms = manifest.arms ?? ['plainwright', 'playwright'];
+const [treatment, control] = arms;
 const sum = (xs, f) => xs.reduce((s, x) => s + f(x), 0);
 const mean = (xs, f) => sum(xs, f) / xs.length;
 const quantile = (xs, q) => { const sorted = [...xs].sort((a, b) => a - b); const position = (sorted.length - 1) * q; const low = Math.floor(position); return sorted[low] + (sorted[Math.ceil(position)] - sorted[low]) * (position - low); };
@@ -36,7 +38,7 @@ function comparison(xs) {
   const tasks = [...new Set(xs.map(r => r.task))];
   let rng = 210926;
   const random = () => { rng ^= rng << 13; rng ^= rng >>> 17; rng ^= rng << 5; return (rng >>> 0) / 4294967296; };
-  const ratio = (sample, key) => sum(sample.filter(r => r.arm === 'plainwright'), r => r[key]) / sum(sample.filter(r => r.arm === 'playwright'), r => r[key]);
+  const ratio = (sample, key) => sum(sample.filter(r => r.arm === treatment), r => r[key]) / sum(sample.filter(r => r.arm === control), r => r[key]);
   const cost = [], speed = [];
   for (let i = 0; i < 10000; i++) {
     const sample = tasks.flatMap(() => { const task = tasks[Math.floor(random() * tasks.length)]; return xs.filter(r => r.task === task); });
@@ -47,9 +49,9 @@ function comparison(xs) {
 const models = manifest.models.filter(model => runs.some(r => r.model === model));
 const byModel = Object.fromEntries(models.map(model => {
   const xs = runs.filter(r => r.model === model);
-  return [model, { plainwright: metrics(xs.filter(r => r.arm === 'plainwright')), playwright: metrics(xs.filter(r => r.arm === 'playwright')), comparison: comparison(xs) }];
+  return [model, { ...Object.fromEntries(arms.map(arm => [arm, metrics(xs.filter(r => r.arm === arm))])), comparison: comparison(xs) }];
 }));
-const byTask = Object.fromEntries(models.flatMap(model => manifest.tasks.map(task => [`${model}/${task}`, Object.fromEntries(['plainwright', 'playwright'].map(arm => [arm, metrics(runs.filter(r => r.model === model && r.task === task && r.arm === arm))]))])));
+const byTask = Object.fromEntries(models.flatMap(model => manifest.tasks.map(task => [`${model}/${task}`, Object.fromEntries(arms.map(arm => [arm, metrics(runs.filter(r => r.model === model && r.task === task && r.arm === arm))]))])));
 const pairedSuccess = runs.filter(r => r.success && runs.some(o => o.model === r.model && o.task === r.task && o.repeat === r.repeat && o.arm !== r.arm && o.success));
 // Diagnostic sensitivity only; the primary sample always retains output-capped generations.
 const noOutputCap = runs.filter(r => !runs.some(o => o.model === r.model && o.task === r.task && o.repeat === r.repeat && o.main.some(m => m.usage.outputTokens >= 4096)));
