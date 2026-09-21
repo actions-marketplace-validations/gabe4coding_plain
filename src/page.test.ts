@@ -74,7 +74,7 @@ test('candidates: bounded context supports plain cards, named groups and shadow 
   await page.goto(html(`<main>
     <div><div><h2>First card</h2><p>${'Detail '.repeat(1000)}</p><button>Choose</button></div><div><h2>Second card</h2><button>Choose</button></div><div><button>Unrelated</button></div></div>
     <section aria-label="Billing"><button>Save</button></section>
-    <article><h2>Shadow card</h2><div id="host"></div></article>
+    <article><header><div><h2>Shadow card</h2></div></header><div id="host"></div></article>
     <script>document.querySelector('#host').attachShadow({mode:'open'}).innerHTML='<button>Shadow action</button>'</script>
     </main>`));
   const found = await candidates(page, 'click', 254);
