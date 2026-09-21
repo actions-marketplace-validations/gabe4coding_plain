@@ -1,5 +1,5 @@
 // Paid, opt-in end-to-end benchmark. See docs/benchmarks/browser-workflows.md.
-import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import { USER_ENV_FILE } from '../../dist/jev.js';
 import { startFixtures, taskNames } from './fixtures.mjs';
 import { costs } from './accounting.mjs';
+import { readArtifact } from './artifacts.mjs';
 
 globalThis.AI_SDK_LOG_WARNINGS = false; // Stored per generation below, without repetitive stderr noise.
 
@@ -61,7 +62,7 @@ const pairs = [];
 for (let repeat = 0; repeat < repeats; repeat++) for (const model of models) for (const task of tasks) pairs.push({ model, task, repeat });
 for (let i = pairs.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [pairs[i], pairs[j]] = [pairs[j], pairs[i]]; }
 const schedule = pairs.flatMap(pair => (random() < 0.5 ? arms : [...arms].reverse()).map(arm => ({ ...pair, arm })));
-const sourceFiles = ['run.mjs', 'fixtures.mjs', 'jev-usage.mjs', 'accounting.mjs'];
+const sourceFiles = ['run.mjs', 'fixtures.mjs', 'jev-usage.mjs', 'accounting.mjs', 'artifacts.mjs'];
 const manifest = { startedAt: new Date().toISOString(), commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceHashes: Object.fromEntries(sourceFiles.map(f => [f, createHash('sha256').update(readFileSync(resolve(here, f))).digest('hex')])), node: process.version, platform: platform(), arch: arch(), cpu: cpus()[0].model, playwright: JSON.parse(readFileSync(resolve(root, 'node_modules/playwright/package.json'))).version, baseline: comparison === 'playwright' ? JSON.parse(readFileSync(resolve(dirname(baseline), 'package.json'))).version : null, baselinePlaywright: comparison === 'playwright' ? JSON.parse(readFileSync(createRequire(baseline).resolve('playwright/package.json'))).version : null, executable: chromium.executablePath(), comparison, arms, models, tasks, repeats, seed, budget, maxTurns, trialTimeoutMs, reasoningEffort: 'low', strictTools: false, maxOutputTokens: 4096, prompts, allowed, schedule };
 writeFileSync(resolve(out, 'manifest.json'), JSON.stringify(manifest, null, 2));
 const fixtures = await startFixtures();
@@ -120,11 +121,7 @@ try {
             const serialized = JSON.stringify(call.input);
             if (call.input.hooks || call.input.filename || serialized.includes('css=') || call.input.headed === true) throw new Error('Outside benchmark UI-only protocol');
             if (call.toolName === 'read_artifact') {
-              const path = realpathSync(resolve(root, call.input.path));
-              if (!path.startsWith(resolve(out, `${id}-browser`) + '/')) throw new Error('Only this trial’s browser artifacts are readable');
-              const lines = readFileSync(path, 'utf8').split('\n');
-              const startLine = call.input.startLine ?? 0;
-              response = { content: [{ type: 'text', text: JSON.stringify({ totalLines: lines.length, startLine, text: lines.slice(startLine, startLine + (call.input.lineCount ?? 2000)).join('\n') }) }] };
+              response = { content: [{ type: 'text', text: JSON.stringify(readArtifact(root, resolve(out, `${id}-browser`), call.input)) }] };
             } else response = await client.callTool({ name: call.toolName, arguments: call.input }, undefined, { signal, timeout: trialTimeoutMs });
           } catch (e) { response = { isError: true, content: [{ type: 'text', text: e.message }] }; }
           const value = response.content.filter(c => c.type === 'text').map(c => c.text).join('\n');
