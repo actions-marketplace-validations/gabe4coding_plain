@@ -38,6 +38,9 @@ sets it apart from its siblings.
 
 - `the Login button`, `the username textbox`, `the edit link in the 5th table row`
 - `the cuisine search input (not the location field)`
+- `the Edit button for Account 32`: browser candidates retain bounded surrounding row/card context,
+  including headings and visible text. Duplicate-button ordinals still work. Context is rebuilt per
+  action, but can be omitted or truncated in deeply nested or unlabeled layouts.
 - `the earliest available day`, never `an available day`: several valid answers split the probability
 - `check` and `uncheck` mean "make it selected, or not". They work on checkboxes, radios, switches, and filter
   chips or toggle buttons that expose their state, and do nothing when the state is already right. A chip with

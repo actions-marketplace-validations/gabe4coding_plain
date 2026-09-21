@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
-import { candidates, installSettleObserver, settle, waitForMutation } from './page.js';
+import { candidates, elementById, installSettleObserver, settle, waitForMutation } from './page.js';
 import { mayNavigate, type StepContext } from './steps.js';
 
 let browser: Browser;
@@ -43,6 +43,57 @@ test('candidates: check lists a label standing in for its sizeless checkbox, ari
   );
   const descs = (await candidates(page, 'check', 254)).map((c) => c.desc);
   assert.deepEqual(descs, ['label "Hotels"', 'button "4 Stars"', 'input[type=checkbox] value="on" id="v"']);
+});
+
+test('candidates: repeated buttons retain their own card context, ordinal and actionable identity', async () => {
+  await page.goto(html('<main>' + Array.from({ length: 72 }, (_, i) =>
+    `<article><h2>${i === 53 ? 'Field notebook 32' : `Office supply ${i + 1}`}</h2><p>In stock</p><button onclick="this.textContent=\'Opened\'">View details</button></article>`
+  ).join('') + '</main>'));
+  const found = await candidates(page, 'click', 254);
+  const target = found.find(c => c.desc.includes('Field notebook 32'))!;
+  assert.equal(target.id, 53);
+  assert.match(target.desc, /button "View details" #54 context: article heading="Field notebook 32" text="In stock"/);
+  assert.ok(found.filter(c => c.id !== target.id).every(c => !c.desc.includes('Field notebook 32')));
+  await elementById(page, target.id, target.frameIndex).click();
+  assert.equal(await page.locator('article').nth(53).locator('button').innerText(), 'Opened');
+});
+
+test('candidates: row context excludes adjacent and nested records, hidden text and form values', async () => {
+  await page.goto(html(`<table><tbody>
+    <tr><td>Account 32</td><td>old@example.test</td><td><span hidden>Hidden account</span><span aria-hidden="true">Decorative account</span><span style="display:none">Invisible account</span><input type="password" value="private-value"><button>Edit</button><table><tr><td>Nested account</td><td><button>Edit nested</button></td></tr></table></td></tr>
+    <tr><td>Other account</td><td><button>Edit</button></td></tr>
+    </tbody></table>`));
+  const found = await candidates(page, 'click', 254);
+  const first = found.find(c => c.desc.startsWith('button "Edit" #1'))!;
+  assert.match(first.desc, /context: tr text="Account 32 old@example.test"/);
+  assert.doesNotMatch(first.desc, /Hidden|Decorative|Invisible|private-value|Nested|Other/);
+  assert.match(found.find(c => c.desc.startsWith('button "Edit" #2'))!.desc, /Other account/);
+});
+
+test('candidates: bounded context supports plain cards, named groups and shadow hosts without borrowing sibling headings', async () => {
+  await page.goto(html(`<main>
+    <div><div><h2>First card</h2><p>${'Detail '.repeat(1000)}</p><button>Choose</button></div><div><h2>Second card</h2><button>Choose</button></div><div><button>Unrelated</button></div></div>
+    <section aria-label="Billing"><button>Save</button></section>
+    <article><h2>Shadow card</h2><div id="host"></div></article>
+    <script>document.querySelector('#host').attachShadow({mode:'open'}).innerHTML='<button>Shadow action</button>'</script>
+    </main>`));
+  const found = await candidates(page, 'click', 254);
+  const first = found.find(c => c.desc.startsWith('button "Choose" #1'))!;
+  assert.match(first.desc, /heading="First card"/);
+  assert.ok(first.desc.length < 300);
+  assert.doesNotMatch(first.desc, /Second card/);
+  assert.equal(found.find(c => c.desc.startsWith('button "Unrelated"'))!.desc, 'button "Unrelated"');
+  assert.match(found.find(c => c.desc.startsWith('button "Save"'))!.desc, /context: section name="Billing"/);
+  assert.match(found.find(c => c.desc.startsWith('button "Shadow action"'))!.desc, /heading="Shadow card"/);
+});
+
+test('candidates: context is rebuilt after a row changes', async () => {
+  await page.goto(html('<table><tr><td>Before</td><td><button>Edit</button></td></tr></table>'));
+  assert.match((await candidates(page, 'click', 254))[0].desc, /Before/);
+  await page.locator('td').first().evaluate(el => { el.textContent = 'After'; });
+  const fresh = (await candidates(page, 'click', 254))[0].desc;
+  assert.match(fresh, /After/);
+  assert.doesNotMatch(fresh, /Before/);
 });
 
 test('settle: resolves immediately when the DOM has already been quiet for quietMs, waits out ongoing mutations to the cap', async () => {
