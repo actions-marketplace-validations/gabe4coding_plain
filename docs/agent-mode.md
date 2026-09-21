@@ -15,6 +15,11 @@ node bin/plainwright.mjs [--headless] [--timeout <ms>] mcp
 
 ## Tools
 
+JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
+also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
+MCP tool errors use `isError: true` and a text message; action outcomes (including
+`status: "error"`) remain structured results.
+
 | Tool | Arguments | What it does |
 |---|---|---|
 | `open` | `url`, optional `hooks`, optional `headed` | Starts the browser (first call) or navigates. `headed: true` shows the window, `false` hides it; the default is the server's `--headless` flag, and changing it later relaunches the browser (session cookies are lost; ignored with `--cdp`). `hooks` is a setup/teardown module path, relative to the server's working directory. Setup runs before the navigation and its result is available as `${hooks.*}`, listed by path (never by value) in the response. Teardown runs when the session ends, or right away when `open` is called again with a new `hooks`. |

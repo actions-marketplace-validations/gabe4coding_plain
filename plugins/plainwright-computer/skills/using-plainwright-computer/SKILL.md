@@ -11,6 +11,13 @@ Stop before the final irreversible action (payment, booking, sending), and never
 
 ## Attach and act
 
+JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
+also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
+MCP tool errors use `isError: true` and a text message; action outcomes (including
+`status: "error"`) remain structured results.
+Screenshots remain PNG image content blocks.
+`apps` provides `{ apps: [...] }` in `structuredContent` and a bare array in the legacy text.
+
 Snapshot modes: `raw` (default, 20,000 chars), `compact` (6,000, no classification call), and
 `smart` (6,000, Jev classifications). `maxChars` allows 1–60,000; smart-only `intent` supplies
 literal task context to filter UI regions at relevance p >= 0.5, plus recognized alerts/dialogs

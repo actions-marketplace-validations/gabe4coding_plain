@@ -11,6 +11,7 @@ import { runStep, label, resolveLocators } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { serialQueue } from './serial-queue.js';
+import { jsonResult as ok } from './mcp-result.js';
 // Leaf paths of `data` as `${hooks.a.b}` placeholders for the `open` response — never the values
 // themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
 function placeholderPaths(obj, prefix) {
@@ -73,9 +74,6 @@ export async function serveMcp(opts) {
     // Candidate IDs, token accounting and the recording belong to one browser session. Reads and
     // other actions must not interleave with a batch (or with another individual tool call).
     const queue = serialQueue();
-    function ok(data) {
-        return { content: [{ type: 'text', text: JSON.stringify(data) }] };
-    }
     // Releases the current hooks lease: called when the session ends, or when `open` loads a new
     // hooks module while one is already active. Errors propagate — a teardown failure must not be silent.
     async function runTeardown() {

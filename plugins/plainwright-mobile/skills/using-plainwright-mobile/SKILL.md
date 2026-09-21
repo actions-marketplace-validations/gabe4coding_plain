@@ -11,6 +11,12 @@ Stop before the final irreversible action (payment, booking, sending); never byp
 
 ## Open and inspect
 
+JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
+also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
+MCP tool errors use `isError: true` and a text message; action outcomes (including
+`status: "error"`) remain structured results.
+Screenshots remain PNG image content blocks.
+
 Start with `list_devices {platform?}` to discover Android devices/emulators and iOS simulators
 on the MCP host. Use the intended device's exact ID and check `ready`; never substitute another
 device when it is offline, unauthorized or shut down. Per-platform `errors` report missing SDKs
