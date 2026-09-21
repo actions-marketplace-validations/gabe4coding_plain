@@ -115,6 +115,12 @@ Measured API cost was **19% lower with Terra and 21% lower with Astra**, but **1
 than the fresh baseline. Cost intervals include parity. These targeted results do not replace the
 six-workflow measurements above or establish general savings.
 
+A separate [36-trial batching experiment](docs/benchmarks/browser-batching.md), using Jev in **both**
+arms across all six workflows, reduced main-agent calls by **26%**. Measured API cost fell **15%, 7%
+and 13%** for Luna, Terra and Astra, with 18/18 successful workflows in each arm. This first pass
+used one repetition per task/model; it does not establish general savings, and record-editing
+costs increased for Terra and Astra.
+
 ### Run from a checkout
 
 ```sh

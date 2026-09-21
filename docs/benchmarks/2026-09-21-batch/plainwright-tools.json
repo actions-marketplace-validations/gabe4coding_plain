@@ -1,0 +1,145 @@
+[
+  {
+    "name": "open",
+    "description": "Open the persistent browser session (first call) or navigate it to a new URL. `hooks`: optional path (relative to the server's working directory) of a setup/teardown module, as in a spec's `hooks` key; setup runs now, before the navigation, and its result is available to steps as ${hooks.*}. Teardown runs when the session ends or when `open` is called again with `hooks`. `headed`: true shows the browser window (when the user wants to watch), false hides it; default is how the server was started. Changing it on a later call relaunches the browser, so cookies and logins of the current session are lost. Ignored when attached to a running Chrome (--cdp).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "hooks": {
+          "type": "string"
+        },
+        "headed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "step",
+    "description": "Run one step in the persistent browser session (call `open` first).\n\nVocabulary, one example each:\n{goto: \"/login\"}\n{fill: {target: \"the username field\", value: \"tomsmith\"}}\n{click: \"the Login button\"}\n{hover: \"the profile avatar\"}\n{dblclick: \"the file icon\"}\n{rightclick: \"the context menu target\"}\n{select: {target: \"the country dropdown\", value: \"France\"}}\n{check: \"the remember-me checkbox\"}  (also filter chips and toggle buttons that expose their state; a no-op if already selected)\n{uncheck: \"the newsletter checkbox\"}\n{upload: {target: \"the file input\", files: [\"/path/to/file.png\"]}}\n{scroll: \"the footer\"}  or  {scroll: bottom} / {scroll: top}  (the detail reports how far the page moved)\n{wait: \"the results list is visible\"}\n{press: \"Enter\"}\n{drag: {source: \"the first row's handle\", target: \"the third row\"}}\n{expect: [\"claim 1\", \"claim 2\"]}  (several claims = one Jev call)\n{expect: {that: \"a success message is visible\", within: \"the login form\"}}\n\nA `css=` prefix on any target bypasses Jev and uses that CSS selector directly.\n\nRules: describe ONE element with one clear answer — \"the earliest available day\", never \"an\navailable day\". Disambiguate siblings — \"the cuisine input (not the where field)\". Name things as\nthe accessibility tree does (heading, button, link, textbox). Expect claims are atomic, one fact\neach. status is pass | fail | inconclusive | error | skipped; optional:true converts inconclusive/error\nto skipped, matching YAML replay. On inconclusive the detail lists the top\nguesses with probabilities — rephrase and retry.\n\nWhen `open` was called with `hooks`, any string in a step may contain `${hooks.a.b}` placeholders\n(the `open` response lists the ones available); they are resolved right before the step runs and\nkept as written when `save` writes the spec, so the saved spec stays dataset-driven. ${env.*} is\nnot available in this session — add it to the YAML yourself after saving.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "step": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "step"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "batch",
+    "description": "Run 1–16 already-known steps in order in one browser tool call (call open first). Use the same one-action objects as step, e.g. {steps:[{fill:{target:\"the Name field\",value:\"Alex\"}},{fill:{target:\"the Email field\",value:\"alex@example.test\"}},{click:\"Save\"}]}. All syntax and hook placeholders are checked before acting. Each action resolves fresh targets after the previous action. Stops on the first non-pass, including optional steps returning skipped; later steps are not attempted. Returns status, indexed results with per-step tokens/URL/notes, completed (passing steps), remaining, stoppedAt (zero-based or null), and total jevTokens. Passing steps are recorded individually for save; completed actions are not rolled back. Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "minItems": 1,
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "find",
+    "description": "Dry run of a step target: tells you what Jev would pick, without acting.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "click",
+            "hover",
+            "fill",
+            "select",
+            "check",
+            "upload",
+            "region"
+          ]
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "target"
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  },
+  {
+    "name": "snapshot",
+    "description": "Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one (\"the results list\", \"the hotel table\", or css=...). Reading data: prefer `within` so you get the table or list and not the whole page, or `evaluate` when you want clean JSON. Debugging: only when a step came back inconclusive and rephrasing did not help. mode: raw (default), compact (no classification call), or smart (Jev classifies state). compact/smart preserve exact evidence with omission counts; default evidence budget 6000 chars versus raw 20000. intent is smart-only: return relevant UI regions plus recognized critical messages, without filling unused space. Check inferred.selection for no confident match or fallback. Inferences are advisory; omitted content is not absent. Known actions need no preceding snapshot: step finds its own targets.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "default": "raw",
+          "type": "string",
+          "enum": [
+            "raw",
+            "compact",
+            "smart"
+          ]
+        },
+        "maxChars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "intent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "within": {
+          "type": "string"
+        }
+      },
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "execution": {
+      "taskSupport": "forbidden"
+    }
+  }
+]
