@@ -87,6 +87,25 @@ For UI discovery, opt into `snapshot {mode:"compact"}` for selected exact excerp
 regions, necessary context, and recognized critical messages.
 Raw remains the default; see [snapshot views and tradeoffs](docs/snapshots.md).
 
+### Measured browser costs and speed
+
+In **108 local UI-workflow trials** against Playwright MCP 0.0.82, results depended on the main
+model. GPT-6 Astra completed 18/18 tasks with each stack; plainwright averaged **22% less
+elapsed time at 31% higher API cost**. This benchmark does not establish a general cost-saving claim.
+
+| Main model | Cost per 1,000 successes: plainwright / baseline | Mean seconds per attempt: plainwright / baseline | Successes: plainwright / baseline |
+|---|---:|---:|---:|
+| GPT-5.6 Luna (small) | $2.54 / $1.31 | 23.1 / 33.4 | 14/18 / 18/18 |
+| GPT-5.6 Terra (medium) | $16.89 / $12.64 | 22.0 / 22.7 | 14/18 / 18/18 |
+| GPT-6 Astra (top) | $65.73 / $50.29 | 24.9 / 31.8 | 18/18 / 18/18 |
+
+Costs are scaled from measured spending, including failed attempts, cached input, output/reasoning
+and Jev calls. Six synthetic tasks, three repetitions, natural-language Jev targeting, low reasoning
+effort; CSS fallbacks and arbitrary code were excluded. Astra's 95% time-ratio interval was 0.62–1.02,
+so the observed speed difference is not a guaranteed speedup. See the
+[full results and traces](docs/benchmarks/2026-09-21/README.md) and
+[reproduction protocol](docs/benchmarks/browser-workflows.md).
+
 ### Run from a checkout
 
 ```sh
