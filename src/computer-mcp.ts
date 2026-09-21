@@ -13,14 +13,9 @@ import { startHooks, type HooksRunner } from './hooks.js';
 import type { StepResult, Status } from './results.js';
 
 // Desktop input is a shared resource. Serialize reads too: a second snapshot must not race an action.
-export function serialQueue() {
-  let tail: Promise<unknown> = Promise.resolve();
-  return <T>(fn: () => Promise<T>): Promise<T> => {
-    const result = tail.then(fn);
-    tail = result.catch(() => {});
-    return result;
-  };
-}
+import { serialQueue } from './serial-queue.js';
+export { serialQueue } from './serial-queue.js';
+
 function placeholders(data: Record<string, unknown>, prefix = 'hooks'): string[] {
   return Object.entries(data).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ?
     placeholders(v as Record<string, unknown>, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);

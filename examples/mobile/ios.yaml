@@ -1,0 +1,24 @@
+# See README.md in this directory for Xcode, simulator, Appium and model setup.
+# Simulator only: the hook builds/installs the fixture and uninstalls it afterward.
+name: iOS native preview
+platform: ios
+device: "${env.device}"
+app: dev.plainwright.fixture
+capabilities:
+  appium:wdaLaunchTimeout: 180000
+env:
+  device: $PLAINWRIGHT_MOBILE_DEVICE
+hooks: ../hooks/mobile-fixture.mjs
+steps:
+  - fill: { target: the Message text field, value: iOS adapter works }
+  - tap: the Done keyboard button
+  - check: the Enable preview switch
+  - check: the Enable preview switch
+  - uncheck: the Enable preview switch
+  - check: the Enable preview switch
+  - tap: the Preview button
+  - expect: The preview says iOS adapter works
+  - longpress: the Hold for details button
+  - expect: Details are visible
+  - scroll: "down: the Fixture results list"
+  - swipe: down

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "plainwright-mobile": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "bin/launch.mjs",
+        "mcp"
+      ],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}
