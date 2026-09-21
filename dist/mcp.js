@@ -177,7 +177,8 @@ export async function serveMcp(opts) {
             'Passing steps are recorded individually for save; completed actions are not rolled back. ' +
             'Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.',
         inputSchema: { steps: z.array(z.record(z.string(), z.unknown())).min(1).max(16) },
-    }, ({ steps }) => queue(async () => {
+    }, ({ steps }, { signal }) => queue(async () => {
+        signal.throwIfAborted();
         if (!session)
             throw new Error('call open first');
         const parsed = steps.map((step, i) => parseStep('mcp batch', i, step));
@@ -187,6 +188,7 @@ export async function serveMcp(opts) {
         const before = totalTokens;
         const outcomes = [];
         for (const [index, step] of steps.entries()) {
+            signal.throwIfAborted(); // An in-flight action may finish; cancellation prevents later actions.
             const result = await execute(step, parsed[index]);
             outcomes.push({ index, ...result });
             if (result.status !== 'pass')
