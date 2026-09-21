@@ -14,14 +14,14 @@ import { startHooks } from './hooks.js';
 import { LocalMobileDiscovery, AppListingSchema } from './mobile-discovery.js';
 // Device input is a shared resource. Serialize reads too: a second snapshot must not race an action.
 import { serialQueue } from './serial-queue.js';
+import { jsonResult as ok } from './mcp-result.js';
 export { serialQueue } from './serial-queue.js';
 function placeholders(data, prefix = 'hooks') {
     return Object.entries(data).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ?
         placeholders(v, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
 }
-const ok = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value) }] });
 export function createMobileServer(adapter, timeout = 15000, ai = intelligence, discovery = new LocalMobileDiscovery()) {
-    const server = new McpServer({ name: 'plainwright-mobile', version: '0.1.0' });
+    const server = new McpServer({ name: 'plainwright-mobile', version: '0.1.1' });
     const session = new MobileSession(adapter, timeout, ai);
     const queue = serialQueue();
     let opened = false;

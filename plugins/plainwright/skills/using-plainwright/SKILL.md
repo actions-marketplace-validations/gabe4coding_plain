@@ -7,6 +7,11 @@ description: Use when driving a website through the plainwright MCP tools (open,
 
 ## Overview
 
+JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
+also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
+MCP tool errors use `isError: true` and a text message; action outcomes (including
+`status: "error"`) remain structured results.
+
 Playwright acts, the Jev model decides: it picks the element your words describe and judges whether your
 claim holds against the page's accessibility tree. You never see the page. You write words Jev can answer
 with one clear yes. The lever is wording, not thresholds.

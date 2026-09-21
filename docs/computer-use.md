@@ -86,6 +86,13 @@ The cross-platform API is implemented; native verification in this repository cu
 
 ## Agent tools
 
+JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
+also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
+MCP tool errors use `isError: true` and a text message; action outcomes (including
+`status: "error"`) remain structured results.
+Screenshots remain PNG image content blocks.
+`apps` exposes `{ apps: [...] }` in `structuredContent`; its legacy text remains a bare array.
+
 | Tool | Purpose |
 |---|---|
 | `apps {}` | List running accessible app names/pids; no focus change. |

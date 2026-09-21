@@ -113,14 +113,31 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
   async function call(name: string, args: Record<string, unknown> = {}) {
     const r = await client.callTool({ name, arguments: args });
     assert.ok(!r.isError, JSON.stringify(r));
-    return JSON.parse((r.content as { text: string }[])[0].text);
+    assert.ok(r.structuredContent, `${name} must return structuredContent`);
+    assert.deepEqual(r.structuredContent, JSON.parse((r.content as { text: string }[])[0].text));
+    return r.structuredContent as Record<string, any>;
   }
   try {
     const listed = await client.listTools(); assert.equal(listed.tools.length, 8);
-    assert.ok((await client.callTool({ name: 'step', arguments: { step: { press: 'Enter' } } })).isError);
+    for (const apps of [[{ name: 'Fixture', pid: 42 }], []]) {
+      adapter.apps = async () => apps;
+      const result = await client.callTool({ name: 'apps', arguments: {} });
+      assert.ok(!result.isError);
+      assert.deepEqual(result.structuredContent, { apps });
+      assert.deepEqual(JSON.parse((result.content as { text: string }[])[0].text), apps);
+    }
+    const error = await client.callTool({ name: 'step', arguments: { step: { press: 'Enter' } } });
+    assert.equal(error.isError, true);
+    assert.equal(error.structuredContent, undefined);
+    assert.match((error.content as { text: string }[])[0].text, /call open first/);
     const hook = join(dir, 'hooks.mjs'); writeFileSync(hook, "export const setup=()=>({text:'leased value'});");
     const opened = await call('open', { pid: 42, hooks: hook });
     assert.deepEqual(opened.placeholders, ['${hooks.text}']);
+    const screenshot = await client.callTool({ name: 'screenshot', arguments: {} });
+    assert.ok(!screenshot.isError);
+    assert.equal(screenshot.structuredContent, undefined);
+    assert.deepEqual(screenshot.content, [{ type: 'image', mimeType: 'image/png', data: Buffer.from('png').toString('base64') }]);
+    assert.equal((await call('find', { kind: 'click', target: 'Preview' })).found, true);
     await call('step', { step: { fill: { target: 'Message', value: '${hooks.text}' } } });
     assert.deepEqual(adapter.log.at(-1), ['fill', 'control', 'leased value']);
     await call('step', { step: { press: 'bad' } });

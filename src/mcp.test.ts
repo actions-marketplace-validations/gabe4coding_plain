@@ -19,9 +19,11 @@ before(async () => {
 after(async () => { await client.close(); rmSync(scratch, { recursive: true, force: true }); });
 
 async function call(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const res = (await client.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean };
+  const res = (await client.callTool({ name, arguments: args })) as { content: { text: string }[]; structuredContent?: Record<string, unknown>; isError?: boolean };
   assert.ok(!res.isError, res.content[0]?.text);
-  return JSON.parse(res.content[0].text);
+  assert.ok(res.structuredContent, `${name} must return structuredContent`);
+  assert.deepEqual(res.structuredContent, JSON.parse(res.content[0].text));
+  return res.structuredContent;
 }
 
 const PAGE =
@@ -43,6 +45,19 @@ test('evaluate returns the JSON value of a page expression', async () => {
   assert.deepEqual(r.value, ['Hotel Roma', '€120']);
   const listed = await client.listTools();
   assert.ok(listed.tools.some((t) => t.name === 'evaluate'));
+});
+
+test('structured evaluate results preserve objects, scalars and null', async () => {
+  for (const [js, value] of [
+    ['({ nested: { items: [1, null, false] }, omitted: undefined })', { nested: { items: [1, null, false] } }],
+    ['"hello"', 'hello'], ['0', 0], ['false', false], ['null', null], ['undefined', null],
+  ] as const) {
+    assert.deepEqual((await call('evaluate', { js })).value, value);
+  }
+  const error = await client.callTool({ name: 'evaluate', arguments: { js: 'throw new Error("fixture failure")' } });
+  assert.equal(error.isError, true);
+  assert.equal(error.structuredContent, undefined);
+  assert.match((error.content as { text: string }[])[0].text, /fixture failure/);
 });
 
 test('compact browser snapshots preserve scoped data without Jev and expose coverage', async () => {

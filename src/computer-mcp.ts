@@ -15,16 +15,16 @@ import type { StepResult, Status } from './results.js';
 
 // Desktop input is a shared resource. Serialize reads too: a second snapshot must not race an action.
 import { serialQueue } from './serial-queue.js';
+import { jsonResult as ok } from './mcp-result.js';
 export { serialQueue } from './serial-queue.js';
 
 function placeholders(data: Record<string, unknown>, prefix = 'hooks'): string[] {
   return Object.entries(data).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ?
     placeholders(v as Record<string, unknown>, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
 }
-const ok = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value) }] });
 
 export function createComputerServer<T>(adapter: ComputerAdapter<T>, timeout = 15000, ai: Intelligence = intelligence) {
-  const server = new McpServer({ name: 'plainwright-computer', version: '0.1.0' });
+  const server = new McpServer({ name: 'plainwright-computer', version: '0.1.1' });
   const session = new ComputerSession(adapter, timeout, ai);
   const queue = serialQueue();
   let opened = false;
@@ -43,7 +43,10 @@ export function createComputerServer<T>(adapter: ComputerAdapter<T>, timeout = 1
   server.registerTool('apps', {
     description: 'List running desktop applications and process IDs without focusing them. Open an application yourself before attaching.',
     inputSchema: {}, annotations: { readOnlyHint: true },
-  }, () => queue(async () => ok(await adapter.apps())));
+  }, () => queue(async () => {
+    const apps = await adapter.apps();
+    return ok({ apps }, JSON.stringify(apps));
+  }));
   server.registerTool('open', {
     description: 'Attach to one running app by exact app name OR pid. activate defaults to true and brings a window forward; false only attaches. Starts a new recording, releasing the previous hooks lease. Optional hooks module supplies ${hooks.*} placeholders. Does not launch or quit applications.',
     inputSchema: { app: z.string().optional(), pid: z.number().int().positive().optional(), activate: z.boolean().default(true), hooks: z.string().optional() },

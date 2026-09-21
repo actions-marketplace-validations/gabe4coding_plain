@@ -76,6 +76,12 @@ Builds do not install or replace plugins in your personal plugin cache.
 
 ## Agent tools
 
+JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
+also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
+MCP tool errors use `isError: true` and a text message; action outcomes (including
+`status: "error"`) remain structured results.
+Screenshots remain PNG image content blocks.
+
 All nine tools are serialized, including reads, so a snapshot cannot race another MCP action.
 
 | Tool | Purpose |
