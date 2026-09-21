@@ -1,0 +1,35 @@
+# Requires Google Contacts installed on the selected Android test device.
+# Each run saves a sample contact; existing contacts are preserved.
+name: Create Alex Example contact on Android
+platform: android
+device: "${env.device}"
+app: com.google.android.contacts
+env:
+  device: $PLAINWRIGHT_MOBILE_DEVICE
+steps:
+  # Return from a contact detail screen when replaying after a previous run.
+  - tap: Navigate up
+    optional: true
+  - tap: Create contact
+  - wait: The Create contact form shows a First name text field
+  - fill:
+      target: First name
+      value: Alex
+  - fill:
+      target: Last name
+      value: Example
+  - fill:
+      target: the Phone (Mobile) text field currently containing +1
+      value: '+1 202-555-0147'
+  - tap: Add email
+  - wait: An Email address text field is visible in the contact form
+  - fill:
+      target: the Email address text field
+      value: alex.example@example.com
+  - tap: the Save button in the Create contact toolbar
+  - wait: The saved contact details page shows Alex Example
+  - expect:
+      - The contact name is Alex Example
+      - The contact mobile phone number is +1 202-555-0147
+      - The contact email address is alex.example@example.com
+  - tap: Navigate up

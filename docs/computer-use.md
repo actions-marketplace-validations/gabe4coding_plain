@@ -42,7 +42,7 @@ node bin/plainwright-computer.mjs --timeout 15000 path/to/desktop.yaml
 ```
 
 The plugin directory is `plugins/plainwright-computer/`, alongside the browser plugin at
-`plugins/plainwright/`. One root `package.json` and lockfile own both engines. Each plugin includes
+`plugins/plainwright/`. One root `package.json` and lockfile own browser, desktop and mobile engines. Each plugin includes
 the same generated `runtime.tgz`; its launcher installs that shared package into an ignored
 `.runtime/` cache on first use, with install progress on stderr. Starting the desktop plugin does
 not install Chromium or require a neighboring browser-plugin installation:
@@ -168,7 +168,7 @@ parsing/interpolation, and hook lifecycle. Browser-specific settling/navigation 
 adapter; desktop capture/actions live in `computer-adapter.ts`.
 
 `npm run build` compiles TypeScript, then `scripts/build-plugins.mjs` creates the same committed
-`runtime.tgz` in both plugin folders from the root package, compiled files, CLI binaries, and license.
+`runtime.tgz` in all plugin folders from the root package, compiled files, CLI binaries, and license.
 The root lockfile becomes an npm shrinkwrap inside the archive, so plugin installs use the locked
 dependency graph. There are no plugin-specific package manifests or lockfiles. The launcher
 caches by archive hash, so a rebuilt archive gets a fresh runtime installation.
