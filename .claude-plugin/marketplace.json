@@ -1,6 +1,6 @@
 {
   "name": "plainwright-marketplace",
-  "description": "Browser and computer-use plugins for natural-language testing",
+  "description": "Browser, computer-use and mobile plugins for natural-language testing",
   "owner": {
     "name": "Gabriele Pavanello"
   },
@@ -14,6 +14,11 @@
       "name": "plainwright-computer",
       "source": "./plugins/plainwright-computer",
       "description": "Native desktop automation with xa11y actions and Jev decisions; record and replay natural-language YAML tests"
+    },
+    {
+      "name": "plainwright-mobile",
+      "source": "./plugins/plainwright-mobile",
+      "description": "Native iOS and Android automation with Appium actions and Jev decisions; record and replay natural-language YAML tests"
     }
   ]
 }

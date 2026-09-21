@@ -14,7 +14,7 @@ node --test dist/runner.test.js                             # one file, after a 
 node --test --test-name-pattern "<name>" dist/jev.test.js   # one test case
 ```
 
-No test needs a Jev API key: `jev.test.ts` and `spec.test.ts` exercise pure functions with injected env
+No test in the regular suite needs a Jev API key: `jev.test.ts` and `spec.test.ts` exercise pure functions with injected env
 objects, and `runner.test.ts` drives real headless Chromium against `data:text/html` URLs with `goto` steps only.
 
 Run a spec, or start the MCP server (`src/cli.ts` dispatches on the first positional):
@@ -88,17 +88,18 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   saved file. `${env.*}` is not available in an MCP session, only `${hooks.*}`. stdout is the JSON-RPC channel,
   so all logging (here and in `src/cli.ts`/`src/steps.ts`) goes to `console.error`.
 - `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.
-- Plugins live at `plugins/plainwright/` (browser) and `plugins/plainwright-computer/` (desktop), each
+- Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop), and
+  `plugins/plainwright-mobile/` (mobile), each
   with portable `plugin.json`/`mcp.json`, `.claude-plugin/plugin.json`/`.mcp.json`, a Codex compatibility
   manifest, its skill, and a generated `runtime.tgz`. Both root marketplaces point at these directories.
   Keep identity/version/description aligned across each plugin's manifests. Browser skill lives at
   `plugins/plainwright/skills/using-plainwright/` (SKILL.md, browsing.md, authoring.md).
-- One root `package.json` and lockfile own all dependencies and both CLI binaries. `scripts/build-plugins.mjs`
-  packages compiled runtime plus the root manifest/lockfile into the same archive for both plugins.
+- One root `package.json` and lockfile own all dependencies and all CLI binaries. `scripts/build-plugins.mjs`
+  packages compiled runtime plus the root manifest/lockfile into the same archive for all plugins.
   `scripts/plugin-launcher.mjs` is copied into each plugin and caches the installed runtime by archive hash.
   Never add per-plugin package manifests, symlinks or parent-directory runtime imports.
-- Docs: `README.md` is the quick start; `docs/spec-reference.md`, `docs/phrasing.md`, `docs/hooks.md` and
-  `docs/agent-mode.md` are the reference. A change to step kinds, thresholds, MCP tools, env loading or plugin
+- Docs: `README.md` is the quick start; `docs/spec-reference.md`, `docs/phrasing.md`, `docs/hooks.md`,
+  `docs/agent-mode.md`, `docs/computer-use.md` and `docs/mobile-use.md` are the reference. A change to step kinds, thresholds, MCP tools, env loading or plugin
   install steps lands in the matching doc too (and in the skill, for thresholds and tool names).
 
 ## Constraints
@@ -114,10 +115,23 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 
 ## Computer use
 
-- `src/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Both browser and desktop paths use it. `src/results.ts` shares labels/status/debug output.
+- `src/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Browser, desktop and mobile paths use it. `src/results.ts` shares labels/status/debug output.
 - `src/hooks.ts` owns the generic isolated hook runner; browser exports remain available through `runner.ts`.
 - `src/computer-adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports).
 - `src/computer-spec.ts`, `computer.ts`, `computer-mcp.ts`, `computer-cli.ts` provide desktop parsing/execution, eight serialized MCP tools, and sequential batch replay. Desktop specs have `app`, not `url`.
-- `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates both plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
+- `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates all plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
 - Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.md` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
 - `npm run test:computer:mac` is an opt-in native smoke against a disposable Cocoa fixture (Accessibility/Screen Recording permissions required); regular `npm test` uses injected desktop adapters and no model keys. Windows/Linux native parity requires testing on those platforms.
+
+## Mobile use
+
+- `src/mobile-adapter.ts` provides injectable `MobileAdapter` and lazy WebdriverIO `AppiumAdapter`. Appium and platform drivers are external host prerequisites; never auto-install apps or reset app data. Explicit `platform`, `device` (UDID/ADB serial) and installed `app` are required.
+- `src/mobile-tree.ts` normalizes native XCUITest/UiAutomator2 XML into shared candidates/snapshots. Native paths stay inside the adapter; Jev remains the sole target decision maker. Revalidate captured identity before native actions.
+- `mobile-spec.ts`, `mobile.ts`, `mobile-mcp.ts`, `mobile-cli.ts` provide mobile parsing, shared Jev/hooks/results, nine serialized tools, and sequential replay. `serial-queue.ts` is shared with desktop MCP.
+- `mobile-discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
+- The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.md` and its skill.
+- Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.
+- Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. `npm run test:mobile` is an opt-in device tree/PNG smoke using PLAINWRIGHT_MOBILE_PLATFORM/DEVICE/APP and optional PLAINWRIGHT_APPIUM_URL/CAPABILITIES. Native actions and record/replay need validation on both real platforms before claiming parity.
+- `npm run test:mobile:android` builds a disposable offline Java fixture with SDK Platform 36 and Build-Tools 36.0.0, installs it on PLAINWRIGHT_MOBILE_DEVICE, validates actions/MCP authoring/saved replay and uninstalls it. Requires ANDROID_HOME, JAVA_HOME and Appium. `-- --live-jev` uses the configured model; default targeting is deterministic. Artifacts stay in a temporary results directory, not the repository.
+- `npm run test:mobile:ios` builds a disposable UIKit fixture with Xcode's simulator SDK, installs it on the booted simulator identified by PLAINWRIGHT_MOBILE_DEVICE, validates actions/MCP recording/replay and uninstalls it. Requires macOS, Xcode, an iOS runtime and Appium with XCUITest. Supports `-- --live-jev` and PLAINWRIGHT_APPIUM_URL; no developer account is needed for this simulator-only test.
+- Runnable mobile YAML lives in `examples/mobile/` so the top-level browser glob remains valid. Its `examples/hooks/mobile-fixture.mjs` hook and both native smoke scripts share `scripts/mobile-fixture.mjs` for fixture installation/cleanup. Example device IDs come from PLAINWRIGHT_MOBILE_DEVICE, never checked-in personal UDIDs.

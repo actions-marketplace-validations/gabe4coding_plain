@@ -1,0 +1,31 @@
+# Reconstructed from the successful Plainwright mobile session.
+# Start with Calendar's main view visible (Add and Search buttons).
+# This recording assumes English UI, September 2026 in the date picker,
+# and a new event defaulting to 11:00-12:00. It does not set the time.
+# Prepare those defaults or adapt the steps to select the desired date/time.
+# Delete any existing matching event before replaying: this creates a new event.
+# Set PLAINWRIGHT_MOBILE_DEVICE to the booted iOS simulator's UDID.
+name: Create and verify a Calendar appointment
+platform: ios
+device: "${env.device}"
+app: com.apple.mobilecal
+env:
+  device: $PLAINWRIGHT_MOBILE_DEVICE
+steps:
+  - wait: Calendar's main view is visible with Add and Search buttons.
+  - tap: the Add button
+  - fill:
+      target: the event title text field
+      value: Weekly planning
+  - tap: the event date and time summary button below the title
+  - tap: the first date button beside Starts, above Ends
+  - tap: the Tuesday, 22 September date button
+  - expect: The event title is Weekly planning and its start is 22 September 2026 at 11:00 and its end is 22 September 2026 at 12:00.
+  - tap: the Done button in the New Event navigation bar to save the event
+  - tap: the Search button
+  - fill:
+      target: the Search field
+      value: Weekly planning
+  - wait: The Events results list contains a Weekly planning event row showing 11:00 to 12:00.
+  - tap: the event result row labeled Weekly planning, from 11:00 to 12:00, Calendar in the Events table
+  - expect: The Weekly planning event is scheduled for 22 September 2026 from 11:00 to 12:00.

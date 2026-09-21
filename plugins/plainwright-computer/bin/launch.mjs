@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generated into both plugins by build-plugins.mjs. Native/browser dependencies belong to
+// Generated into all plugins by build-plugins.mjs. Native/browser dependencies belong to
 // the single root npm package in runtime.tgz; this is only an install/cache entrypoint.
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const name = JSON.parse(readFileSync(join(root, 'plugin.json'), 'utf8')).name;
-if (!['plainwright', 'plainwright-computer'].includes(name)) throw new Error(`Unknown plugin ${name}`);
+if (!['plainwright', 'plainwright-computer', 'plainwright-mobile'].includes(name)) throw new Error(`Unknown plugin ${name}`);
 const archive = join(root, 'runtime.tgz');
 const hash = createHash('sha256').update(readFileSync(archive)).digest('hex');
 const cache = join(root, '.runtime', hash);

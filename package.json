@@ -1,25 +1,31 @@
 {
   "name": "plainwright",
   "version": "1.0.0",
-  "description": "Natural-language browser and desktop automation with Playwright, xa11y and Jev",
+  "description": "Natural-language browser, desktop and mobile automation with Playwright, xa11y, Appium and Jev",
   "repository": "github:gabe4coding/plainwright",
   "license": "MIT",
   "type": "module",
   "bin": {
     "plainwright": "bin/plainwright.mjs",
-    "plainwright-computer": "bin/plainwright-computer.mjs"
+    "plainwright-computer": "bin/plainwright-computer.mjs",
+    "plainwright-mobile": "bin/plainwright-mobile.mjs"
   },
   "scripts": {
     "build": "tsc && node scripts/build-plugins.mjs",
     "test": "npm run build && node --test 'dist/**/*.test.js'",
     "example": "npm run build && node dist/cli.js examples/*.yaml",
-    "test:computer:mac": "npm run build && node scripts/smoke-computer-macos.mjs"
+    "test:computer:mac": "npm run build && node scripts/smoke-computer-macos.mjs",
+    "test:mobile": "npm run build && node scripts/smoke-mobile.mjs",
+    "test:mobile:android": "npm run build && node scripts/smoke-mobile-android.mjs",
+    "test:mobile:ios": "npm run build && node scripts/smoke-mobile-ios.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@typesafe-ai/sdk": "^0.6.0",
     "ai": "^7.0.107",
+    "fast-xml-parser": "5.11.1",
     "playwright": "^1.63.0",
+    "webdriverio": "9.31.4",
     "yaml": "^2.9.1",
     "zod": "^4.6.5"
   },

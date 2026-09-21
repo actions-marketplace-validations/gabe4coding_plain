@@ -1,4 +1,4 @@
-// One npm package owns both engines. Plugin hosts copy subdirectories independently, so each
+// One npm package owns all engines. Plugin hosts copy subdirectories independently, so each
 // plugin ships an identical, reproducible runtime tarball built from the root manifest/lockfile.
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -18,13 +18,13 @@ try {
   for (const name of readdirSync(join(root, 'dist'))) {
     if (name.endsWith('.js') && !name.endsWith('.test.js')) copyFileSync(join(root, 'dist', name), join(packageDir, 'dist', name));
   }
-  for (const name of ['plainwright.mjs', 'plainwright-computer.mjs']) copyFileSync(join(root, 'bin', name), join(packageDir, 'bin', name));
+  for (const name of ['plainwright.mjs', 'plainwright-computer.mjs', 'plainwright-mobile.mjs']) copyFileSync(join(root, 'bin', name), join(packageDir, 'bin', name));
   const packed = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm',
     ['pack', '--ignore-scripts', '--json', '--pack-destination', stage],
     { cwd: packageDir, encoding: 'utf8', shell: process.platform === 'win32', env: { ...process.env, npm_config_cache: join(stage, 'npm-cache') } });
   if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr || packed.error}`);
   const archive = join(stage, JSON.parse(packed.stdout)[0].filename);
-  for (const name of ['plainwright', 'plainwright-computer']) {
+  for (const name of ['plainwright', 'plainwright-computer', 'plainwright-mobile']) {
     const plugin = join(root, 'plugins', name);
     mkdirSync(join(plugin, 'bin'), { recursive: true });
     copyFileSync(archive, join(plugin, 'runtime.tgz'));
