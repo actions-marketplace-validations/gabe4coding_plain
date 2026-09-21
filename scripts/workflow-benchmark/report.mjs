@@ -34,7 +34,7 @@ const ratio = v => Number.isFinite(v) ? `${v.toFixed(2)}×` : '—';
 const tier = model => model.split('/')[1];
 const lines = [
   `# Browser workflow results — ${manifest.startedAt.slice(0, 10)}`, '',
-  `${runs.length} trials; ${manifest.tasks.length} synthetic workflows, ${manifest.repeats} repetitions, two tool stacks and ${manifest.models.length} main models. Total recorded API cost: **$${summary.totalCost.toFixed(4)}**. Development pilots and the benchmarking agent’s own work are excluded.`, '',
+  `${runs.length} trials; ${manifest.tasks.length} synthetic workflows, ${manifest.repeats} repetition${manifest.repeats === 1 ? '' : 's'}, two tool configurations and ${manifest.models.length} main models. Total recorded API cost: **$${summary.totalCost.toFixed(4)}**. Development pilots and the benchmarking agent’s own work are excluded.`, '',
   'See the [protocol and reproduction instructions](../browser-workflows.md). These are measurements of this harness and task suite, not a general website-performance guarantee.', '',
   ...(manifest.comparison === 'batch' ? ['This is a batching ablation: both arms use the same plainwright/Jev implementation. Only `plainwright` exposes `batch` and its usage guidance; `plainwright-unbatched` uses individual steps. The control is **not Playwright MCP**.', ''] : []),
   ...(existsSync(resolve(destination, 'findings.md')) ? ['Read the [interpretation and failure analysis](findings.md).', ''] : []),
@@ -79,7 +79,7 @@ lines.push('', '## Limits and evidence', '',
   `- Trials containing an output-capped generation (4,096 tokens): ${outputCapped.length}. ${outputCapped.map(r => r.id).join(', ') || 'None.'} Malformed calls and their recovery costs remain in the primary results. These can reflect model/tool-schema integration, not just UI targeting.`,
   '- Production behavior was frozen during the run. Failures, recoveries and expensive outliers remain in the sample.',
   '- This suite has no authentication, CAPTCHA, real network-dependent application data, visual-only controls, mobile or desktop automation. It does not test direct Playwright code generation or CLI/skills agents.',
-  `- Model aliases, API load, caching, machine conditions and prompts can change the results. ${manifest.repeats} repetitions per task do not establish a production reliability rate.`,
+  `- Model aliases, API load, caching, machine conditions and prompts can change the results. Repetitions per task: ${manifest.repeats}; this does not establish a production reliability rate.`,
   '- Costs use reported gateway charges plus measured Jev input tokens at its published rate. They exclude local hardware, subscriptions, taxes and setup.',
   '',
   'Artifacts: [summary](summary.json), [per-trial measurements](runs.jsonl), [manifest and exact prompts](manifest.json), [pricing snapshot](pricing.json), [compressed traces](traces.jsonl.gz), and [SHA-256 checksums](sha256.json). Host home/temp prefixes in paths are sanitized; measured usage and costs are preserved.',
