@@ -1,5 +1,11 @@
 # Contextual targeting: interpretation
 
+> **Baseline limitation discovered during the later audit:** the benchmark helper rejected all 2
+> attempted snapshot-file reads because it compared canonical `/private/tmp` paths with `/tmp`.
+> Baseline agents recovered using inline snapshots, adding potential cost and time. These figures
+> do not establish savings against a fully functioning baseline. See the
+> [corrected comparison](../current-browser-comparison.md). Raw measurements are preserved.
+
 Read the [experiment report](../contextual-targeting.md) for the implementation, before/after
 comparison, test coverage, preparation exclusions, reproduction command and limitations.
 

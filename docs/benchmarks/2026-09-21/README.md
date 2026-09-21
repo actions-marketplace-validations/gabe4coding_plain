@@ -1,5 +1,11 @@
 # Browser workflow results — 2026-09-21
 
+> **Baseline limitation discovered during the later audit:** the benchmark helper rejected all 8
+> attempted snapshot-file reads because it compared canonical `/private/tmp` paths with `/tmp`.
+> Baseline agents recovered using inline snapshots, adding potential cost and time. These figures
+> do not establish savings against a fully functioning baseline. See the
+> [corrected comparison](../current-browser-comparison.md). Raw measurements are preserved.
+
 108 trials; 6 synthetic workflows, 3 repetitions, two tool stacks and 3 main models. Total recorded API cost: **$2.6115**. Development pilots and the benchmarking agent’s own work are excluded.
 
 See the [protocol and reproduction instructions](../browser-workflows.md). These are measurements of this harness and task suite, not a general website-performance guarantee.
