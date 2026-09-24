@@ -78,6 +78,10 @@ recording: 1-16 claims in one Jev call, each `yes` (p >= 0.9), `no` (p <= 0.1) o
 step fails or is inconclusive, ask one claim per possible cause ("An error alert is shown", "The
 keyboard covers the button", "The Save button is disabled") instead of reading the whole tree. It
 cannot explain in free text. Use `expect` only for assertions that belong in the replayed test.
+To get a sure answer instead of `unsure`: name the exact thing (its text, role and place), not
+a vague "an error is shown"; for absence, ask the positive claim and read a sure `no` ("The field
+contains any text" → no, where "The field is empty" stays unsure: an empty field has no value in
+the tree); scope with `within` to cut noise. `unsure` is not evidence either way: rephrase or split.
 
 Each line below is a separate step:
 

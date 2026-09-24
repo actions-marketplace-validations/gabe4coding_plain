@@ -68,6 +68,13 @@ A claim is one fact about something that is visible when the condition holds.
 - **Nondeterministic pages.** Claim what is stable (`a notification bar is shown at the top`), not the
   random text.
 - `wait` when the thing appears after a delay or an animation. `expect` for a settled page.
+- **Vague words collide with context.** In the browser Jev also sees console errors, dialogs and
+  downloads. On a login page with a console error whose instructions mention "error messages",
+  `an error message is shown` scored 0.36; `the form shows a message saying the username is invalid`
+  scored 0.09, a clear fail.
+- **Checking that something is not there** (with `ask`, while debugging): ask the positive claim and read
+  a clear no. `the Password textbox contains any text` scored 0.06 where `the Password textbox is empty`
+  scored 0.79: an empty field has no value in the tree to point to.
 
 ## When a step comes back `?`
 

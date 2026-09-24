@@ -11,7 +11,7 @@ const blank = (): ComputerSpec => ({ name: 'computer session', app: '', dir: pro
 
 export function createComputerServer<T>(adapter: ComputerAdapter<T>, timeout = 15000, ai: Intelligence = intelligence) {
   return createNativeServer<ComputerSpec>({
-    name: 'plainwright-computer', version: '0.1.5', where: 'computer MCP', spec: blank(), ai,
+    name: 'plainwright-computer', version: '0.1.6', where: 'computer MCP', spec: blank(), ai,
     session: new ComputerSession(adapter, timeout, ai) as ComputerSession, kinds: ['click', 'fill', 'check', 'hover', 'region', 'scroll'],
     saved: (spec) => ({ app: spec.app }),
     describe: {

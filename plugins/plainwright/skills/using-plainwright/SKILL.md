@@ -38,6 +38,15 @@ The rules below apply to both.
   cause ("An error message is shown", "The Submit button is disabled", "A cookie banner covers the form")
   before reading a snapshot. It cannot explain in free text. Use `expect` only for assertions that belong
   in the test: `ask` never changes the session status and `save` never records it.
+  To get a sure answer instead of `unsure`:
+  - Name the exact thing: its text, role and place. Jev also sees console errors, dialogs and downloads,
+    so "An error message is shown" is unsure on a page with a console error, or whose instructions mention
+    errors. "The form shows a message saying the username is invalid" gets a clear `no`.
+  - For absence, ask the positive claim and read a sure `no`: "The Password textbox contains any text" →
+    `no`, where "The Password textbox is empty" stays unsure (an empty field has no value in the tree).
+  - Scope with `within` to cut noise; `css=` regions never miss. Ask "The browser console reported an
+    error" on its own when console errors matter.
+  - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plainwright/*.json`; the path
   is in `detail`.
 
