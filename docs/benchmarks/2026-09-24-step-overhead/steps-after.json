@@ -1,0 +1,97 @@
+{
+  "specs": [
+    "examples/components-auth.yaml",
+    "examples/components-dialogs-accept.yaml",
+    "examples/components-dialogs-dismiss.yaml",
+    "examples/components-download.yaml",
+    "examples/components-drag.yaml",
+    "examples/components-exit-intent.yaml",
+    "examples/components-forms.yaml",
+    "examples/components-geolocation.yaml",
+    "examples/components-iframe.yaml",
+    "examples/components-jserror.yaml",
+    "examples/components-large.yaml",
+    "examples/components-scroll-wait.yaml",
+    "examples/components-shadowdom.yaml",
+    "examples/components-upload.yaml",
+    "examples/login-dataset.yaml",
+    "examples/login.yaml",
+    "examples/todo.yaml"
+  ],
+  "runs": 3,
+  "median": {
+    "wall": 66477,
+    "overhead": 26328,
+    "skippedMs": 15009,
+    "total": 50080,
+    "settle": 12931,
+    "action": 23510,
+    "snapshot": 275,
+    "jev": 4987,
+    "candidates": 49,
+    "post": 3491,
+    "reasked": 1,
+    "idle": 4504
+  },
+  "failedSpecs": [
+    0,
+    0,
+    0
+  ],
+  "raw": [
+    {
+      "wall": 67704,
+      "steps": 84,
+      "failed": 0,
+      "skippedMs": 15009,
+      "phases": {
+        "total": 51387,
+        "settle": 12944,
+        "action": 25356,
+        "snapshot": 275,
+        "jev": 4660,
+        "candidates": 44,
+        "post": 3488,
+        "reasked": 1,
+        "idle": 4504
+      },
+      "overhead": 26031
+    },
+    {
+      "wall": 66086,
+      "steps": 84,
+      "failed": 0,
+      "skippedMs": 15009,
+      "phases": {
+        "total": 49682,
+        "settle": 12931,
+        "action": 23354,
+        "snapshot": 269,
+        "jev": 4987,
+        "candidates": 49,
+        "post": 3498,
+        "reasked": 1,
+        "idle": 4483
+      },
+      "overhead": 26328
+    },
+    {
+      "wall": 66477,
+      "steps": 84,
+      "failed": 0,
+      "skippedMs": 15010,
+      "phases": {
+        "total": 50080,
+        "settle": 12701,
+        "action": 23510,
+        "snapshot": 278,
+        "jev": 5164,
+        "candidates": 51,
+        "post": 3491,
+        "reasked": 1,
+        "idle": 4511
+      },
+      "overhead": 26570
+    }
+  ]
+}

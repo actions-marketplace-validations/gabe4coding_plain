@@ -39,6 +39,40 @@ export async function resolveTargets<T>(adapter: TargetAdapter<T>, targets: stri
   });
 }
 
+/**
+ * Ask Jev about an early observation while the settled one is still being taken, instead of settle →
+ * observe → ask. The early answer is kept only when the settled observation is the same; otherwise the
+ * settled one is asked, and the early answer is still awaited so `discard` accounts for its tokens.
+ * `early` resolving to null (or throwing) means no early look: observe settled, then ask. `skip`: no
+ * question is needed for this observation (the caller already knows the answer); result is then null.
+ * The browser has its own variant (settledAsk in steps.ts), which can prove "unchanged" from a DOM
+ * mutation clock without a second observation.
+ */
+export async function askSettled<F, R>(o: {
+  early?: () => Promise<F | null>;
+  settled: () => Promise<F>;
+  same: (a: F, b: F) => boolean;
+  ask: (frame: F) => Promise<R>;
+  discard: (result: R) => void;
+  skip?: (frame: F) => boolean;
+  /** Wraps the wait for an answer, for phase timing. */
+  waitAnswer?: <T>(fn: () => Promise<T>) => Promise<T>;
+}): Promise<{ frame: F; result: R | null; reasked: boolean }> {
+  const wait = o.waitAnswer ?? (<T>(fn: () => Promise<T>) => fn());
+  const first = o.early ? await o.early().catch(() => null) : null;
+  const answer = first !== null && !o.skip?.(first) ? o.ask(first) : null;
+  answer?.catch(() => {}); // surfaces below only if this answer is the one used
+  const frame = await o.settled();
+  if (answer && o.same(first!, frame)) return { frame, result: await wait(() => answer), reasked: false };
+  const stale = answer?.then(o.discard, () => {});
+  if (o.skip?.(frame)) {
+    await stale;
+    return { frame, result: null, reasked: answer !== null };
+  }
+  const [result] = await wait(() => Promise.all([o.ask(frame), stale]));
+  return { frame, result, reasked: answer !== null };
+}
+
 export async function judgeState(snap: Snapshot, claims: string[], events: string[] = [], ai = intelligence) {
   let aria = snap.aria;
   for (;;) {

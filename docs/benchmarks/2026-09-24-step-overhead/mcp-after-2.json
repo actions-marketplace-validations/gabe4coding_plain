@@ -1,0 +1,140 @@
+{
+  "cli": "dist/cli.js",
+  "gap": 5000,
+  "total": 5614,
+  "perCall": [
+    {
+      "name": "open",
+      "ms": 1516
+    },
+    {
+      "name": "step",
+      "ms": 576
+    },
+    {
+      "name": "step",
+      "ms": 479
+    },
+    {
+      "name": "step",
+      "ms": 501
+    },
+    {
+      "name": "step",
+      "ms": 271
+    },
+    {
+      "name": "open",
+      "ms": 129
+    },
+    {
+      "name": "step",
+      "ms": 310
+    },
+    {
+      "name": "step",
+      "ms": 278
+    },
+    {
+      "name": "open",
+      "ms": 123
+    },
+    {
+      "name": "find",
+      "ms": 292
+    },
+    {
+      "name": "step",
+      "ms": 260
+    },
+    {
+      "name": "step",
+      "ms": 235
+    },
+    {
+      "name": "open",
+      "ms": 321
+    },
+    {
+      "name": "snapshot",
+      "ms": 323
+    }
+  ],
+  "raw": [
+    {
+      "total": 5614,
+      "calls": [
+        {
+          "name": "open",
+          "ms": 1516,
+          "status": "ok"
+        },
+        {
+          "name": "step",
+          "ms": 576,
+          "status": "pass"
+        },
+        {
+          "name": "step",
+          "ms": 479,
+          "status": "pass"
+        },
+        {
+          "name": "step",
+          "ms": 501,
+          "status": "pass"
+        },
+        {
+          "name": "step",
+          "ms": 271,
+          "status": "pass"
+        },
+        {
+          "name": "open",
+          "ms": 129,
+          "status": "ok"
+        },
+        {
+          "name": "step",
+          "ms": 310,
+          "status": "pass"
+        },
+        {
+          "name": "step",
+          "ms": 278,
+          "status": "pass"
+        },
+        {
+          "name": "open",
+          "ms": 123,
+          "status": "ok"
+        },
+        {
+          "name": "find",
+          "ms": 292,
+          "status": "ok"
+        },
+        {
+          "name": "step",
+          "ms": 260,
+          "status": "pass"
+        },
+        {
+          "name": "step",
+          "ms": 235,
+          "status": "pass"
+        },
+        {
+          "name": "open",
+          "ms": 321,
+          "status": "ok"
+        },
+        {
+          "name": "snapshot",
+          "ms": 323,
+          "status": "ok"
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,38 @@
 import { z } from 'zod';
 import { experimental_evaluate as evaluate, APICallError } from 'ai';
 import { TypeSafeClient, UnprocessableEntityError, noul, choice } from '@typesafe-ai/sdk';
+import { Agent, setGlobalDispatcher } from 'undici';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { Candidate } from './automation.js';
+
+// Both backends call through the global fetch. Its default pool drops an idle connection after 4 s, and
+// the API is a transatlantic round trip away: a fresh TCP+TLS connection added ~350 ms to each of the
+// next two calls (measured 2026-09-24). In agent use every step comes seconds after the last one, so
+// keep connections open. Idle sockets are unref'd: they never hold the process open.
+setGlobalDispatcher(new Agent({ keepAliveTimeout: 60_000, keepAliveMaxTimeout: 600_000 }));
+
+/**
+ * Two tiny Jev calls, in parallel, while the browser launches. The first model call on each new
+ * connection costs ~350 ms more than the next ones, and it is not the TCP/TLS setup: a cheap GET on
+ * the same connection does not remove it (a HEAD even closes it), only a real model request does.
+ * Two, because back-to-back calls land on two connections (the first is not back in the pool when
+ * the second starts). No retries and a short timeout: fire and forget, never holding the process
+ * open; a failure only means the first real calls pay that cost themselves. Untracked tokens: ~100.
+ */
+export function warmUp(): void {
+  let p: Provider;
+  try {
+    p = provider();
+  } catch {
+    return; // no key: the first call reports it
+  }
+  const questions: Question[] = [{ kind: 'boolean', instructions: 'The state is empty.' }];
+  for (let i = 0; i < 2; i++) {
+    const call = p === 'typesafe' ? callTypesafe({}, questions, { retry: { maxRetries: 0 }, timeout: 10_000 }) : callGateway({}, questions);
+    call.catch(() => {});
+  }
+}
 
 export const ProviderSchema = z.enum(['typesafe', 'gateway']);
 export type Provider = z.infer<typeof ProviderSchema>;
@@ -142,7 +171,11 @@ async function callGateway(state: unknown, questions: Question[]): Promise<{ ans
   return { answers: keys.map((k) => raw[k]), tokens: usage.totalTokens ?? 0 };
 }
 
-async function callTypesafe(state: unknown, questions: Question[]): Promise<{ answers: RawAnswer[]; tokens: number }> {
+async function callTypesafe(
+  state: unknown,
+  questions: Question[],
+  options?: Parameters<TypeSafeClient['systemOne']>[1]
+): Promise<{ answers: RawAnswer[]; tokens: number }> {
   const keys = questions.map((_, i) => `q${i}`);
   const { answers, usage } = await typesafe().systemOne({
     model: MODEL_BY_PROVIDER.typesafe,
@@ -150,7 +183,7 @@ async function callTypesafe(state: unknown, questions: Question[]): Promise<{ an
     questions: Object.fromEntries(
       questions.map((q, i) => [keys[i], q.kind === 'choice' ? choice(q.instructions, q.criteria) : noul(q.instructions)])
     ),
-  });
+  }, options);
   const raw = RawAnswersSchema.parse(answers);
   return { answers: keys.map((k) => raw[k]), tokens: usage.input_tokens + usage.output_tokens };
 }

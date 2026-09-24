@@ -24,6 +24,7 @@ export class AppiumAdapter {
     driver;
     target;
     generation = 0;
+    idleTimeout; // the session's UiAutomator2 waitForIdleTimeout, restored after each early capture
     constructor(server = 'http://127.0.0.1:4723', timeout = 15000, connect = async (options) => (await import('webdriverio')).remote(options)) {
         this.server = server;
         this.timeout = timeout;
@@ -66,9 +67,34 @@ export class AppiumAdapter {
         return node;
     }
     async capture(kind, within) {
-        const tree = parseMobileTree(await this.current().getPageSource());
+        return this.frame(await this.current().getPageSource(), kind, within);
+    }
+    frame(source, kind, within) {
+        const tree = parseMobileTree(source);
         const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
         return mobileFrame(roots, kind, { url: `mobile://${this.target.platform}/${encodeURIComponent(this.target.app)}`, title: this.target.app }, this.generation, tree.truncated);
+    }
+    /**
+     * Android only: the tree without UiAutomator's idle wait. After an action, getPageSource waits for
+     * ~500 ms of accessibility-event quiet (measured 480-600 ms on an emulator, versus 12-110 ms without),
+     * so MobileSession sends this quick tree to Jev while capture() waits, and keeps the answer only if
+     * the settled tree is the same. null on iOS: XCUITest already waits for quiescence inside the action,
+     * and a quick read there was no faster and never different (measured), so it would only cost calls.
+     */
+    async captureEarly(kind, within) {
+        if (this.target?.platform !== 'android')
+            return null;
+        const driver = this.current();
+        this.idleTimeout ??= Number((await driver.getSettings())?.waitForIdleTimeout) || 10000;
+        await driver.updateSettings({ waitForIdleTimeout: 0 });
+        let source;
+        try {
+            source = await driver.getPageSource();
+        }
+        finally {
+            await driver.updateSettings({ waitForIdleTimeout: this.idleTimeout });
+        }
+        return this.frame(source, kind, within);
     }
     async resolve(element) {
         const driver = this.current();
@@ -142,6 +168,7 @@ export class AppiumAdapter {
         const driver = this.driver;
         this.driver = undefined;
         this.target = undefined;
+        this.idleTimeout = undefined;
         this.generation++;
         if (driver)
             await driver.deleteSession();

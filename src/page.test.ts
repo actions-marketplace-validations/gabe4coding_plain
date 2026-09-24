@@ -1,8 +1,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
-import { candidates, elementById, installSettleObserver, settle, waitForMutation } from './page.js';
-import { mayNavigate, type StepContext } from './steps.js';
+import { candidates, elementById, installSettleObserver, mark, settle, unchangedSince, waitForMutation } from './page.js';
+import { mayNavigate, settledAsk, settlePage, waitHold, type StepContext } from './steps.js';
 
 let browser: Browser;
 let page: Page;
@@ -162,4 +162,83 @@ test('waitForMutation: false on a static page after maxMs, true as soon as a mut
   const mutateElapsed = Date.now() - mutateStart;
   assert.equal(mutateResult, true);
   assert.ok(mutateElapsed < 800, `should resolve soon after the mutation, took ${mutateElapsed}ms`);
+});
+
+const stepContext = (): StepContext => ({ page, spec: { name: 't', url: '', dir: process.cwd(), dialogs: 'accept', steps: [] }, timeout: 5000, events: [], track: () => {}, ms: {} });
+
+test('candidate scan: its data-jev-id tags do not count as a mutation, so a quiet page stays quiet', async () => {
+  await installSettleObserver(page);
+  await page.goto('about:blank');
+  await page.setContent('<body><button>One</button><button>Two</button></body>');
+  await new Promise((r) => setTimeout(r, 600));
+  const before = await mark(page);
+  await candidates(page, 'click', 10);
+  const start = Date.now();
+  const after = await settle(page);
+  assert.ok(Date.now() - start < 150, 'the scan must not restart the quiet window');
+  assert.ok(unchangedSince(before, after), 'the scan must not look like a page change');
+});
+
+test('settledAsk: keeps the early answer on an unchanged page, asks again when the page changes while settling', async () => {
+  await installSettleObserver(page);
+  await page.goto('about:blank');
+  await page.setContent('<body><p id="t">Before</p></body>');
+  await new Promise((r) => setTimeout(r, 600));
+  const text = () => page.locator('#t').innerText();
+  const run = async () => {
+    const asked: string[] = [];
+    const discarded: string[] = [];
+    const ctx = stepContext();
+    const { state, result } = await settledAsk(ctx, {
+      observe: text,
+      same: (a, b) => a === b,
+      ask: async (s) => { asked.push(s); await new Promise((r) => setTimeout(r, 50)); return `answer about ${s}`; },
+      discard: (r) => discarded.push(r),
+    });
+    return { state, result, asked, discarded, reasked: ctx.ms.reasked };
+  };
+
+  const quiet = await run();
+  assert.deepEqual(quiet, { state: 'Before', result: 'answer about Before', asked: ['Before'], discarded: [], reasked: undefined });
+
+  // The page is still busy (a mutation just now) and its text changes 100 ms after the first look:
+  // settle waits for it, and the early answer is about a stale page.
+  await page.evaluate(() => {
+    document.body.appendChild(document.createElement('span'));
+    setTimeout(() => { document.getElementById('t')!.textContent = 'After'; }, 100);
+  });
+  const changed = await run();
+  assert.deepEqual(changed, { state: 'After', result: 'answer about After', asked: ['Before', 'After'], discarded: ['answer about Before'], reasked: 1 });
+});
+
+test('settlePage: waits for a young in-flight fetch even while the DOM is quiet', async () => {
+  await installSettleObserver(page);
+  await page.route('https://example.test/', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><body></body>' }));
+  await page.route('**/slow', async (route) => {
+    await new Promise((r) => setTimeout(r, 700));
+    await route.fulfill({ contentType: 'application/json', body: '{}' });
+  });
+  await page.goto('https://example.test/');
+  await settlePage(page); // wires request tracking for this page
+  await new Promise((r) => setTimeout(r, 400));
+  await page.evaluate(() => void fetch('/slow'));
+  const start = Date.now();
+  await settlePage(page);
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed >= 600, `should wait for the response, took only ${elapsed}ms`);
+  assert.ok(elapsed < 1500, `should not wait for the cap, took ${elapsed}ms`);
+  await page.unroute('**/slow');
+  await page.unroute('https://example.test/');
+});
+
+test('mayNavigate holdMs: returns after the grace, the rest of the hold is waited by the next step', async () => {
+  await page.goto('about:blank');
+  await page.setContent('<body><input id="q"></body>');
+  const ctx = stepContext();
+  const start = Date.now();
+  await mayNavigate(ctx, () => page.fill('#q', 'x'), 200, 500);
+  const returned = Date.now() - start;
+  assert.ok(returned < 450, `should return after the grace, took ${returned}ms`);
+  await waitHold(page);
+  assert.ok(Date.now() - start >= 490, `the hold should last until 500 ms after the action, took ${Date.now() - start}ms`);
 });

@@ -1,9 +1,10 @@
 import { interpolate } from './spec.js';
 import { parseMobileStep, validateMobileStep, mobileLabel } from './mobile-spec.js';
-import { intelligence, resolveTargets, judgeState } from './automation.js';
+import { intelligence, resolveTargets, judgeState, askSettled } from './automation.js';
 import { decide } from './jev.js';
-import { dumpDebug } from './results.js';
+import { timedInto, dumpDebug } from './results.js';
 import { startHooks } from './hooks.js';
+const EARLY_WINDOW_MS = 1000;
 export class MobileSession {
     adapter;
     timeout;
@@ -15,25 +16,49 @@ export class MobileSession {
         this.timeout = timeout;
         this.ai = ai;
     }
+    // Per-step phase timings (capture, jev, act, idle), reset by run() and returned as the result's `ms`.
+    ms = {};
+    timed(phase, fn) { return timedInto(this.ms, phase, fn); }
     track(tokens) { this.calls++; this.tokens += tokens; }
+    // End of the last step. Seconds later (an agent's turn) the UI is idle, the settled capture is quick,
+    // and an early capture would only add calls (measured: no gain with 5 s between steps).
+    lastStepEnd = 0;
+    /** The UI was just driven outside a step (the app was opened): the next step may find it busy. */
+    noteActivity() { this.lastStepEnd = Date.now(); }
+    // Captures the settled UI and asks Jev about it. Where the adapter offers an early capture (Android),
+    // Jev already works on it while the adapter waits for the UI to go idle (askSettled) — only right
+    // after the previous step, when the UI may still be busy.
+    async settled(kind, within, ask, discard, skip) {
+        const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
+        const early = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
+        const { frame, result, reasked } = await askSettled({
+            early: early && (() => this.timed('capture', () => early(kind, within))),
+            settled: () => this.timed('capture', () => this.adapter.capture(kind, within)),
+            same: sameFrame, ask, discard, skip,
+            waitAnswer: (fn) => this.timed('jev', fn),
+        });
+        if (reasked)
+            this.ms.reasked = (this.ms.reasked ?? 0) + 1;
+        return { frame, result };
+    }
     async find(kind, targets) {
-        const frame = await this.adapter.capture(kind);
-        const resolved = await resolveTargets({ candidates: frame.candidates, state: frame.snapshot,
+        const { result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: frame.snapshot,
             element: (c) => { const el = frame.elements.get(c.id); if (el === undefined)
                 throw new Error('Candidate handle missing'); return el; },
-        }, targets, this.ai);
-        for (const r of resolved)
+        }, targets, this.ai), ([first]) => { if (first?.usedJev)
+            this.track(first.tokens); });
+        for (const r of result)
             if (r.usedJev)
                 this.track(r.tokens);
-        return resolved;
+        return result;
     }
     async snapshot(within) {
         if (!within)
-            return (await this.adapter.capture('region')).snapshot;
+            return (await this.timed('capture', () => this.adapter.capture('region'))).snapshot;
         const [r] = await this.find('region', [within]);
         if (r.element === null)
             throw new Error(r.detail);
-        return (await this.adapter.capture('region', r.element)).snapshot;
+        return (await this.timed('capture', () => this.adapter.capture('region', r.element))).snapshot;
     }
     async step(raw) {
         const step = parseMobileStep(raw);
@@ -41,6 +66,7 @@ export class MobileSession {
     }
     async run(step) {
         const start = Date.now();
+        this.ms = {};
         let result;
         try {
             result = await this.execute(validateMobileStep(step));
@@ -50,7 +76,8 @@ export class MobileSession {
         }
         if (step.optional && (result.status === 'error' || result.status === 'inconclusive'))
             result.status = 'skipped';
-        return { ...result, ms: { total: Date.now() - start } };
+        this.lastStepEnd = Date.now();
+        return { ...result, ms: { total: this.lastStepEnd - start, ...this.ms } };
     }
     async execute(step) {
         const name = mobileLabel(step);
@@ -60,20 +87,27 @@ export class MobileSession {
             let polls = 0, last = '', probabilities = [], status = 'inconclusive';
             let snap;
             do {
-                snap = await this.snapshot(step.kind === 'expect' ? step.within : undefined);
-                const key = JSON.stringify(snap);
-                if (key !== last || status !== 'fail') {
-                    const judged = await judgeState(snap, claims, [], this.ai);
+                let region;
+                if (step.kind === 'expect' && step.within) {
+                    const [r] = await this.find('region', [step.within]);
+                    if (r.element === null)
+                        throw new Error(r.detail);
+                    region = r.element;
+                }
+                // Unchanged since a clear "no": asking again buys nothing.
+                const { frame, result: judged } = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');
+                snap = frame.snapshot;
+                if (judged) {
                     this.track(judged.tokens);
                     probabilities = judged.probabilities;
                     polls++;
                     const decisions = probabilities.map((p) => decide(p, 'expect'));
                     status = decisions.includes('fail') ? 'fail' : decisions.includes('inconclusive') ? 'inconclusive' : 'pass';
                 }
-                last = key;
+                last = JSON.stringify(snap);
                 if (step.kind === 'expect' || status === 'pass' || Date.now() >= deadline || polls >= 8)
                     break;
-                await new Promise((r) => setTimeout(r, Math.min(250, Math.max(0, deadline - Date.now()))));
+                await this.timed('idle', () => new Promise((r) => setTimeout(r, Math.min(250, Math.max(0, deadline - Date.now())))));
             } while (Date.now() < deadline);
             if (step.kind === 'wait' && status !== 'pass')
                 status = 'inconclusive';
@@ -81,7 +115,7 @@ export class MobileSession {
             return { step: name, status, detail: `p=${probabilities.map((p) => p.toFixed(2)).join(', ')} after ${polls} poll(s)${debug}` };
         }
         if (step.kind === 'press')
-            await this.adapter.press(step.key);
+            await this.timed('act', () => this.adapter.press(step.key));
         else if (step.kind === 'swipe') {
             let element;
             if (step.within) {
@@ -90,7 +124,7 @@ export class MobileSession {
                     return { step: name, status: 'inconclusive', detail: r.detail };
                 element = r.element;
             }
-            await this.adapter.gesture('swipe', step.direction, element);
+            await this.timed('act', () => this.adapter.gesture('swipe', step.direction, element));
         }
         else {
             const kind = step.kind === 'fill' ? 'fill' : step.kind === 'check' || step.kind === 'uncheck' ? 'check' :
@@ -99,14 +133,20 @@ export class MobileSession {
             const [r] = await this.find(kind, [target]);
             if (r.element === null)
                 return { step: name, status: 'inconclusive', detail: r.detail };
+            const element = r.element;
             if (step.kind === 'scroll')
-                await this.adapter.gesture('scroll', step.target.split(':')[0], r.element);
+                await this.timed('act', () => this.adapter.gesture('scroll', step.target.split(':')[0], element));
             else
-                await this.adapter.act(step.kind, r.element, step.kind === 'fill' ? step.value : undefined);
+                await this.timed('act', () => this.adapter.act(step.kind, element, step.kind === 'fill' ? step.value : undefined));
             return { step: name, status: 'pass', detail: r.detail };
         }
         return { step: name, status: 'pass' };
     }
+}
+// Same input for Jev (tree text and candidates) and same native handles, so an answer about one frame holds for the other.
+function sameFrame(a, b) {
+    return JSON.stringify(a.snapshot) === JSON.stringify(b.snapshot) && JSON.stringify(a.candidates) === JSON.stringify(b.candidates) &&
+        JSON.stringify([...a.elements]) === JSON.stringify([...b.elements]);
 }
 export async function runMobileSpec(spec, session) {
     const steps = [];
@@ -124,6 +164,7 @@ export async function runMobileSpec(spec, session) {
         const resolved = interpolate({ platform: spec.platform, device: spec.device, app: spec.app, capabilities: spec.capabilities, steps: spec.steps }, { env: spec.env, hooks: data }, spec.name);
         const { steps: resolvedSteps, ...target } = resolved;
         await session.adapter.open(target);
+        session.noteActivity();
         for (const step of resolvedSteps) {
             const result = await session.run(step);
             steps.push(result);

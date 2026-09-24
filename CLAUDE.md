@@ -24,6 +24,15 @@ node dist/cli.js [--headless] [--timeout 15000] examples/login.yaml [more.yaml .
 node dist/cli.js --headless mcp
 ```
 
+Performance tracking (live sites and a Jev key; build first). `benchmark-steps.mjs` reports per-phase step overhead
+(step time minus page action time) over the examples; `benchmark-mcp.mjs` times an agent-style MCP session with think
+time between calls. Compare a change against a saved run; results and method in `docs/benchmarks/step-overhead.md`:
+
+```
+node scripts/benchmark-steps.mjs --runs 3 --out /tmp/new.json --compare /tmp/base.json
+node scripts/benchmark-mcp.mjs --cli dist/cli.js --gap 5000 --runs 2
+```
+
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
 persistent context; `--channel chrome` launches an installed browser instead of the bundled Chromium; `--cdp <url>` attaches
 to a running Chrome (`openPage()` in `src/runner.ts` picks one of the three; env fallbacks `PLAINWRIGHT_PROFILE`/
@@ -64,11 +73,18 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/steps.ts`). The model is pinned (`MODEL_BY_PROVIDER`), not `jev-latest`:
   thresholds and phrasing advice were tuned against it. The TypeSafe SDK client handles timeouts and retries
   (429/5xx, `Retry-After`); the gateway path keeps its own retry loop because the AI SDK's backoff cannot outlast
-  a rate-limit window.
+  a rate-limit window. A global undici keep-alive dispatcher keeps API connections open between calls (Node's default
+  drops them after 4 s, and the first model call on a new connection costs ~350 ms more); `warmUp()` sends two tiny
+  Jev calls at CLI/MCP start so the first steps find warm connections.
 - `src/steps.ts` — one handler per step kind (`goto`, `fill`, `click`, `hover`, `dblclick`, `rightclick`,
   `select`, `check`, `uncheck`, `upload`, `scroll`, `wait`, `press`, `drag`, `mouse`, `expect`), each accepting
-  `optional: true`. An action step is settle → snapshot candidates → Jev picks → Playwright acts; `expect`/`wait`
-  are settle → snapshot → Jev judges. Several `expect` claims share one Jev call; fail beats inconclusive beats
+  `optional: true`. An action step is snapshot candidates → Jev picks while the page settles → Playwright acts;
+  `expect`/`wait` are snapshot → Jev judges while the page settles (`settledAsk`: the early answer is kept only if
+  the main document did not mutate after the look, via `mark()`/`unchangedSince()`, or a second look is identical;
+  otherwise the settled state is asked again and `ms.reasked` counts it). `settlePage()` = DOM quiet 300 ms plus no
+  xhr/fetch younger than 2 s in flight, 3 s cap; observers ignore the scan's own `data-jev-id` writes. `fill`'s 500 ms
+  debounce hold (`mayNavigate` `holdMs`) is waited by the next step's settle, or by `waitHold` in `runStep` for steps
+  that do not settle first (`settlesFirst`). Several `expect` claims share one Jev call; fail beats inconclusive beats
   pass across them. `check`/`uncheck` read the state (a control's `checked`, following a label, or
   aria-checked/aria-pressed) and click only when it must change (`setChecked`); `scroll: top|bottom` (and spoken
   forms, `scrollEdge`) scrolls `document.scrollingElement` and reports the distance.
@@ -128,6 +144,7 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 - `src/mobile-adapter.ts` provides injectable `MobileAdapter` and lazy WebdriverIO `AppiumAdapter`. Appium and platform drivers are external host prerequisites; never auto-install apps or reset app data. Explicit `platform`, `device` (UDID/ADB serial) and installed `app` are required.
 - `src/mobile-tree.ts` normalizes native XCUITest/UiAutomator2 XML into shared candidates/snapshots. Native paths stay inside the adapter; Jev remains the sole target decision maker. Revalidate captured identity before native actions.
 - `mobile-spec.ts`, `mobile.ts`, `mobile-mcp.ts`, `mobile-cli.ts` provide mobile parsing, shared Jev/hooks/results, nine serialized tools, and sequential replay. `serial-queue.ts` is shared with desktop MCP.
+- `MobileSession.settled()` uses `askSettled` (`automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
 - `mobile-discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
 - The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.md` and its skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.

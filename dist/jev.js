@@ -1,8 +1,36 @@
 import { z } from 'zod';
 import { experimental_evaluate as evaluate, APICallError } from 'ai';
 import { TypeSafeClient, UnprocessableEntityError, noul, choice } from '@typesafe-ai/sdk';
+import { Agent, setGlobalDispatcher } from 'undici';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+// Both backends call through the global fetch. Its default pool drops an idle connection after 4 s, and
+// the API is a transatlantic round trip away: a fresh TCP+TLS connection added ~350 ms to each of the
+// next two calls (measured 2026-09-24). In agent use every step comes seconds after the last one, so
+// keep connections open. Idle sockets are unref'd: they never hold the process open.
+setGlobalDispatcher(new Agent({ keepAliveTimeout: 60_000, keepAliveMaxTimeout: 600_000 }));
+/**
+ * Two tiny Jev calls, in parallel, while the browser launches. The first model call on each new
+ * connection costs ~350 ms more than the next ones, and it is not the TCP/TLS setup: a cheap GET on
+ * the same connection does not remove it (a HEAD even closes it), only a real model request does.
+ * Two, because back-to-back calls land on two connections (the first is not back in the pool when
+ * the second starts). No retries and a short timeout: fire and forget, never holding the process
+ * open; a failure only means the first real calls pay that cost themselves. Untracked tokens: ~100.
+ */
+export function warmUp() {
+    let p;
+    try {
+        p = provider();
+    }
+    catch {
+        return; // no key: the first call reports it
+    }
+    const questions = [{ kind: 'boolean', instructions: 'The state is empty.' }];
+    for (let i = 0; i < 2; i++) {
+        const call = p === 'typesafe' ? callTypesafe({}, questions, { retry: { maxRetries: 0 }, timeout: 10_000 }) : callGateway({}, questions);
+        call.catch(() => { });
+    }
+}
 export const ProviderSchema = z.enum(['typesafe', 'gateway']);
 // One documented place for a key, read by the CLI and by both plugin hosts (src/cli.ts loads it after the cwd .env).
 // It exists because Codex passes plugin MCP servers no shell environment at all.
@@ -124,13 +152,13 @@ async function callGateway(state, questions) {
     const raw = RawAnswersSchema.parse(answers);
     return { answers: keys.map((k) => raw[k]), tokens: usage.totalTokens ?? 0 };
 }
-async function callTypesafe(state, questions) {
+async function callTypesafe(state, questions, options) {
     const keys = questions.map((_, i) => `q${i}`);
     const { answers, usage } = await typesafe().systemOne({
         model: MODEL_BY_PROVIDER.typesafe,
         state: state,
         questions: Object.fromEntries(questions.map((q, i) => [keys[i], q.kind === 'choice' ? choice(q.instructions, q.criteria) : noul(q.instructions)])),
-    });
+    }, options);
     const raw = RawAnswersSchema.parse(answers);
     return { answers: keys.map((k) => raw[k]), tokens: usage.input_tokens + usage.output_tokens };
 }

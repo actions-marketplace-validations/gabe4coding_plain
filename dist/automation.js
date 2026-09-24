@@ -24,6 +24,31 @@ export async function resolveTargets(adapter, targets, ai = intelligence) {
         return { ...base, element: null, detail: `${id === null ? 'no matching element' : 'low confidence or invalid candidate'}${c} — top: ${topGuesses(probabilities, adapter.candidates)} — candidates: ${file}` };
     });
 }
+/**
+ * Ask Jev about an early observation while the settled one is still being taken, instead of settle →
+ * observe → ask. The early answer is kept only when the settled observation is the same; otherwise the
+ * settled one is asked, and the early answer is still awaited so `discard` accounts for its tokens.
+ * `early` resolving to null (or throwing) means no early look: observe settled, then ask. `skip`: no
+ * question is needed for this observation (the caller already knows the answer); result is then null.
+ * The browser has its own variant (settledAsk in steps.ts), which can prove "unchanged" from a DOM
+ * mutation clock without a second observation.
+ */
+export async function askSettled(o) {
+    const wait = o.waitAnswer ?? ((fn) => fn());
+    const first = o.early ? await o.early().catch(() => null) : null;
+    const answer = first !== null && !o.skip?.(first) ? o.ask(first) : null;
+    answer?.catch(() => { }); // surfaces below only if this answer is the one used
+    const frame = await o.settled();
+    if (answer && o.same(first, frame))
+        return { frame, result: await wait(() => answer), reasked: false };
+    const stale = answer?.then(o.discard, () => { });
+    if (o.skip?.(frame)) {
+        await stale;
+        return { frame, result: null, reasked: answer !== null };
+    }
+    const [result] = await wait(() => Promise.all([o.ask(frame), stale]));
+    return { frame, result, reasked: answer !== null };
+}
 export async function judgeState(snap, claims, events = [], ai = intelligence) {
     let aria = snap.aria;
     for (;;) {

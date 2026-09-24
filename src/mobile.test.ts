@@ -184,3 +184,26 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     assert.ok((await client.callTool({ name: 'snapshot', arguments: {} })).isError);
   } finally { await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('mobile early capture: Jev works on it while the settled capture runs; kept only when both match', async () => {
+  class EarlyAdapter extends FakeAdapter {
+    earlyText = 'Ready';
+    async captureEarly(kind: unknown, within?: string) { this.log.push(['early', kind, within]); const f = await super.capture(kind, within); this.log.pop(); return { ...f, snapshot: { ...f.snapshot, aria: this.earlyText } }; }
+  }
+  const adapter = new EarlyAdapter();
+  const judged: string[] = [];
+  const session = new MobileSession(adapter, 100, { ...ai, judge: async (state, claims) => { judged.push((state as { aria: string }).aria); return { probabilities: claims.map(() => .95), tokens: 7 }; } });
+  // Seconds after the last step (an agent's turn) the UI is idle: no early capture.
+  let r = await session.step({ expect: 'ready' });
+  assert.deepEqual(adapter.log.at(-1), ['capture', 'region', undefined]); assert.ok(!adapter.log.some(e => Array.isArray(e) && e[0] === 'early'));
+  judged.length = 0;
+  session.noteActivity(); // e.g. the app was just opened
+  r = await session.step({ expect: 'ready' });
+  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready']); assert.equal(r.ms?.reasked, undefined);
+  assert.deepEqual(adapter.log.slice(-2), [['early', 'region', undefined], ['capture', 'region', undefined]]);
+  // The UI was still changing: the early answer is about a stale tree, so the settled tree is judged too.
+  adapter.earlyText = 'Loading';
+  r = await session.step({ expect: 'ready' });
+  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready', 'Loading', 'Ready']); assert.equal(r.ms?.reasked, 1);
+  assert.equal(session.calls, 4); assert.equal(session.tokens, 28); // the discarded answer is still accounted
+});

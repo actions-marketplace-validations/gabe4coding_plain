@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveTargets, judgeState, type Intelligence } from './automation.js';
+import { resolveTargets, judgeState, askSettled, type Intelligence } from './automation.js';
 const adapter = { candidates: [{ id: 1, desc: 'button OK' }], state: { url: 'desktop://test', title: 'Test' }, element: () => 'handle' };
 const ai: Intelligence = {
   pick: async () => [{ id: 1, probability: .4, confidence: .8, probabilities: { '1': .4 }, tokens: 12 }],
@@ -31,4 +31,28 @@ test('shared judge halves oversized state and preserves all claims/events', asyn
     },
   });
   assert.deepEqual(lengths, [9000, 4500]); assert.equal(result.tokens, 9);
+});
+
+test('askSettled keeps the early answer when the settled look is the same, and asks again when it is not', async () => {
+  const run = async (early: string | null, settled: string, skip?: (f: string) => boolean) => {
+    const asked: string[] = []; const discarded: string[] = [];
+    const out = await askSettled({
+      early: async () => early, settled: async () => settled, same: (a, b) => a === b,
+      ask: async (f) => { asked.push(f); return `answer:${f}`; }, discard: (r) => discarded.push(r), skip,
+    });
+    return { ...out, asked, discarded };
+  };
+  assert.deepEqual(await run('A', 'A'), { frame: 'A', result: 'answer:A', reasked: false, asked: ['A'], discarded: [] });
+  assert.deepEqual(await run('A', 'B'), { frame: 'B', result: 'answer:B', reasked: true, asked: ['A', 'B'], discarded: ['answer:A'] });
+  assert.deepEqual(await run(null, 'B'), { frame: 'B', result: 'answer:B', reasked: false, asked: ['B'], discarded: [] });
+  // Skip: no question for an unchanged, already answered state; an early answer is still accounted.
+  assert.deepEqual(await run('A', 'A', (f) => f === 'A'), { frame: 'A', result: null, reasked: false, asked: [], discarded: [] });
+  assert.deepEqual(await run('B', 'A', (f) => f === 'A'), { frame: 'A', result: null, reasked: true, asked: ['B'], discarded: ['answer:B'] });
+  // A failing early look is no early look; a failing early answer never surfaces when it is not used.
+  const failing = await askSettled({ early: async () => { throw new Error('quick read failed'); }, settled: async () => 'S', same: () => false,
+    ask: async (f) => f, discard: () => {} });
+  assert.deepEqual(failing, { frame: 'S', result: 'S', reasked: false });
+  const staleError = await askSettled({ early: async () => 'A', settled: async () => 'B', same: (a, b) => a === b,
+    ask: async (f) => { if (f === 'A') throw new Error('stale'); return f; }, discard: () => {} });
+  assert.deepEqual(staleError, { frame: 'B', result: 'B', reasked: true });
 });

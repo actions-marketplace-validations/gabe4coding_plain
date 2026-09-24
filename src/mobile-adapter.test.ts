@@ -130,6 +130,16 @@ for (const platform of ['android', 'ios'] as const) {
       assert.equal(caps['appium:noReset'], true);
       assert.equal(caps['appium:automationName'], platform === 'ios' ? 'XCUITest' : 'UiAutomator2');
       assert.ok(requests.some(r => r.path.endsWith('/appium/device/activate_app') && r.body.appId === 'com.example.fixture'));
+      const early = await adapter.captureEarly('click');
+      const settings = requests.filter(r => r.path.endsWith('/appium/settings'));
+      if (platform === 'ios') { assert.equal(early, null); assert.equal(settings.length, 0, 'no quick read on iOS'); }
+      else {
+        assert.deepEqual(early?.candidates, (await adapter.capture('click')).candidates);
+        // Read the session's idle timeout once, switch it off for one source read, then restore it.
+        assert.deepEqual(settings.map(r => [r.method, r.body.settings?.waitForIdleTimeout]), [['GET', undefined], ['POST', 0], ['POST', 10000]]);
+        const i = requests.findIndex(r => r.method === 'POST' && r.body.settings?.waitForIdleTimeout === 0);
+        assert.ok(requests[i + 1].path.endsWith('/source'));
+      }
       await adapter.act('fill', await target('fill'), 'hello');
       assert.equal(requests.find(r => r.path.endsWith('/element'))?.body.value,
         platform === 'ios' ? '/*[1]/*[2]' : '/*[1]/*[1]/*[2]');
