@@ -45,6 +45,10 @@ first. Unscoped raw/compact reads need no model key; smart classification uses o
   step fails or is inconclusive, ask one claim per possible cause ("An error message is shown",
   "The Save button is disabled", "A dialog covers the window") instead of reading the whole tree.
   It cannot explain in free text. Use `expect` only for assertions that belong in the test.
+  To get a sure answer instead of `unsure`: name the exact thing (its text, role and place), not
+  a vague "an error is shown"; for absence, ask the positive claim and read a sure `no` ("The field
+  contains any text" → no, where "The field is empty" stays unsure: an empty field has no value in
+  the tree); scope with `within` to cut noise. `unsure` is not evidence either way: rephrase or split.
 - Name controls as the accessibility tree does, not by how they look: an icon-only toolbar button
   is named by its accessibility description, a tab by its title. Read a `snapshot` when unsure.
 - On `inconclusive`, rephrase the target (the detail's top guesses show the tree's names; reuse the
