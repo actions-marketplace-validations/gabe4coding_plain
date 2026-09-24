@@ -248,7 +248,10 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, ski
       }
       read(container);
       const name = container.getAttribute('aria-label');
-      const parts = [name && `name=${JSON.stringify(truncate(name, 80))}`, heading && `heading=${JSON.stringify(heading)}`, nearby && `text=${JSON.stringify(nearby)}`].filter(Boolean);
+      const shortName = name ? truncate(name, 80) : '';
+      // A row is often labelled by its own heading (GitHub issue rows): say it once, not twice.
+      if (heading.trim() === shortName.trim()) heading = '';
+      const parts = [shortName && `name=${JSON.stringify(shortName)}`, heading && `heading=${JSON.stringify(heading)}`, nearby && `text=${JSON.stringify(nearby)}`].filter(Boolean);
       // Stop at the nearest item/group even when it has no usable context. Looking beyond an
       // empty row/card would risk attributing a sibling's identity to this control.
       return parts.length ? ` context: ${container.getAttribute('role') ?? container.tagName.toLowerCase()} ${truncate(parts.join(' '), 240)}` : '';

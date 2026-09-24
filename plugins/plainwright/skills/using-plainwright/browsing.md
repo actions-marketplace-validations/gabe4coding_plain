@@ -26,6 +26,11 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
 ## Steps that help here
 
 - Lists that load late: `wait: the results list is visible`, then read.
+- Autocomplete: a suggestion list can open seconds after `fill`. If the suggestion is not found, `ask` whether
+  the box holds your text and whether a suggestion list is shown, then `wait: a list of suggestions is shown`;
+  do not retype. `press: Enter` often submits the search instead.
+- Pages with hundreds of links (Wikipedia, Hacker News, GitHub lists) cost 20–35k Jev tokens per pick. Read data
+  with `evaluate` or a scoped `snapshot`, and navigate by URL (`open`) when you know it, instead of clicking.
 - Filters: `check: the Hotels filter chip` (a no-op if already on). A chip without a state: `click`.
 - Long pages: `scroll: bottom`, read the distance in `detail`; `press: End` and `press: Escape` also work.
 - A popover or calendar that opened by itself is already open: act inside it, do not click its trigger again.
