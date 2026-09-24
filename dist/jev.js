@@ -161,7 +161,7 @@ async function callTypesafe(state, questions, options) {
 }
 // The one call path pickElements and judge both go through: dispatches on the resolved provider
 // and normalizes the answer shape the two backends disagree on, in request order.
-async function ask(state, questions) {
+export async function ask(state, questions) {
     const { answers, tokens } = provider() === 'gateway' ? await withGatewayRetry(() => callGateway(state, questions)) : await callTypesafe(state, questions);
     return {
         tokens,
