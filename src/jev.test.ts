@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { UnprocessableEntityError, BadRequestError } from '@typesafe-ai/sdk';
-import { decide, selectProvider, isTooLong, USER_ENV_FILE } from './jev.js';
+import { decide, selectProvider, isTooLong, pickElements, USER_ENV_FILE } from './jev.js';
 
 test('expect: high probability passes', () => {
   assert.equal(decide(0.95, 'expect'), 'pass');
@@ -70,9 +70,26 @@ test('isTooLong: a 422 whose body names max_tokens_exceeded is too long', () => 
   assert.equal(isTooLong(new UnprocessableEntityError(422, body, new Headers())), true);
 });
 
-test('isTooLong: a 400 with the same body is not too long — status decides, not the keyword alone', () => {
-  const body = { error: { code: 'max_tokens_exceeded' } };
-  assert.equal(isTooLong(new BadRequestError(400, body, new Headers(), 'Bad Request')), false);
+test('isTooLong: the live TypeSafe 400 max_tokens_exceeded is too long; another 400 is not', () => {
+  const live = { detail: { error_type: 'max_tokens_exceeded' } };
+  assert.equal(isTooLong(new BadRequestError(400, live, new Headers(), 'Bad Request')), true);
+  assert.equal(isTooLong(new BadRequestError(400, { detail: { error_type: 'invalid_request', msg: 'token field missing' } }, new Headers(), 'Bad Request')), false);
+});
+
+test('pickElements halves a request that is over the token limit and merges the answers', async () => {
+  const candidates = Array.from({ length: 8 }, (_, id) => ({ id, desc: `button ${id}` }));
+  const sizes: number[] = [];
+  const ask = async (cands: { id: number }[], instructions: string[]) => {
+    sizes.push(cands.length);
+    if (cands.length > 2) throw new BadRequestError(400, { detail: { error_type: 'max_tokens_exceeded' } }, new Headers(), 'Bad Request');
+    const hit = cands.find((c) => c.id === 5);
+    return instructions.map(() => hit
+      ? { id: 5, probability: 0.95, confidence: 0.95, probabilities: { '5': 0.95, none: 0.05 }, tokens: 10 }
+      : { id: null, probability: 0.9, confidence: 0.9, probabilities: { none: 0.9 }, tokens: 10 });
+  };
+  const [pick] = await pickElements(candidates, ['button five'], { url: 'u', title: 't' }, ask as never);
+  assert.equal(pick.id, 5);
+  assert.deepEqual(sizes, [8, 4, 4, 2, 2, 2, 2]);
 });
 
 test('isTooLong: a plain Error naming the gateway wording is too long', () => {

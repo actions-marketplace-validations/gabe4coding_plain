@@ -145,7 +145,7 @@ Supported steps reuse the browser schema:
 
 | Step | Desktop behavior |
 |---|---|
-| `click`, `fill` | Invoke the accessible control; replace its text value. |
+| `click`, `fill` | Invoke the accessible control (a pointer click inside web content); replace its text value. |
 | `check`, `uncheck` | Toggle only if the exposed checked state differs. Mixed states error instead of guessing. |
 | `hover`, `dblclick`, `rightclick` | Simulated pointer action on the control's bounds. |
 | `scroll: "down: the list"` / `"up: the list"` | One wheel movement at a resolved region. Does not claim to reach the end. |
@@ -172,6 +172,25 @@ contract described in [hooks](hooks.md), with a desktop spec's `app` replacing t
 Teardown runs after a successful setup even when attachment, interpolation, or a step fails. A
 setup failure skips teardown; a teardown failure makes the run error. Detach never quits the app.
 
+## Candidates in Electron and web views
+
+Electron apps (Slack, Notion) and web views list a control's own label as a separate static text with
+actions: the tab "Files & links" and, inside it, the text "Files & links". Offered as two candidates they
+split Jev's confidence (p=0.90 for the tab, rejected at c=0.45). Text, groups and images inside a
+candidate are therefore not candidates themselves (a real control inside one, such as a row's button,
+still is), and an unnamed candidate is described by the text inside it (`tab "" value="0"
+text="Activity"`). On a live Slack window, 10 of 10 spoken targets resolved against 6 of 10 before
+("Activity", "Activity Button", "the DMs tab", "Files and links", "the Files tab in the sidebar").
+
+Web content also ignores the accessibility press on many elements: a Slack tab "clicked" and reported
+`pass` while the view never changed. `click` on a candidate inside a `web_area` is therefore a real
+pointer click at the element (the app must be in front, as for hover); native controls keep the press,
+which needs no focus.
+
+A pick over a busy web view can exceed Jev's request limit (TypeSafe answers 400
+`max_tokens_exceeded`) with far fewer than 254 candidates, because every message row carries its
+text. The request is halved and the answers merged, like a list over 254.
+
 ## One sentence: plan and do
 
 ```
@@ -193,7 +212,7 @@ keys, plus whether it is hard to undo. Arguments are copied verbatim from the se
 about 3k tokens for a one-step sentence and 10–13k for four steps.
 
 `node scripts/benchmark-planner.mjs --runs 3` measures the plan against `scripts/planner-cases.json`
-(41 sentences): 97.6% on 2026-09-24. Change the planner only when that rate goes up; results and the
+(57 sentences, 16 of them from live voice sessions): 97.4% on 2026-09-24. Change the planner only when that rate goes up; results and the
 changes that did and did not help are in [the planner benchmark](benchmarks/planner.md).
 
 A step right after a key or click that opens a window can capture before the window exists. When a

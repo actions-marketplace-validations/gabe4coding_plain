@@ -31,4 +31,27 @@ What mattered:
 - **Examples in instructions leak.** An example phrase that matched words of the sentence ("milk and eggs")
   pushed every boundary to "no" (0.10–0.32). Keep instructions general.
 
-Known failure: "Click Rock and Roll in the genre list" targets "the genre list".
+## Real voice session, 2026-09-24
+
+Eleven sentences from a live `pwvoice` session (Whisper transcripts, mishearings included: "write" heard
+as "right") were added to the cases (52 in all, `"real": true`). They exposed what the tidy sentences
+did not: typing with no field named, commas inside the typed text, "next" as a word of the target.
+
+| Change | Pass rate | Kept |
+|---|---|---|
+| Baseline with the real sentences | 84.6% (88/104) | |
+| Spans trim punctuation at their edges only ("Hello, how are you" keeps its comma); "next" no longer a hard split; typing with no field named targets "the focused text field" | 91.3% (95/104) | yes |
+| Argument questions state their premise ("suppose it asks to type…") | 91.3% | no: no change |
+| `none` wins only against all the spans together ("none" 0.27 lost to 0.23 + 0.19 + … of overlapping spans) | 92.3% (96/104) | yes |
+| Split question says typed text may follow the field and contain commas | 92.3% | no: no change |
+| A piece that is "not an instruction" right after a failed piece is joined back and routed again (third request, only then) | 96.2% (100/104) | yes |
+
+A second session added five more (57 in all): 93.0% before, then
+
+| Change | Pass rate | Kept |
+|---|---|---|
+| Double quotes dropped from spans (dictation emphasis: `Click on "Create Note" button`); with a field named and no text judged, the text is the sentence minus the verb and the field phrase ("write a law in the text area", "a law" a misheard "hello") | 96.5% (110/114) | yes |
+| Same, verb found after trimming | 97.4% (111/114) | yes |
+
+Known failures: "Click Rock and Roll in the genre list" targets "the genre list"; "Enter in the text
+field search a flight to Rome…" leaves "search" out of the text (ambiguous for a person too).

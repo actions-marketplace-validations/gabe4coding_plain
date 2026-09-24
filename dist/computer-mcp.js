@@ -9,7 +9,7 @@ import { jsonResult as ok } from './mcp-result.js';
 const blank = () => ({ name: 'computer session', app: '', dir: process.cwd(), env: {}, steps: [] });
 export function createComputerServer(adapter, timeout = 15000, ai = intelligence) {
     return createNativeServer({
-        name: 'plainwright-computer', version: '0.1.9', where: 'computer MCP', spec: blank(), ai,
+        name: 'plainwright-computer', version: '0.1.10', where: 'computer MCP', spec: blank(), ai,
         session: new ComputerSession(adapter, timeout, ai), kinds: ['click', 'fill', 'check', 'hover', 'region', 'scroll'],
         saved: (spec) => ({ app: spec.app }),
         describe: {

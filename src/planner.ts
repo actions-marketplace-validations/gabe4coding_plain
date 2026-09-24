@@ -15,9 +15,10 @@ export type Ask = (state: unknown, questions: Question[]) => Promise<{ tokens: n
 
 // Sentence ends and sequencing words always start a new instruction. "and" and commas are ambiguous
 // ("type milk and eggs" vs "... and press Enter"), so only those are asked.
-const HARD_SPLIT = /(?:[.;!?](?=\s|$)|,?\s+(?:and\s+)?(?:then|after\s+that|next|finally)\b)\s*/i; // not the dot in tom@example.com
+// Not the dot in tom@example.com; not "next", which is as often a word of the target ("the next field").
+const HARD_SPLIT = /(?:[.;!?](?=\s|$)|,?\s+(?:and\s+)?(?:then|after\s+that|finally)\b)\s*/i;
 const SOFT_SPLIT = /,\s*(?:and\s+)?|\s+and\s+/gi;
-const LEAD = /^(?:and\s+then|and|then|after\s+that|next|finally|please|now|ok(?:ay)?)[\s,]+/i;
+const LEAD = /^(?:and\s+then|and|then|after\s+that|finally|please|now|ok(?:ay)?)[\s,]+/i;
 const MAX_SPAN_WORDS = 14;
 
 const ACTIONS: Record<string, string> = {
@@ -46,12 +47,17 @@ export function keysFrom(spoken: string): string {
     .map((w) => KEYS[w] ?? (w.length === 1 ? w : w[0].toUpperCase() + w.slice(1))).join('+');
 }
 
-/** Every run of 1..14 consecutive words: the options an argument is picked from. */
+/** Every run of 1..14 consecutive words: the options an argument is picked from. Punctuation is trimmed
+ * at the span's edges only, so typed text keeps its own commas ("Hello, how are you"). */
 export function spans(segment: string, limit = 250): string[] {
-  const words = segment.split(/\s+/).map((w) => w.replace(/^["']+|[.,;!?"']+$/g, '')).filter(Boolean);
+  const words = segment.split(/\s+/).filter(Boolean);
   const out = new Set<string>();
   for (let n = 1; n <= Math.min(words.length, MAX_SPAN_WORDS); n++)
-    for (let i = 0; i + n <= words.length; i++) out.add(words.slice(i, i + n).join(' '));
+    for (let i = 0; i + n <= words.length; i++) {
+      // Double quotes are dictation emphasis (Whisper writes Click on "Create Note" button), never text.
+      const span = words.slice(i, i + n).join(' ').replace(/["“”]/g, '').replace(/^'+|['.,;:!?]+$/g, '');
+      if (span) out.add(span);
+    }
   return [...out].slice(0, limit);
 }
 
@@ -125,9 +131,13 @@ async function route(segments: string[], ask: Ask): Promise<{ items: PlanItem[];
     const a = (key: string) => answers[index[i][key]];
     // No confidence gate on spans: overlapping options ("the OK button", "OK button") split the
     // probability between equally good answers, so a low confidence is not a doubtful pick.
+    // For the same reason, `none` wins only against all the spans together: "none" 0.27 against
+    // "flight to Rome …" 0.23 + "a flight to Rome …" 0.19 + … is a clear yes to some span.
     const pick = (key: string) => {
-      const { choice } = a(key);
-      return choice === undefined || choice === 'none' ? undefined : options[i][choice];
+      const { probabilities } = a(key);
+      const spans = Object.entries(probabilities ?? {}).filter(([k]) => k !== 'none').sort((x, y) => y[1] - x[1]);
+      const mass = spans.reduce((sum, [, p]) => sum + p, 0);
+      return spans.length && mass > (probabilities?.none ?? 0) ? options[i][spans[0][0]] : undefined;
     };
     const action = a('action');
     const kind = (action.confidence ?? 1) >= 0.5 ? action.choice : 'unsure';
@@ -145,8 +155,14 @@ async function route(segments: string[], ask: Ask): Promise<{ items: PlanItem[];
         return target ? { kind: 'step', step: { [kind]: target }, risky } : unknown('no control named');
       }
       case 'fill': {
-        const target = pick('target'), value = pick('value');
-        return target && value ? { kind: 'step', step: { fill: { target, value } }, risky } : unknown('say the text and the field');
+        // "... and inside write hello": no field named means the one that has focus (desktop and mobile
+        // candidates carry a [focused] flag, the browser tree its focused state).
+        const named = pick('target');
+        // A field was named but no words were judged to be the text ("write a law in the text area",
+        // where "a law" was a misheard "hello"): the text is what is left once the verb and the field go.
+        const value = pick('value') ?? (named ? rest(seg, named) : undefined);
+        const target = named ?? (value && 'the focused text field');
+        return target && value ? { kind: 'step', step: { fill: { target, value } }, risky } : unknown('say the text to type');
       }
       case 'press': { const k = pick('keys'); return k ? { kind: 'step', step: { press: keysFrom(k) }, risky } : unknown('no key named'); }
       case 'scroll': {
@@ -161,10 +177,33 @@ async function route(segments: string[], ask: Ask): Promise<{ items: PlanItem[];
   return { items, tokens };
 }
 
-/** Two Jev requests: where the sentence splits, then every piece's action and arguments. */
+const TYPE_VERB = /^(?:now\s+|please\s+)*(?:type|write|enter|put|insert|fill\s+in|fill)\b\s*/i;
+/** A fill's text by subtraction: the segment without its typing verb and the field phrase. */
+export function rest(segment: string, target: string): string | undefined {
+  const plain = segment.replace(/["“”]/g, '');
+  const at = plain.toLowerCase().indexOf(target.toLowerCase());
+  if (at < 0) return undefined;
+  const before = plain.slice(0, at).replace(/\s*(?:in|into|inside|on|to)(?:\s+the)?\s*$/i, '');
+  const after = plain.slice(at + target.length);
+  const text = `${before} ${after}`.trim().replace(TYPE_VERB, '').replace(/^\s*(?:in|into|inside|on)\s+/i, '').trim().replace(/^[,:]+|[.,;:!?]+$/g, '').trim();
+  return text || undefined;
+}
+
+/** Two Jev requests: where the sentence splits, then every piece's action and arguments. A third only
+ * when the split was wrong: a piece that is "not an instruction" right after a piece that failed
+ * ("write inside the text field" | "hello, how are you") is joined back and the pieces routed again. */
 export async function plan(text: string, ask: Ask = jevAsk): Promise<{ items: PlanItem[]; tokens: number }> {
   const { segments, tokens: t1 } = await split(text.trim(), ask);
   if (!segments.length) return { items: [], tokens: t1 };
-  const { items, tokens: t2 } = await route(segments, ask);
-  return { items, tokens: t1 + t2 };
+  const first = await route(segments, ask);
+  const joined: string[] = [];
+  first.items.forEach((item, i) => {
+    const previous = first.items[i - 1];
+    if (i > 0 && item.kind === 'unknown' && item.reason === 'not an instruction' && previous.kind === 'unknown')
+      joined[joined.length - 1] += `, ${segments[i]}`;
+    else joined.push(segments[i]);
+  });
+  if (joined.length === segments.length) return { items: first.items, tokens: t1 + first.tokens };
+  const second = await route(joined, ask);
+  return { items: second.items, tokens: t1 + first.tokens + second.tokens };
 }

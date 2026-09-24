@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { plan, candidates, readings, spans, keysFrom, type Ask } from './planner.js';
+import { plan, candidates, readings, spans, keysFrom, rest, type Ask } from './planner.js';
 import type { AskAnswer, Question } from './jev.js';
 
 test('keysFrom maps spoken keys to Playwright names', () => {
@@ -16,8 +16,9 @@ test('candidates: sentence ends and sequencing words split in code, "and" and co
   assert.deepEqual(readings(parts[1].piece, parts[1].cuts), [['Type milk and eggs in the body'], ['Type milk', 'eggs in the body']]);
 });
 
-test('spans are every run of consecutive words, punctuation trimmed', () => {
+test('spans are every run of consecutive words, punctuation trimmed at the edges only', () => {
   assert.deepEqual(spans('Click OK.'), ['Click', 'OK', 'Click OK']);
+  assert.ok(spans('type "Hello, how are you?"').includes('Hello, how are you'));
 });
 
 // Answers questions by matching their instructions; every choice defaults to its first option.
@@ -63,4 +64,38 @@ test('plan: no ambiguous boundary skips the split request; unsure and other acti
   assert.deepEqual(items, [{ kind: 'unknown', text: 'Delete the selected email', reason: 'say which button or key does it' }]);
   const unsure = fake([[/What does/, () => ({ choice: 'click', probabilities: { click: 0.4 }, confidence: 0.2 })]]);
   assert.equal((await plan('Maybe the thing', unsure)).items[0].kind, 'unknown');
+});
+
+test('plan: a piece that is not an instruction after a failed one is joined back and routed again', async () => {
+  let routes = 0;
+  const ask: Ask = async (state, questions) => {
+    const segments = (state as { segments?: string[] }).segments;
+    if (!segments) { // the split: the wrong reading, cutting the text from its field
+      const q = questions[0];
+      const key = Object.entries(q.kind === 'choice' ? q.criteria : {}).find(([, v]) => v.includes('2. hello'))![0];
+      return { tokens: 1, answers: [{ choice: key, probabilities: { [key]: 0.54 }, confidence: 0.1 }] };
+    }
+    routes++;
+    return { tokens: 1, answers: questions.map((q) => {
+      const i = Number(/segments\[(\d+)\]/.exec(q.instructions)![1]);
+      const seg = segments[i];
+      const span = (text: string) => { const k = Object.entries(q.kind === 'choice' ? q.criteria : {}).find(([, v]) => v === text)![0]; return { choice: k, probabilities: { [k]: 0.9 }, confidence: 0.9 }; };
+      if (/What does/.test(q.instructions)) return seg.includes('hello') && seg.includes('write')
+        ? { choice: 'fill', probabilities: { fill: 1 }, confidence: 1 } : seg.startsWith('hello')
+        ? { choice: 'none', probabilities: { none: 0.9 }, confidence: 0.9 } : { choice: 'fill', probabilities: { fill: 1 }, confidence: 1 };
+      if (seg.includes('write') && seg.includes('hello') && /control or field/.test(q.instructions)) return span('the text field');
+      if (seg.includes('write') && seg.includes('hello') && /text to type/.test(q.instructions)) return span('hello, how are you');
+      return q.kind === 'choice' ? { choice: 'none', probabilities: { none: 1 }, confidence: 1 } : { probability: 0 };
+    }) };
+  };
+  const { items } = await plan('write inside the text field, hello, how are you?', ask);
+  assert.equal(routes, 2);
+  assert.deepEqual(items, [{ kind: 'step', step: { fill: { target: 'the text field', value: 'hello, how are you' } }, risky: false }]);
+});
+
+test('rest: the text of a fill is what is left without the verb and the field', () => {
+  assert.equal(rest('Write a law in the text area.', 'the text area'), 'a law');
+  assert.equal(rest('in the search box type hello world', 'the search box'), 'hello world');
+  assert.equal(rest('type into the field', 'the field'), undefined);
+  assert.ok(spans('Click on "Create Note" button').includes('Create Note button'));
 });

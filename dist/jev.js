@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TypeSafeClient, UnprocessableEntityError, noul, choice } from '@typesafe-ai/sdk';
+import { TypeSafeClient, UnprocessableEntityError, BadRequestError, noul, choice } from '@typesafe-ai/sdk';
 import { Agent, setGlobalDispatcher } from 'undici';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -113,10 +113,13 @@ async function withGatewayRetry(fn) {
 }
 export function isTooLong(err) {
     if (err instanceof UnprocessableEntityError) {
-        // ponytail: the too-long 422 body is undocumented (the docs only give the limits: 64k tokens per
-        // request, 32k for state + longest question). Match status + keyword until a live sample confirms it.
+        // The docs only give the limits (64k tokens per request, 32k for state + longest question).
         return /max_tokens_exceeded|too (long|large)|token/i.test(JSON.stringify(err.body ?? err.message));
     }
+    // Seen live 2026-09-24 on a dense Slack channel: 400 {"detail":{"error_type":"max_tokens_exceeded"}}.
+    // Only that exact error type: another 400 is a malformed request, which splitting cannot fix.
+    if (err instanceof BadRequestError)
+        return /"error_type":"max_tokens_exceeded"/.test(JSON.stringify(err.body ?? {}));
     return err instanceof Error && /max_tokens_exceeded/.test(err.message); // gateway wording, seen live
 }
 // Raw shape an answer comes back in from either backend, before ask() normalizes it. `confidence`
@@ -203,13 +206,26 @@ async function pickChunk(candidates, instructions, page) {
 }
 // Up to MAX_PICK_CANDIDATES: one request, as before. Past it: equal chunks, one request each, run in
 // parallel so a dense page costs one round trip (and one request's tokens per chunk), then merged.
-export async function pickElements(candidates, instructions, page) {
+export async function pickElements(candidates, instructions, page, ask = pickChunk) {
     if (candidates.length <= MAX_PICK_CANDIDATES)
-        return pickChunk(candidates, instructions, page);
+        return pickSplitting(candidates, instructions, page, ask);
     const chunkCount = Math.ceil(candidates.length / MAX_PICK_CANDIDATES);
     const size = Math.ceil(candidates.length / chunkCount);
     const chunks = Array.from({ length: chunkCount }, (_, i) => candidates.slice(i * size, (i + 1) * size));
-    return mergePicks(await Promise.all(chunks.map((chunk) => pickChunk(chunk, instructions, page))));
+    return mergePicks(await Promise.all(chunks.map((chunk) => pickSplitting(chunk, instructions, page, ask))));
+}
+// Under 254 candidates a request can still be over the token limit when descriptions are long (a busy
+// Slack channel: every message row carries its text as context). Halve and merge, as for too many.
+async function pickSplitting(candidates, instructions, page, ask) {
+    try {
+        return await ask(candidates, instructions, page);
+    }
+    catch (err) {
+        if (!isTooLong(err) || candidates.length < 2)
+            throw err;
+        const half = Math.ceil(candidates.length / 2);
+        return mergePicks(await Promise.all([candidates.slice(0, half), candidates.slice(half)].map((c) => pickSplitting(c, instructions, page, ask))));
+    }
 }
 // Merges per-chunk answers into one PickResult per instruction. Candidate ids are page-global, so the
 // probability maps combine cleanly; `none` is taken from the chunk whose answer wins. When several chunks
