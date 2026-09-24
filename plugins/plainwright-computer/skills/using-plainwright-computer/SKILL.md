@@ -40,7 +40,10 @@ first. Unscoped raw/compact reads need no model key; smart classification uses o
 - `snapshot` reads the app tree; `within` selects a region. `screenshot` returns a window PNG for
   inspection. Neither reading is recorded. Jev uses accessibility text, not screenshots; a canvas
   with no accessible controls needs application accessibility support, not invented targets.
-- On `inconclusive`, rephrase the target or split the claim. After an error, inspect current state
+- Name controls as the accessibility tree does, not by how they look: an icon-only toolbar button
+  is named by its accessibility description, a tab by its title. Read a `snapshot` when unsure.
+- On `inconclusive`, rephrase the target (the detail's top guesses show the tree's names; reuse the
+  right one) or split the claim. After an error, inspect current state
   before retrying an action: a native action can take effect before its error is reported.
 - Simulated keys/pointer actions require the attached app to be foreground. If focus changed,
   `open` it again only when the user's task calls for activation. Opening starts a new recording.

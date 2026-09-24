@@ -115,6 +115,10 @@ check that the attached app's pid is currently foreground. A focus change return
 it does not silently activate an unrelated window. OS focus can still change between that check
 and an input event, so use a dedicated test desktop for unattended runs.
 
+Targets match best when they use accessibility names rather than visual descriptions: an icon-only
+toolbar button is named by its accessibility description. An inconclusive pick lists its top
+guesses with the tree's names, so the right wording is usually one of them.
+
 ## Desktop specs
 
 ```yaml
