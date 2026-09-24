@@ -23,36 +23,59 @@ const SELECTORS = {
     [StepKind.upload]: UPLOAD_SELECTOR,
     region: REGION_SELECTOR,
 };
+// The candidate scan tags elements with data-jev-id. That is our own write, not the page changing, so
+// every observer below ignores it — otherwise each scan would restart the quiet window it just waited out.
+const OWN_ATTRIBUTE = 'data-jev-id';
 /**
  * Installs a MutationObserver at document start in every new document of `target` (a page, or a context
  * so popups inherit it), recording the time
  * of the last DOM mutation on `window.__plainwrightLastMutation`. `settle()` reads it to tell a page
  * that's already quiet from one that still needs to wait out the rest of its quiet window.
+ * `__plainwrightDoc` identifies the document, so a mark taken before a navigation is never compared
+ * with the next document's clock.
  */
 export async function installSettleObserver(target) {
-    await target.addInitScript(() => {
+    await target.addInitScript((own) => {
+        window.__plainwrightDoc = Math.random();
         window.__plainwrightLastMutation = performance.now();
-        new MutationObserver(() => {
-            window.__plainwrightLastMutation = performance.now();
+        new MutationObserver((records) => {
+            if (records.some((r) => r.attributeName !== own))
+                window.__plainwrightLastMutation = performance.now();
         }).observe(document, { childList: true, subtree: true, attributes: true });
-    });
+    }, OWN_ATTRIBUTE);
+}
+/** Now, on the main document's clock; null where the observer is not installed. */
+export function mark(page) {
+    return page.evaluate(() => (typeof window.__plainwrightDoc === 'number' ? { doc: window.__plainwrightDoc, t: performance.now() } : null));
+}
+/** True when the main document provably did not mutate between `before` (a mark) and `after` (settle's result). */
+export function unchangedSince(before, after) {
+    return before !== null && after !== null && before.doc === after.doc && after.t <= before.t;
 }
 /**
  * Wait until the DOM stops mutating for `quietMs` (debounced autocompletes, modals), giving up after
  * `maxMs`. Retroactive: if `installSettleObserver` recorded the DOM as already quiet for `quietMs`,
  * resolves immediately; otherwise waits only the remaining quiet time. Falls back to a full `quietMs`
  * prospective wait when the observer wasn't installed (e.g. an existing tab attached over CDP).
+ * Resolves to the time of the document's last mutation (null without the observer), for `unchangedSince`.
  */
 export function settle(page, quietMs = 500, maxMs = 3000) {
-    return page.evaluate(({ quietMs, maxMs }) => new Promise((resolve) => {
+    return page.evaluate(({ quietMs, maxMs, own }) => new Promise((resolve) => {
+        const lastMutation = () => {
+            const doc = window.__plainwrightDoc;
+            const t = window.__plainwrightLastMutation;
+            return typeof doc === 'number' && typeof t === 'number' ? { doc, t } : null;
+        };
         const last = window.__plainwrightLastMutation;
         if (typeof last === 'number' && performance.now() - last >= quietMs) {
-            resolve();
+            resolve(lastMutation());
             return;
         }
         const initialWait = typeof last === 'number' ? quietMs - (performance.now() - last) : quietMs;
         let timer = setTimeout(done, initialWait);
-        const obs = new MutationObserver(() => {
+        const obs = new MutationObserver((records) => {
+            if (records.every((r) => r.attributeName === own))
+                return;
             clearTimeout(timer);
             timer = setTimeout(done, quietMs);
         });
@@ -62,14 +85,16 @@ export function settle(page, quietMs = 500, maxMs = 3000) {
             obs.disconnect();
             clearTimeout(timer);
             clearTimeout(cap);
-            resolve();
+            resolve(lastMutation());
         }
-    }), { quietMs, maxMs });
+    }), { quietMs, maxMs, own: OWN_ATTRIBUTE });
 }
 /** Resolves true on the first DOM mutation, false after `maxMs` without one. */
 export function waitForMutation(page, maxMs) {
-    return page.evaluate((maxMs) => new Promise((resolve) => {
-        const obs = new MutationObserver(() => {
+    return page.evaluate(({ maxMs, own }) => new Promise((resolve) => {
+        const obs = new MutationObserver((records) => {
+            if (records.every((r) => r.attributeName === own))
+                return;
             obs.disconnect();
             clearTimeout(timer);
             resolve(true);
@@ -79,7 +104,7 @@ export function waitForMutation(page, maxMs) {
             resolve(false);
         }, maxMs);
         obs.observe(document, { childList: true, subtree: true, attributes: true, characterData: true });
-    }), maxMs);
+    }), { maxMs, own: OWN_ATTRIBUTE });
 }
 /**
  * Runs inside the page/frame. Walks the whole document — including open shadow roots — collecting

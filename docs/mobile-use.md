@@ -197,6 +197,18 @@ credentials in specs or recorded tool arguments. Opening again starts a new reco
 Batch replay runs files sequentially and prints one JSON result per spec. Exit 0 means all
 passed; 1 means failure/error/inconclusive; 2 means CLI usage/provider configuration errors.
 Results use the shared statuses, timing, debug dumps in `$TMPDIR/plainwright/` and token counts.
+Each step's `ms` splits into `capture` (reading the UI tree), `jev`, `act` and `idle` (between
+`wait` polls), plus `reasked` (below).
+
+On Android, UiAutomator waits for the UI to go idle (about 500 ms without accessibility events)
+before it returns the tree, so right after an action a tree read takes ~0.5 s. A step that starts
+less than 1 s after the previous one therefore first reads the tree once without that wait, sends
+it to Jev, and reads the settled tree while Jev works. The answer is used only if both trees are the
+same (text, candidates and element paths); otherwise the settled tree is asked again (`reasked`, and
+the early answer's tokens still count). The session's `waitForIdleTimeout` setting is set to 0 for
+that one read and restored right after. Nothing changes on iOS: XCUITest already waits for the app
+to be idle inside the action itself, and a quick read there was neither faster nor different. The
+check that the target is unchanged right before a native action is the same on both platforms.
 
 ## Verification
 

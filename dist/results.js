@@ -10,6 +10,16 @@ export const StepResultSchema = z.object({
     detail: z.string().optional(),
     ms: z.record(z.string(), z.number()).optional(),
 });
+/** Adds the elapsed ms of `fn` into ms[phase]; phases accumulate across calls within one step. */
+export async function timedInto(ms, phase, fn) {
+    const start = Date.now();
+    try {
+        return await fn();
+    }
+    finally {
+        ms[phase] = (ms[phase] ?? 0) + (Date.now() - start);
+    }
+}
 // Formats a step's `ms` phase timings for --timing output, e.g. "total=3985 settle=512 jev=1830" —
 // `total` first (if present), then the rest in insertion order, only phases actually recorded.
 export function formatMs(ms) {

@@ -6,6 +6,8 @@ export type MobileAction = 'click' | 'tap' | 'fill' | 'dblclick' | 'longpress' |
 export interface MobileAdapter<T = unknown> {
   open(target: MobileTarget): Promise<MobileTarget>;
   capture(kind: MobileKind, within?: T): Promise<MobileFrame<T>>;
+  /** A capture that skips the platform's wait for an idle UI, or null where that is not faster (see AppiumAdapter). */
+  captureEarly?(kind: MobileKind, within?: T): Promise<MobileFrame<T> | null>;
   act(kind: MobileAction, element: T, value?: string): Promise<void>;
   gesture(kind: 'swipe' | 'scroll', direction: Direction, element?: T): Promise<void>;
   press(key: string): Promise<void>;
@@ -13,7 +15,8 @@ export interface MobileAdapter<T = unknown> {
   close(): Promise<void>;
 }
 type DriverCommands = 'getPageSource' | 'findElement' | 'elementClick' | 'elementClear' | 'elementSendKeys' |
-  'getElementAttribute' | 'executeScript' | 'getWindowRect' | 'pressKeyCode' | 'hideKeyboard' | 'takeScreenshot' | 'deleteSession' | 'activateApp';
+  'getElementAttribute' | 'executeScript' | 'getWindowRect' | 'pressKeyCode' | 'hideKeyboard' | 'takeScreenshot' | 'deleteSession' | 'activateApp' |
+  'getSettings' | 'updateSettings';
 export type MobileDriver = { [K in DriverCommands]: OmitThisParameter<Browser[K]> };
 export type ConnectMobile = (options: Parameters<typeof import('webdriverio').remote>[0]) => Promise<MobileDriver>;
 
@@ -39,6 +42,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
   private driver?: MobileDriver;
   private target?: MobileTarget;
   private generation = 0;
+  private idleTimeout?: number; // the session's UiAutomator2 waitForIdleTimeout, restored after each early capture
   constructor(private server = 'http://127.0.0.1:4723', private timeout = 15000,
     private connect: ConnectMobile = async options => (await import('webdriverio')).remote(options)) {}
   private current(): MobileDriver {
@@ -71,9 +75,29 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     return node;
   }
   async capture(kind: MobileKind, within?: MobileElement) {
-    const tree = parseMobileTree(await this.current().getPageSource());
+    return this.frame(await this.current().getPageSource(), kind, within);
+  }
+  private frame(source: string, kind: MobileKind, within?: MobileElement) {
+    const tree = parseMobileTree(source);
     const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
     return mobileFrame(roots, kind, { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app }, this.generation, tree.truncated);
+  }
+  /**
+   * Android only: the tree without UiAutomator's idle wait. After an action, getPageSource waits for
+   * ~500 ms of accessibility-event quiet (measured 480-600 ms on an emulator, versus 12-110 ms without),
+   * so MobileSession sends this quick tree to Jev while capture() waits, and keeps the answer only if
+   * the settled tree is the same. null on iOS: XCUITest already waits for quiescence inside the action,
+   * and a quick read there was no faster and never different (measured), so it would only cost calls.
+   */
+  async captureEarly(kind: MobileKind, within?: MobileElement) {
+    if (this.target?.platform !== 'android') return null;
+    const driver = this.current();
+    this.idleTimeout ??= Number((await driver.getSettings())?.waitForIdleTimeout) || 10000;
+    await driver.updateSettings({ waitForIdleTimeout: 0 });
+    let source: string;
+    try { source = await driver.getPageSource(); }
+    finally { await driver.updateSettings({ waitForIdleTimeout: this.idleTimeout }); }
+    return this.frame(source, kind, within);
   }
   private async resolve(element: MobileElement) {
     const driver = this.current();
@@ -130,7 +154,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
   async screenshot() { return Buffer.from(await this.current().takeScreenshot(), 'base64'); }
   async close() {
     const driver = this.driver;
-    this.driver = undefined; this.target = undefined; this.generation++;
+    this.driver = undefined; this.target = undefined; this.idleTimeout = undefined; this.generation++;
     if (driver) await driver.deleteSession();
   }
 }

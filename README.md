@@ -119,6 +119,8 @@ bug that restricted snapshot-file access in the earlier baseline experiments; th
 reports are marked accordingly. The separate [batching ablation](docs/benchmarks/browser-batching.md)
 compares two Jev-assisted configurations and is not evidence of savings against Playwright MCP.
 See the [protocol and reproduction instructions](docs/benchmarks/browser-workflows.md).
+That comparison predates the [step-overhead work](docs/benchmarks/step-overhead.md), which cut
+per-step waiting by 43% in spec runs and MCP tool time by 43% in an agent-style session.
 
 ### Run from a checkout
 

@@ -28,7 +28,7 @@ try {
     await client.connect(transport, { timeout: 120000 });
     try {
       const tools = (await client.listTools()).tools.map(t => t.name);
-      assert.equal(tools.length, name === 'plainwright' ? 6 : name === 'plainwright-computer' ? 8 : 9);
+      assert.equal(tools.length, name === 'plainwright' ? 7 : name === 'plainwright-computer' ? 8 : 9);
       if (name === 'plainwright') {
         const opened = await client.callTool({ name: 'open', arguments: { url: 'data:text/html,<main>Isolated browser plugin works</main>' } });
         assert.ok(!opened.isError, JSON.stringify(opened));

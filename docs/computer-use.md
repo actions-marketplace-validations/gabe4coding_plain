@@ -173,7 +173,10 @@ setup failure skips teardown; a teardown failure makes the run error. Detach nev
 assertion retry logic, and injectable intelligence. Both Playwright's `resolveLocators` and
 `ComputerSession.find` use it. `results.ts`, `spec.ts` and `hooks.ts` supply shared status/labels,
 parsing/interpolation, and hook lifecycle. Browser-specific settling/navigation stays in the browser
-adapter; desktop capture/actions live in `computer-adapter.ts`.
+adapter; desktop capture/actions live in `computer-adapter.ts`. Desktop steps do not wait for the UI
+to settle: a step is capture, then Jev, then the action, and its `ms` reports `capture`, `jev`, `act`
+and `idle` (between `wait` polls). The Jev call is almost all of a step's time, so there is no wait
+to overlap it with, unlike the browser and Android.
 
 `npm run build` compiles TypeScript, then `scripts/build-plugins.mjs` creates the same committed
 `runtime.tgz` in all plugin folders from the root package, compiled files, CLI binaries, and license.

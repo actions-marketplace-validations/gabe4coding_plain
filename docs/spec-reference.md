@@ -71,6 +71,21 @@ the selector directly.
 | `wait` | `wait: <claim>` | Asks the claim every 1.5 s, up to 8 times, until it holds or the step timeout runs out. |
 | | `wait: css=<selector>` | Waits until the selector is visible. |
 
+### When a step looks at the page
+
+Every step that asks Jev acts on, or judges, a *settled* page: the DOM has not changed for 300 ms and
+no xhr/fetch that started in the last 2 s is still in flight (an older request is a long poll or a
+stream and stops counting), with a 3 s cap. The step does not wait idle for that: it looks at the page
+at once and sends Jev that early look while the page settles. The answer is used only if the page did
+not change meanwhile (or a second look gives Jev the same input); otherwise the settled page is asked
+again. `--timing` shows that as `reasked=1`. The early answer's tokens still count, so a page that keeps
+changing costs more tokens but never acts on a stale answer.
+
+After an action, `click`, `dblclick`, `rightclick` and `press` wait until the page is quiet for 200 ms
+(or a navigation they started has loaded). `fill` does the same, but the page counts as settled only
+500 ms after typing, for a debounced autocomplete or validation request; the next step waits out the
+rest of that time (overlapped with its own Jev call).
+
 ### `optional: true`
 
 Turns an `inconclusive` or `error` result into `skipped` and the run continues. Use it for things that

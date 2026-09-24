@@ -4,7 +4,7 @@ import { loadSpec, type Spec } from './spec.js';
 import { runSpec, closeSharedBrowser, mapLimitSettled, type RunOptions, type TestResult } from './runner.js';
 import { serveMcp } from './mcp.js';
 import { formatMs } from './steps.js';
-import { provider, MODEL_BY_PROVIDER, USER_ENV_FILE } from './jev.js';
+import { provider, warmUp, MODEL_BY_PROVIDER, USER_ENV_FILE } from './jev.js';
 import { homedir } from 'node:os';
 
 // ponytail: cwd .env first, then the user file; a variable already set in the environment is never overridden
@@ -67,6 +67,7 @@ try {
   // MCP mode keeps serving: the first Jev call returns this message as a tool error, where the agent can read it.
   if (positionals[0] !== 'mcp') process.exit(2);
 }
+warmUp(); // connect to Jev while the browser launches
 
 if (positionals[0] === 'mcp') {
   await serveMcp(opts); // stays alive until the transport closes

@@ -1,0 +1,93 @@
+{
+  "specs": [
+    "examples/components-auth.yaml",
+    "examples/components-dialogs-accept.yaml",
+    "examples/components-dialogs-dismiss.yaml",
+    "examples/components-download.yaml",
+    "examples/components-drag.yaml",
+    "examples/components-exit-intent.yaml",
+    "examples/components-forms.yaml",
+    "examples/components-geolocation.yaml",
+    "examples/components-iframe.yaml",
+    "examples/components-jserror.yaml",
+    "examples/components-large.yaml",
+    "examples/components-scroll-wait.yaml",
+    "examples/components-shadowdom.yaml",
+    "examples/components-upload.yaml",
+    "examples/login-dataset.yaml",
+    "examples/login.yaml",
+    "examples/todo.yaml"
+  ],
+  "runs": 3,
+  "median": {
+    "wall": 87278,
+    "overhead": 46185,
+    "skippedMs": 15012,
+    "total": 70700,
+    "action": 24010,
+    "settle": 20905,
+    "snapshot": 478,
+    "jev": 15268,
+    "candidates": 120,
+    "post": 5212,
+    "idle": 4214
+  },
+  "failedSpecs": [
+    1,
+    0,
+    0
+  ],
+  "raw": [
+    {
+      "wall": 107682,
+      "steps": 82,
+      "failed": 1,
+      "skippedMs": 15011,
+      "phases": {
+        "total": 76002,
+        "action": 30134,
+        "settle": 20549,
+        "snapshot": 317,
+        "jev": 15268,
+        "candidates": 139,
+        "post": 5341,
+        "idle": 4207
+      },
+      "overhead": 45868
+    },
+    {
+      "wall": 87278,
+      "steps": 84,
+      "failed": 0,
+      "skippedMs": 15012,
+      "phases": {
+        "total": 70700,
+        "action": 24010,
+        "settle": 20905,
+        "snapshot": 483,
+        "jev": 15658,
+        "candidates": 120,
+        "post": 5212,
+        "idle": 4239
+      },
+      "overhead": 46690
+    },
+    {
+      "wall": 86811,
+      "steps": 84,
+      "failed": 0,
+      "skippedMs": 15013,
+      "phases": {
+        "total": 70156,
+        "action": 23971,
+        "settle": 20916,
+        "snapshot": 478,
+        "jev": 15180,
+        "candidates": 118,
+        "post": 5210,
+        "idle": 4214
+      },
+      "overhead": 46185
+    }
+  ]
+}
