@@ -44,7 +44,8 @@ The rules below apply to both.
     errors. "The form shows a message saying the username is invalid" gets a clear `no`.
   - For absence, ask the positive claim and read a sure `no`: "The Password textbox contains any text" →
     `no`, where "The Password textbox is empty" stays unsure (an empty field has no value in the tree).
-  - Scope with `within` to cut noise; `css=` regions never miss. Ask "The browser console reported an
+  - Scope with `within` to cut noise; `css=` regions never miss, but must
+    match exactly one element (several matches return `found: false` with the count). Ask "The browser console reported an
     error" on its own when console errors matter.
   - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plainwright/*.json`; the path

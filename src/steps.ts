@@ -203,15 +203,20 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   const jevIndices: number[] = [];
   const jevTargets: string[] = [];
 
-  targets.forEach((target, i) => {
+  for (const [i, target] of targets.entries()) {
     if (target.startsWith('css=')) {
       const selector = target.slice(4);
-      results[i] = { element: page.locator(selector), detail: `→ css=${selector}`, tokens: 0, usedJev: false };
+      const element = page.locator(selector);
+      // No match yet is left to Playwright's auto-wait; several matches would end in its raw strict-mode dump.
+      const count = await element.count();
+      results[i] = count > 1
+        ? { element: null, detail: `css=${selector} matched ${count} elements; make the selector match exactly one`, tokens: 0, usedJev: false }
+        : { element, detail: `→ css=${selector}`, tokens: 0, usedJev: false };
     } else {
       jevIndices.push(i);
       jevTargets.push(target);
     }
-  });
+  }
 
   if (jevTargets.length > 0) {
     // Let debounced autocompletes, modals etc. finish rendering before we act (networkidle fires too early:
