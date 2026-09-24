@@ -80,6 +80,8 @@ A claim is one fact about something that is visible when the condition holds.
   value that shares no words with the page: `hello` passed at 0.98 where `enabled-check` stalled at 0.8.
 - One fact per string. Several facts: `expect: [fact 1, fact 2]`, one snapshot and one Jev call.
 - Name things as the tree does: `a heading with the text "Secure Area"`, not `a title`.
+- Quote the exact visible text rather than a page area the tree does not label: `the text "2 items left!"
+  is shown` (0.98), where `the footer says 2 items left` stayed at 0.47 (TodoMVC's footer is plain text).
 - Nondeterministic pages: claim what is stable (`a notification bar is shown at the top`), not the random text.
 - `wait` when the thing appears after a delay or animation; `expect` for a settled page.
 
@@ -128,6 +130,8 @@ A third rephrasing of the same fact is never the next move.
 | `wait: "the checkbox is gone"` | Absence: `wait: the message "It's gone!" is shown` |
 | `expect` to check a guess while debugging | `ask`: not recorded, does not fail the session |
 | `snapshot` of the whole page to read a table | `snapshot` with `within`, or `evaluate` |
+| `click: the "P3" option or the first option` | One answer only: `the first option in the Filter by label dialog` |
+| Region not found: `the daily forecast` | Name it by its heading (`the list under the "Day by day forecast" heading`), or find it with `snapshot {mode:"smart", intent}` |
 | `check: the Hotels chip` on a plain button | `click` it; `check` needs a state to read |
 | Reading the tool's source to learn the thresholds | They are listed above |
 

@@ -45,6 +45,14 @@ test('candidates: check lists a label standing in for its sizeless checkbox, ari
   assert.deepEqual(descs, ['label "Hotels"', 'button "4 Stars"', 'input[type=checkbox] value="on" id="v"']);
 });
 
+test('candidates: a row labelled by its own heading names it once', async () => {
+  await page.goto(html('<ul><li aria-label="Fix the flaky test"><h3>Fix the flaky test</h3><button>Assign</button></li>' +
+    '<li aria-label="Row two"><h3>Other heading</h3><button>Assign</button></li></ul>'));
+  const [same, different] = (await candidates(page, 'click', 254)).map((c) => c.desc);
+  assert.match(same, /context: li name="Fix the flaky test"$/);
+  assert.match(different, /context: li name="Row two" heading="Other heading"$/);
+});
+
 test('candidates: repeated buttons retain their own card context, ordinal and actionable identity', async () => {
   await page.goto(html('<main>' + Array.from({ length: 72 }, (_, i) =>
     `<article><h2>${i === 53 ? 'Field notebook 32' : `Office supply ${i + 1}`}</h2><p>In stock</p><button onclick="this.textContent=\'Opened\'">View details</button></article>`
