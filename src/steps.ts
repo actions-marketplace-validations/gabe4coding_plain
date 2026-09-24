@@ -17,52 +17,31 @@ import {
   type DocTime,
 } from './page.js';
 import { decide, MAX_CANDIDATES } from './jev.js';
-import { resolveTargets, judgeState } from './automation.js';
-import { label, dumpDebug, type Status, type StepResult } from './results.js';
+import { resolveTargets, judgeState, type ResolvedTarget } from './automation.js';
+import { label, dumpDebug, timedInto, type Status, type StepResult } from './results.js';
 export { label, formatMs, StatusSchema, StepResultSchema, type Status, type StepResult } from './results.js';
 
-// Adds the elapsed ms of `fn` into ctx.ms[phase] — phases accumulate across multiple calls in the
-// same step (e.g. one `settle` per wait poll) since this is a per-step accumulator reset in runStep().
-export async function timed<T>(ctx: StepContext, phase: string, fn: () => Promise<T>): Promise<T> {
-  const start = Date.now();
-  const result = await fn();
-  ctx.ms[phase] = (ctx.ms[phase] ?? 0) + (Date.now() - start);
-  return result;
-}
+// Adds the elapsed ms of `fn` into ctx.ms[phase], a per-step accumulator reset in runStep().
+export const timed = <T>(ctx: StepContext, phase: string, fn: () => Promise<T>): Promise<T> => timedInto(ctx.ms, phase, fn);
 
-interface Activity {
-  /** In-flight xhr/fetch/document requests → when each started. */
-  inflight: Map<object, number>;
-  /** Activity held open by holdActivity(). */
-  held: number;
-  lastActivity: number;
-  /** The page is not settled before this time (Date.now() ms): see mayNavigate's holdMs. */
-  settleAfter: number;
-  /** Anything in flight, however old. */
-  readonly pending: number;
-}
+// inflight: xhr/fetch/document requests → when each started; held: holdActivity() holds; settleAfter: the
+// page is not settled before this time (see mayNavigate's holdMs); pending: anything in flight, however old.
+const newActivity = () => ({ inflight: new Map<object, number>(), held: 0, lastActivity: Date.now(), settleAfter: 0,
+  get pending() { return this.inflight.size + this.held; } });
 
 // Per-page in-flight xhr/fetch tracker, wired lazily on first use so a popup that replaces
 // ctx.page (see runner.ts) gets tracked on its first action with no extra setup there.
-const requestTracking = new WeakMap<Page, Activity>();
+const requestTracking = new WeakMap<Page, ReturnType<typeof newActivity>>();
 
-function trackRequests(page: Page): Activity {
+function trackRequests(page: Page) {
   const existing = requestTracking.get(page);
   if (existing) return existing;
-  const record: Activity = {
-    inflight: new Map(),
-    held: 0,
-    lastActivity: Date.now(),
-    settleAfter: 0,
-    get pending() { return this.inflight.size + this.held; },
-  };
+  const record = newActivity();
   requestTracking.set(page, record);
   // 'document' too: a click whose navigation turns into a download never fires framenavigated, but its
   // request is what bridges the gap until the runner's 'download' handler holds the wait (holdActivity).
   const isXhrOrFetch = (req: { resourceType(): string }) => ['xhr', 'fetch', 'document'].includes(req.resourceType());
-  page.on('request', (req) => {
-    if (isXhrOrFetch(req)) record.inflight.set(req, Date.now());
-  });
+  page.on('request', (req) => { if (isXhrOrFetch(req)) record.inflight.set(req, Date.now()); });
   const onDone = (req: { resourceType(): string }) => {
     // A request that started before tracking was wired was never counted: nothing to release.
     if (record.inflight.delete(req)) record.lastActivity = Date.now();
@@ -214,28 +193,20 @@ export async function settledAsk<S, R>(
   return { state, result };
 }
 
-export interface Resolved {
-  locator: Locator | null;
-  detail: string;
-  tokens: number;
-  usedJev: boolean;
-  confidence?: number;
-}
-
 // Resolves several targets of the same kind in one pass: css= targets resolve directly, the rest
 // share ONE settle + ONE candidate scan + ONE pickElements() request (one request = one Jev call —
 // only the first Jev-resolved entry carries usedJev/tokens, matching pickElements()'s own contract).
 // Results come back in the same order as `targets`.
-export async function resolveLocators(ctx: StepContext, kind: CandidateKind, targets: string[]): Promise<Resolved[]> {
+export async function resolveLocators(ctx: StepContext, kind: CandidateKind, targets: string[]): Promise<ResolvedTarget<Locator>[]> {
   const page = ctx.page;
-  const results: Resolved[] = new Array(targets.length);
+  const results: ResolvedTarget<Locator>[] = new Array(targets.length);
   const jevIndices: number[] = [];
   const jevTargets: string[] = [];
 
   targets.forEach((target, i) => {
     if (target.startsWith('css=')) {
       const selector = target.slice(4);
-      results[i] = { locator: page.locator(selector), detail: `→ css=${selector}`, tokens: 0, usedJev: false };
+      results[i] = { element: page.locator(selector), detail: `→ css=${selector}`, tokens: 0, usedJev: false };
     } else {
       jevIndices.push(i);
       jevTargets.push(target);
@@ -259,9 +230,8 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
       }, jevTargets),
       discard: ([first]) => { if (first?.usedJev) ctx.track(first.tokens); },
     });
-    const resolved = result!;
-    resolved.forEach((r, j) => {
-      results[jevIndices[j]] = { ...r, locator: r.element, detail: cands.length ? r.detail :
+    result!.forEach((r, j) => {
+      results[jevIndices[j]] = { ...r, detail: cands.length ? r.detail :
         `no candidates: nothing on the page matches a ${kind} target${NO_CANDIDATES_HINT[kind] ?? ''}` };
     });
   }
@@ -274,8 +244,11 @@ function sameCandidates(a: Candidate[], b: Candidate[]): boolean {
   return a.length === b.length && a.every((c, i) => c.desc === b[i].desc && c.frameIndex === b[i].frameIndex);
 }
 
-async function resolveLocator(ctx: StepContext, kind: CandidateKind, target: string): Promise<Resolved> {
-  return (await resolveLocators(ctx, kind, [target]))[0];
+/** One target, its Jev call accounted for. */
+export async function resolveOne(ctx: StepContext, kind: CandidateKind, target: string): Promise<ResolvedTarget<Locator>> {
+  const [r] = await resolveLocators(ctx, kind, [target]);
+  if (r.usedJev) ctx.track(r.tokens);
+  return r;
 }
 
 export interface StepContext {
@@ -291,10 +264,6 @@ export interface StepContext {
   ms: Record<string, number>;
 }
 
-function trackResolved(ctx: StepContext, r: Resolved): void {
-  if (r.usedJev) ctx.track(r.tokens);
-}
-
 // Resolve `target` under `kind`, account for the Jev call, and either report "inconclusive" or run
 // `act` on the resolved locator — the resolve → account → branch triple every element-acting step shares.
 async function withResolved(
@@ -304,10 +273,9 @@ async function withResolved(
   stepLabel: string,
   act: (loc: Locator) => Promise<string | void>
 ): Promise<StepResult> {
-  const r = await resolveLocator(ctx, kind, target);
-  trackResolved(ctx, r);
-  if (!r.locator) return { step: stepLabel, status: 'inconclusive', detail: r.detail };
-  const extra = await act(r.locator);
+  const r = await resolveOne(ctx, kind, target);
+  if (!r.element) return { step: stepLabel, status: 'inconclusive', detail: r.detail };
+  const extra = await act(r.element);
   return { step: stepLabel, status: 'pass', detail: extra ? `${r.detail} ${extra}` : r.detail };
 }
 
@@ -373,23 +341,14 @@ function scrollEdge(target: string): 'top' | 'bottom' | null {
 }
 
 async function runDrag(ctx: StepContext, step: Extract<Step, { kind: typeof StepKind.drag }>, stepLabel: string): Promise<StepResult> {
-  const [rs, rt] = await resolveLocators(ctx, StepKind.click, [step.source, step.target]);
-  trackResolved(ctx, rs);
-  trackResolved(ctx, rt);
-  if (!rs.locator) {
-    return { step: stepLabel, status: 'inconclusive', detail: rs.detail };
-  }
-  if (!rt.locator) {
-    return { step: stepLabel, status: 'inconclusive', detail: rt.detail };
-  }
-  // ponytail: locator.dragTo() only synthesizes mouse events. Sites whose drag-and-drop
-  // is wired to native HTML5 dragstart/dragover/drop (e.g. the-internet's
-  // /drag_and_drop) never see it, so the swap silently doesn't happen. Use the manual
-  // hover/mousedown/hover/hover/mouseup sequence Playwright's own docs recommend for
-  // that case instead — there's no cheap, site-agnostic way to tell from inside this
-  // generic step whether dragTo() actually took visual effect.
-  const source = rs.locator;
-  const dest = rt.locator;
+  const resolved = await resolveLocators(ctx, StepKind.click, [step.source, step.target]);
+  for (const r of resolved) if (r.usedJev) ctx.track(r.tokens);
+  const [rs, rt] = resolved;
+  const missing = resolved.find((r) => !r.element);
+  if (missing) return { step: stepLabel, status: 'inconclusive', detail: missing.detail };
+  // ponytail: locator.dragTo() only synthesizes mouse events, which native HTML5 dragstart/dragover/drop
+  // handlers (the-internet's /drag_and_drop) never see: use the manual sequence Playwright's docs recommend.
+  const [source, dest] = [rs.element!, rt.element!];
   await timed(ctx, 'action', async () => {
     await source.hover();
     await ctx.page.mouse.down();
@@ -408,56 +367,36 @@ async function runWait(ctx: StepContext, step: Extract<Step, { kind: typeof Step
   const MAX_POLLS = 8; // ponytail: hard cap on Jev polls per wait, floor against a condition that never holds
   const MIN_SNAPSHOT_GAP_MS = 250; // floor against a hot loop: settle→snapshot→skip→wake spinning on a constantly-mutating, unchanged-key page
   const deadline = Date.now() + ctx.timeout;
-  let polls = 0;
-  let skipped = 0;
-  let lastProbability = 0;
-  let lastSnap: Snapshot | null = null;
-  let lastKey: string | null = null;
-  let passed = false;
+  let polls = 0, skipped = 0, lastProbability = 0;
+  let lastSnap: Snapshot | null = null, lastKey: string | null = null;
+  const keyOf = (o: Observed) => JSON.stringify([o.snap, o.events]);
+  const detail = () => `p=${lastProbability.toFixed(2)} after ${polls} poll(s)${skipped > 0 ? `, ${skipped} unchanged` : ''}`;
   while (polls < MAX_POLLS && Date.now() < deadline) {
     const snapStart = Date.now();
     // Everything a judgment sends Jev besides the claims: the snapshot and the events (downloads,
     // console errors, dialogs). If neither changed since the last poll and Jev already said a clear no,
     // asking again buys nothing — skip the round trip. A grey-zone answer is re-asked as documented
     // ("wait repeats the question"): a borderline p flips between runs, and the retry is what rescues it.
-    const keyOf = (o: Observed) => JSON.stringify([o.snap, o.events]);
     const { state, probabilities } = await judgeSettled(ctx, [step.condition], (o) =>
       keyOf(o) === lastKey && decide(lastProbability, 'expect') === 'fail'
     );
-    const unchanged = probabilities === null;
-    if (unchanged) {
-      skipped++;
-    } else {
+    if (probabilities === null) skipped++;
+    else {
       lastKey = keyOf(state);
-      const probability = probabilities[0];
-      polls++;
-      ctx.ms.polls = polls;
-      lastProbability = probability;
+      lastProbability = probabilities[0];
       lastSnap = state.snap;
-      if (decide(probability, 'expect') === 'pass') {
-        passed = true;
-        break;
-      }
+      ctx.ms.polls = ++polls;
+      if (decide(lastProbability, 'expect') === 'pass') return { step: stepLabel, status: 'pass', detail: detail() };
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     // Navigation mid-evaluate throws — treat that as "something changed" rather than fail the step.
     await timed(ctx, 'idle', () => waitForMutation(ctx.page, Math.min(1500, remaining)).catch(() => {}));
-    if (unchanged) {
-      const shortfall = MIN_SNAPSHOT_GAP_MS - (Date.now() - snapStart);
-      if (shortfall > 0) await new Promise((resolve) => setTimeout(resolve, shortfall));
-    }
-  }
-  const skippedSuffix = skipped > 0 ? `, ${skipped} unchanged` : '';
-  if (passed) {
-    return { step: stepLabel, status: 'pass', detail: `p=${lastProbability.toFixed(2)} after ${polls} poll(s)${skippedSuffix}` };
+    const shortfall = MIN_SNAPSHOT_GAP_MS - (Date.now() - snapStart);
+    if (probabilities === null && shortfall > 0) await new Promise((resolve) => setTimeout(resolve, shortfall));
   }
   const file = dumpDebug(StepKind.wait, { condition: step.condition, probability: lastProbability, state: lastSnap });
-  return {
-    step: stepLabel,
-    status: 'inconclusive',
-    detail: `p=${lastProbability.toFixed(2)} after ${polls} poll(s)${skippedSuffix} — state: ${file}`,
-  };
+  return { step: stepLabel, status: 'inconclusive', detail: `${detail()} — state: ${file}` };
 }
 
 async function runExpect(ctx: StepContext, step: Extract<Step, { kind: typeof StepKind.expect }>, stepLabel: string): Promise<StepResult> {
@@ -475,12 +414,9 @@ async function runExpect(ctx: StepContext, step: Extract<Step, { kind: typeof St
     return { step: stepLabel, status, detail };
   };
   if (step.within) {
-    const r = await resolveLocator(ctx, 'region', step.within);
-    trackResolved(ctx, r);
-    if (!r.locator) {
-      return { step: stepLabel, status: 'inconclusive', detail: r.detail };
-    }
-    const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, r.locator!));
+    const r = await resolveOne(ctx, 'region', step.within);
+    if (!r.element) return { step: stepLabel, status: 'inconclusive', detail: r.detail };
+    const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, r.element!));
     const result = await timed(ctx, 'jev', () => judgeState(snap, step.expectations, ctx.events));
     ctx.track(result.tokens);
     return judgeExpectations(snap, result.probabilities);
@@ -493,23 +429,19 @@ async function runExpect(ctx: StepContext, step: Extract<Step, { kind: typeof St
 // Whether the step's first look at the page goes through settledAsk, which waits out the last action's
 // hold itself, overlapped with its Jev call. Every other step waits it out before it starts.
 function settlesFirst(step: Step): boolean {
-  const jev = (target: string) => !target.startsWith('css=');
-  switch (step.kind) {
-    case StepKind.goto:
-    case StepKind.press:
-    case StepKind.mouse:
-      return false;
-    case StepKind.expect:
-      return step.within === undefined || jev(step.within);
-    case StepKind.wait:
-      return jev(step.condition);
-    case StepKind.drag:
-      return jev(step.source) || jev(step.target);
-    case StepKind.scroll:
-      return !scrollEdge(step.target) && jev(step.target);
-    default:
-      return jev(step.target);
-  }
+  if (step.kind === StepKind.goto || step.kind === StepKind.press || step.kind === StepKind.mouse) return false;
+  if (step.kind === StepKind.scroll && scrollEdge(step.target)) return false;
+  const targets = step.kind === StepKind.expect ? [step.within ?? ''] : step.kind === StepKind.wait ? [step.condition] :
+    step.kind === StepKind.drag ? [step.source, step.target] : [step.target];
+  return targets.some((target) => !target.startsWith('css='));
+}
+
+/** runStep that never throws (an error becomes the result); an optional step's inconclusive or error becomes skipped. */
+export async function runStepSafely(ctx: StepContext, step: Step, prepare: (step: Step) => Step = (s) => s): Promise<StepResult> {
+  let result: StepResult;
+  try { result = await runStep(ctx, prepare(step)); }
+  catch (err) { result = { step: label(step), status: 'error', detail: err instanceof Error ? err.message : String(err) }; }
+  return step.optional && (result.status === 'inconclusive' || result.status === 'error') ? { ...result, status: 'skipped' } : result;
 }
 
 // Resets the per-step timing accumulator, runs the step, and stamps `total` = wall time of the
@@ -526,21 +458,17 @@ export async function runStep(ctx: StepContext, step: Step): Promise<StepResult>
 async function runStepInner(ctx: StepContext, step: Step): Promise<StepResult> {
   const stepLabel = label(step);
   switch (step.kind) {
-    case StepKind.goto: {
-      const url = resolveUrl(ctx.spec.url, step.url);
-      await timed(ctx, 'action', () => ctx.page.goto(url, { waitUntil: 'load' }));
+    case StepKind.goto:
+      await timed(ctx, 'action', () => ctx.page.goto(resolveUrl(ctx.spec.url, step.url), { waitUntil: 'load' }));
       return { step: stepLabel, status: 'pass' };
-    }
-    case StepKind.press: {
+    case StepKind.press:
       await mayNavigate(ctx, () => ctx.page.keyboard.press(step.key));
       return { step: stepLabel, status: 'pass' };
-    }
     case StepKind.drag:
       return runDrag(ctx, step, stepLabel);
-    case StepKind.mouse: {
+    case StepKind.mouse:
       await timed(ctx, 'action', () => ctx.page.mouse.move(step.x, step.y));
       return { step: stepLabel, status: 'pass' };
-    }
     case StepKind.click:
       return withResolved(ctx, StepKind.click, step.target, stepLabel, (loc) => mayNavigate(ctx, () => loc.click()));
     case StepKind.fill:

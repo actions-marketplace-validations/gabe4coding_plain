@@ -7,24 +7,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Spec, Step } from './spec.js';
 import { parseStep, interpolate } from './spec.js';
-import { openSession, startHooks, closeSharedBrowser, type Session, type HooksRunner, type RunOptions } from './runner.js';
-import { runStep, label, resolveLocators, type StepResult } from './steps.js';
+import { openSession, closeSharedBrowser, type Session, type RunOptions } from './runner.js';
+import { startHooks, placeholderPaths, type HooksRunner } from './hooks.js';
+import { runStep, runStepSafely, resolveOne, type StepResult } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { serialQueue } from './serial-queue.js';
 import { jsonResult as ok } from './mcp-result.js';
-
-// Leaf paths of `data` as `${hooks.a.b}` placeholders for the `open` response — never the values
-// themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
-function placeholderPaths(obj: Record<string, unknown>, prefix: string): string[] {
-  const out: string[] = [];
-  for (const [k, v] of Object.entries(obj)) {
-    const path = `${prefix}.${k}`;
-    if (v !== null && typeof v === 'object' && !Array.isArray(v)) out.push(...placeholderPaths(v as Record<string, unknown>, path));
-    else out.push('${' + path + '}');
-  }
-  return out;
-}
 
 const STEP_DESCRIPTION = `Run one step in the persistent browser session (call \`open\` first).
 
@@ -82,83 +71,67 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   // Releases the current hooks lease: called when the session ends, or when `open` loads a new
   // hooks module while one is already active. Errors propagate — a teardown failure must not be silent.
   async function runTeardown(): Promise<void> {
-    if (hooksRunner) {
-      const runner = hooksRunner;
-      if (runner.has.teardown) {
-        await runner.teardown({ spec, data, result: { status: results.at(-1)?.status ?? 'pass', steps: results } });
-      }
-      runner.close();
-    }
+    const runner = hooksRunner;
+    if (runner?.has.teardown) await runner.teardown({ spec, data, result: { status: results.at(-1)?.status ?? 'pass', steps: results } });
+    runner?.close();
     hooksRunner = null;
     hooksFile = null;
     data = {};
   }
 
-  server.registerTool(
-    'open',
-    {
-      description:
-        "Open the persistent browser session (first call) or navigate it to a new URL. `hooks`: optional path " +
-        "(relative to the server's working directory) of a setup/teardown module, as in a spec's `hooks` key; " +
-        'setup runs now, before the navigation, and its result is available to steps as ${hooks.*}. Teardown runs ' +
-        'when the session ends or when `open` is called again with `hooks`. `headed`: true shows the browser window ' +
-        '(when the user wants to watch), false hides it; default is how the server was started. Changing it on a ' +
-        'later call relaunches the browser, so cookies and logins of the current session are lost. Ignored when ' +
-        'attached to a running Chrome (--cdp).',
-      inputSchema: { url: z.string(), hooks: z.string().optional(), headed: z.boolean().optional() },
-    },
-    ({ url, hooks: hooksPath, headed }) => queue(async () => {
-      const notes: string[] = [];
-      if (session && headed !== undefined && headed !== sessionOpts.headed && !sessionOpts.cdp) {
-        await session.close();
-        session = null;
-        notes.push(`browser relaunched ${headed ? 'headed' : 'headless'}; the previous session's cookies are gone`);
+  server.registerTool('open', {
+    description:
+      "Open the persistent browser session (first call) or navigate it to a new URL. `hooks`: optional path " +
+      "(relative to the server's working directory) of a setup/teardown module, as in a spec's `hooks` key; " +
+      'setup runs now, before the navigation, and its result is available to steps as ${hooks.*}. Teardown runs ' +
+      'when the session ends or when `open` is called again with `hooks`. `headed`: true shows the browser window ' +
+      '(when the user wants to watch), false hides it; default is how the server was started. Changing it on a ' +
+      'later call relaunches the browser, so cookies and logins of the current session are lost. Ignored when ' +
+      'attached to a running Chrome (--cdp).',
+    inputSchema: { url: z.string(), hooks: z.string().optional(), headed: z.boolean().optional() },
+  }, ({ url, hooks: hooksPath, headed }) => queue(async () => {
+    const notes: string[] = [];
+    if (session && headed !== undefined && headed !== sessionOpts.headed && !sessionOpts.cdp) {
+      await session.close();
+      session = null;
+      notes.push(`browser relaunched ${headed ? 'headed' : 'headless'}; the previous session's cookies are gone`);
+    }
+    if (!session) {
+      if (headed !== undefined) sessionOpts.headed = headed;
+      session = await openSession(spec, sessionOpts, track);
+      spec.url = url;
+    }
+    if (hooksPath) {
+      const file = resolve(spec.dir, hooksPath);
+      if (hooksFile) await runTeardown(); // an agent opening a second flow releases the first lease
+      let runner: HooksRunner | null = null;
+      try {
+        runner = await startHooks(file);
+        if (runner.has.setup) data = await runner.setup(spec);
+        hooksRunner = runner;
+        hooksFile = file;
+      } catch (err) {
+        runner?.close(); // whatever got started (or nothing, if the fork itself failed) never lingers
+        hooksRunner = null;
+        hooksFile = null;
+        data = {}; // nothing loaded — nothing for teardown to release
+        throw err;
       }
-      if (!session) {
-        if (headed !== undefined) sessionOpts.headed = headed;
-        session = await openSession(spec, sessionOpts, track);
-        spec.url = url;
-      }
-      if (hooksPath) {
-        const file = resolve(spec.dir, hooksPath);
-        if (hooksFile) await runTeardown(); // an agent opening a second flow releases the first lease
-        let runner: HooksRunner | null = null;
-        try {
-          runner = await startHooks(file);
-          if (runner.has.setup) data = await runner.setup(spec);
-          hooksRunner = runner;
-          hooksFile = file;
-        } catch (err) {
-          runner?.close(); // whatever got started (or nothing, if the fork itself failed) never lingers
-          hooksRunner = null;
-          hooksFile = null;
-          data = {}; // nothing loaded — nothing for teardown to release
-          throw err;
-        }
-      }
-      const result = await runStep(session.ctx, { kind: StepKind.goto, url });
-      if (result.status === 'error') throw new Error(result.detail ?? 'goto failed');
-      transcript.push({ goto: url }); // so `save` replays the navigation too
-      const title = await session.ctx.page.title();
-      const response: Record<string, unknown> = { url: session.ctx.page.url(), title, notes: [...notes, ...session.drainNotes()] };
-      if (hooksFile) response.placeholders = placeholderPaths(data, 'hooks');
-      return ok(response);
-    })
-  );
+    }
+    const result = await runStep(session.ctx, { kind: StepKind.goto, url });
+    if (result.status === 'error') throw new Error(result.detail ?? 'goto failed');
+    transcript.push({ goto: url }); // so `save` replays the navigation too
+    const title = await session.ctx.page.title();
+    const response: Record<string, unknown> = { url: session.ctx.page.url(), title, notes: [...notes, ...session.drainNotes()] };
+    if (hooksFile) response.placeholders = placeholderPaths(data);
+    return ok(response);
+  }));
 
   async function execute(step: Record<string, unknown>, parsed: Step) {
     if (!session) throw new Error('call open first');
     const before = totalTokens;
-    let result;
-    try {
-      const resolved = interpolate(parsed, { env: {}, hooks: data }, 'mcp'); // ${hooks.*} placeholders, resolved just before running
-      result = await runStep(session.ctx, resolved);
-    } catch (err) {
-      result = { step: label(parsed), status: 'error' as const, detail: err instanceof Error ? err.message : String(err) };
-    }
-    if (parsed.optional && (result.status === 'inconclusive' || result.status === 'error')) {
-      result = { ...result, status: 'skipped' as const };
-    }
+    // ${hooks.*} placeholders, resolved just before running
+    const result = await runStepSafely(session.ctx, parsed, (s) => interpolate(s, { env: {}, hooks: data }, 'mcp'));
     results.push(result);
     if (result.status === 'pass') transcript.push(step); // failed attempts are exploration, not spec — placeholders kept intact for `save`
     return { status: result.status, detail: result.detail, notes: session.drainNotes(), url: session.ctx.page.url(), jevTokens: totalTokens - before };
@@ -199,94 +172,70 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       url: session.ctx.page.url(), jevTokens: totalTokens - before });
   }));
 
-  server.registerTool(
-    'find',
-    {
-      description: "Dry run of a step target: tells you what Jev would pick, without acting.",
-      inputSchema: { kind: CandidateKindSchema, target: z.string() },
-    },
-    ({ kind, target }) => queue(async () => {
-      if (!session) throw new Error('call open first');
-      target = interpolate(target, { env: {}, hooks: data }, 'mcp');
-      const before = totalTokens;
-      const [r] = await resolveLocators(session.ctx, kind, [target]);
-      if (r.usedJev) track(r.tokens);
-      return ok({ found: r.locator !== null, detail: r.detail, confidence: r.confidence, jevTokens: totalTokens - before });
-    })
-  );
+  server.registerTool('find', {
+    description: "Dry run of a step target: tells you what Jev would pick, without acting.",
+    inputSchema: { kind: CandidateKindSchema, target: z.string() },
+  }, ({ kind, target }) => queue(async () => {
+    if (!session) throw new Error('call open first');
+    const before = totalTokens;
+    const r = await resolveOne(session.ctx, kind, interpolate(target, { env: {}, hooks: data }, 'mcp'));
+    return ok({ found: r.element !== null, detail: r.detail, confidence: r.confidence, jevTokens: totalTokens - before });
+  }));
 
-  server.registerTool(
-    'snapshot',
-    {
-      description:
-        'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
-        '("the results list", "the hotel table", or css=...). Reading data: prefer `within` so you get the table or list ' +
-        'and not the whole page, or `evaluate` when you want clean JSON. Debugging: only when a step came back ' +
-        'inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
-      inputSchema: { ...SnapshotOptions, within: z.string().optional() },
-    },
-    ({ maxChars, within, mode, intent }) => queue(async () => {
-      if (!session) throw new Error('call open first');
-      const started = performance.now();
-      const before = totalTokens;
-      let region: string | undefined;
-      let snap;
-      if (within) {
-        const [r] = await resolveLocators(session.ctx, 'region', [interpolate(within, { env: {}, hooks: data }, 'mcp')]);
-        if (r.usedJev) track(r.tokens);
-        if (!r.locator) return ok({ found: false, detail: r.detail, jevTokens: totalTokens - before });
-        region = r.detail;
-        snap = await snapshotRegion(session.ctx.page, r.locator);
-      } else {
-        snap = await snapshot(session.ctx.page);
-      }
-      const view = await snapshotView(snap, { maxChars, mode, intent });
-      if ('jevTokens' in view && view.jevTokens !== null) track(view.jevTokens);
-      return ok({ ...view, region, ...(mode !== 'raw' ? {
-        jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
-        ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
-      } : {}) });
-    })
-  );
+  server.registerTool('snapshot', {
+    description:
+      'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
+      '("the results list", "the hotel table", or css=...). Reading data: prefer `within` so you get the table or list ' +
+      'and not the whole page, or `evaluate` when you want clean JSON. Debugging: only when a step came back ' +
+      'inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
+    inputSchema: { ...SnapshotOptions, within: z.string().optional() },
+  }, ({ maxChars, within, mode, intent }) => queue(async () => {
+    if (!session) throw new Error('call open first');
+    const started = performance.now();
+    const before = totalTokens;
+    let region: string | undefined;
+    let snap;
+    if (within) {
+      const r = await resolveOne(session.ctx, 'region', interpolate(within, { env: {}, hooks: data }, 'mcp'));
+      if (!r.element) return ok({ found: false, detail: r.detail, jevTokens: totalTokens - before });
+      region = r.detail;
+      snap = await snapshotRegion(session.ctx.page, r.element);
+    } else {
+      snap = await snapshot(session.ctx.page);
+    }
+    const view = await snapshotView(snap, { maxChars, mode, intent });
+    if ('jevTokens' in view && view.jevTokens !== null) track(view.jevTokens);
+    return ok({ ...view, region, ...(mode !== 'raw' ? {
+      jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
+      ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
+    } : {}) });
+  }));
 
-  server.registerTool(
-    'evaluate',
-    {
-      description:
-        'Run a JavaScript expression in the page and return its JSON value: the raw escape hatch for pulling data ' +
-        'once the flow got there, e.g. `[...document.querySelectorAll("article")].map(a => ({ name: a.querySelector("h3")?.innerText, price: a.querySelector("[data-testid=price]")?.innerText }))`. ' +
-        'The expression may be async (a promise is awaited). Read-only by convention: it is not a step, so `save` does not record it.',
-      inputSchema: { js: z.string() },
-    },
-    ({ js }) => queue(async () => {
-      if (!session) throw new Error('call open first');
-      const value: unknown = await session.ctx.page.evaluate(js);
-      return ok({ value: value === undefined ? null : value, url: session.ctx.page.url() });
-    })
-  );
+  server.registerTool('evaluate', {
+    description:
+      'Run a JavaScript expression in the page and return its JSON value: the raw escape hatch for pulling data ' +
+      'once the flow got there, e.g. `[...document.querySelectorAll("article")].map(a => ({ name: a.querySelector("h3")?.innerText, price: a.querySelector("[data-testid=price]")?.innerText }))`. ' +
+      'The expression may be async (a promise is awaited). Read-only by convention: it is not a step, so `save` does not record it.',
+    inputSchema: { js: z.string() },
+  }, ({ js }) => queue(async () => {
+    if (!session) throw new Error('call open first');
+    const value: unknown = await session.ctx.page.evaluate(js);
+    return ok({ value: value === undefined ? null : value, url: session.ctx.page.url() });
+  }));
 
-  server.registerTool(
-    'save',
-    {
-      description:
-        'Save the steps that passed so far in this session as a YAML spec the batch runner can replay (failed or ' +
-        'inconclusive attempts are left out). The `hooks` module given to `open` is written as a relative path, ' +
-        'and ${hooks.*} placeholders are kept as written.',
-      inputSchema: { path: z.string(), name: z.string().optional() },
-    },
-    ({ path, name }) => queue(async () => {
-      const filePath = resolve(path);
-      const doc: Record<string, unknown> = { name: name ?? spec.name, url: spec.url };
-      if (hooksFile) {
-        let rel = relative(dirname(filePath), hooksFile);
-        if (!rel.startsWith('.')) rel = './' + rel;
-        doc.hooks = rel;
-      }
-      doc.steps = transcript;
-      writeFileSync(filePath, stringify(doc));
-      return ok({ path: filePath, steps: transcript.length });
-    })
-  );
+  server.registerTool('save', {
+    description:
+      'Save the steps that passed so far in this session as a YAML spec the batch runner can replay (failed or ' +
+      'inconclusive attempts are left out). The `hooks` module given to `open` is written as a relative path, ' +
+      'and ${hooks.*} placeholders are kept as written.',
+    inputSchema: { path: z.string(), name: z.string().optional() },
+  }, ({ path, name }) => queue(async () => {
+    const filePath = resolve(path);
+    const rel = hooksFile && relative(dirname(filePath), hooksFile);
+    const hooks = rel ? { hooks: rel.startsWith('.') ? rel : './' + rel } : {};
+    writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...hooks, steps: transcript }));
+    return ok({ path: filePath, steps: transcript.length });
+  }));
 
   const transport = new StdioServerTransport();
   let shuttingDown = false;

@@ -1,89 +1,11 @@
 import { interpolate } from './spec.js';
 import { parseComputerStep } from './computer-spec.js';
-import { intelligence, resolveTargets, judgeState } from './automation.js';
-import { decide } from './jev.js';
-import { label, timedInto, dumpDebug } from './results.js';
-import { startHooks } from './hooks.js';
-export class ComputerSession {
-    adapter;
-    timeout;
-    ai;
-    calls = 0;
-    tokens = 0;
-    constructor(adapter, timeout = 15000, ai = intelligence) {
-        this.adapter = adapter;
-        this.timeout = timeout;
-        this.ai = ai;
-    }
-    // Per-step phase timings (capture, jev, act, idle), reset by run() and returned as the result's `ms`.
-    ms = {};
-    timed(phase, fn) { return timedInto(this.ms, phase, fn); }
-    track(tokens) { this.calls++; this.tokens += tokens; }
-    async find(kind, targets) {
-        const frame = await this.timed('capture', () => this.adapter.capture(kind));
-        const resolved = await this.timed('jev', () => resolveTargets({ candidates: frame.candidates, state: frame.snapshot,
-            element: (c) => { const el = frame.elements.get(c.id); if (el === undefined)
-                throw new Error('Candidate handle missing'); return el; },
-        }, targets, this.ai));
-        for (const r of resolved)
-            if (r.usedJev)
-                this.track(r.tokens);
-        return resolved;
-    }
-    async snapshot(within) {
-        if (!within)
-            return (await this.timed('capture', () => this.adapter.capture('region'))).snapshot;
-        const [r] = await this.find('region', [within]);
-        if (r.element === null)
-            throw new Error(r.detail);
-        return (await this.timed('capture', () => this.adapter.capture('region', r.element))).snapshot;
-    }
-    async step(raw) {
-        const step = parseComputerStep(raw);
-        return this.run(step);
-    }
-    async run(step) {
-        const start = Date.now();
-        this.ms = {};
-        let result;
-        try {
-            result = await this.execute(step);
-        }
-        catch (error) {
-            result = { step: label(step), status: 'error', detail: error instanceof Error ? error.message : String(error) };
-        }
-        if (step.optional && (result.status === 'error' || result.status === 'inconclusive'))
-            result.status = 'skipped';
-        return { ...result, ms: { total: Date.now() - start, ...this.ms } };
-    }
-    async execute(step) {
-        const name = label(step);
-        if (step.kind === 'expect' || step.kind === 'wait') {
-            const claims = step.kind === 'expect' ? step.expectations : [step.condition];
-            const deadline = Date.now() + this.timeout;
-            let polls = 0, last = '', probabilities = [], status = 'inconclusive';
-            let snap;
-            do {
-                snap = await this.snapshot(step.kind === 'expect' ? step.within : undefined);
-                const key = JSON.stringify(snap);
-                if (key !== last || status !== 'fail') {
-                    const judged = await this.timed('jev', () => judgeState(snap, claims, [], this.ai));
-                    this.track(judged.tokens);
-                    probabilities = judged.probabilities;
-                    polls++;
-                    const decisions = probabilities.map((p) => decide(p, 'expect'));
-                    status = decisions.includes('fail') ? 'fail' : decisions.includes('inconclusive') ? 'inconclusive' : 'pass';
-                }
-                last = key;
-                if (step.kind === 'expect' || status === 'pass' || Date.now() >= deadline || polls >= 8)
-                    break;
-                await this.timed('idle', () => new Promise((r) => setTimeout(r, Math.min(250, Math.max(0, deadline - Date.now())))));
-            } while (Date.now() < deadline);
-            if (step.kind === 'wait' && status !== 'pass')
-                status = 'inconclusive';
-            const debug = status === 'pass' ? '' : ` — state: ${dumpDebug(step.kind, { claims, probabilities, state: snap })}`;
-            return { step: name, status, detail: `p=${probabilities.map((p) => p.toFixed(2)).join(', ')} after ${polls} poll(s)${debug}` };
-        }
+import { label } from './results.js';
+import { NativeSession, runNativeSpec } from './native.js';
+export class ComputerSession extends NativeSession {
+    parse(raw) { return parseComputerStep(raw); }
+    label(step) { return label(step); }
+    async act(step, name) {
         if (step.kind === 'press')
             await this.timed('act', () => this.adapter.press(step.key));
         else if (step.kind === 'mouse')
@@ -95,7 +17,7 @@ export class ComputerSession {
             const [from, to] = [source.element, target.element];
             await this.timed('act', () => this.adapter.drag(from, to));
         }
-        else if (step.kind === 'goto' || step.kind === 'select' || step.kind === 'upload') {
+        else if (step.kind === 'goto' || step.kind === 'select' || step.kind === 'upload' || step.kind === 'expect' || step.kind === 'wait') {
             throw new Error(`${step.kind} is browser-only`);
         }
         else {
@@ -113,47 +35,10 @@ export class ComputerSession {
         return { step: name, status: 'pass' };
     }
 }
-export async function runComputerSpec(spec, session) {
-    const steps = [];
-    let status = 'pass';
-    let hooks;
-    let data = {};
-    let setupDone = false;
-    try {
-        if (spec.hooks) {
-            hooks = await startHooks(spec.hooks);
-            if (hooks.has.setup)
-                data = await hooks.setup(spec);
-        }
-        setupDone = true;
-        const resolved = interpolate({ app: spec.app, steps: spec.steps }, { env: spec.env, hooks: data }, spec.name);
+export function runComputerSpec(spec, session) {
+    return runNativeSpec(spec, session, async (vars) => {
+        const resolved = interpolate({ app: spec.app, steps: spec.steps }, vars, spec.name);
         await session.adapter.open({ app: resolved.app }, true);
-        for (const step of resolved.steps) {
-            const result = await session.run(step);
-            steps.push(result);
-            if (result.status !== 'pass' && result.status !== 'skipped') {
-                status = result.status;
-                break;
-            }
-        }
-    }
-    catch (error) {
-        status = 'error';
-        steps.push({ step: setupDone ? 'open/interpolate' : 'setup', status, detail: String(error) });
-    }
-    finally {
-        try {
-            if (setupDone && hooks?.has.teardown)
-                await hooks.teardown({ spec, data, result: { status, steps } });
-        }
-        catch (error) {
-            status = 'error';
-            steps.push({ step: 'teardown', status, detail: String(error) });
-        }
-        finally {
-            hooks?.close();
-            await session.adapter.close();
-        }
-    }
-    return { name: spec.name, status, steps, jevCalls: session.calls, totalTokens: session.tokens };
+        return resolved.steps;
+    });
 }

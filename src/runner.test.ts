@@ -4,7 +4,8 @@ import { writeFileSync, mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadSpec } from './spec.js';
-import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimit, startHooks } from './runner.js';
+import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimitSettled } from './runner.js';
+import { startHooks } from './hooks.js';
 import { chromium } from 'playwright';
 
 const OPTS = { headed: false, timeout: 5000 };
@@ -250,7 +251,7 @@ test('openSession gives each session its own downloads dir, gone after close()',
   await closeSharedBrowser();
 });
 
-test('mapLimit runs at most `limit` tasks concurrently and resolves results in input order', async () => {
+test('mapLimitSettled runs at most `limit` tasks concurrently and resolves results in input order', async () => {
   let inFlight = 0;
   let maxInFlight = 0;
   const run = async (i: number): Promise<number> => {
@@ -261,7 +262,7 @@ test('mapLimit runs at most `limit` tasks concurrently and resolves results in i
     return i;
   };
 
-  const results = await mapLimit([0, 1, 2, 3], 2, run);
+  const results = await Promise.all(mapLimitSettled([0, 1, 2, 3], 2, run));
 
   assert.deepEqual(results, [0, 1, 2, 3], 'results are in input order');
   assert.equal(maxInFlight, 2, 'never more than `limit` tasks in flight');

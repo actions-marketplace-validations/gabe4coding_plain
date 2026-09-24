@@ -101,39 +101,28 @@ export function parseStep(path: string, i: number, raw: unknown): Step {
     fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);
 
   const val = obj[kind];
+  const field = { goto: 'url', wait: 'condition', press: 'key', click: 'target', hover: 'target', dblclick: 'target',
+    rightclick: 'target', check: 'target', uncheck: 'target', scroll: 'target' }[kind as string];
   let fields: Record<string, unknown>;
-  switch (kind) {
-    case StepKind.goto: fields = { url: val }; break;
-    case StepKind.click: case StepKind.hover: case StepKind.dblclick: case StepKind.rightclick:
-    case StepKind.check: case StepKind.uncheck: case StepKind.scroll:
-      fields = { target: val }; break;
-    case StepKind.wait: fields = { condition: val }; break;
-    case StepKind.press: fields = { key: val }; break;
-    case StepKind.expect: {
-      const scoped = typeof val !== 'string' && !Array.isArray(val);
-      const expectation = scoped ? parseData(MappingSchema, val, `${where} "expect"`) : { that: val };
-      fields = {
-        expectations: typeof expectation.that === 'string' ? [expectation.that] : expectation.that,
-        ...(expectation.within === undefined ? {} : { within: expectation.within }),
-      };
-      break;
-    }
-    default: fields = parseData(MappingSchema, val, `${where} "${kind}"`);
-  }
+  if (field) fields = { [field]: val };
+  else if (kind === StepKind.expect) {
+    const scoped = typeof val !== 'string' && !Array.isArray(val);
+    const expectation = scoped ? parseData(MappingSchema, val, `${where} "expect"`) : { that: val };
+    fields = {
+      expectations: typeof expectation.that === 'string' ? [expectation.that] : expectation.that,
+      ...(expectation.within === undefined ? {} : { within: expectation.within }),
+    };
+  } else fields = parseData(MappingSchema, val, `${where} "${kind}"`);
   // Preserve the existing flag convention: only literal true enables optional execution.
   return parseData(StepSchema, { ...fields, kind, optional: obj.optional === true }, where);
 }
 
 export function loadSpec(path: string): Spec {
   const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
-  const auth = raw.auth && {
-    user: resolveEnvRef(path, 'auth.user', raw.auth.user),
-    pass: resolveEnvRef(path, 'auth.pass', raw.auth.pass),
-  };
   return {
     ...raw,
     dir: dirname(path),
-    auth,
+    auth: raw.auth && (resolveEnvBlock(path, 'auth', raw.auth) as typeof raw.auth),
     env: resolveEnvBlock(path, 'env', raw.env ?? {}),
     hooks: raw.hooks === undefined ? undefined : resolve(dirname(path), raw.hooks),
     steps: raw.steps.map((step, i) => parseStep(path, i, step)),
@@ -161,10 +150,22 @@ export function interpolate<T>(value: T, vars: { env: Record<string, unknown>; h
     }) as unknown as T;
   }
   if (Array.isArray(value)) return value.map((v) => interpolate(v, vars, where)) as unknown as T;
-  if (value !== null && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = interpolate(v, vars, where);
-    return out as unknown as T;
-  }
+  if (value !== null && typeof value === 'object')
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, interpolate(v, vars, where)])) as T;
   return value;
+}
+
+/** Throws when a desktop/mobile step uses the browser-only `css=` escape hatch. */
+export function rejectCss(step: object, what: string): void {
+  const targets = ['target', 'source', 'within', 'condition'].flatMap((key) => key in step ? [String((step as Record<string, unknown>)[key])] : []);
+  if (targets.some((v) => v.startsWith('css='))) throw new Error(`css= is browser-only; describe a ${what} accessibility element`);
+}
+
+/** Loads a desktop/mobile spec file: hooks resolved next to it, `$VAR` env leaves resolved, steps parsed. */
+export function loadNativeSpec<R extends { hooks?: string; env: Record<string, unknown>; steps: unknown[] }, S>(file: string,
+  schema: z.ZodType<R>, parseOne: (raw: unknown, where: string, index: number) => S) {
+  const raw = schema.parse(parse(readFileSync(file, 'utf8')));
+  const dir = dirname(resolve(file));
+  return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
+    env: resolveEnvBlock(file, 'env', raw.env), steps: raw.steps.map((s, i) => parseOne(s, file, i)) };
 }

@@ -1,18 +1,13 @@
 import type { Browser } from 'webdriverio';
+import type { NativeAdapter } from './native.js';
 import { MobileTargetSchema, type MobileTarget, type Direction } from './mobile-spec.js';
-import { parseMobileTree, findMobileNode, nodeIdentity, mobileFrame, type MobileFrame, type MobileElement, type MobileKind } from './mobile-tree.js';
+import { parseMobileTree, findMobileNode, nodeIdentity, mobileFrame, type MobileElement, type MobileKind } from './mobile-tree.js';
 
 export type MobileAction = 'click' | 'tap' | 'fill' | 'dblclick' | 'longpress' | 'check' | 'uncheck';
-export interface MobileAdapter<T = unknown> {
+export interface MobileAdapter<T = unknown> extends NativeAdapter<T, MobileKind> {
   open(target: MobileTarget): Promise<MobileTarget>;
-  capture(kind: MobileKind, within?: T): Promise<MobileFrame<T>>;
-  /** A capture that skips the platform's wait for an idle UI, or null where that is not faster (see AppiumAdapter). */
-  captureEarly?(kind: MobileKind, within?: T): Promise<MobileFrame<T> | null>;
   act(kind: MobileAction, element: T, value?: string): Promise<void>;
   gesture(kind: 'swipe' | 'scroll', direction: Direction, element?: T): Promise<void>;
-  press(key: string): Promise<void>;
-  screenshot(): Promise<Buffer>;
-  close(): Promise<void>;
 }
 type DriverCommands = 'getPageSource' | 'findElement' | 'elementClick' | 'elementClear' | 'elementSendKeys' |
   'getElementAttribute' | 'executeScript' | 'getWindowRect' | 'pressKeyCode' | 'hideKeyboard' | 'takeScreenshot' | 'deleteSession' | 'activateApp' |

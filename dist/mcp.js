@@ -6,25 +6,13 @@ import { stringify } from 'yaml';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseStep, interpolate } from './spec.js';
-import { openSession, startHooks, closeSharedBrowser } from './runner.js';
-import { runStep, label, resolveLocators } from './steps.js';
+import { openSession, closeSharedBrowser } from './runner.js';
+import { startHooks, placeholderPaths } from './hooks.js';
+import { runStep, runStepSafely, resolveOne } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { serialQueue } from './serial-queue.js';
 import { jsonResult as ok } from './mcp-result.js';
-// Leaf paths of `data` as `${hooks.a.b}` placeholders for the `open` response — never the values
-// themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
-function placeholderPaths(obj, prefix) {
-    const out = [];
-    for (const [k, v] of Object.entries(obj)) {
-        const path = `${prefix}.${k}`;
-        if (v !== null && typeof v === 'object' && !Array.isArray(v))
-            out.push(...placeholderPaths(v, path));
-        else
-            out.push('${' + path + '}');
-    }
-    return out;
-}
 const STEP_DESCRIPTION = `Run one step in the persistent browser session (call \`open\` first).
 
 Vocabulary, one example each:
@@ -77,13 +65,10 @@ export async function serveMcp(opts) {
     // Releases the current hooks lease: called when the session ends, or when `open` loads a new
     // hooks module while one is already active. Errors propagate — a teardown failure must not be silent.
     async function runTeardown() {
-        if (hooksRunner) {
-            const runner = hooksRunner;
-            if (runner.has.teardown) {
-                await runner.teardown({ spec, data, result: { status: results.at(-1)?.status ?? 'pass', steps: results } });
-            }
-            runner.close();
-        }
+        const runner = hooksRunner;
+        if (runner?.has.teardown)
+            await runner.teardown({ spec, data, result: { status: results.at(-1)?.status ?? 'pass', steps: results } });
+        runner?.close();
         hooksRunner = null;
         hooksFile = null;
         data = {};
@@ -137,24 +122,15 @@ export async function serveMcp(opts) {
         const title = await session.ctx.page.title();
         const response = { url: session.ctx.page.url(), title, notes: [...notes, ...session.drainNotes()] };
         if (hooksFile)
-            response.placeholders = placeholderPaths(data, 'hooks');
+            response.placeholders = placeholderPaths(data);
         return ok(response);
     }));
     async function execute(step, parsed) {
         if (!session)
             throw new Error('call open first');
         const before = totalTokens;
-        let result;
-        try {
-            const resolved = interpolate(parsed, { env: {}, hooks: data }, 'mcp'); // ${hooks.*} placeholders, resolved just before running
-            result = await runStep(session.ctx, resolved);
-        }
-        catch (err) {
-            result = { step: label(parsed), status: 'error', detail: err instanceof Error ? err.message : String(err) };
-        }
-        if (parsed.optional && (result.status === 'inconclusive' || result.status === 'error')) {
-            result = { ...result, status: 'skipped' };
-        }
+        // ${hooks.*} placeholders, resolved just before running
+        const result = await runStepSafely(session.ctx, parsed, (s) => interpolate(s, { env: {}, hooks: data }, 'mcp'));
         results.push(result);
         if (result.status === 'pass')
             transcript.push(step); // failed attempts are exploration, not spec — placeholders kept intact for `save`
@@ -203,12 +179,9 @@ export async function serveMcp(opts) {
     }, ({ kind, target }) => queue(async () => {
         if (!session)
             throw new Error('call open first');
-        target = interpolate(target, { env: {}, hooks: data }, 'mcp');
         const before = totalTokens;
-        const [r] = await resolveLocators(session.ctx, kind, [target]);
-        if (r.usedJev)
-            track(r.tokens);
-        return ok({ found: r.locator !== null, detail: r.detail, confidence: r.confidence, jevTokens: totalTokens - before });
+        const r = await resolveOne(session.ctx, kind, interpolate(target, { env: {}, hooks: data }, 'mcp'));
+        return ok({ found: r.element !== null, detail: r.detail, confidence: r.confidence, jevTokens: totalTokens - before });
     }));
     server.registerTool('snapshot', {
         description: 'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
@@ -224,13 +197,11 @@ export async function serveMcp(opts) {
         let region;
         let snap;
         if (within) {
-            const [r] = await resolveLocators(session.ctx, 'region', [interpolate(within, { env: {}, hooks: data }, 'mcp')]);
-            if (r.usedJev)
-                track(r.tokens);
-            if (!r.locator)
+            const r = await resolveOne(session.ctx, 'region', interpolate(within, { env: {}, hooks: data }, 'mcp'));
+            if (!r.element)
                 return ok({ found: false, detail: r.detail, jevTokens: totalTokens - before });
             region = r.detail;
-            snap = await snapshotRegion(session.ctx.page, r.locator);
+            snap = await snapshotRegion(session.ctx.page, r.element);
         }
         else {
             snap = await snapshot(session.ctx.page);
@@ -261,15 +232,9 @@ export async function serveMcp(opts) {
         inputSchema: { path: z.string(), name: z.string().optional() },
     }, ({ path, name }) => queue(async () => {
         const filePath = resolve(path);
-        const doc = { name: name ?? spec.name, url: spec.url };
-        if (hooksFile) {
-            let rel = relative(dirname(filePath), hooksFile);
-            if (!rel.startsWith('.'))
-                rel = './' + rel;
-            doc.hooks = rel;
-        }
-        doc.steps = transcript;
-        writeFileSync(filePath, stringify(doc));
+        const rel = hooksFile && relative(dirname(filePath), hooksFile);
+        const hooks = rel ? { hooks: rel.startsWith('.') ? rel : './' + rel } : {};
+        writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...hooks, steps: transcript }));
         return ok({ path: filePath, steps: transcript.length });
     }));
     const transport = new StdioServerTransport();

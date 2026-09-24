@@ -1,23 +1,13 @@
-import { z } from 'zod';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, type Browser, type BrowserContextOptions, type Page } from 'playwright';
 import { interpolate, type Spec } from './spec.js';
-import { runStep, label, StatusSchema, StepResultSchema, holdActivity, type StepContext, type StepResult, type Status } from './steps.js';
+import { runStepSafely, holdActivity, type StepContext, type StepResult, type Status } from './steps.js';
 import { installSettleObserver } from './page.js';
-
 import { startHooks, type HooksRunner } from './hooks.js';
-export { startHooks, type HooksRunner, type HooksModule } from './hooks.js';
 
-export const TestResultSchema = z.object({
-  name: z.string(),
-  status: StatusSchema,
-  steps: z.array(StepResultSchema),
-  jevCalls: z.number(),
-  totalTokens: z.number(),
-});
-export type TestResult = z.infer<typeof TestResultSchema>;
+export interface TestResult { name: string; status: Status; steps: StepResult[]; jevCalls: number; totalTokens: number; }
 
 const MAX_EVENTS = 30; // ponytail: cap what's sent to Jev as `events` — a long spec shouldn't grow this unbounded
 
@@ -31,25 +21,26 @@ export interface Session {
 // Launches the browser/context/page for one spec and wires up the listeners every step relies on
 // (dialogs, popups, downloads, console/page errors). Shared by the batch runner below and by the
 // MCP server, which keeps one Session alive across many tool calls instead of one spec.
-export const RunOptionsSchema = z.object({
-  headed: z.boolean(),
-  timeout: z.number(),
+export interface RunOptions {
+  headed: boolean;
+  timeout: number;
   /** Persistent user-data dir: cookies and logins survive between runs. Ignored when `cdp` is set. */
-  profile: z.string().optional(),
+  profile?: string;
   /** Attach to a running Chrome over CDP instead of launching one. */
-  cdp: z.string().optional(),
+  cdp?: string;
   /** Playwright browser channel to launch instead of the bundled Chromium. */
-  channel: z.string().optional(),
+  channel?: string;
   /** Internal: MCP owns shutdown so Playwright must not race its cleanup on process signals. */
-  handleSignals: z.boolean().optional(),
-});
-export type RunOptions = z.infer<typeof RunOptionsSchema>;
+  handleSignals?: boolean;
+}
 
 // One Chromium per launch profile for the whole process; each spec gets its own context (isolation
 // unchanged) and only the context is closed per spec. Relaunched if headed/channel change or it died.
 // The in-flight launch *promise* is memoized (not the resolved Browser): concurrent first callers
 // (--workers > 1) then all await the same launch instead of each starting its own Chromium.
 let shared: { key: string; browser: Promise<Browser> } | null = null;
+const launchOptions = (opts: RunOptions) => ({ headless: !opts.headed, channel: opts.channel,
+  handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals });
 export async function sharedBrowser(opts: RunOptions): Promise<Browser> {
   const key = `${!opts.headed}|${opts.channel ?? ''}|${opts.handleSignals ?? true}`;
   if (shared && shared.key === key) {
@@ -60,14 +51,10 @@ export async function sharedBrowser(opts: RunOptions): Promise<Browser> {
   // very first call `shared` is still null here, so this stays synchronous up to the assignment
   // below and concurrent callers see it before racing off to launch their own browser.
   if (shared) await closeSharedBrowser();
-  if (!shared) {
-    const entry = { key, browser: chromium.launch({ headless: !opts.headed, channel: opts.channel, handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals }) };
-    shared = entry;
-    entry.browser.catch(() => {
-      if (shared === entry) shared = null; // don't cache a failed launch — let the next call retry
-    });
-  }
-  return shared.browser;
+  const entry = { key, browser: chromium.launch(launchOptions(opts)) };
+  shared = entry;
+  entry.browser.catch(() => { if (shared === entry) shared = null; }); // don't cache a failed launch — let the next call retry
+  return entry.browser;
 }
 export async function closeSharedBrowser(): Promise<void> {
   const s = shared;
@@ -75,32 +62,16 @@ export async function closeSharedBrowser(): Promise<void> {
   if (s) await (await s.browser).close().catch(() => {});
 }
 
-/** Runs `fn` over `items` with at most `limit` in flight; each item's promise settles independently, in
- *  input order — so a caller can await them one by one while later ones keep running in the background. */
+/** Runs `fn` over `items` with at most `limit` in flight, started in input order; each item's promise settles
+ *  independently — so a caller can await them one by one while later ones keep running in the background. */
 export function mapLimitSettled<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R>[] {
-  const results: Promise<R>[] = [];
-  const settlers: Array<{ resolve: (r: R) => void; reject: (e: unknown) => void }> = [];
-  for (let i = 0; i < items.length; i++) {
-    results.push(new Promise<R>((resolve, reject) => (settlers[i] = { resolve, reject })));
-  }
-  let next = 0;
-  async function worker(): Promise<void> {
-    while (next < items.length) {
-      const i = next++;
-      try {
-        settlers[i].resolve(await fn(items[i]));
-      } catch (err) {
-        settlers[i].reject(err);
-      }
-    }
-  }
-  for (let i = 0; i < Math.min(limit, items.length); i++) worker(); // fire and forget: callers await `results`
-  return results;
-}
-
-/** Runs `fn` over `items` with at most `limit` in flight; resolves to results in input order. */
-export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  return Promise.all(mapLimitSettled(items, limit, fn));
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  return items.map(async (item) => {
+    if (active >= limit) await new Promise<void>((resolve) => waiting.push(resolve));
+    active++;
+    try { return await fn(item); } finally { active--; waiting.shift()?.(); }
+  });
 }
 
 // Three ways to get a page: attach to the user's running browser, launch a persistent profile, or
@@ -121,16 +92,11 @@ async function openPage(spec: Spec, opts: RunOptions): Promise<{ page: Page; clo
     const browser = await chromium.connectOverCDP(opts.cdp);
     const context = browser.contexts()[0] ?? (await browser.newContext());
     const tab = await context.newPage(); // our own tab, so the user's current one is left alone
-    return {
-      page: tab,
-      close: async () => {
-        await tab.close().catch(() => {});
-        await browser.close(); // on a connected browser this only disconnects
-      },
-    };
+    // browser.close() on a connected browser only disconnects
+    return { page: tab, close: async () => { await tab.close().catch(() => {}); await browser.close(); } };
   }
   if (opts.profile) {
-    const context = await chromium.launchPersistentContext(opts.profile, { headless: !opts.headed, channel: opts.channel, handleSIGINT: opts.handleSignals, handleSIGTERM: opts.handleSignals, handleSIGHUP: opts.handleSignals, ...contextOptions });
+    const context = await chromium.launchPersistentContext(opts.profile, { ...launchOptions(opts), ...contextOptions });
     return { page: context.pages()[0] ?? (await context.newPage()), close: () => context.close() };
   }
   const browser = await sharedBrowser(opts);
@@ -167,8 +133,7 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
   function attach(p: Page): void {
     p.on('dialog', async (dialog) => {
       note(`dialog(${dialog.type()}): "${dialog.message()}" → ${acceptDialogs ? 'accepted' : 'dismissed'}`);
-      if (acceptDialogs) await dialog.accept();
-      else await dialog.dismiss();
+      await (acceptDialogs ? dialog.accept() : dialog.dismiss());
     });
     p.on('popup', async (popup) => {
       popup.setDefaultTimeout(opts.timeout);
@@ -189,9 +154,7 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
       }
     });
     p.on('pageerror', (err) => note(`pageerror: ${err.message}`));
-    p.on('console', (msg) => {
-      if (msg.type() === 'error') note(`console.error: ${msg.text()}`);
-    });
+    p.on('console', (msg) => { if (msg.type() === 'error') note(`console.error: ${msg.text()}`); });
   }
   attach(page);
 
@@ -200,17 +163,10 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
   return {
     ctx,
     downloadsDir,
-    drainNotes(): string[] {
-      const notes = pendingNotes;
-      pendingNotes = [];
-      return notes;
-    },
+    drainNotes: () => pendingNotes.splice(0),
     close: async () => {
-      try {
-        await opened.close();
-      } finally {
-        fs.rmSync(downloadsDir, { recursive: true, force: true }); // leave nothing behind, even if the context failed to close
-      }
+      // leave nothing behind, even if the context failed to close
+      try { await opened.close(); } finally { fs.rmSync(downloadsDir, { recursive: true, force: true }); }
     },
   };
 }
@@ -221,11 +177,8 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
   let totalTokens = 0;
   let overall: Status = 'pass';
 
-  // Every Jev call site accounts for itself through one of these two, so no step branch inlines the counters.
-  function track(tokens: number): void {
-    jevCalls++;
-    totalTokens += tokens;
-  }
+  // Every Jev call site accounts for itself through this, so no step branch inlines the counters.
+  const track = (tokens: number): void => { jevCalls++; totalTokens += tokens; };
 
   // Forked (own process) and validated before the browser opens, so a broken hooks module fails
   // fast — no session to clean up yet.
@@ -244,13 +197,8 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
       // Nothing ran yet, so there's nothing for teardown to release — just close the browser and the hooks child.
       await session.close();
       hooksRunner.close();
-      return {
-        name: spec.name,
-        status: 'error',
-        steps: [{ step: 'setup', status: 'error', detail: err instanceof Error ? err.message : String(err) }],
-        jevCalls,
-        totalTokens,
-      };
+      const detail = err instanceof Error ? err.message : String(err);
+      return { name: spec.name, status: 'error', steps: [{ step: 'setup', status: 'error', detail }], jevCalls, totalTokens };
     }
   }
 
@@ -267,28 +215,13 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
     }
 
     for (const step of runSteps) {
-      let result: StepResult;
-      try {
-        result = await runStep(session.ctx, step);
-      } catch (err) {
-        result = { step: label(step), status: 'error', detail: err instanceof Error ? err.message : String(err) };
-      }
-
+      // ponytail: `optional: true` steps tolerate inconclusive/error (e.g. an intermittent cookie banner):
+      // reported as skipped, and the run keeps going instead of failing the whole spec.
+      let result = await runStepSafely(session.ctx, step);
       const notes = session.drainNotes();
-      if (notes.length) {
-        result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };
-      }
-
-      // ponytail: `optional: true` steps tolerate inconclusive/error (e.g. an intermittent
-      // cookie banner) — report as skipped and keep going instead of failing the whole spec.
-      if (step.optional && (result.status === 'inconclusive' || result.status === 'error')) {
-        result = { ...result, status: 'skipped' };
-        steps.push(result);
-        continue;
-      }
-
+      if (notes.length) result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };
       steps.push(result);
-      if (result.status !== 'pass') {
+      if (result.status !== 'pass' && result.status !== 'skipped') {
         overall = result.status;
         break;
       }
