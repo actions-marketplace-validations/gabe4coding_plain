@@ -20,7 +20,7 @@ function placeholders(data, prefix = 'hooks') {
         placeholders(v, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
 }
 export function createComputerServer(adapter, timeout = 15000, ai = intelligence) {
-    const server = new McpServer({ name: 'plainwright-computer', version: '0.1.1' });
+    const server = new McpServer({ name: 'plainwright-computer', version: '0.1.2' });
     const session = new ComputerSession(adapter, timeout, ai);
     const queue = serialQueue();
     let opened = false;

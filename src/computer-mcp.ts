@@ -24,7 +24,7 @@ function placeholders(data: Record<string, unknown>, prefix = 'hooks'): string[]
 }
 
 export function createComputerServer<T>(adapter: ComputerAdapter<T>, timeout = 15000, ai: Intelligence = intelligence) {
-  const server = new McpServer({ name: 'plainwright-computer', version: '0.1.1' });
+  const server = new McpServer({ name: 'plainwright-computer', version: '0.1.2' });
   const session = new ComputerSession(adapter, timeout, ai);
   const queue = serialQueue();
   let opened = false;

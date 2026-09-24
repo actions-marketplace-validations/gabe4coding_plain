@@ -21,7 +21,7 @@ function placeholders(data, prefix = 'hooks') {
         placeholders(v, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
 }
 export function createMobileServer(adapter, timeout = 15000, ai = intelligence, discovery = new LocalMobileDiscovery()) {
-    const server = new McpServer({ name: 'plainwright-mobile', version: '0.1.1' });
+    const server = new McpServer({ name: 'plainwright-mobile', version: '0.1.2' });
     const session = new MobileSession(adapter, timeout, ai);
     const queue = serialQueue();
     let opened = false;

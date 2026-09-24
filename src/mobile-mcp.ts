@@ -26,7 +26,7 @@ function placeholders(data: Record<string, unknown>, prefix = 'hooks'): string[]
 
 export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000, ai: Intelligence = intelligence,
   discovery: MobileDiscovery = new LocalMobileDiscovery()) {
-  const server = new McpServer({ name: 'plainwright-mobile', version: '0.1.1' });
+  const server = new McpServer({ name: 'plainwright-mobile', version: '0.1.2' });
   const session = new MobileSession(adapter, timeout, ai);
   const queue = serialQueue();
   let opened = false;
