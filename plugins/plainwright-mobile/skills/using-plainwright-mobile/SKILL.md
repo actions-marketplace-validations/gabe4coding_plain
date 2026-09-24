@@ -93,6 +93,12 @@ expect: {that: "The preview says hello", within: "the preview panel"}
 wait: "The results are visible"
 ```
 
+Name controls as the native tree does, not by their visual role; read a `snapshot` first when
+unsure. Tab bar items are buttons ("the Workout button", not "the Workout tab"). The iOS back
+button carries the previous screen's title ("the Summary button in the Step Count navigation
+bar", not "the Back button"). Segmented controls expose full names ("the Week segment", not "W").
+On inconclusive, the detail's top guesses show the tree's names: reuse the right one.
+
 iOS has no generic Back/Enter step: tap the visible navigation or keyboard control. `check`/
 `uncheck` read boolean checked state and tap only when it differs; unknown/mixed states error.
 `fill` also selects iOS picker-wheel values without clearing the control. Inspect the native

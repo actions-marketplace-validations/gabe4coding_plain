@@ -120,6 +120,11 @@ Plainwright sets `noReset: true` and explicitly activates the app. Platform life
 still depends on the installed Appium driver. It does not reset the app between replay runs;
 prepare the starting screen/data in hooks or explicit test steps.
 
+Targets match best when they use the native tree's names rather than visual roles: a tab bar item
+is a button ("the Workout button"), and the iOS back button carries the previous screen's title
+("the Summary button in the Step Count navigation bar"). An inconclusive pick lists its top
+guesses with the tree's names, so the right wording is usually one of them.
+
 ## Mobile specs
 
 This example assumes an installed test app exposing the described controls. Supply your app's
