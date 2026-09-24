@@ -14,14 +14,19 @@ export function matchesKind(el, kind) {
 }
 const TEXT_ROLE = /^(static_text|text)$/;
 // The parts of a control rather than controls of their own: inside a candidate they are not candidates.
-const PART_ROLE = /^(static_text|text|group|image|generic)$/;
+// A table cell inside a candidate row is a part too (Fork lists each commit as a row plus its 5 cells).
+const PART_ROLE = /^(static_text|text|group|image|generic|table_cell|cell)$/;
+// A candidate names the start of a long value (an editor's whole file); the snapshot keeps all of it.
+const VALUE_CHARS = 100;
+// Enough inner text to name a row by all its cells (message, author, hash, date).
+const TEXT_CHARS = 160;
 /**
  * Walks an accessibility tree into the snapshot text and the candidates for `kind`. Electron and web
  * views list a control's own label as a separate static_text with actions ("Files & links" the tab, and
  * inside it "Files & links" the text): as two candidates they split Jev's confidence between one thing.
  * Text, groups and images inside a candidate are not candidates themselves (a real control inside one,
  * such as a row's button, still is); an unnamed candidate (Slack's Activity tab) is described by the text
- * inside it instead.
+ * inside it instead. "in window X" is left out when the app has one window, and "in application X" always: it would repeat on every candidate.
  */
 export async function captureTree(root, kind, timeout) {
     const candidates = [];
@@ -37,7 +42,9 @@ export async function captureTree(root, kind, timeout) {
             return '';
         }
         const state = [!el.enabled && 'disabled', el.checked && `checked=${el.checked}`, el.selected && 'selected', el.focused && 'focused'].filter(Boolean).join(' ');
-        const desc = `${el.role} ${JSON.stringify(el.name ?? '')}${el.value === null ? '' : ` value=${JSON.stringify(el.value)}`}${state ? ` [${state}]` : ''}`;
+        const named = `${el.role} ${JSON.stringify(el.name ?? '')}`, flags = state ? ` [${state}]` : '';
+        const desc = `${named}${el.value === null ? '' : ` value=${JSON.stringify(el.value)}`}${flags}`;
+        const short = el.value !== null && el.value.length > VALUE_CHARS ? `${named} value=${JSON.stringify(`${el.value.slice(0, VALUE_CHARS)}…`)}${flags}` : desc;
         const line = `${'  '.repeat(depth)}${desc}\n`;
         lines.push(line.slice(0, 60000 - chars));
         chars += line.length;
@@ -46,7 +53,7 @@ export async function captureTree(root, kind, timeout) {
         if (matchesKind(el, kind) && !(inCandidate && PART_ROLE.test(el.role))) {
             if (candidates.length < MAX_CANDIDATES) {
                 id = candidates.length;
-                candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });
+                candidates.push({ id, desc: `${short}${context ? ` in ${context}` : ''}` });
                 elements.set(id, el);
                 if (inWeb)
                     web.add(el);
@@ -62,20 +69,22 @@ export async function captureTree(root, kind, timeout) {
         const children = (await el.children());
         // Modal/window contents win the cap before app menus and background content.
         children.sort((a, b) => Number(b.modal || b.role === 'dialog') - Number(a.modal || a.role === 'dialog'));
+        const own = el.name && el.role !== 'application' && !(el.role === 'window' && windows === 1) ? `${el.role} ${JSON.stringify(el.name)}` : context;
         for (const child of children) {
             if (visited >= 5000 || chars >= 60000 || Date.now() >= deadline) {
                 truncated = true;
                 break;
             }
-            const inner = await walk(child, depth + 1, el.name ? `${el.role} ${JSON.stringify(el.name)}` : context, inCandidate || id !== undefined, inWeb || el.role === 'web_area');
-            if (inner && text.length < 80)
-                text = `${text} ${inner}`.trim().slice(0, 80);
+            const inner = await walk(child, depth + 1, own, inCandidate || id !== undefined, inWeb || el.role === 'web_area');
+            if (inner && text.length < TEXT_CHARS)
+                text = `${text} ${inner}`.trim().slice(0, TEXT_CHARS);
         }
         // Only the name matters: Slack's tabs carry value "0"/"1" (their selection), not a label.
         if (id !== undefined && !el.name && text && text !== el.value)
-            candidates[id].desc = candidates[id].desc.replace(desc, `${desc} text=${JSON.stringify(text)}`);
+            candidates[id].desc = candidates[id].desc.replace(short, `${short} text=${JSON.stringify(text)}`);
         return text;
     };
+    const windows = root.role === 'application' ? (await root.children()).filter((c) => c.role === 'window').length : 0;
     await walk(root, 0, '', false);
     return { snapshot: { aria: lines.join(''), truncated }, candidates, elements, web };
 }
@@ -84,7 +93,8 @@ export class Xa11yAdapter {
     timeout;
     app = null;
     // Web content ignores the accessibility press on many elements (a Slack tab "clicked" that never
-    // switched): those get a real pointer click. Native controls keep press, which needs no focus.
+    // switched): those get a real pointer click. Native controls keep press, which needs no focus,
+    // unless they do not offer it (a Fork sidebar row): then the pointer click too.
     web = new WeakSet();
     constructor(timeout = 15000) {
         this.timeout = timeout;
@@ -136,7 +146,7 @@ export class Xa11yAdapter {
         return sdk.inputSim();
     }
     async act(kind, element, value) {
-        if (kind === 'click' && !this.web.has(element))
+        if (kind === 'click' && !this.web.has(element) && element.actions.includes('press'))
             return element.press();
         if (kind === 'fill')
             return element.setValue(value);

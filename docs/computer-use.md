@@ -185,7 +185,18 @@ text="Activity"`). On a live Slack window, 10 of 10 spoken targets resolved agai
 Web content also ignores the accessibility press on many elements: a Slack tab "clicked" and reported
 `pass` while the view never changed. `click` on a candidate inside a `web_area` is therefore a real
 pointer click at the element (the app must be in front, as for hover); native controls keep the press,
-which needs no focus.
+which needs no focus. A native control that does not offer a press (Fork's sidebar and commit rows
+offer only `show_default_u_i`) gets the pointer click too.
+
+Native tables repeat themselves the same way: Fork lists each commit as a row plus its five cells, and
+names every candidate `in window "plainwright"`. So a table cell inside a candidate row is a part too
+(the row is named by its cells' text, up to 160 characters: message, author, hash, date), the context
+leaves out the window when the app has only one and the application always, and a candidate shows only
+the first 100 characters of a long value (the snapshot keeps it whole). On Fork's commit view: 537 → 225
+candidates, 59k → 19k characters, about 50k → 18k Jev tokens per pick, and 8 → 10 of 10 targets
+("the most recent commit" needs the date from the cells). Slack and Notes picks were unchanged or better.
+Capture itself stays about 1 s for Fork's ~1,000 nodes: macOS answers one element at a time, and neither
+parallel reads nor xa11y's `tree()` are faster.
 
 A pick over a busy web view can exceed Jev's request limit (TypeSafe answers 400
 `max_tokens_exceeded`) with far fewer than 254 candidates, because every message row carries its

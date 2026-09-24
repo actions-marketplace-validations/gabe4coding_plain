@@ -54,6 +54,7 @@ first. Unscoped raw/compact reads need no model key; smart classification uses o
 - On `inconclusive`, rephrase the target (the detail's top guesses show the tree's names; reuse the
   right one) or split the claim. After an error, inspect current state
   before retrying an action: a native action can take effect before its error is reported.
+- Rows that offer no accessibility press (Fork's sidebar and commit list) also get a pointer click.
 - In Electron apps and web views (Slack, Notion), `click` is a real pointer click, so it needs the app in
   front like keys do. If a click passes but nothing changes, prefer the app's keyboard route (Slack: Cmd+K,
   type the name with single-key `press` steps, Enter): `fill` sets a value without key events.
