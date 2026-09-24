@@ -40,6 +40,15 @@ test('snapshot within a css= region returns only that subtree', async () => {
   assert.match(snap.region as string, /css=main/);
 });
 
+test('a css= region matching several elements is reported, not a strict-mode dump', async () => {
+  await call('open', { url: PAGE });
+  const snap = await call('snapshot', { within: 'css=td' });
+  assert.equal(snap.found, false);
+  assert.match(snap.detail as string, /css=td matched 2 elements; make the selector match exactly one/);
+  const step = await call('step', { step: { click: 'css=td' } });
+  assert.equal(step.status, 'inconclusive');
+});
+
 test('evaluate returns the JSON value of a page expression', async () => {
   const r = await call('evaluate', { js: '[...document.querySelectorAll("td")].map(td => td.innerText)' });
   assert.deepEqual(r.value, ['Hotel Roma', '€120']);

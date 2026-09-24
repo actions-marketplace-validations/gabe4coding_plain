@@ -4,7 +4,7 @@ import { writeFileSync, mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadSpec } from './spec.js';
-import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimitSettled } from './runner.js';
+import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimitSettled, shortNote, pushCollapsed } from './runner.js';
 import { startHooks } from './hooks.js';
 import { chromium } from 'playwright';
 
@@ -266,4 +266,14 @@ test('mapLimitSettled runs at most `limit` tasks concurrently and resolves resul
 
   assert.deepEqual(results, [0, 1, 2, 3], 'results are in input order');
   assert.equal(maxInFlight, 2, 'never more than `limit` tasks in flight');
+});
+
+test('console notes are shortened and consecutive repeats collapse into a count', () => {
+  const long = 'console.error: ' + 'x'.repeat(4000);
+  assert.equal(shortNote('short'), 'short');
+  assert.match(shortNote(long), /^console\.error: x+… \(4015 chars\)$/);
+  assert.ok(shortNote(long).length < 330);
+  const list: string[] = [];
+  for (const m of ['a', 'a', 'a', 'b', 'a']) pushCollapsed(list, m);
+  assert.deepEqual(list, ['a (×3)', 'b', 'a']);
 });

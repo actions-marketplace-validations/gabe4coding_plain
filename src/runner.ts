@@ -10,6 +10,22 @@ import { startHooks, type HooksRunner } from './hooks.js';
 export interface TestResult { name: string; status: Status; steps: StepResult[]; jevCalls: number; totalTokens: number; }
 
 const MAX_EVENTS = 30; // ponytail: cap what's sent to Jev as `events` — a long spec shouldn't grow this unbounded
+// Ad-heavy sites log CSP violations that list every allowed domain (~4,500 chars each): sent to Jev with
+// every judgment, they cost more tokens than the page. The head says what the error is.
+const MAX_NOTE_CHARS = 300;
+
+export function shortNote(msg: string): string {
+  return msg.length <= MAX_NOTE_CHARS ? msg : `${msg.slice(0, MAX_NOTE_CHARS)}… (${msg.length} chars)`;
+}
+
+/** Appends `msg`, or counts it on the last entry when it repeats it: `msg (×3)`. */
+export function pushCollapsed(list: string[], msg: string): void {
+  const last = list.at(-1);
+  const m = last === undefined ? null : / \(×(\d+)\)$/.exec(last);
+  const base = m ? last!.slice(0, m.index) : last;
+  if (base === msg) list[list.length - 1] = `${msg} (×${m ? Number(m[1]) + 1 : 2})`;
+  else list.push(msg);
+}
 
 export interface Session {
   ctx: StepContext;
@@ -123,8 +139,9 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
   const events: string[] = [];
 
   function note(msg: string): void {
-    pendingNotes.push(msg);
-    events.push(msg);
+    msg = shortNote(msg);
+    pushCollapsed(pendingNotes, msg);
+    pushCollapsed(events, msg);
     if (events.length > MAX_EVENTS) events.shift();
   }
 

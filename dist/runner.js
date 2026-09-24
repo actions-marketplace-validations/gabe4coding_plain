@@ -7,6 +7,22 @@ import { runStepSafely, holdActivity } from './steps.js';
 import { installSettleObserver } from './page.js';
 import { startHooks } from './hooks.js';
 const MAX_EVENTS = 30; // ponytail: cap what's sent to Jev as `events` — a long spec shouldn't grow this unbounded
+// Ad-heavy sites log CSP violations that list every allowed domain (~4,500 chars each): sent to Jev with
+// every judgment, they cost more tokens than the page. The head says what the error is.
+const MAX_NOTE_CHARS = 300;
+export function shortNote(msg) {
+    return msg.length <= MAX_NOTE_CHARS ? msg : `${msg.slice(0, MAX_NOTE_CHARS)}… (${msg.length} chars)`;
+}
+/** Appends `msg`, or counts it on the last entry when it repeats it: `msg (×3)`. */
+export function pushCollapsed(list, msg) {
+    const last = list.at(-1);
+    const m = last === undefined ? null : / \(×(\d+)\)$/.exec(last);
+    const base = m ? last.slice(0, m.index) : last;
+    if (base === msg)
+        list[list.length - 1] = `${msg} (×${m ? Number(m[1]) + 1 : 2})`;
+    else
+        list.push(msg);
+}
 // One Chromium per launch profile for the whole process; each spec gets its own context (isolation
 // unchanged) and only the context is closed per spec. Relaunched if headed/channel change or it died.
 // The in-flight launch *promise* is memoized (not the resolved Browser): concurrent first callers
@@ -101,8 +117,9 @@ export async function openSession(spec, opts, track) {
     // "a JavaScript error happened" or "a file was downloaded" become answerable from state Jev sees.
     const events = [];
     function note(msg) {
-        pendingNotes.push(msg);
-        events.push(msg);
+        msg = shortNote(msg);
+        pushCollapsed(pendingNotes, msg);
+        pushCollapsed(events, msg);
         if (events.length > MAX_EVENTS)
             events.shift();
     }

@@ -97,7 +97,7 @@ may or may not appear, like a cookie banner.
 |---|---|---|
 | `pass` | `✔` | |
 | `fail` | `✘` | Jev is confident the claim does not hold. |
-| `inconclusive` | `?` | Jev is not sure: a pick below the acceptance threshold, or a claim in the grey zone. `detail` lists the top guesses and the path of a JSON dump of what Jev saw. |
+| `inconclusive` | `?` | Jev is not sure: a pick below the acceptance threshold, or a claim in the grey zone, or a `css=` target that matches several elements. `detail` lists the top guesses and the path of a JSON dump of what Jev saw. |
 | `error` | `✘` | An exception: a timeout, a `css=` target that matched nothing, a navigation failure. |
 | `skipped` | `»` | An `optional` step that was inconclusive or errored. |
 
@@ -115,6 +115,9 @@ never shows:
   download and error capture attached to it. Closing the browser closes every tab.
 - downloads, saved to a fresh per-session directory under `$TMPDIR/plainwright-downloads-*/<suggested filename>`
 - uncaught page errors and `console.error` messages
+
+Each message is cut to 300 characters (the full length is noted), and a message repeated back to back
+is kept once with a count, `(×3)`. Step `notes` follow the same rules.
 
 So `expect: a file was downloaded` and `expect: a JavaScript error happened` are answerable.
 
