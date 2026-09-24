@@ -172,6 +172,35 @@ contract described in [hooks](hooks.md), with a desktop spec's `app` replacing t
 Teardown runs after a successful setup even when attachment, interpolation, or a step fails. A
 setup failure skips teardown; a teardown failure makes the run error. Detach never quits the app.
 
+## One sentence: plan and do
+
+```
+plainwright-computer plan "open TextEdit, then type salt and pepper in the text area and press command S"
+plainwright-computer do [--app NAME] [--yes] "open TextEdit, then type salt and pepper in the text area. Does it contain salt and pepper?"
+```
+
+`plan` prints the steps Jev makes of one spoken or typed sentence, as JSON items (`open`, `step`,
+`ask`, `stop`, `unknown` with a reason). `do` runs them as a desktop spec: the app named first (or
+`--app`), then the steps in order, stopping at the first that does not pass; questions become `expect`
+steps. Nothing runs when a part is not understood, or when a step is hard to undo without `--yes`.
+Like `open`, `do` attaches to a running app; it never launches one.
+
+Jev never writes the steps (`src/planner.ts`). Code splits at sentence ends and at then/after that/
+next/finally; for every "and" or comma it lists the possible readings of the piece and Jev picks one
+(one Choice), so "type salt and pepper in the box and press enter" keeps the text whole. A second
+request picks each piece's action and, speculatively, the exact words for its target, text, app and
+keys, plus whether it is hard to undo. Arguments are copied verbatim from the sentence. Two requests,
+about 3k tokens for a one-step sentence and 10–13k for four steps.
+
+`node scripts/benchmark-planner.mjs --runs 3` measures the plan against `scripts/planner-cases.json`
+(41 sentences): 97.6% on 2026-09-24. Change the planner only when that rate goes up; results and the
+changes that did and did not help are in [the planner benchmark](benchmarks/planner.md).
+
+A step right after a key or click that opens a window can capture before the window exists. When a
+capture has no candidates of the needed kind, the session captures again every 150 ms for up to 2 s.
+When an older window of the app is still open, the capture is not empty and can act on that window:
+wait for the new one (`wait: "a window named Untitled 2 is shown"`) before acting in it.
+
 ## Implementation and verification
 
 `automation.ts` owns the generic target adapter, candidate/snapshot data, accepted-pick mapping,

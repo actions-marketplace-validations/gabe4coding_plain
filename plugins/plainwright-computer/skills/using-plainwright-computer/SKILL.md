@@ -106,6 +106,11 @@ Hooks use the same isolated setup/teardown child contract as plainwright. Explic
 failures are never skipped by `optional: true`; only errors/inconclusive results can be skipped.
 Never put literal credentials into specs, hook recordings, or tool arguments.
 
+Outside an agent session (voice front ends, scripts), `launch.mjs plan "<sentence>"` returns Jev's
+plan of one sentence as JSON items, and `launch.mjs do [--app NAME] [--yes] "<sentence>"` runs it
+in a running app. Inside an agent session, plan the steps yourself and use the tools: you see the
+results between steps.
+
 ## Setup failures
 
 The shared API key settings are `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`, optionally

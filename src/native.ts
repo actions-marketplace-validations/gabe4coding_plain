@@ -18,6 +18,7 @@ export interface NativeAdapter<T, K extends string> {
 type Assert = Extract<Step, { kind: 'expect' | 'wait' }>;
 
 const EARLY_WINDOW_MS = 1000;
+const APPEAR_MS = 2000;
 
 export abstract class NativeSession<T, K extends string, S extends { kind: string; optional?: boolean }, A extends NativeAdapter<T, K>> {
   calls = 0;
@@ -54,11 +55,17 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     return { frame, result };
   }
   async find(kind: K | 'region', targets: string[]) {
-    const { result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: frame.snapshot,
-      element: (c) => { const el = frame.elements.get(c.id); if (el === undefined) throw new Error('Candidate handle missing'); return el; },
-    }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); });
-    for (const r of result!) if (r.usedJev) this.track(r.tokens);
-    return result!;
+    // A key or click that opens a window returns before the window exists (TextEdit's Command-N):
+    // an empty capture is looked at again for a moment instead of reported as "no candidates".
+    const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
+    for (;;) {
+      const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: frame.snapshot,
+        element: (c) => { const el = frame.elements.get(c.id); if (el === undefined) throw new Error('Candidate handle missing'); return el; },
+      }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); });
+      if (frame.candidates.length === 0 && Date.now() < deadline) { await this.timed('idle', () => new Promise((r) => setTimeout(r, 150))); continue; }
+      for (const r of result!) if (r.usedJev) this.track(r.tokens);
+      return result!;
+    }
   }
   /** The element a region description names; throws when Jev finds none. */
   protected async region(within: string) {

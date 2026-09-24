@@ -157,3 +157,17 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     assert.ok((await client.callTool({ name: 'snapshot', arguments: {} })).isError);
   } finally { await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+test('a window that appears after the previous step is waited for, not reported as no candidates', async () => {
+  class LateWindow extends FakeAdapter {
+    empty = 2;
+    async capture(kind: unknown, within?: string) {
+      const frame = await super.capture(kind, within);
+      return this.empty-- > 0 ? { ...frame, candidates: [], elements: new Map() } : frame;
+    }
+  }
+  const adapter = new LateWindow();
+  const result = await new ComputerSession(adapter, 1000, ai).step({ click: 'Preview' });
+  assert.equal(result.status, 'pass');
+  assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length, 3);
+  assert.ok((result.ms?.idle ?? 0) >= 250);
+});
