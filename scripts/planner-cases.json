@@ -1,46 +1,691 @@
 {
-  "_format": "Each case: what was said, and the expected plan. Plan items: [\"open\", app], [\"click\"|\"dblclick\"|\"rightclick\", target], [\"fill\", target, value], [\"press\", keys], [\"scroll\", direction, area], [\"ask\", claim], [\"stop\"], [\"unknown\"]. A string may be a list of acceptable answers. Compared case-insensitively, ignoring a leading 'the', trailing punctuation and a trailing '?'.",
-  "cases": [
-    { "say": "Click the New Document button", "plan": [["click", "the New Document button"]] },
-    { "say": "Hit the blue Save button please", "plan": [["click", ["the blue Save button", "blue Save button"]]] },
-    { "say": "tap on Settings", "plan": [["click", "Settings"]] },
-    { "say": "Press the OK button", "plan": [["click", "the OK button"]] },
-    { "say": "Double click the report file", "plan": [["dblclick", "the report file"]] },
-    { "say": "Right click the first row", "plan": [["rightclick", "the first row"]] },
-    { "say": "Click Rock and Roll in the genre list", "plan": [["click", ["Rock and Roll in the genre list", "Rock and Roll"]]] },
-    { "say": "Select Save and Close from the menu", "plan": [["click", ["Save and Close from the menu", "Save and Close"]]] },
-    { "say": "Type hello world in the search field", "plan": [["fill", "the search field", "hello world"]] },
-    { "say": "In the search field write weather in Milan", "plan": [["fill", "the search field", "weather in Milan"]] },
-    { "say": "Enter tom@example.com into the email box", "plan": [["fill", "the email box", "tom@example.com"]] },
-    { "say": "Put buy milk and eggs in the note body", "plan": [["fill", "the note body", "buy milk and eggs"]] },
-    { "say": "Fill the subject with quarterly report", "plan": [["fill", "the subject", "quarterly report"]] },
-    { "say": "Press enter", "plan": [["press", "Enter"]] },
-    { "say": "press command S", "plan": [["press", "Meta+s"]] },
-    { "say": "Hit escape", "plan": [["press", "Escape"]] },
-    { "say": "Scroll down in the sidebar", "plan": [["scroll", "down", "the sidebar"]] },
-    { "say": "scroll up the message list", "plan": [["scroll", "up", "the message list"]] },
-    { "say": "Scroll down", "plan": [["scroll", "down", "the window"]] },
-    { "say": "Open TextEdit", "plan": [["open", "TextEdit"]] },
-    { "say": "Switch to Slack", "plan": [["open", "Slack"]] },
-    { "say": "Launch the Calculator app", "plan": [["open", "Calculator"]] },
-    { "say": "Is the Save button enabled?", "plan": [["ask", "Is the Save button enabled"]] },
-    { "say": "Check if there is an unread message", "plan": [["ask", ["there is an unread message", "Is there an unread message"]]] },
-    { "say": "Does the document contain milk and eggs?", "plan": [["ask", "Does the document contain milk and eggs"]] },
-    { "say": "Stop", "plan": [["stop"]] },
-    { "say": "Goodbye", "plan": [["stop"]] },
-    { "say": "I think the weather is nice today", "plan": [["unknown"]] },
-    { "say": "Delete the selected email", "plan": [["unknown"]] },
-    { "say": "Open TextEdit, click the New Document button, then type buy milk and eggs in the text area and press command S.", "plan": [["open", "TextEdit"], ["click", "the New Document button"], ["fill", "the text area", "buy milk and eggs"], ["press", "Meta+s"]] },
-    { "say": "Open TextEdit. Click the New Document button, then type milk and eggs in the text area. Does the document contain milk and eggs?", "plan": [["open", "TextEdit"], ["click", "the New Document button"], ["fill", "the text area", "milk and eggs"], ["ask", "Does the document contain milk and eggs"]] },
-    { "say": "In the search field write weather in Milan and then press enter", "plan": [["fill", "the search field", "weather in Milan"], ["press", "Enter"]] },
-    { "say": "Scroll down in the sidebar, after that click Settings", "plan": [["scroll", "down", "the sidebar"], ["click", "Settings"]] },
-    { "say": "go to Slack and then check if there is an unread message", "plan": [["open", "Slack"], ["ask", ["there is an unread message", "Is there an unread message"]]] },
-    { "say": "Is the Save button enabled and is the title Untitled?", "plan": [["ask", "Is the Save button enabled"], ["ask", "is the title Untitled"]] },
-    { "say": "Type salt and pepper in the search box and press enter", "plan": [["fill", "the search box", "salt and pepper"], ["press", "Enter"]] },
-    { "say": "Click Cancel and then click Close", "plan": [["click", "Cancel"], ["click", "Close"]] },
-    { "say": "click the Black and White filter, then click Apply", "plan": [["click", "the Black and White filter"], ["click", "Apply"]] },
-    { "say": "Open Notes, click the new note button and type call mom and dad in the note body", "plan": [["open", "Notes"], ["click", "the new note button"], ["fill", "the note body", "call mom and dad"]] },
-    { "say": "Press command A and then press delete", "plan": [["press", "Meta+a"], ["press", "Delete"]] },
-    { "say": "Type rock and roll in the genre field, press tab and type 1965 in the year field", "plan": [["fill", "the genre field", "rock and roll"], ["press", "Tab"], ["fill", "the year field", "1965"]] }
-  ]
+ "_format": "Each case: what was said, and the expected plan. Plan items: [\"open\", app], [\"click\"|\"dblclick\"|\"rightclick\", target], [\"fill\", target, value], [\"press\", keys], [\"scroll\", direction, area], [\"ask\", claim], [\"stop\"], [\"unknown\"]. A string may be a list of acceptable answers. Compared case-insensitively, ignoring a leading 'the', trailing punctuation and a trailing '?'. \"*\" accepts any value (for example the field when none was named). Cases marked \"real\" come from a live voice session (Whisper transcripts, including its mishearings).",
+ "cases": [
+  {
+   "say": "Click the New Document button",
+   "plan": [
+    [
+     "click",
+     "the New Document button"
+    ]
+   ]
+  },
+  {
+   "say": "Hit the blue Save button please",
+   "plan": [
+    [
+     "click",
+     [
+      "the blue Save button",
+      "blue Save button"
+     ]
+    ]
+   ]
+  },
+  {
+   "say": "tap on Settings",
+   "plan": [
+    [
+     "click",
+     "Settings"
+    ]
+   ]
+  },
+  {
+   "say": "Press the OK button",
+   "plan": [
+    [
+     "click",
+     "the OK button"
+    ]
+   ]
+  },
+  {
+   "say": "Double click the report file",
+   "plan": [
+    [
+     "dblclick",
+     "the report file"
+    ]
+   ]
+  },
+  {
+   "say": "Right click the first row",
+   "plan": [
+    [
+     "rightclick",
+     "the first row"
+    ]
+   ]
+  },
+  {
+   "say": "Click Rock and Roll in the genre list",
+   "plan": [
+    [
+     "click",
+     [
+      "Rock and Roll in the genre list",
+      "Rock and Roll"
+     ]
+    ]
+   ]
+  },
+  {
+   "say": "Select Save and Close from the menu",
+   "plan": [
+    [
+     "click",
+     [
+      "Save and Close from the menu",
+      "Save and Close"
+     ]
+    ]
+   ]
+  },
+  {
+   "say": "Type hello world in the search field",
+   "plan": [
+    [
+     "fill",
+     "the search field",
+     "hello world"
+    ]
+   ]
+  },
+  {
+   "say": "In the search field write weather in Milan",
+   "plan": [
+    [
+     "fill",
+     "the search field",
+     "weather in Milan"
+    ]
+   ]
+  },
+  {
+   "say": "Enter tom@example.com into the email box",
+   "plan": [
+    [
+     "fill",
+     "the email box",
+     "tom@example.com"
+    ]
+   ]
+  },
+  {
+   "say": "Put buy milk and eggs in the note body",
+   "plan": [
+    [
+     "fill",
+     "the note body",
+     "buy milk and eggs"
+    ]
+   ]
+  },
+  {
+   "say": "Fill the subject with quarterly report",
+   "plan": [
+    [
+     "fill",
+     "the subject",
+     "quarterly report"
+    ]
+   ]
+  },
+  {
+   "say": "Press enter",
+   "plan": [
+    [
+     "press",
+     "Enter"
+    ]
+   ]
+  },
+  {
+   "say": "press command S",
+   "plan": [
+    [
+     "press",
+     "Meta+s"
+    ]
+   ]
+  },
+  {
+   "say": "Hit escape",
+   "plan": [
+    [
+     "press",
+     "Escape"
+    ]
+   ]
+  },
+  {
+   "say": "Scroll down in the sidebar",
+   "plan": [
+    [
+     "scroll",
+     "down",
+     "the sidebar"
+    ]
+   ]
+  },
+  {
+   "say": "scroll up the message list",
+   "plan": [
+    [
+     "scroll",
+     "up",
+     "the message list"
+    ]
+   ]
+  },
+  {
+   "say": "Scroll down",
+   "plan": [
+    [
+     "scroll",
+     "down",
+     "the window"
+    ]
+   ]
+  },
+  {
+   "say": "Open TextEdit",
+   "plan": [
+    [
+     "open",
+     "TextEdit"
+    ]
+   ]
+  },
+  {
+   "say": "Switch to Slack",
+   "plan": [
+    [
+     "open",
+     "Slack"
+    ]
+   ]
+  },
+  {
+   "say": "Launch the Calculator app",
+   "plan": [
+    [
+     "open",
+     "Calculator"
+    ]
+   ]
+  },
+  {
+   "say": "Is the Save button enabled?",
+   "plan": [
+    [
+     "ask",
+     "Is the Save button enabled"
+    ]
+   ]
+  },
+  {
+   "say": "Check if there is an unread message",
+   "plan": [
+    [
+     "ask",
+     [
+      "there is an unread message",
+      "Is there an unread message"
+     ]
+    ]
+   ]
+  },
+  {
+   "say": "Does the document contain milk and eggs?",
+   "plan": [
+    [
+     "ask",
+     "Does the document contain milk and eggs"
+    ]
+   ]
+  },
+  {
+   "say": "Stop",
+   "plan": [
+    [
+     "stop"
+    ]
+   ]
+  },
+  {
+   "say": "Goodbye",
+   "plan": [
+    [
+     "stop"
+    ]
+   ]
+  },
+  {
+   "say": "I think the weather is nice today",
+   "plan": [
+    [
+     "unknown"
+    ]
+   ]
+  },
+  {
+   "say": "Delete the selected email",
+   "plan": [
+    [
+     "unknown"
+    ]
+   ]
+  },
+  {
+   "say": "Open TextEdit, click the New Document button, then type buy milk and eggs in the text area and press command S.",
+   "plan": [
+    [
+     "open",
+     "TextEdit"
+    ],
+    [
+     "click",
+     "the New Document button"
+    ],
+    [
+     "fill",
+     "the text area",
+     "buy milk and eggs"
+    ],
+    [
+     "press",
+     "Meta+s"
+    ]
+   ]
+  },
+  {
+   "say": "Open TextEdit. Click the New Document button, then type milk and eggs in the text area. Does the document contain milk and eggs?",
+   "plan": [
+    [
+     "open",
+     "TextEdit"
+    ],
+    [
+     "click",
+     "the New Document button"
+    ],
+    [
+     "fill",
+     "the text area",
+     "milk and eggs"
+    ],
+    [
+     "ask",
+     "Does the document contain milk and eggs"
+    ]
+   ]
+  },
+  {
+   "say": "In the search field write weather in Milan and then press enter",
+   "plan": [
+    [
+     "fill",
+     "the search field",
+     "weather in Milan"
+    ],
+    [
+     "press",
+     "Enter"
+    ]
+   ]
+  },
+  {
+   "say": "Scroll down in the sidebar, after that click Settings",
+   "plan": [
+    [
+     "scroll",
+     "down",
+     "the sidebar"
+    ],
+    [
+     "click",
+     "Settings"
+    ]
+   ]
+  },
+  {
+   "say": "go to Slack and then check if there is an unread message",
+   "plan": [
+    [
+     "open",
+     "Slack"
+    ],
+    [
+     "ask",
+     [
+      "there is an unread message",
+      "Is there an unread message"
+     ]
+    ]
+   ]
+  },
+  {
+   "say": "Is the Save button enabled and is the title Untitled?",
+   "plan": [
+    [
+     "ask",
+     "Is the Save button enabled"
+    ],
+    [
+     "ask",
+     "is the title Untitled"
+    ]
+   ]
+  },
+  {
+   "say": "Type salt and pepper in the search box and press enter",
+   "plan": [
+    [
+     "fill",
+     "the search box",
+     "salt and pepper"
+    ],
+    [
+     "press",
+     "Enter"
+    ]
+   ]
+  },
+  {
+   "say": "Click Cancel and then click Close",
+   "plan": [
+    [
+     "click",
+     "Cancel"
+    ],
+    [
+     "click",
+     "Close"
+    ]
+   ]
+  },
+  {
+   "say": "click the Black and White filter, then click Apply",
+   "plan": [
+    [
+     "click",
+     "the Black and White filter"
+    ],
+    [
+     "click",
+     "Apply"
+    ]
+   ]
+  },
+  {
+   "say": "Open Notes, click the new note button and type call mom and dad in the note body",
+   "plan": [
+    [
+     "open",
+     "Notes"
+    ],
+    [
+     "click",
+     "the new note button"
+    ],
+    [
+     "fill",
+     "the note body",
+     "call mom and dad"
+    ]
+   ]
+  },
+  {
+   "say": "Press command A and then press delete",
+   "plan": [
+    [
+     "press",
+     "Meta+a"
+    ],
+    [
+     "press",
+     "Delete"
+    ]
+   ]
+  },
+  {
+   "say": "Type rock and roll in the genre field, press tab and type 1965 in the year field",
+   "plan": [
+    [
+     "fill",
+     "the genre field",
+     "rock and roll"
+    ],
+    [
+     "press",
+     "Tab"
+    ],
+    [
+     "fill",
+     "the year field",
+     "1965"
+    ]
+   ]
+  },
+  {
+   "say": "Click the Create Note button and inside write hello",
+   "plan": [
+    [
+     "click",
+     "the Create Note button"
+    ],
+    [
+     "fill",
+     "*",
+     "hello"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Create a new note and write inside hello",
+   "plan": [
+    [
+     "unknown"
+    ],
+    [
+     "fill",
+     "*",
+     "hello"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Now write inside the text field, hello, how are you?",
+   "plan": [
+    [
+     "fill",
+     "the text field",
+     "hello, how are you"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Now right inside the TextField, hello, how are you?",
+   "plan": [
+    [
+     "fill",
+     [
+      "the TextField",
+      "the text field"
+     ],
+     "hello, how are you"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Insert inside the text field \"Hello, how are you?\"",
+   "plan": [
+    [
+     "fill",
+     "the text field",
+     "Hello, how are you"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Open Note App",
+   "plan": [
+    [
+     "open",
+     [
+      "Note",
+      "Notes"
+     ]
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Open ChatGPD app.",
+   "plan": [
+    [
+     "open",
+     "ChatGPD"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Click on the Fork Firebase Console",
+   "plan": [
+    [
+     "click",
+     [
+      "the Fork Firebase Console",
+      "Fork Firebase Console"
+     ]
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Click on New Chat and then in the next field write hello",
+   "plan": [
+    [
+     "click",
+     "New Chat"
+    ],
+    [
+     "fill",
+     "the next field",
+     "hello"
+    ]
+   ]
+  },
+  {
+   "say": "Click on New Chat and then in the text field write search for a flight to Rome, then click the send button.",
+   "plan": [
+    [
+     "click",
+     "New Chat"
+    ],
+    [
+     "fill",
+     "the text field",
+     "search for a flight to Rome"
+    ],
+    [
+     "click",
+     "the send button"
+    ]
+   ]
+  },
+  {
+   "say": "Enter in the text field search a flight to Rome for tomorrow from Turin.",
+   "plan": [
+    [
+     "fill",
+     "the text field",
+     "search a flight to Rome for tomorrow from Turin"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Write a law in the text area.",
+   "plan": [
+    [
+     "fill",
+     "the text area",
+     "a law"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Click on \"Create Note\" button and then inside the note text write a note.",
+   "plan": [
+    [
+     "click",
+     [
+      "Create Note button",
+      "the Create Note button",
+      "\"Create Note\" button"
+     ]
+    ],
+    [
+     "fill",
+     "the note text",
+     "a note"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Click on File menu, then New Folder option.",
+   "plan": [
+    [
+     "click",
+     [
+      "File menu",
+      "the File menu"
+     ]
+    ],
+    [
+     "click",
+     [
+      "New Folder option",
+      "the New Folder option"
+     ]
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Click Activity Button.",
+   "plan": [
+    [
+     "click",
+     "Activity Button"
+    ]
+   ],
+   "real": true
+  },
+  {
+   "say": "Click Tab, Files and Links",
+   "plan": [
+    [
+     "click",
+     [
+      "Tab, Files and Links",
+      "Tab Files and Links",
+      "Files and Links"
+     ]
+    ]
+   ],
+   "real": true
+  }
+ ]
 }

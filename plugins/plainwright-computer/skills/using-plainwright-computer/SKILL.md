@@ -54,6 +54,9 @@ first. Unscoped raw/compact reads need no model key; smart classification uses o
 - On `inconclusive`, rephrase the target (the detail's top guesses show the tree's names; reuse the
   right one) or split the claim. After an error, inspect current state
   before retrying an action: a native action can take effect before its error is reported.
+- In Electron apps and web views (Slack, Notion), `click` is a real pointer click, so it needs the app in
+  front like keys do. If a click passes but nothing changes, prefer the app's keyboard route (Slack: Cmd+K,
+  type the name with single-key `press` steps, Enter): `fill` sets a value without key events.
 - Simulated keys/pointer actions require the attached app to be foreground. If focus changed,
   `open` it again only when the user's task calls for activation. Opening starts a new recording.
 - `close` detaches and runs teardown; it leaves the app running.

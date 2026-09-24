@@ -68,7 +68,7 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   (`snapshot()`/`snapshotRegion()`, 60k-char cap) and DOM-quiet waiting (`settle()`).
 - `src/jev.ts` — provider selection and the `ask()` call to either backend; `pickElements()` (one Choice per
   target; ≤254 candidates per request, more are split into equal chunks asked in parallel and merged by
-  `mergePicks()`, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim); `decide()`: a claim passes at p ≥ 0.9, fails at
+  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim); `decide()`: a claim passes at p ≥ 0.9, fails at
   p ≤ 0.1, else `inconclusive`; a pick is accepted when (`confidence` if TypeSafe returned one, else
   `probability`) ≥ 0.5 and the answer isn't `none`. A rejected pick or non-passing claim dumps the exact state
   to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/steps.ts`). The model is pinned (`MODEL_BY_PROVIDER`), not `jev-latest`:
@@ -135,7 +135,7 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 - `src/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Browser, desktop and mobile paths use it. `src/results.ts` shares labels/status/debug output.
 - `src/hooks.ts` owns the generic isolated hook runner (`startHooks`) and `placeholderPaths`, used by all three MCP servers.
 - `src/native.ts` is the shared desktop/mobile core: `NativeSession` (Jev targeting via `askSettled`, expect/wait polling, phase timing; subclasses implement only `act`), `runNativeSpec` (hooks → open → steps → teardown → close) and `nativeCli`. `src/native-mcp.ts` (`createNativeServer`, `serveNative`) holds the shared step/find/snapshot/ask/screenshot/save/close tools; each platform registers its own open and discovery tools first.
-- `src/computer-adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports).
+- `src/computer-adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports). `captureTree` (unit-tested with fake nodes) skips control parts inside a candidate and names unnamed candidates by their inner text; `click` inside a `web_area` is a pointer click, elsewhere the accessibility press.
 - `src/computer-spec.ts`, `computer.ts`, `computer-mcp.ts`, `computer-cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (nine serialized MCP tools in all), and sequential batch replay, on top of `native.ts`/`native-mcp.ts`. Desktop specs have `app`, not `url`.
 - `src/planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `src/computer-cli.ts`. Change it only when `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
 - `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates all plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.

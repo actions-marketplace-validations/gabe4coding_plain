@@ -17,7 +17,7 @@ const cases = JSON.parse(readFileSync(new URL('./planner-cases.json', import.met
   .filter((c) => !values.only || c.say.toLowerCase().includes(values.only.toLowerCase()));
 
 const norm = (s) => String(s).toLowerCase().trim().replace(/[.?!,;]+$/, '').replace(/^the\s+/, '').replace(/\s+/g, ' ');
-const same = (want, got) => (Array.isArray(want) ? want : [want]).some((w) => norm(w) === norm(got));
+const same = (want, got) => (Array.isArray(want) ? want : [want]).some((w) => w === '*' ? got !== undefined : norm(w) === norm(got));
 
 // A plan item as a comparable tuple, in the case file's shape.
 function tuple(item) {

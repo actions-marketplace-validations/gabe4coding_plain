@@ -12,10 +12,80 @@ export function matchesKind(el, kind) {
         return el.checked !== null;
     return el.actions.length > 0 || el.focusable || /button|link|menu_item|tab|row|cell|image/.test(el.role);
 }
+const TEXT_ROLE = /^(static_text|text)$/;
+// The parts of a control rather than controls of their own: inside a candidate they are not candidates.
+const PART_ROLE = /^(static_text|text|group|image|generic)$/;
+/**
+ * Walks an accessibility tree into the snapshot text and the candidates for `kind`. Electron and web
+ * views list a control's own label as a separate static_text with actions ("Files & links" the tab, and
+ * inside it "Files & links" the text): as two candidates they split Jev's confidence between one thing.
+ * Text, groups and images inside a candidate are not candidates themselves (a real control inside one,
+ * such as a row's button, still is); an unnamed candidate (Slack's Activity tab) is described by the text
+ * inside it instead.
+ */
+export async function captureTree(root, kind, timeout) {
+    const candidates = [];
+    const elements = new Map();
+    const web = new Set(); // candidates inside a web view (Electron apps, embedded browsers)
+    const lines = [];
+    let chars = 0, visited = 0, truncated = false;
+    const deadline = Date.now() + timeout;
+    // Returns the visible text of the subtree (capped), so an unnamed candidate can be described by it.
+    const walk = async (el, depth, context, inCandidate, inWeb = false) => {
+        if (++visited > 5000 || chars >= 60000 || Date.now() >= deadline) {
+            truncated = true;
+            return '';
+        }
+        const state = [!el.enabled && 'disabled', el.checked && `checked=${el.checked}`, el.selected && 'selected', el.focused && 'focused'].filter(Boolean).join(' ');
+        const desc = `${el.role} ${JSON.stringify(el.name ?? '')}${el.value === null ? '' : ` value=${JSON.stringify(el.value)}`}${state ? ` [${state}]` : ''}`;
+        const line = `${'  '.repeat(depth)}${desc}\n`;
+        lines.push(line.slice(0, 60000 - chars));
+        chars += line.length;
+        const isText = TEXT_ROLE.test(el.role);
+        let id;
+        if (matchesKind(el, kind) && !(inCandidate && PART_ROLE.test(el.role))) {
+            if (candidates.length < MAX_CANDIDATES) {
+                id = candidates.length;
+                candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });
+                elements.set(id, el);
+                if (inWeb)
+                    web.add(el);
+            }
+            else
+                truncated = true;
+        }
+        let text = isText ? String(el.value || el.name || '') : '';
+        if (depth >= 32) {
+            truncated = true;
+            return text;
+        }
+        const children = (await el.children());
+        // Modal/window contents win the cap before app menus and background content.
+        children.sort((a, b) => Number(b.modal || b.role === 'dialog') - Number(a.modal || a.role === 'dialog'));
+        for (const child of children) {
+            if (visited >= 5000 || chars >= 60000 || Date.now() >= deadline) {
+                truncated = true;
+                break;
+            }
+            const inner = await walk(child, depth + 1, el.name ? `${el.role} ${JSON.stringify(el.name)}` : context, inCandidate || id !== undefined, inWeb || el.role === 'web_area');
+            if (inner && text.length < 80)
+                text = `${text} ${inner}`.trim().slice(0, 80);
+        }
+        // Only the name matters: Slack's tabs carry value "0"/"1" (their selection), not a label.
+        if (id !== undefined && !el.name && text && text !== el.value)
+            candidates[id].desc = candidates[id].desc.replace(desc, `${desc} text=${JSON.stringify(text)}`);
+        return text;
+    };
+    await walk(root, 0, '', false);
+    return { snapshot: { aria: lines.join(''), truncated }, candidates, elements, web };
+}
 // Lazy native import: browser use and MCP discovery work without desktop binaries or permissions.
 export class Xa11yAdapter {
     timeout;
     app = null;
+    // Web content ignores the accessibility press on many elements (a Slack tab "clicked" that never
+    // switched): those get a real pointer click. Native controls keep press, which needs no focus.
+    web = new WeakSet();
     constructor(timeout = 15000) {
         this.timeout = timeout;
     }
@@ -52,47 +122,10 @@ export class Xa11yAdapter {
     }
     async capture(kind, within) {
         const app = this.current();
-        const candidates = [];
-        const elements = new Map();
-        const lines = [];
-        let chars = 0, visited = 0, truncated = false;
-        const deadline = Date.now() + this.timeout;
-        const walk = async (el, depth, context) => {
-            if (++visited > 5000 || chars >= 60000 || Date.now() >= deadline) {
-                truncated = true;
-                return;
-            }
-            const state = [!el.enabled && 'disabled', el.checked && `checked=${el.checked}`, el.selected && 'selected', el.focused && 'focused'].filter(Boolean).join(' ');
-            const desc = `${el.role} ${JSON.stringify(el.name ?? '')}${el.value === null ? '' : ` value=${JSON.stringify(el.value)}`}${state ? ` [${state}]` : ''}`;
-            const line = `${'  '.repeat(depth)}${desc}\n`;
-            lines.push(line.slice(0, 60000 - chars));
-            chars += line.length;
-            if (matchesKind(el, kind)) {
-                if (candidates.length < MAX_CANDIDATES) {
-                    const id = candidates.length;
-                    candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });
-                    elements.set(id, el);
-                }
-                else
-                    truncated = true;
-            }
-            if (depth >= 32) {
-                truncated = true;
-                return;
-            }
-            const children = await el.children();
-            // Modal/window contents win the cap before app menus and background content.
-            children.sort((a, b) => Number(b.modal || b.role === 'dialog') - Number(a.modal || a.role === 'dialog'));
-            for (const child of children) {
-                if (visited >= 5000 || chars >= 60000 || Date.now() >= deadline) {
-                    truncated = true;
-                    break;
-                }
-                await walk(child, depth + 1, el.name ? `${el.role} ${JSON.stringify(el.name)}` : context);
-            }
-        };
-        await walk(within ?? app.asElement(), 0, '');
-        return { snapshot: { url: `desktop://${app.pid ?? encodeURIComponent(app.name)}`, title: app.name, aria: lines.join(''), truncated }, candidates, elements };
+        const { web, ...frame } = await captureTree(within ?? app.asElement(), kind, this.timeout);
+        for (const el of web)
+            this.web.add(el);
+        return { ...frame, snapshot: { url: `desktop://${app.pid ?? encodeURIComponent(app.name)}`, title: app.name, ...frame.snapshot } };
     }
     async foreground() {
         const app = this.current();
@@ -103,7 +136,7 @@ export class Xa11yAdapter {
         return sdk.inputSim();
     }
     async act(kind, element, value) {
-        if (kind === 'click')
+        if (kind === 'click' && !this.web.has(element))
             return element.press();
         if (kind === 'fill')
             return element.setValue(value);
@@ -118,6 +151,8 @@ export class Xa11yAdapter {
             return;
         }
         const input = await this.foreground();
+        if (kind === 'click')
+            return input.click(element);
         if (kind === 'hover')
             return input.moveTo(element);
         if (kind === 'dblclick')

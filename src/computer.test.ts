@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ComputerSession, runComputerSpec } from './computer.js';
 import { loadComputerSpec, parseComputerStep, ComputerTargetSchema } from './computer-spec.js';
-import { matchesKind, type ComputerAdapter } from './computer-adapter.js';
+import { matchesKind, captureTree, type ComputerAdapter } from './computer-adapter.js';
 import { createComputerServer } from './computer-mcp.js';
 import { serialQueue } from './serial-queue.js';
 import type { Intelligence } from './automation.js';
@@ -170,4 +170,28 @@ test('a window that appears after the previous step is waited for, not reported 
   assert.equal(result.status, 'pass');
   assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length, 3);
   assert.ok((result.ms?.idle ?? 0) >= 250);
+});
+
+test('captureTree: a label inside a control is not a second candidate; an unnamed control takes its inner text', async () => {
+  const node = (role: string, name: string | null, value: string | null, children: unknown[] = [], actions = ['press']) => ({
+    role, name, value, visible: true, enabled: true, editable: false, checked: null, selected: false, focused: false,
+    actions, focusable: false, modal: false, children: async () => children,
+  });
+  const tree = node('web_area', 'Slack', null, [
+    node('tab', 'Files & links', '0', [node('static_text', '', 'Files & links')]),
+    node('button', '', '', [node('group', null, null, [node('static_text', '', 'Activity')], [])]),
+    node('tab', '', '0', [node('group', null, null, [node('static_text', '', 'DMs')])]), // a pressable group inside: a part, not a candidate
+    node('row', 'Report', null, [node('button', 'Edit', null)]),
+    node('static_text', '', 'Standalone label'),
+  ], []);
+  const { candidates, web } = await captureTree(tree as never, 'click', 1000);
+  assert.equal(web.size, candidates.length); // all inside the web_area: pointer clicks
+  assert.deepEqual(candidates.map((c) => c.desc), [
+    'tab "Files & links" value="0" in web_area "Slack"',
+    'button "" value="" text="Activity" in web_area "Slack"',
+    'tab "" value="0" text="DMs" in web_area "Slack"',
+    'row "Report" in web_area "Slack"',
+    'button "Edit" in row "Report"',
+    'static_text "" value="Standalone label" in web_area "Slack"',
+  ]);
 });
