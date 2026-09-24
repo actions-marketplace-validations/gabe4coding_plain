@@ -45,6 +45,7 @@ test('evaluate returns the JSON value of a page expression', async () => {
   assert.deepEqual(r.value, ['Hotel Roma', '€120']);
   const listed = await client.listTools();
   assert.ok(listed.tools.some((t) => t.name === 'evaluate'));
+  assert.equal(listed.tools.find((t) => t.name === 'ask')?.annotations?.readOnlyHint, true);
 });
 
 test('structured evaluate results preserve objects, scalars and null', async () => {

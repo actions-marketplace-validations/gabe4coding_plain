@@ -40,6 +40,11 @@ first. Unscoped raw/compact reads need no model key; smart classification uses o
 - `snapshot` reads the app tree; `within` selects a region. `screenshot` returns a window PNG for
   inspection. Neither reading is recorded. Jev uses accessibility text, not screenshots; a canvas
   with no accessible controls needs application accessibility support, not invented targets.
+- `ask {claims, within?}` answers yes/no questions about the current state without acting or
+  recording: 1–16 claims in one Jev call, each `yes` (p >= 0.9), `no` (p <= 0.1) or `unsure`. When a
+  step fails or is inconclusive, ask one claim per possible cause ("An error message is shown",
+  "The Save button is disabled", "A dialog covers the window") instead of reading the whole tree.
+  It cannot explain in free text. Use `expect` only for assertions that belong in the test.
 - Name controls as the accessibility tree does, not by how they look: an icon-only toolbar button
   is named by its accessibility description, a tab by its title. Read a `snapshot` when unsure.
 - On `inconclusive`, rephrase the target (the detail's top guesses show the tree's names; reuse the

@@ -358,18 +358,31 @@ async function runExpect(ctx, step, stepLabel) {
         }
         return { step: stepLabel, status, detail };
     };
-    if (step.within) {
-        const r = await resolveOne(ctx, 'region', step.within);
+    const judged = await judgeClaims(ctx, step.expectations, step.within);
+    return 'detail' in judged ? { step: stepLabel, status: 'inconclusive', detail: judged.detail } : judgeExpectations(judged.snap, judged.probabilities);
+}
+// One judgment of `claims` against the page, or against the region `within` names (detail when Jev finds none).
+async function judgeClaims(ctx, claims, within) {
+    if (within) {
+        const r = await resolveOne(ctx, 'region', within);
         if (!r.element)
-            return { step: stepLabel, status: 'inconclusive', detail: r.detail };
+            return { detail: r.detail };
         const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, r.element));
-        const result = await timed(ctx, 'jev', () => judgeState(snap, step.expectations, ctx.events));
+        const result = await timed(ctx, 'jev', () => judgeState(snap, claims, ctx.events));
         ctx.track(result.tokens);
-        return judgeExpectations(snap, result.probabilities);
+        return { snap, probabilities: result.probabilities };
     }
     // Settled: SPA route changes resolve 'load' instantly, and the claim is about the content.
-    const { state, probabilities } = await judgeSettled(ctx, step.expectations);
-    return judgeExpectations(state.snap, probabilities);
+    const { state, probabilities } = await judgeSettled(ctx, claims);
+    return { snap: state.snap, probabilities: probabilities };
+}
+/** The MCP `ask` tool: one judgment, like expect, but not a step (no status, not recorded). */
+export async function askPage(ctx, claims, within) {
+    ctx.ms = {};
+    // A css= region skips settledAsk, which is what waits out the last action's hold.
+    if (within?.startsWith('css='))
+        await timed(ctx, 'settle', () => waitHold(ctx.page));
+    return { ...(await judgeClaims(ctx, claims, within)), ms: ctx.ms };
 }
 // Whether the step's first look at the page goes through settledAsk, which waits out the last action's
 // hold itself, overlapped with its Jev call. Every other step waits it out before it starts.

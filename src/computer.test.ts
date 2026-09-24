@@ -119,7 +119,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     return r.structuredContent as Record<string, any>;
   }
   try {
-    const listed = await client.listTools(); assert.equal(listed.tools.length, 8);
+    const listed = await client.listTools(); assert.equal(listed.tools.length, 9);
     for (const apps of [[{ name: 'Fixture', pid: 42 }], []]) {
       adapter.apps = async () => apps;
       const result = await client.callTool({ name: 'apps', arguments: {} });

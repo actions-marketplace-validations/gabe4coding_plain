@@ -12,7 +12,7 @@ import { LocalMobileDiscovery, AppListingSchema, type MobileDiscovery } from './
 export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000, ai: Intelligence = intelligence,
   discovery: MobileDiscovery = new LocalMobileDiscovery()) {
   return createNativeServer<MobileSpec>({
-    name: 'plainwright-mobile', version: '0.1.4', where: 'mobile MCP', ai,
+    name: 'plainwright-mobile', version: '0.1.5', where: 'mobile MCP', ai,
     spec: { name: 'mobile session', platform: 'android', device: '', app: '', dir: process.cwd(), env: {}, steps: [] },
     session: new MobileSession(adapter, timeout, ai) as MobileSession, kinds: ['click', 'fill', 'check', 'region', 'scroll'],
     saved: (spec) => ({ platform: spec.platform, device: spec.device, app: spec.app, ...(spec.capabilities ? { capabilities: spec.capabilities } : {}) }),

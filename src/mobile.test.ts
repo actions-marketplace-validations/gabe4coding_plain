@@ -12,6 +12,7 @@ import { serialQueue } from './serial-queue.js';
 import type { Intelligence } from './automation.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { askResult } from './mcp-result.js';
 
 class FakeAdapter implements MobileAdapter<string> {
   log: unknown[] = []; text = 'Ready'; closed = 0;
@@ -140,7 +141,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     return r.structuredContent as Record<string, any>;
   }
   try {
-    const listed = await client.listTools(); assert.equal(listed.tools.length, 9);
+    const listed = await client.listTools(); assert.equal(listed.tools.length, 10);
     for (const name of ['list_devices', 'list_apps']) assert.equal(listed.tools.find(t => t.name === name)?.annotations?.readOnlyHint, true);
     await call('list_devices', { platform: 'android' });
     assert.equal((await call('list_apps', { platform: 'android', device: 'emulator-5554' })).apps[0].app, 'Fixture');
@@ -169,6 +170,9 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     const smart = await call('snapshot', { mode: 'smart', within: 'panel', intent: 'inspect the controls' });
     assert.equal(smart.inferred.screen.type, 'other'); assert.equal(smart.jevTokens, 110);
     assert.ok(smart.ms.total >= smart.ms.jev);
+    const asked = await call('ask', { claims: ['The panel says ${hooks.text}'], within: 'panel' });
+    assert.deepEqual(asked.answers, [{ claim: 'The panel says ${hooks.text}', p: 0.95, answer: 'yes' }]);
+    assert.ok(asked.jevTokens > 0);
     await call('list_devices');
     await call('list_apps', { platform: 'android', device: 'emulator-5554' });
     const path = join(dir, 'saved.yaml'); await call('save', { path });
@@ -207,4 +211,9 @@ test('mobile early capture: Jev works on it while the settled capture runs; kept
   r = await session.step({ expect: 'ready' });
   assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready', 'Loading', 'Ready']); assert.equal(r.ms?.reasked, 1);
   assert.equal(session.calls, 4); assert.equal(session.tokens, 28); // the discarded answer is still accounted
+});
+test('ask maps probabilities to yes/no/unsure at the expect thresholds', () => {
+  const r = askResult(['a', 'b', 'c'], [0.93, 0.05, 0.5], { url: 'u', title: 't', truncated: true });
+  assert.deepEqual(r.answers.map((a) => a.answer), ['yes', 'no', 'unsure']);
+  assert.match(r.note!, /truncated/);
 });

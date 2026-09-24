@@ -8,7 +8,7 @@ import { interpolate } from './spec.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { startHooks, placeholderPaths } from './hooks.js';
 import { serialQueue } from './serial-queue.js';
-import { jsonResult as ok } from './mcp-result.js';
+import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from './mcp-result.js';
 // The desktop and mobile MCP servers: step, find, snapshot, screenshot, save and close are shared;
 // `tools` registers the platform's own (open, discovery) first, so tool order stays as documented.
 export function createNativeServer(cfg) {
@@ -105,6 +105,14 @@ export function createNativeServer(cfg) {
                 jevTokens: view.jevTokens === null ? null : view.jevTokens + session.tokens - before,
                 ms: { ...view.ms, total: performance.now() - started },
             } : {}) });
+    }));
+    server.registerTool('ask', {
+        description: ASK_DESCRIPTION, inputSchema: { claims: AskClaims, within: z.string().min(1).optional() }, annotations: { readOnlyHint: true },
+    }, ({ claims, within }) => queue(async () => {
+        requireOpen();
+        const before = session.tokens;
+        const { snapshot, probabilities, ms } = await session.ask(fill(claims), within ? fill(within) : undefined);
+        return ok({ ...askResult(claims, probabilities, snapshot), jevTokens: session.tokens - before, ms });
     }));
     server.registerTool('screenshot', { description: cfg.describe.screenshot, inputSchema: {}, annotations: { readOnlyHint: true } }, () => queue(async () => {
         requireOpen();
