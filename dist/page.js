@@ -12,7 +12,8 @@ const SELECTORS = {
     // `check` step reads that state before acting. Labels whose checkbox has no size are added by the walker.
     [StepKind.check]: 'input[type=checkbox], input[type=radio], [role=checkbox], [role=radio], [role=switch], [role=menuitemcheckbox], [role=menuitemradio], [aria-pressed]',
     [StepKind.upload]: 'input[type=file]',
-    region: 'main, section, article, dialog, nav, header, footer, aside, form, table, [role=region], [role=dialog], [role=main], [role=tabpanel], [role=list]',
+    // ul/ol are lists without saying so: Open Library's search results are a plain <ul>, never offered before.
+    region: 'main, section, article, dialog, nav, header, footer, aside, form, table, ul, ol, [role=region], [role=dialog], [role=main], [role=tabpanel], [role=list]',
 };
 // The candidate scan tags elements with data-jev-id. That is our own write, not the page changing, so
 // every observer below ignores it — otherwise each scan would restart the quiet window it just waited out.
