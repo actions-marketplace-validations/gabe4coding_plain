@@ -8,11 +8,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { parseStep, interpolate } from './spec.js';
 import { openSession, closeSharedBrowser } from './runner.js';
 import { startHooks, placeholderPaths } from './hooks.js';
-import { runStep, runStepSafely, resolveOne } from './steps.js';
+import { runStep, runStepSafely, resolveOne, askPage } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { serialQueue } from './serial-queue.js';
-import { jsonResult as ok } from './mcp-result.js';
+import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from './mcp-result.js';
 const STEP_DESCRIPTION = `Run one step in the persistent browser session (call \`open\` first).
 
 Vocabulary, one example each:
@@ -213,6 +213,18 @@ export async function serveMcp(opts) {
                 jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
                 ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
             } : {}) });
+    }));
+    server.registerTool('ask', {
+        description: ASK_DESCRIPTION + ' `within` also takes css=.',
+        inputSchema: { claims: AskClaims, within: z.string().min(1).optional() }, annotations: { readOnlyHint: true },
+    }, ({ claims, within }) => queue(async () => {
+        if (!session)
+            throw new Error('call open first');
+        const before = totalTokens;
+        const fill = (v) => interpolate(v, { env: {}, hooks: data }, 'mcp');
+        const r = await askPage(session.ctx, fill(claims), within && fill(within));
+        const base = { jevTokens: totalTokens - before, ms: r.ms };
+        return ok('detail' in r ? { found: false, detail: r.detail, ...base } : { ...askResult(claims, r.probabilities, r.snap), ...base });
     }));
     server.registerTool('evaluate', {
         description: 'Run a JavaScript expression in the page and return its JSON value: the raw escape hatch for pulling data ' +

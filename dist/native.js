@@ -63,6 +63,14 @@ export class NativeSession {
         const region = within ? await this.region(within) : undefined;
         return (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot;
     }
+    /** Judges claims once against the settled UI (or a region of it), without recording or polling: the MCP `ask` tool. */
+    async ask(claims, within) {
+        this.ms = {};
+        const region = within ? await this.region(within) : undefined;
+        const { frame, result } = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens));
+        this.track(result.tokens);
+        return { snapshot: frame.snapshot, probabilities: result.probabilities, ms: this.ms };
+    }
     step(raw) { return this.run(this.parse(raw)); }
     async run(step) {
         const start = Date.now();

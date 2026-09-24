@@ -1,6 +1,6 @@
 ---
 name: using-plainwright
-description: Use when driving a website through the plainwright MCP tools (open, step, batch, find, snapshot, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
+description: Use when driving a website through the plainwright MCP tools (open, step, batch, find, snapshot, ask, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
 ---
 
 # Using plainwright
@@ -33,6 +33,11 @@ The rules below apply to both.
   `inconclusive` and `detail` lists the top guesses with their probabilities.
 - A claim passes at p ≥ 0.9, fails at p ≤ 0.1, and is `inconclusive` in between. `optional: true` turns an
   inconclusive or error step into `skipped`.
+- `ask {claims, within?}` judges 1–16 claims in one Jev call without acting or recording: each is `yes`
+  (p ≥ 0.9), `no` (p ≤ 0.1) or `unsure`. When a step fails or is inconclusive, ask one claim per possible
+  cause ("An error message is shown", "The Submit button is disabled", "A cookie banner covers the form")
+  before reading a snapshot. It cannot explain in free text. Use `expect` only for assertions that belong
+  in the test: `ask` never changes the session status and `save` never records it.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plainwright/*.json`; the path
   is in `detail`.
 
@@ -111,6 +116,7 @@ A third rephrasing of the same fact is never the next move.
 |---|---|
 | `expect: "the secure area is shown with a success message"` | Two facts: use the list form |
 | `wait: "the checkbox is gone"` | Absence: `wait: the message "It's gone!" is shown` |
+| `expect` to check a guess while debugging | `ask`: not recorded, does not fail the session |
 | `snapshot` of the whole page to read a table | `snapshot` with `within`, or `evaluate` |
 | `check: the Hotels chip` on a plain button | `click` it; `check` needs a state to read |
 | Reading the tool's source to learn the thresholds | They are listed above |

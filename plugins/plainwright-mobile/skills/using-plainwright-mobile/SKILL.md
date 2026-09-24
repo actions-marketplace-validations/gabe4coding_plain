@@ -70,8 +70,14 @@ do not assume the app exposes no controls or repeatedly tap unrelated navigation
 
 `step` accepts one YAML-style action as JSON. Describe an unambiguous native control. `find`
 dry-runs target selection using kinds `click`, `fill`, `check`, `region`, or `scroll`; use `click`
-for taps/long presses. The nine tools are `list_devices`, `list_apps`, `open`, `step`, `find`,
-`snapshot`, `screenshot`, `save`, and `close`. All requests are serialized.
+for taps/long presses. The ten tools are `list_devices`, `list_apps`, `open`, `step`, `find`,
+`snapshot`, `ask`, `screenshot`, `save`, and `close`. All requests are serialized.
+
+`ask {claims, within?}` answers yes/no questions about the current screen without acting or
+recording: 1-16 claims in one Jev call, each `yes` (p >= 0.9), `no` (p <= 0.1) or `unsure`. When a
+step fails or is inconclusive, ask one claim per possible cause ("An error alert is shown", "The
+keyboard covers the button", "The Save button is disabled") instead of reading the whole tree. It
+cannot explain in free text. Use `expect` only for assertions that belong in the replayed test.
 
 Each line below is a separate step:
 

@@ -71,7 +71,7 @@ Each server keeps one session, and the agent sends natural-language actions thro
 
 | Tools | Available in |
 |---|---|
-| `open`, `step`, `find`, `snapshot`, `save` | All plugins |
+| `open`, `step`, `find`, `snapshot`, `ask`, `save` | All plugins (`ask`: yes/no questions about the current state, not recorded) |
 | `evaluate` | Browser: read a JavaScript expression's value |
 | `batch` | Browser: run up to 16 known steps in order, stopping on the first non-pass |
 | `apps` | Desktop: list running apps |

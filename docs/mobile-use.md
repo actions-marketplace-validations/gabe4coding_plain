@@ -82,7 +82,7 @@ MCP tool errors use `isError: true` and a text message; action outcomes (includi
 `status: "error"`) remain structured results.
 Screenshots remain PNG image content blocks.
 
-All nine tools are serialized, including reads, so a snapshot cannot race another MCP action.
+All ten tools are serialized, including reads, so a snapshot cannot race another MCP action.
 
 | Tool | Purpose |
 |---|---|
@@ -92,6 +92,7 @@ All nine tools are serialized, including reads, so a snapshot cannot race anothe
 | `step {step}` | Execute one YAML-style action or assertion; return status, detail, timing and Jev tokens. |
 | `find {kind, target}` | Resolve without acting. Kinds: `click`, `fill`, `check`, `region`, `scroll`. Use `click` for tap/longpress targets. |
 | `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. Scoped reads resolve a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
+| `ask {claims, within?}` | Yes/no questions about the current state, without acting: 1–16 claims in one Jev call, each answered `yes` (p ≥ 0.9), `no` (p ≤ 0.1) or `unsure`, with its `p`. Not recorded and never changes the session status. Use it to test hypotheses when a step fails ("An error message is shown", "The Save button is disabled"). |
 | `screenshot {}` | Return a device PNG for inspection; pixels are not supplied to Jev. |
 | `save {path, name?}` | Write passing recorded steps with platform, device, app, capabilities and relative hooks path. Rejects empty recordings. |
 | `close {}` | Run teardown and delete the Appium session. Does not uninstall or clear app data. |

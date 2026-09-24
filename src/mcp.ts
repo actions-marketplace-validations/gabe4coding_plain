@@ -9,11 +9,11 @@ import type { Spec, Step } from './spec.js';
 import { parseStep, interpolate } from './spec.js';
 import { openSession, closeSharedBrowser, type Session, type RunOptions } from './runner.js';
 import { startHooks, placeholderPaths, type HooksRunner } from './hooks.js';
-import { runStep, runStepSafely, resolveOne, type StepResult } from './steps.js';
+import { runStep, runStepSafely, resolveOne, askPage, type StepResult } from './steps.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { serialQueue } from './serial-queue.js';
-import { jsonResult as ok } from './mcp-result.js';
+import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from './mcp-result.js';
 
 const STEP_DESCRIPTION = `Run one step in the persistent browser session (call \`open\` first).
 
@@ -209,6 +209,18 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       jevTokens: 'jevTokens' in view && view.jevTokens === null ? null : totalTokens - before,
       ms: { ...('ms' in view ? view.ms : {}), total: performance.now() - started },
     } : {}) });
+  }));
+
+  server.registerTool('ask', {
+    description: ASK_DESCRIPTION + ' `within` also takes css=.',
+    inputSchema: { claims: AskClaims, within: z.string().min(1).optional() }, annotations: { readOnlyHint: true },
+  }, ({ claims, within }) => queue(async () => {
+    if (!session) throw new Error('call open first');
+    const before = totalTokens;
+    const fill = <V>(v: V) => interpolate(v, { env: {}, hooks: data }, 'mcp');
+    const r = await askPage(session.ctx, fill(claims), within && fill(within));
+    const base = { jevTokens: totalTokens - before, ms: r.ms };
+    return ok('detail' in r ? { found: false, detail: r.detail, ...base } : { ...askResult(claims, r.probabilities, r.snap), ...base });
   }));
 
   server.registerTool('evaluate', {

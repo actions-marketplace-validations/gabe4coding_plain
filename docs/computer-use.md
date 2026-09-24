@@ -100,6 +100,7 @@ Screenshots remain PNG image content blocks.
 | `step {step}` | Execute one natural-language action/assertion and return status, detail, timings, and token count. |
 | `find {kind, target}` | Dry-run a target with Jev. Kinds: click, fill, check, hover, region, scroll. |
 | `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. `within` resolves a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
+| `ask {claims, within?}` | Yes/no questions about the current state, without acting: 1–16 claims in one Jev call, each answered `yes` (p ≥ 0.9), `no` (p ≤ 0.1) or `unsure`, with its `p`. Not recorded and never changes the session status. Use it to test hypotheses when a step fails ("An error message is shown", "The Save button is disabled"). |
 | `screenshot {}` | Return a PNG of an attached app window. Not supplied to Jev. |
 | `save {path, name?}` | Save successful steps as desktop YAML. Rejects an empty recording. |
 | `close {}` | Detach and run teardown; leave the application running. |

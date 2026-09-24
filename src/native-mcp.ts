@@ -11,7 +11,7 @@ import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './sna
 import { startHooks, placeholderPaths, type HooksRunner, type HookSpec } from './hooks.js';
 import type { StepResult, Status } from './results.js';
 import { serialQueue } from './serial-queue.js';
-import { jsonResult as ok } from './mcp-result.js';
+import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from './mcp-result.js';
 
 type Spec = HookSpec & { hooks?: string };
 type Tools<S extends Spec> = {
@@ -97,6 +97,14 @@ export function createNativeServer<S extends Spec>(cfg: {
       jevTokens: view.jevTokens === null ? null : view.jevTokens + session.tokens - before,
       ms: { ...view.ms, total: performance.now() - started },
     } : {}) });
+  }));
+  server.registerTool('ask', {
+    description: ASK_DESCRIPTION, inputSchema: { claims: AskClaims, within: z.string().min(1).optional() }, annotations: { readOnlyHint: true },
+  }, ({ claims, within }) => queue(async () => {
+    requireOpen();
+    const before = session.tokens;
+    const { snapshot, probabilities, ms } = await session.ask(fill(claims), within ? fill(within) : undefined);
+    return ok({ ...askResult(claims, probabilities, snapshot), jevTokens: session.tokens - before, ms });
   }));
   server.registerTool('screenshot', { description: cfg.describe.screenshot, inputSchema: {}, annotations: { readOnlyHint: true } }, () => queue(async () => {
     requireOpen();
