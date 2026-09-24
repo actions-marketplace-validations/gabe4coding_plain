@@ -1,25 +1,17 @@
 import type { App, Element } from '@crowecawcaw/xa11y';
-import type { Candidate, Snapshot } from './automation.js';
+import type { Candidate, Frame } from './automation.js';
 import { MAX_CANDIDATES } from './jev.js';
+import type { NativeAdapter } from './native.js';
 
 export type ComputerKind = 'click' | 'fill' | 'check' | 'hover' | 'region' | 'scroll';
 export type ComputerAction = 'click' | 'fill' | 'check' | 'uncheck' | 'hover' | 'dblclick' | 'rightclick' | 'scroll';
 export interface ComputerTarget { app?: string; pid?: number; }
-export interface ComputerFrame<T = unknown> {
-  snapshot: Snapshot;
-  candidates: Candidate[];
-  elements: Map<number, T>;
-}
-export interface ComputerAdapter<T = unknown> {
+export interface ComputerAdapter<T = unknown> extends NativeAdapter<T, ComputerKind> {
   apps(): Promise<{ name: string; pid: number | null }[]>;
   open(target: ComputerTarget, activate: boolean): Promise<{ name: string; pid: number | null }>;
-  capture(kind: ComputerKind, within?: T): Promise<ComputerFrame<T>>;
   act(kind: ComputerAction, element: T, value?: string): Promise<void>;
-  press(key: string): Promise<void>;
   mouse(x: number, y: number): Promise<void>;
   drag(source: T, target: T): Promise<void>;
-  screenshot(): Promise<Buffer>;
-  close(): Promise<void>;
 }
 
 export function matchesKind(el: Pick<Element, 'visible' | 'enabled' | 'editable' | 'checked' | 'actions' | 'focusable' | 'role'>, kind: ComputerKind): boolean {
@@ -60,7 +52,7 @@ export class Xa11yAdapter implements ComputerAdapter<Element> {
     this.app = app;
     return { name: app.name, pid: app.pid };
   }
-  async capture(kind: ComputerKind, within?: Element): Promise<ComputerFrame<Element>> {
+  async capture(kind: ComputerKind, within?: Element): Promise<Frame<Element>> {
     const app = this.current();
     const candidates: Candidate[] = [];
     const elements = new Map<number, Element>();

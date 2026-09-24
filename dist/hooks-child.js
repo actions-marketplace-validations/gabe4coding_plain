@@ -5,36 +5,26 @@
 import { pathToFileURL } from 'node:url';
 const file = process.argv[2];
 let hooks = {};
-function send(msg) {
-    process.send?.(msg);
-}
-function errorMessage(err) {
-    return err instanceof Error ? err.message : String(err);
-}
+const send = (msg) => void process.send?.(msg);
+const errorMessage = (err) => err instanceof Error ? err.message : String(err);
 process.on('disconnect', () => process.exit(0)); // an orphaned child dies with its parent
 process.on('message', async (msg) => {
-    if (msg.type === 'setup') {
-        try {
+    if (msg.type !== 'setup' && msg.type !== 'teardown')
+        return;
+    try {
+        if (msg.type === 'setup') {
             const returned = hooks.setup ? await hooks.setup({ spec: msg.spec }) : undefined;
-            if (returned !== undefined && (returned === null || typeof returned !== 'object')) {
+            if (returned !== undefined && (returned === null || typeof returned !== 'object'))
                 throw new Error('setup must return an object');
-            }
             send({ type: 'setup', ok: true, data: returned ?? {} });
         }
-        catch (err) {
-            send({ type: 'setup', ok: false, message: errorMessage(err) });
-        }
-    }
-    else if (msg.type === 'teardown') {
-        try {
-            if (hooks.teardown) {
-                await hooks.teardown({ spec: msg.spec, data: msg.data, result: msg.result });
-            }
+        else {
+            await hooks.teardown?.({ spec: msg.spec, data: msg.data, result: msg.result });
             send({ type: 'teardown', ok: true });
         }
-        catch (err) {
-            send({ type: 'teardown', ok: false, message: errorMessage(err) });
-        }
+    }
+    catch (err) {
+        send({ type: msg.type, ok: false, message: errorMessage(err) });
     }
 });
 (async () => {

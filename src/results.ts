@@ -37,43 +37,20 @@ export function formatMs(ms: Record<string, number>): string {
 
 export function label(step: Step): string {
   switch (step.kind) {
-    case StepKind.goto:
-      return `goto ${step.url}`;
-    case StepKind.fill:
-      return `fill "${step.target}"`;
-    case StepKind.click:
-      return `click "${step.target}"`;
-    case StepKind.hover:
-      return `hover "${step.target}"`;
-    case StepKind.dblclick:
-      return `dblclick "${step.target}"`;
-    case StepKind.rightclick:
-      return `rightclick "${step.target}"`;
-    case StepKind.select:
-      return `select "${step.value}" in "${step.target}"`;
-    case StepKind.check:
-      return `check "${step.target}"`;
-    case StepKind.uncheck:
-      return `uncheck "${step.target}"`;
-    case StepKind.upload:
-      return `upload ${step.files.length} file(s) to "${step.target}"`;
-    case StepKind.scroll:
-      return `scroll "${step.target}"`;
-    case StepKind.wait:
-      return `wait "${step.condition}"`;
-    case StepKind.press:
-      return `press ${step.key}`;
-    case StepKind.drag:
-      return `drag "${step.source}" to "${step.target}"`;
-    case StepKind.mouse:
-      return `mouse to (${step.x}, ${step.y})`;
+    case StepKind.goto: return `goto ${step.url}`;
+    case StepKind.select: return `select "${step.value}" in "${step.target}"`;
+    case StepKind.upload: return `upload ${step.files.length} file(s) to "${step.target}"`;
+    case StepKind.wait: return `wait "${step.condition}"`;
+    case StepKind.press: return `press ${step.key}`;
+    case StepKind.drag: return `drag "${step.source}" to "${step.target}"`;
+    case StepKind.mouse: return `mouse to (${step.x}, ${step.y})`;
     case StepKind.expect: {
       const claim = step.expectations.length > 1 ? step.expectations.join(' | ') : step.expectations[0];
       return step.within ? `expect "${claim}" within "${step.within}"` : `expect "${claim}"`;
     }
+    default: return `${step.kind} "${step.target}"`; // fill, click, hover, dblclick, rightclick, check, uncheck, scroll
   }
 }
-
 
 let dumpSeq = 0;
 

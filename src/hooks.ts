@@ -31,31 +31,22 @@ export async function startHooks<S extends HookSpec = Spec>(file: string): Promi
   const child: ChildProcess = fork(fileURLToPath(new URL('./hooks-child.js', import.meta.url)), [file]);
 
   let pending: { resolve: (msg: ChildReply) => void; reject: (err: Error) => void } | null = null;
-  child.on('message', (msg: ChildReply) => {
-    pending?.resolve(msg);
-    pending = null;
-  });
-  const onGone = (reason: string): void => {
-    pending?.reject(new Error(`hooks child for ${file} ${reason}`));
-    pending = null;
-  };
+  const settle = (fn: (p: NonNullable<typeof pending>) => void) => { if (pending) fn(pending); pending = null; };
+  child.on('message', (msg: ChildReply) => settle((p) => p.resolve(msg)));
+  const onGone = (reason: string) => settle((p) => p.reject(new Error(`hooks child for ${file} ${reason}`)));
   child.on('exit', (code) => onGone(`exited (code ${code}) before responding`));
   child.on('error', (err) => onGone(`failed: ${err.message}`));
+  // One request in flight at a time: the next message from the child is its reply.
+  const call = (msg?: Record<string, unknown>): Promise<ChildReply> => {
+    const reply = new Promise<ChildReply>((resolve, reject) => (pending = { resolve, reject }));
+    if (msg) child.send(msg);
+    return reply;
+  };
 
-  function next(): Promise<ChildReply> {
-    return new Promise((resolve, reject) => (pending = { resolve, reject }));
-  }
-
-  const first = await next(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
+  const first = await call(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
   if (first.type === 'error') {
     child.kill();
     throw new Error(first.message);
-  }
-
-  async function call(msg: Record<string, unknown>): Promise<ChildReply> {
-    const reply = next();
-    child.send(msg);
-    return reply;
   }
 
   return {
@@ -69,9 +60,13 @@ export async function startHooks<S extends HookSpec = Spec>(file: string): Promi
       const reply = await call({ type: 'teardown', ...args });
       if (!reply.ok) throw new Error(reply.message);
     },
-    close() {
-      child.kill();
-    },
+    close: () => void child.kill(),
   };
 }
 
+// Leaf paths of `data` as `${hooks.a.b}` placeholders for an MCP `open` response — never the values
+// themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
+export function placeholderPaths(data: Record<string, unknown>, prefix = 'hooks'): string[] {
+  return Object.entries(data).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ?
+    placeholderPaths(v as Record<string, unknown>, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
+}

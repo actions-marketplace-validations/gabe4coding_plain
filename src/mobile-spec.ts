@@ -1,8 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
-import { parse } from 'yaml';
-import { parseStep, resolveEnvBlock, type Step } from './spec.js';
+import { parseStep, rejectCss, loadNativeSpec, type Step } from './spec.js';
 import { label } from './results.js';
 
 const text = z.string().trim().min(1);
@@ -23,8 +20,7 @@ export type MobileStep = SharedMobileStep |
 const supported = new Set(['click', 'fill', 'dblclick', 'check', 'uncheck', 'scroll', 'press', 'wait', 'expect']);
 
 export function validateMobileStep(step: MobileStep, allowPlaceholders = false): MobileStep {
-  const targets = ['target', 'within', 'condition'].flatMap(key => key in step ? [String((step as unknown as Record<string, unknown>)[key])] : []);
-  if (targets.some(v => v.startsWith('css='))) throw new Error('css= is browser-only; describe a mobile accessibility element');
+  rejectCss(step, 'mobile');
   if (step.kind === 'scroll' && !(allowPlaceholders && step.target.includes('${')) && !/^(up|down|left|right):\s*\S/.test(step.target))
     throw new Error('Mobile scroll syntax: "down: the results list" (up, left and right also supported)');
   if (step.kind === 'press' && !(allowPlaceholders && step.key.includes('${')) && !['Back', 'Home', 'Enter', 'HideKeyboard'].includes(step.key))
@@ -61,10 +57,7 @@ export interface MobileSpec extends MobileTarget {
   steps: MobileStep[];
 }
 export function loadMobileSpec(file: string): MobileSpec {
-  const raw = MobileTargetSchema.extend({
+  return loadNativeSpec(file, MobileTargetSchema.extend({
     name: text, hooks: text.optional(), env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
-  }).parse(parse(readFileSync(file, 'utf8')));
-  const dir = dirname(resolve(file));
-  return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
-    env: resolveEnvBlock(file, 'env', raw.env), steps: raw.steps.map((s, i) => parseMobileStep(s, file, i)) };
+  }), parseMobileStep);
 }

@@ -2,19 +2,10 @@
 import { parseArgs } from 'node:util';
 import { loadSpec } from './spec.js';
 import { runSpec, closeSharedBrowser, mapLimitSettled } from './runner.js';
-import { serveMcp } from './mcp.js';
 import { formatMs } from './steps.js';
-import { provider, warmUp, MODEL_BY_PROVIDER, USER_ENV_FILE } from './jev.js';
+import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev.js';
 import { homedir } from 'node:os';
-// ponytail: cwd .env first, then the user file; a variable already set in the environment is never overridden
-for (const file of ['.env', USER_ENV_FILE]) {
-    try {
-        process.loadEnvFile(file);
-    }
-    catch {
-        /* no such file — fine */
-    }
-}
+loadEnvFiles();
 const { values, positionals } = parseArgs({
     options: {
         headless: { type: 'boolean', default: false },
@@ -27,15 +18,15 @@ const { values, positionals } = parseArgs({
     },
     allowPositionals: true,
 });
-if (positionals.length === 0) {
-    console.error('usage: plainwright [--headless] [--timeout <ms>] [--profile <dir>] [--cdp <url>] [--channel chrome] [--timing] [--workers N] <spec.yaml> [more.yaml ...] | mcp');
+function exit(message) {
+    console.error(message);
     process.exit(2);
 }
+if (positionals.length === 0)
+    exit('usage: plainwright [--headless] [--timeout <ms>] [--profile <dir>] [--cdp <url>] [--channel chrome] [--timing] [--workers N] <spec.yaml> [more.yaml ...] | mcp');
 const workers = Math.max(1, parseInt(values.workers, 10));
-if (Number.isNaN(workers)) {
-    console.error(`plainwright: --workers must be a number, got "${values.workers}"`);
-    process.exit(2);
-}
+if (Number.isNaN(workers))
+    exit(`plainwright: --workers must be a number, got "${values.workers}"`);
 const opts = {
     headed: !values.headless,
     timeout: Number(values.timeout),
@@ -45,10 +36,8 @@ const opts = {
     cdp: values.cdp ?? process.env.PLAINWRIGHT_CDP,
     channel: values.channel ?? process.env.PLAINWRIGHT_CHANNEL,
 };
-if (workers > 1 && (opts.profile || opts.cdp)) {
-    console.error('plainwright: --workers > 1 needs isolated browsers; --profile opens one persistent profile (cannot be opened twice) and --cdp attaches to one shared browser context. Run those with --workers 1.');
-    process.exit(2);
-}
+if (workers > 1 && (opts.profile || opts.cdp))
+    exit('plainwright: --workers > 1 needs isolated browsers; --profile opens one persistent profile (cannot be opened twice) and --cdp attaches to one shared browser context. Run those with --workers 1.');
 try {
     const p = provider();
     console.error(`plainwright: Jev via ${p} (${MODEL_BY_PROVIDER[p]})`);
@@ -61,18 +50,12 @@ catch (err) {
 }
 warmUp(); // connect to Jev while the browser launches
 if (positionals[0] === 'mcp') {
-    await serveMcp(opts); // stays alive until the transport closes
+    // Imported here: the MCP SDK (~70 ms to load) is not needed to run specs.
+    await (await import('./mcp.js')).serveMcp(opts); // stays alive until the transport closes
 }
 else {
-    const icon = (status) => {
-        if (status === 'pass')
-            return '✔';
-        if (status === 'inconclusive')
-            return '?';
-        if (status === 'skipped')
-            return '»'; // ponytail: optional step that didn't land, run continued
-        return '✘'; // fail or error
-    };
+    // » is an optional step that didn't land (the run continued); fail and error are both ✘.
+    const icon = (status) => ({ pass: '✔', inconclusive: '?', skipped: '»' })[status] ?? '✘';
     let allPassed = true;
     // Sums another step/spec's `ms` phases into `target`, in place — used to roll step ms up to a
     // per-spec total and per-spec totals up to a per-run total.
@@ -81,11 +64,15 @@ else {
             target[k] = (target[k] ?? 0) + v;
     };
     const runMs = {};
+    // Each spec's work (load + run) is wrapped so it never rejects — a per-spec failure becomes data
+    // (`error`), not a thrown promise — and submitted through the worker pool. Printing then iterates
+    // the per-item promises in input order, printing each as soon as it resolves: with --workers 1 the
+    // single worker runs specs strictly one after another, so output stays byte-identical to before;
+    // with more workers, later specs keep running while an earlier one is still being printed.
     const outcomes = mapLimitSettled(positionals, workers, async (file) => {
         try {
             const spec = loadSpec(file);
-            const result = await runSpec(spec, opts);
-            return { file, spec, result };
+            return { file, spec, result: await runSpec(spec, opts) };
         }
         catch (error) {
             return { file, error };

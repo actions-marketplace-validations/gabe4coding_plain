@@ -2,7 +2,7 @@ import { StepKind } from './step-kind.js';
 import { z } from 'zod';
 import type { Page, Frame, Locator, BrowserContext } from 'playwright';
 
-import { CandidateSchema, type Candidate, SnapshotSchema, type Snapshot } from './automation.js';
+import type { Candidate, Snapshot } from './automation.js';
 export { CandidateSchema, type Candidate, SnapshotSchema, type Snapshot } from './automation.js';
 
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
@@ -10,30 +10,16 @@ export type CandidateKind = z.infer<typeof CandidateKindSchema>;
 
 const CLICK_SELECTOR =
   'a, button, input, select, textarea, [role=button], [role=link], [role=tab], [role=menuitem], [role=checkbox], [role=radio], [role=option], [role=listbox] li, [role=menuitemradio], [onclick]';
-const FILL_SELECTOR =
-  'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), textarea, [contenteditable=true]';
-const SELECT_SELECTOR = 'select';
-// Toggles that keep their state in aria-pressed/aria-checked (filter chips, menu check items) count too; the
-// `check` step reads that state before acting. Labels whose checkbox has no size are added by the walker.
-const CHECK_SELECTOR =
-  'input[type=checkbox], input[type=radio], [role=checkbox], [role=radio], [role=switch], [role=menuitemcheckbox], [role=menuitemradio], [aria-pressed]';
-const UPLOAD_SELECTOR = 'input[type=file]';
-const REGION_SELECTOR =
-  'main, section, article, dialog, nav, header, footer, aside, form, table, [role=region], [role=dialog], [role=main], [role=tabpanel], [role=list]';
-
-// Layers decide what a dense page loses to the cap: an open dialog blocks everything else, so its controls
-// come first; nav and footer link farms (131 of trivago's first 254 candidates) come last.
-const DIALOG_SELECTOR = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
-const CHROME_SELECTOR = 'nav, footer, [role=navigation], [role=contentinfo]';
-
 const SELECTORS: Record<CandidateKind, string> = {
   [StepKind.click]: CLICK_SELECTOR,
   [StepKind.hover]: `${CLICK_SELECTOR}, img, svg, figure`, // hover targets are often plain images with no clickable signal
-  [StepKind.fill]: FILL_SELECTOR,
-  [StepKind.select]: SELECT_SELECTOR,
-  [StepKind.check]: CHECK_SELECTOR,
-  [StepKind.upload]: UPLOAD_SELECTOR,
-  region: REGION_SELECTOR,
+  [StepKind.fill]: 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), textarea, [contenteditable=true]',
+  [StepKind.select]: 'select',
+  // Toggles that keep their state in aria-pressed/aria-checked (filter chips, menu check items) count too; the
+  // `check` step reads that state before acting. Labels whose checkbox has no size are added by the walker.
+  [StepKind.check]: 'input[type=checkbox], input[type=radio], [role=checkbox], [role=radio], [role=switch], [role=menuitemcheckbox], [role=menuitemradio], [aria-pressed]',
+  [StepKind.upload]: 'input[type=file]',
+  region: 'main, section, article, dialog, nav, header, footer, aside, form, table, [role=region], [role=dialog], [role=main], [role=tabpanel], [role=list]',
 };
 
 declare global {
@@ -66,10 +52,7 @@ export async function installSettleObserver(target: Page | BrowserContext): Prom
 }
 
 /** A point in time of the page's main document, from `mark()`, or what `settle()` saw at its end. */
-export interface DocTime {
-  doc: number;
-  t: number;
-}
+export interface DocTime { doc: number; t: number; }
 
 /** Now, on the main document's clock; null where the observer is not installed. */
 export function mark(page: Page): Promise<DocTime | null> {
@@ -98,10 +81,7 @@ export function settle(page: Page, quietMs = 500, maxMs = 3000): Promise<DocTime
           return typeof doc === 'number' && typeof t === 'number' ? { doc, t } : null;
         };
         const last = window.__plainwrightLastMutation;
-        if (typeof last === 'number' && performance.now() - last >= quietMs) {
-          resolve(lastMutation());
-          return;
-        }
+        if (typeof last === 'number' && performance.now() - last >= quietMs) return resolve(lastMutation());
         const initialWait = typeof last === 'number' ? quietMs - (performance.now() - last) : quietMs;
         let timer = setTimeout(done, initialWait);
         const obs = new MutationObserver((records) => {
@@ -112,9 +92,7 @@ export function settle(page: Page, quietMs = 500, maxMs = 3000): Promise<DocTime
         const cap = setTimeout(done, maxMs);
         obs.observe(document.body, { childList: true, subtree: true, attributes: true });
         function done() {
-          obs.disconnect();
-          clearTimeout(timer);
-          clearTimeout(cap);
+          obs.disconnect(); clearTimeout(timer); clearTimeout(cap);
           resolve(lastMutation());
         }
       }),
@@ -129,14 +107,10 @@ export function waitForMutation(page: Page, maxMs: number): Promise<boolean> {
       new Promise<boolean>((resolve) => {
         const obs = new MutationObserver((records) => {
           if (records.every((r) => r.attributeName === own)) return;
-          obs.disconnect();
-          clearTimeout(timer);
+          obs.disconnect(); clearTimeout(timer);
           resolve(true);
         });
-        const timer = setTimeout(() => {
-          obs.disconnect();
-          resolve(false);
-        }, maxMs);
+        const timer = setTimeout(() => { obs.disconnect(); resolve(false); }, maxMs);
         obs.observe(document, { childList: true, subtree: true, attributes: true, characterData: true });
       }),
     { maxMs, own: OWN_ATTRIBUTE }
@@ -151,22 +125,25 @@ export function waitForMutation(page: Page, maxMs: number): Promise<boolean> {
  * Order before the cap: dialog content, then the page, then nav/footer; within a layer selector-matched
  * elements first (DOM order), extras after.
  */
-function collectCandidatesInPage(args: {
-  selector: string;
-  dialogSelector: string;
-  chromeSelector: string;
-  includeExtras: boolean;
-  labelsOfToggles: boolean;
-  skipVisibility: boolean;
-  max: number;
-  startId: number;
+function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, skipVisibility, max, startId }: {
+  selector: string; includeExtras: boolean; labelsOfToggles: boolean; skipVisibility: boolean; max: number; startId: number;
 }): string[] {
-  const { selector, dialogSelector, chromeSelector, includeExtras, labelsOfToggles, skipVisibility, max, startId } = args;
+  // Layers decide what a dense page loses to the cap: an open dialog blocks everything else, so its controls
+  // come first; nav and footer link farms (131 of trivago's first 254 candidates) come last.
+  const dialogSelector = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
+  const chromeSelector = 'nav, footer, [role=navigation], [role=contentinfo]';
 
+  // One style read per element per scan: the walk, the visibility filter and context() ask about the same elements.
+  const styles = new Map<Element, CSSStyleDeclaration>();
+  function styleOf(el: Element): CSSStyleDeclaration {
+    let style = styles.get(el);
+    if (!style) styles.set(el, (style = window.getComputedStyle(el)));
+    return style;
+  }
   function visible(el: Element): boolean {
     const r = el.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return false;
-    const style = window.getComputedStyle(el);
+    const style = styleOf(el);
     return style.visibility !== 'hidden' && style.display !== 'none';
   }
   const enabled = (el: Element) => !(el as HTMLButtonElement).disabled && el.getAttribute('aria-disabled') !== 'true';
@@ -175,38 +152,22 @@ function collectCandidatesInPage(args: {
     return s.length > n ? s.slice(0, n) + '…' : s;
   }
   function describe(el: Element): string {
-    const tag = el.tagName.toLowerCase();
     const type = el.getAttribute('type');
     const role = el.getAttribute('role');
-    let head = tag;
-    if (type) head += `[type=${type}]`;
-    if (role) head += `[role=${role}]`;
-    const parts: string[] = [head];
+    const parts = [el.tagName.toLowerCase() + (type ? `[type=${type}]` : '') + (role ? `[role=${role}]` : '')];
 
     const text = (el as HTMLElement).innerText ?? el.textContent ?? '';
     const value = (el as HTMLInputElement).value;
     if (text && text.trim()) parts.push(`"${truncate(text, 60)}"`);
     else if (value) parts.push(`value="${truncate(value, 60)}"`);
 
-    const ariaLabel = el.getAttribute('aria-label');
-    if (ariaLabel) parts.push(`aria-label="${truncate(ariaLabel, 60)}"`);
-    const placeholder = el.getAttribute('placeholder');
-    if (placeholder) parts.push(`placeholder="${truncate(placeholder, 60)}"`);
-    const alt = el.getAttribute('alt');
-    if (alt) parts.push(`alt="${truncate(alt, 60)}"`);
-    const title = el.getAttribute('title');
-    if (title) parts.push(`title="${truncate(title, 60)}"`);
-    const name = el.getAttribute('name');
-    if (name) parts.push(`name="${name}"`);
-    const id = el.getAttribute('id');
-    if (id) parts.push(`id="${id}"`);
+    for (const attr of ['aria-label', 'placeholder', 'alt', 'title', 'name', 'id']) {
+      const v = el.getAttribute(attr);
+      if (v) parts.push(`${attr}="${attr === 'name' || attr === 'id' ? v : truncate(v, 60)}"`); // name and id are never cut
+    }
     const href = el.getAttribute('href');
     if (href) {
-      try {
-        parts.push(`href=${new URL(href, location.href).pathname}`);
-      } catch {
-        parts.push(`href=${href}`);
-      }
+      try { parts.push(`href=${new URL(href, location.href).pathname}`); } catch { parts.push(`href=${href}`); }
     }
     return parts.join(' ');
   }
@@ -221,20 +182,38 @@ function collectCandidatesInPage(args: {
   function parent(el: Element): Element | null {
     return el.parentElement ?? (el.getRootNode() instanceof ShadowRoot ? (el.getRootNode() as ShadowRoot).host : null);
   }
-  function hasHeading(el: Element): boolean {
+  // Candidates in one list share their containers, so every per-element check below is asked once per scan.
+  const memo = <T>(fn: (el: Element) => T) => {
+    const cache = new Map<Element, T>();
+    return (el: Element): T => {
+      let v = cache.get(el);
+      if (v === undefined && !cache.has(el)) cache.set(el, (v = fn(el)));
+      return v as T;
+    };
+  };
+  const isHeading = memo((el) => el.matches(HEADING));
+  const isItem = memo((el) => el.matches(ITEM));
+  const isGroup = memo((el) => el.matches(GROUP));
+  const isStop = memo((el) => el.matches('body, main, nav, footer, table, ul, ol, [role=main], [role=table], [role=list]'));
+  const isBoundary = memo((el) => el.matches(`${OMIT}, ${ITEM}, ${GROUP}`));
+  const isHidden = memo((el) => {
+    const style = styleOf(el);
+    return el.hasAttribute('hidden') || el.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden';
+  });
+  const hasHeading = memo((el) => {
     let scanned = 0;
     for (const child of el.children) {
       if (++scanned > 256) break;
-      if (child.matches(HEADING)) return true;
+      if (isHeading(child)) return true;
     }
     return false;
-  }
+  });
   function context(el: Element): string {
     let container = parent(el);
     for (let depth = 0; container && depth < 6; depth++, container = parent(container)) {
-      if (container.matches('body, main, nav, footer, table, ul, ol, [role=main], [role=table], [role=list]')) break;
-      const item = container.matches(ITEM);
-      const group = container.matches(GROUP);
+      if (isStop(container)) break;
+      const item = isItem(container);
+      const group = isGroup(container);
       // Plain div cards are common too. Only consider a direct heading, never a heading in a
       // neighboring child card; all other generic wrappers are skipped.
       const headed = hasHeading(container);
@@ -255,17 +234,16 @@ function collectCandidatesInPage(args: {
         }
         if (!(node instanceof Element)) return;
         if (node !== container) {
-          if (node === el || node.matches(`${OMIT}, ${ITEM}, ${GROUP}`)) return;
+          if (node === el || isBoundary(node)) return;
           // An article's heading may live in a header/div. Only use the extra generic-card
           // boundary when the selected container itself is a generic card.
           if (!item && !group && hasHeading(node)) return;
         }
-        const style = window.getComputedStyle(node);
-        if (node.hasAttribute('hidden') || node.getAttribute('aria-hidden') === 'true' || style.display === 'none' || style.visibility === 'hidden') return;
-        const isHeading = inHeading || node.matches(HEADING);
+        if (isHidden(node)) return;
+        const underHeading = inHeading || isHeading(node);
         for (const child of node.childNodes) {
           if (visited >= 256) break;
-          read(child, isHeading);
+          read(child, underHeading);
         }
       }
       read(container);
@@ -287,11 +265,18 @@ function collectCandidatesInPage(args: {
 
   // `cursor` is inherited: only the outermost pointer element is the clickable (the card), not every
   // span/svg/path inside it — those would only bloat the list toward the 255-option ceiling.
-  const isPointer = (el: Element) => window.getComputedStyle(el).cursor === 'pointer';
+  const pointer = new Map<Element, boolean>();
+  function isPointer(el: Element): boolean {
+    let is = pointer.get(el);
+    if (is === undefined) pointer.set(el, (is = styleOf(el).cursor === 'pointer'));
+    return is;
+  }
   // A styled checkbox is usually a 0x0 or offscreen input behind a label: the label is what a user clicks.
   const isHiddenToggle = (c: HTMLElement | null) => c instanceof HTMLInputElement && (c.type === 'checkbox' || c.type === 'radio') && !visible(c);
+  // Last scan's tags are removed after the walk: a write between style reads makes the next read recompute styles.
+  const stale: Element[] = [];
   function visit(el: Element, layer: number) {
-    if (el.hasAttribute('data-jev-id')) el.removeAttribute('data-jev-id');
+    if (el.hasAttribute('data-jev-id')) stale.push(el);
     if (el.matches(dialogSelector)) layer = 0;
     else if (layer === 1 && el.matches(chromeSelector)) layer = 2;
     if (el.matches(selector)) found.push({ el, key: layer * 2 });
@@ -303,6 +288,7 @@ function collectCandidatesInPage(args: {
     for (const c of Array.from(el.children)) visit(c, layer);
   }
   if (document.body) for (const c of Array.from(document.body.children)) visit(c, 1);
+  for (const el of stale) el.removeAttribute('data-jev-id');
 
   const keep = (el: Element) => (skipVisibility || visible(el)) && enabled(el);
   const final = found
@@ -320,22 +306,16 @@ function collectCandidatesInPage(args: {
   for (const d of descs) counts.set(d, (counts.get(d) ?? 0) + 1);
   const seen = new Map<string, number>();
   return descs.map((d, i) => {
-    const surrounding = context(final[i]);
-    if ((counts.get(d) ?? 0) < 2) return d + surrounding;
     const n = (seen.get(d) ?? 0) + 1;
     seen.set(d, n);
-    return `${d} #${n}${surrounding}`;
+    return `${d}${counts.get(d)! > 1 ? ` #${n}` : ''}${context(final[i])}`;
   });
 }
 
 function frameLabel(frame: Frame): string {
   const name = frame.name();
   if (name) return name;
-  try {
-    return new URL(frame.url()).pathname || frame.url();
-  } catch {
-    return frame.url();
-  }
+  try { return new URL(frame.url()).pathname || frame.url(); } catch { return frame.url(); }
 }
 
 export async function candidates(page: Page, kind: CandidateKind, max: number): Promise<Candidate[]> {
@@ -351,16 +331,7 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
     const startId = out.length;
     let descs: string[];
     try {
-      descs = await frame.evaluate(collectCandidatesInPage, {
-        selector,
-        dialogSelector: DIALOG_SELECTOR,
-        chromeSelector: CHROME_SELECTOR,
-        includeExtras,
-        labelsOfToggles,
-        skipVisibility,
-        max: max - out.length,
-        startId,
-      });
+      descs = await frame.evaluate(collectCandidatesInPage, { selector, includeExtras, labelsOfToggles, skipVisibility, max: max - out.length, startId });
     } catch {
       continue; // detached or cross-origin frame — skip, never fatal
     }
@@ -376,13 +347,8 @@ export function elementById(page: Page, id: number, frameIndex = 0): Locator {
 
 const ARIA_MAX_CHARS = 60_000; // ponytail: hard truncate, no smart summarization — ≈15k tokens, ≈$0.0006/call
 
-function capAria(s: string): { aria: string; truncated: boolean } {
-  return s.length > ARIA_MAX_CHARS ? { aria: s.slice(0, ARIA_MAX_CHARS), truncated: true } : { aria: s, truncated: false };
-}
-
-function toSnapshot(page: Page, title: string, ariaFull: string): Snapshot {
-  const { aria, truncated } = capAria(ariaFull);
-  return { url: page.url(), title, aria, truncated };
+function toSnapshot(page: Page, title: string, aria: string): Snapshot {
+  return { url: page.url(), title, aria: aria.slice(0, ARIA_MAX_CHARS), truncated: aria.length > ARIA_MAX_CHARS };
 }
 
 export async function snapshot(page: Page): Promise<Snapshot> {
@@ -394,12 +360,8 @@ export async function snapshot(page: Page): Promise<Snapshot> {
     // detached or cross-origin — skip, never fatal
     Promise.all(iframeFrames.map((f) => f.locator('body').ariaSnapshot().catch(() => null))),
   ]);
-  let full = bodyAria;
-  iframeFrames.forEach((frame, i) => {
-    const frameAria = iframeArias[i];
-    if (frameAria !== null) full += `\n--- iframe ${frameLabel(frame)} ---\n${frameAria}`;
-  });
-  return toSnapshot(page, title, full);
+  const iframes = iframeFrames.map((frame, i) => iframeArias[i] === null ? '' : `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}`);
+  return toSnapshot(page, title, bodyAria + iframes.join(''));
 }
 
 /** Same as `snapshot()` but scoped to one region locator, for `expect: { that, within }`. */

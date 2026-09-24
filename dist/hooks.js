@@ -8,28 +8,23 @@ import { fileURLToPath } from 'node:url';
 export async function startHooks(file) {
     const child = fork(fileURLToPath(new URL('./hooks-child.js', import.meta.url)), [file]);
     let pending = null;
-    child.on('message', (msg) => {
-        pending?.resolve(msg);
-        pending = null;
-    });
-    const onGone = (reason) => {
-        pending?.reject(new Error(`hooks child for ${file} ${reason}`));
-        pending = null;
-    };
+    const settle = (fn) => { if (pending)
+        fn(pending); pending = null; };
+    child.on('message', (msg) => settle((p) => p.resolve(msg)));
+    const onGone = (reason) => settle((p) => p.reject(new Error(`hooks child for ${file} ${reason}`)));
     child.on('exit', (code) => onGone(`exited (code ${code}) before responding`));
     child.on('error', (err) => onGone(`failed: ${err.message}`));
-    function next() {
-        return new Promise((resolve, reject) => (pending = { resolve, reject }));
-    }
-    const first = await next(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
+    // One request in flight at a time: the next message from the child is its reply.
+    const call = (msg) => {
+        const reply = new Promise((resolve, reject) => (pending = { resolve, reject }));
+        if (msg)
+            child.send(msg);
+        return reply;
+    };
+    const first = await call(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
     if (first.type === 'error') {
         child.kill();
         throw new Error(first.message);
-    }
-    async function call(msg) {
-        const reply = next();
-        child.send(msg);
-        return reply;
     }
     return {
         has: first.has ?? { setup: false, teardown: false },
@@ -44,8 +39,12 @@ export async function startHooks(file) {
             if (!reply.ok)
                 throw new Error(reply.message);
         },
-        close() {
-            child.kill();
-        },
+        close: () => void child.kill(),
     };
+}
+// Leaf paths of `data` as `${hooks.a.b}` placeholders for an MCP `open` response — never the values
+// themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
+export function placeholderPaths(data, prefix = 'hooks') {
+    return Object.entries(data).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ?
+        placeholderPaths(v, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
 }

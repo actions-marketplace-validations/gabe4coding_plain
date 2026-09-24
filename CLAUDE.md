@@ -92,7 +92,7 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   session → `setup()` → interpolate `url`/`steps` with `{env, hooks: data}` → run steps → `teardown()` in
   `finally` → close the child → close the session. `Status` is `pass | fail | inconclusive | error | skipped`.
   A setup error yields a single `setup` step and `error`, with no teardown; a teardown error always makes the
-  run `error`. Exports `HooksModule` (the type), `HooksRunner`, `startHooks` for reuse by `src/mcp.ts`.
+  run `error`. Steps go through `runStepSafely` (`src/steps.ts`), shared with `src/mcp.ts`: errors become results, optional misses become `skipped`.
 - Hooks contract: an ES module next to the spec (`hooks:`, resolved relative to the spec file) with optional
   `setup({spec})` (its return becomes `${hooks.*}`) and `teardown({spec, data, result})`, run in its own child
   process (`src/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks
@@ -132,9 +132,10 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 ## Computer use
 
 - `src/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Browser, desktop and mobile paths use it. `src/results.ts` shares labels/status/debug output.
-- `src/hooks.ts` owns the generic isolated hook runner; browser exports remain available through `runner.ts`.
+- `src/hooks.ts` owns the generic isolated hook runner (`startHooks`) and `placeholderPaths`, used by all three MCP servers.
+- `src/native.ts` is the shared desktop/mobile core: `NativeSession` (Jev targeting via `askSettled`, expect/wait polling, phase timing; subclasses implement only `act`), `runNativeSpec` (hooks → open → steps → teardown → close) and `nativeCli`. `src/native-mcp.ts` (`createNativeServer`, `serveNative`) holds the shared step/find/snapshot/screenshot/save/close tools; each platform registers its own open and discovery tools first.
 - `src/computer-adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports).
-- `src/computer-spec.ts`, `computer.ts`, `computer-mcp.ts`, `computer-cli.ts` provide desktop parsing/execution, eight serialized MCP tools, and sequential batch replay. Desktop specs have `app`, not `url`.
+- `src/computer-spec.ts`, `computer.ts`, `computer-mcp.ts`, `computer-cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (eight serialized MCP tools in all), and sequential batch replay, on top of `native.ts`/`native-mcp.ts`. Desktop specs have `app`, not `url`.
 - `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates all plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
 - Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.md` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
 - `npm run test:computer:mac` is an opt-in native smoke against a disposable Cocoa fixture (Accessibility/Screen Recording permissions required); regular `npm test` uses injected desktop adapters and no model keys. Windows/Linux native parity requires testing on those platforms.
@@ -143,8 +144,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 
 - `src/mobile-adapter.ts` provides injectable `MobileAdapter` and lazy WebdriverIO `AppiumAdapter`. Appium and platform drivers are external host prerequisites; never auto-install apps or reset app data. Explicit `platform`, `device` (UDID/ADB serial) and installed `app` are required.
 - `src/mobile-tree.ts` normalizes native XCUITest/UiAutomator2 XML into shared candidates/snapshots. Native paths stay inside the adapter; Jev remains the sole target decision maker. Revalidate captured identity before native actions.
-- `mobile-spec.ts`, `mobile.ts`, `mobile-mcp.ts`, `mobile-cli.ts` provide mobile parsing, shared Jev/hooks/results, nine serialized tools, and sequential replay. `serial-queue.ts` is shared with desktop MCP.
-- `MobileSession.settled()` uses `askSettled` (`automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
+- `mobile-spec.ts`, `mobile.ts`, `mobile-mcp.ts`, `mobile-cli.ts` provide mobile parsing, actions, the discovery/`open` tools (nine serialized tools in all), and sequential replay, on top of `native.ts`/`native-mcp.ts`.
+- `NativeSession.settled()` uses `askSettled` (`automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
 - `mobile-discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
 - The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.md` and its skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.

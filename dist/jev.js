@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { experimental_evaluate as evaluate, APICallError } from 'ai';
 import { TypeSafeClient, UnprocessableEntityError, noul, choice } from '@typesafe-ai/sdk';
 import { Agent, setGlobalDispatcher } from 'undici';
 import { homedir } from 'node:os';
@@ -23,18 +22,26 @@ export function warmUp() {
         p = provider();
     }
     catch {
-        return; // no key: the first call reports it
-    }
+        return;
+    } // no key: the first call reports it
     const questions = [{ kind: 'boolean', instructions: 'The state is empty.' }];
     for (let i = 0; i < 2; i++) {
         const call = p === 'typesafe' ? callTypesafe({}, questions, { retry: { maxRetries: 0 }, timeout: 10_000 }) : callGateway({}, questions);
         call.catch(() => { });
     }
 }
-export const ProviderSchema = z.enum(['typesafe', 'gateway']);
+const KEY_BY_PROVIDER = { typesafe: 'TYPESAFE_API_KEY', gateway: 'AI_GATEWAY_API_KEY' };
 // One documented place for a key, read by the CLI and by both plugin hosts (src/cli.ts loads it after the cwd .env).
 // It exists because Codex passes plugin MCP servers no shell environment at all.
 export const USER_ENV_FILE = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'plainwright', '.env');
+/** cwd .env first, then the user file; a variable already set in the environment is never overridden. */
+export function loadEnvFiles() {
+    for (const file of ['.env', USER_ENV_FILE])
+        try {
+            process.loadEnvFile(file);
+        }
+        catch { /* optional file */ }
+}
 export const MODEL_BY_PROVIDER = {
     // Pinned: decide()'s thresholds and the README's phrasing rules were tuned against this
     // version. `jev-latest` resolved to 1.13.0 as of 2026-09-19 — bump deliberately, re-tune after.
@@ -44,15 +51,10 @@ export const MODEL_BY_PROVIDER = {
 export function selectProvider(env = process.env) {
     const requested = env.JEV_PROVIDER;
     if (requested !== undefined) {
-        if (requested !== 'typesafe' && requested !== 'gateway') {
+        if (requested !== 'typesafe' && requested !== 'gateway')
             throw new Error(`JEV_PROVIDER must be "typesafe" or "gateway", got "${requested}".`);
-        }
-        if (requested === 'typesafe' && !env.TYPESAFE_API_KEY) {
-            throw new Error('JEV_PROVIDER=typesafe requires TYPESAFE_API_KEY to be set.');
-        }
-        if (requested === 'gateway' && !env.AI_GATEWAY_API_KEY) {
-            throw new Error('JEV_PROVIDER=gateway requires AI_GATEWAY_API_KEY to be set.');
-        }
+        if (!env[KEY_BY_PROVIDER[requested]])
+            throw new Error(`JEV_PROVIDER=${requested} requires ${KEY_BY_PROVIDER[requested]} to be set.`);
         return requested;
     }
     if (env.TYPESAFE_API_KEY)
@@ -66,22 +68,17 @@ export function selectProvider(env = process.env) {
 let cachedProvider;
 let typesafeClient;
 export function provider() {
-    if (!cachedProvider)
-        cachedProvider = selectProvider();
-    return cachedProvider;
+    return (cachedProvider ??= selectProvider());
 }
 function typesafe() {
-    if (!typesafeClient) {
-        typesafeClient = new TypeSafeClient({
-            apiKey: process.env.TYPESAFE_API_KEY,
-            // Per attempt. The SDK default is 10 s; large picks (~20k tokens) have taken 17–49 s live.
-            timeout: 60_000,
-            // The SDK already retries 408/429/5xx (incl. 529 Overloaded) with jittered backoff and honors
-            // Retry-After. Widened so a free-tier rate-limit window (~60 s) and 5xx bursts are outlasted.
-            retry: { maxRetries: 4, backoffInitialMs: 10_000, backoffMaxMs: 65_000, maxRetryAfterMs: 65_000 },
-        });
-    }
-    return typesafeClient;
+    return (typesafeClient ??= new TypeSafeClient({
+        apiKey: process.env.TYPESAFE_API_KEY,
+        // Per attempt. The SDK default is 10 s; large picks (~20k tokens) have taken 17–49 s live.
+        timeout: 60_000,
+        // The SDK already retries 408/429/5xx (incl. 529 Overloaded) with jittered backoff and honors
+        // Retry-After. Widened so a free-tier rate-limit window (~60 s) and 5xx bursts are outlasted.
+        retry: { maxRetries: 4, backoffInitialMs: 10_000, backoffMaxMs: 65_000, maxRetryAfterMs: 65_000 },
+    }));
 }
 // ponytail: the free-tier gateway rate-limits bursts of calls; the SDK's own retries are too
 // quick to outlast that window, so wait out one window and try again. Drop this once on a paid
@@ -100,6 +97,7 @@ async function withGatewayRetry(fn) {
             return await fn();
         }
         catch (err) {
+            const { APICallError } = await import('ai');
             const status = APICallError.isInstance(err) ? err.statusCode : undefined;
             const msg = err instanceof Error ? err.message : '';
             const rateLimited = status === 429 || /rate.?limit/i.test(msg);
@@ -121,10 +119,6 @@ export function isTooLong(err) {
     }
     return err instanceof Error && /max_tokens_exceeded/.test(err.message); // gateway wording, seen live
 }
-export const QuestionSchema = z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('choice'), instructions: z.string(), criteria: z.record(z.string(), z.string()) }),
-    z.object({ kind: z.literal('boolean'), instructions: z.string() }),
-]);
 // Raw shape an answer comes back in from either backend, before ask() normalizes it. `confidence`
 // only ever comes from a Choice answer (TypeSafe's `ChoiceResponse`); carried through, not decided on.
 export const AskAnswerSchema = z.object({
@@ -135,8 +129,13 @@ export const AskAnswerSchema = z.object({
 });
 const RawAnswerSchema = AskAnswerSchema.extend({ noul: z.number().optional() });
 const RawAnswersSchema = z.record(z.string(), RawAnswerSchema);
+// Questions go out keyed q0, q1, ...; answers come back in request order.
+const keysOf = (questions) => questions.map((_, i) => `q${i}`);
+const inOrder = (keys, answers) => { const raw = RawAnswersSchema.parse(answers); return keys.map((k) => raw[k]); };
 async function callGateway(state, questions) {
-    const keys = questions.map((_, i) => `q${i}`);
+    const keys = keysOf(questions);
+    // Loaded on first use: only the gateway provider needs the AI SDK (~50 ms to import).
+    const { experimental_evaluate: evaluate } = await import('ai');
     const { answers, usage } = await evaluate({
         model: MODEL_BY_PROVIDER.gateway,
         // ponytail: state is plain JSON at runtime; the SDK's JSONObject type wants an index
@@ -149,18 +148,16 @@ async function callGateway(state, questions) {
                 : { type: 'boolean', instructions: q.instructions },
         ])),
     });
-    const raw = RawAnswersSchema.parse(answers);
-    return { answers: keys.map((k) => raw[k]), tokens: usage.totalTokens ?? 0 };
+    return { answers: inOrder(keys, answers), tokens: usage.totalTokens ?? 0 };
 }
 async function callTypesafe(state, questions, options) {
-    const keys = questions.map((_, i) => `q${i}`);
+    const keys = keysOf(questions);
     const { answers, usage } = await typesafe().systemOne({
         model: MODEL_BY_PROVIDER.typesafe,
         state: state,
         questions: Object.fromEntries(questions.map((q, i) => [keys[i], q.kind === 'choice' ? choice(q.instructions, q.criteria) : noul(q.instructions)])),
     }, options);
-    const raw = RawAnswersSchema.parse(answers);
-    return { answers: keys.map((k) => raw[k]), tokens: usage.input_tokens + usage.output_tokens };
+    return { answers: inOrder(keys, answers), tokens: usage.input_tokens + usage.output_tokens };
 }
 // The one call path pickElements and judge both go through: dispatches on the resolved provider
 // and normalizes the answer shape the two backends disagree on, in request order.
@@ -180,13 +177,6 @@ export const MAX_PICK_CANDIDATES = 254;
 // (dialog first, nav/footer last) so a page past this loses link farms, not controls.
 // ponytail: past this, target the step with css= or scope it with `within`.
 export const MAX_CANDIDATES = MAX_PICK_CANDIDATES * 4;
-export const PickResultSchema = z.object({
-    id: z.number().nullable(),
-    probability: z.number(), // p of the chosen option
-    confidence: z.number().optional(), // TypeSafe Choice confidence; absent on the gateway path
-    probabilities: z.record(z.string(), z.number()), // option key → p
-    tokens: z.number(), // whole-request tokens on the FIRST result, 0 on the others
-});
 // One Choice question per instruction, all sharing the same criteria and one request. Descriptions
 // are deliberately sent twice (state.elements and criteria). Measured 2026-09-19 with them only in
 // criteria: pick tokens -40% on a 192-candidate page, but pick p -0.05 on average and up to -0.33;
@@ -197,13 +187,7 @@ async function pickChunk(candidates, instructions, page) {
         criteria[String(c.id)] = c.desc;
     // `instructions` as a list (not folded into each question's text) plus `today` lets a step like
     // "the earliest day after today" have one answer instead of one per instruction wording.
-    const state = {
-        url: page.url,
-        title: page.title,
-        today: new Date().toISOString().slice(0, 10),
-        instructions,
-        elements: candidates,
-    };
+    const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), instructions, elements: candidates };
     const questions = instructions.map((_, i) => ({
         kind: 'choice',
         instructions: `Which element does \`instructions[${i}]\` refer to? Pick \`none\` if no listed element matches.`,
@@ -304,18 +288,12 @@ export async function describeSnapshot(state, intent, evaluate = ask) {
     const relevance = parsed.answers.slice(4).map(a => probability.parse(a.probability));
     return { screen: { type: screenType, probability: screenProbability, confidence }, signals, relevance, tokens: parsed.tokens };
 }
-export const DecisionSchema = z.enum(['pass', 'fail', 'inconclusive']);
 // ponytail: fixed thresholds, make them CLI flags if a real suite needs tuning
 const EXPECT_PASS = 0.9;
 const EXPECT_FAIL = 0.1;
 const PICK_ACCEPT = 0.5;
 export function decide(p, kind) {
-    if (kind === 'expect') {
-        if (p >= EXPECT_PASS)
-            return 'pass';
-        if (p <= EXPECT_FAIL)
-            return 'fail';
-        return 'inconclusive';
-    }
-    return p >= PICK_ACCEPT ? 'pass' : 'inconclusive';
+    if (kind === 'pick')
+        return p >= PICK_ACCEPT ? 'pass' : 'inconclusive';
+    return p >= EXPECT_PASS ? 'pass' : p <= EXPECT_FAIL ? 'fail' : 'inconclusive';
 }

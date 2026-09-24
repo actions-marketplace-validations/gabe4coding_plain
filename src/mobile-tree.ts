@@ -1,6 +1,6 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { MAX_CANDIDATES } from './jev.js';
-import type { Candidate, Snapshot } from './automation.js';
+import type { Candidate, Frame } from './automation.js';
 
 export type MobileKind = 'click' | 'fill' | 'check' | 'region' | 'scroll';
 export interface MobileNode {
@@ -16,11 +16,6 @@ export interface MobileElement {
   path: string;
   identity: string;
   generation: number;
-}
-export interface MobileFrame<T = MobileElement> {
-  snapshot: Snapshot;
-  candidates: Candidate[];
-  elements: Map<number, T>;
 }
 // Identity excludes changing values/checked state, but includes labels and native identifiers.
 export function nodeIdentity(node: MobileNode): string {
@@ -89,7 +84,7 @@ export function mobileMatches(node: MobileNode, kind: MobileKind): boolean {
     (node.attrs.accessible === 'true' && !!node.name);
 }
 
-export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url: string; title: string }, generation: number, truncated = false): MobileFrame {
+export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url: string; title: string }, generation: number, truncated = false): Frame<MobileElement> {
   const candidates: Candidate[] = [], elements = new Map<number, MobileElement>(), lines: string[] = [];
   let chars = 0;
   function walk(nodes: MobileNode[], depth: number, context: string) {

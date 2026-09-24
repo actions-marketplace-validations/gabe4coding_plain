@@ -8,36 +8,24 @@ import type { HooksModule } from './hooks.js';
 const file = process.argv[2];
 let hooks: HooksModule = {};
 
-function send(msg: Record<string, unknown>): void {
-  process.send?.(msg);
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
+const send = (msg: Record<string, unknown>): void => void process.send?.(msg);
+const errorMessage = (err: unknown): string => err instanceof Error ? err.message : String(err);
 
 process.on('disconnect', () => process.exit(0)); // an orphaned child dies with its parent
 
 process.on('message', async (msg: { type: string; [key: string]: unknown }) => {
-  if (msg.type === 'setup') {
-    try {
+  if (msg.type !== 'setup' && msg.type !== 'teardown') return;
+  try {
+    if (msg.type === 'setup') {
       const returned = hooks.setup ? await hooks.setup({ spec: msg.spec as never }) : undefined;
-      if (returned !== undefined && (returned === null || typeof returned !== 'object')) {
-        throw new Error('setup must return an object');
-      }
+      if (returned !== undefined && (returned === null || typeof returned !== 'object')) throw new Error('setup must return an object');
       send({ type: 'setup', ok: true, data: returned ?? {} });
-    } catch (err) {
-      send({ type: 'setup', ok: false, message: errorMessage(err) });
-    }
-  } else if (msg.type === 'teardown') {
-    try {
-      if (hooks.teardown) {
-        await hooks.teardown({ spec: msg.spec as never, data: msg.data as Record<string, unknown>, result: msg.result as never });
-      }
+    } else {
+      await hooks.teardown?.({ spec: msg.spec as never, data: msg.data as Record<string, unknown>, result: msg.result as never });
       send({ type: 'teardown', ok: true });
-    } catch (err) {
-      send({ type: 'teardown', ok: false, message: errorMessage(err) });
     }
+  } catch (err) {
+    send({ type: msg.type, ok: false, message: errorMessage(err) });
   }
 });
 

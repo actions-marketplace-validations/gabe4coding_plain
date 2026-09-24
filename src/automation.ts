@@ -7,6 +7,8 @@ export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), fram
 export type Candidate = z.infer<typeof CandidateSchema>;
 export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
 export type Snapshot = z.infer<typeof SnapshotSchema>;
+/** One native capture: what Jev sees, plus the adapter's handle for each candidate id. */
+export interface Frame<T> { snapshot: Snapshot; candidates: Candidate[]; elements: Map<number, T>; }
 export interface TargetAdapter<T> {
   candidates: Candidate[];
   state: { url: string; title: string };
