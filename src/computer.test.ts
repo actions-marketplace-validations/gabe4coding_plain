@@ -172,11 +172,12 @@ test('a window that appears after the previous step is waited for, not reported 
   assert.ok((result.ms?.idle ?? 0) >= 250);
 });
 
+const node = (role: string, name: string | null, value: string | null, children: unknown[] = [], actions = ['press']) => ({
+  role, name, value, visible: true, enabled: true, editable: false, checked: null, selected: false, focused: false,
+  actions, focusable: false, modal: false, children: async () => children,
+});
+
 test('captureTree: a label inside a control is not a second candidate; an unnamed control takes its inner text', async () => {
-  const node = (role: string, name: string | null, value: string | null, children: unknown[] = [], actions = ['press']) => ({
-    role, name, value, visible: true, enabled: true, editable: false, checked: null, selected: false, focused: false,
-    actions, focusable: false, modal: false, children: async () => children,
-  });
   const tree = node('web_area', 'Slack', null, [
     node('tab', 'Files & links', '0', [node('static_text', '', 'Files & links')]),
     node('button', '', '', [node('group', null, null, [node('static_text', '', 'Activity')], [])]),
@@ -194,4 +195,21 @@ test('captureTree: a label inside a control is not a second candidate; an unname
     'button "Edit" in row "Report"',
     'static_text "" value="Standalone label" in web_area "Slack"',
   ]);
+});
+
+test('captureTree: a row is one candidate named by its cells; one window and the app are not repeated as context', async () => {
+  const cell = (text: string) => node('table_cell', '', null, [node('static_text', '', text, [], [])], ['focus']);
+  const tree = node('application', 'Fork', null, [node('window', 'plainwright', null, [
+    node('table_row', '', null, [cell('Fix the parser'), cell('Ann'), cell('813f225'), cell('Today at 22:55')], []),
+    node('text_area', '', 'x'.repeat(500), [], ['set_value']),
+    node('list', 'Folders', null, [node('button', 'Notes', null)]),
+  ], [])], []);
+  const { candidates, snapshot } = await captureTree(tree as never, 'click', 1000);
+  assert.deepEqual(candidates.map((c) => c.desc), [
+    'table_row "" text="Fix the parser Ann 813f225 Today at 22:55"',
+    `text_area "" value="${'x'.repeat(100)}…"`,
+    'list "Folders"',
+    'button "Notes" in list "Folders"',
+  ]);
+  assert.ok(snapshot.aria.includes('x'.repeat(500))); // the snapshot keeps the whole value
 });
