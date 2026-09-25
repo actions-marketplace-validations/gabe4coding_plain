@@ -13,6 +13,33 @@ const MAX_NOTE_CHARS = 300;
 export function shortNote(msg) {
     return msg.length <= MAX_NOTE_CHARS ? msg : `${msg.slice(0, MAX_NOTE_CHARS)}… (${msg.length} chars)`;
 }
+// Console errors that say nothing about the page under test: resources the browser refused or failed to
+// load (ads, trackers, CSP) and errors logged by another site's script. Yahoo Finance logged 96 of them on
+// one click (26k chars of notes). They are counted in one note and never sent to Jev.
+const BLOCKED_RESOURCE = /Content Security Policy|^Failed to load resource|net::ERR_|Blocked script execution in 'about:blank'|third-party cookie/i;
+// A registrable-domain guess, enough to tell "same site" from "someone else's script": example.co.uk → example.co.uk.
+function site(url) {
+    let host;
+    try {
+        host = new URL(url).hostname;
+    }
+    catch {
+        return null;
+    }
+    const labels = host.split('.');
+    const keep = labels.length > 2 && labels.at(-1).length === 2 && labels.at(-2).length <= 3 ? 3 : 2;
+    return labels.slice(-keep).join('.');
+}
+/** True when a console error comes from a blocked/failed resource or another site's script. */
+export function isConsoleNoise(text, sourceUrl, pageUrl) {
+    if (BLOCKED_RESOURCE.test(text))
+        return true;
+    const from = site(sourceUrl), own = site(pageUrl);
+    return from !== null && own !== null && from !== own;
+}
+export function noiseNote(count) {
+    return `console: ${count} error${count === 1 ? '' : 's'} from other sites or blocked resources (ads, trackers, CSP), not listed`;
+}
 /** Appends `msg`, or counts it on the last entry when it repeats it: `msg (×3)`. */
 export function pushCollapsed(list, msg) {
     const last = list.at(-1);
@@ -113,6 +140,7 @@ export async function openSession(spec, opts, track) {
     await installSettleObserver(opts.cdp ? page : page.context());
     const acceptDialogs = spec.dialogs !== 'dismiss';
     let pendingNotes = [];
+    let noise = 0; // console noise since the last drain, reported as one note
     // Visible to Jev on every `expect`/`wait` (see the `events` field passed to judge() below), so
     // "a JavaScript error happened" or "a file was downloaded" become answerable from state Jev sees.
     const events = [];
@@ -150,15 +178,27 @@ export async function openSession(spec, opts, track) {
             }
         });
         p.on('pageerror', (err) => note(`pageerror: ${err.message}`));
-        p.on('console', (msg) => { if (msg.type() === 'error')
-            note(`console.error: ${msg.text()}`); });
+        p.on('console', (msg) => {
+            if (msg.type() !== 'error')
+                return;
+            if (isConsoleNoise(msg.text(), msg.location().url, p.url()))
+                noise++;
+            else
+                note(`console.error: ${msg.text()}`);
+        });
     }
     attach(page);
     const ctx = { get page() { return page; }, spec, timeout: opts.timeout, events, track, ms: {} };
     return {
         ctx,
         downloadsDir,
-        drainNotes: () => pendingNotes.splice(0),
+        drainNotes: () => {
+            const out = pendingNotes.splice(0);
+            if (noise)
+                out.push(noiseNote(noise));
+            noise = 0;
+            return out;
+        },
         close: async () => {
             // leave nothing behind, even if the context failed to close
             try {

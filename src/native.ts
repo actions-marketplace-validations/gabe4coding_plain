@@ -103,8 +103,9 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     const deadline = Date.now() + this.timeout;
     let polls = 0, last = '', probabilities: number[] = [], status: Status = 'inconclusive';
     let snap;
+    // A wait polls its region too: one region pick, then only that part of the tree per poll.
+    const region = step.within ? await this.region(step.within) : undefined;
     do {
-      const region = step.kind === 'expect' && step.within ? await this.region(step.within) : undefined;
       // Unchanged since a clear "no": asking again buys nothing.
       const { frame, result: judged } = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai),
         (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');

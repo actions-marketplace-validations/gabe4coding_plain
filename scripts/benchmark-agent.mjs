@@ -3,7 +3,9 @@
 // with `changed` in step/batch results off (PLAINWRIGHT_CHANGES=0) and on. Reports tool calls, agent tokens,
 // cost and time per task, and each final answer (check them by eye). Costs Claude usage.
 //
-//   node scripts/benchmark-agent.mjs [--runs 1] [--model sonnet] [--only <task>] [--out result.json]
+//   node scripts/benchmark-agent.mjs [--runs 1] [--model sonnet] [--only <task>] [--changed both|on|off]
+//                                    [--cli <path to cli.js or a plugin's bin/launch.mjs>] [--out result.json]
+// --cli compares another build (an installed plugin version) on the same tasks.
 //
 // Needs the `claude` CLI and a Jev key. Build first (npm run build).
 import { spawn } from 'node:child_process';
@@ -13,8 +15,9 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, model: { type: 'string', default: 'sonnet' }, only: { type: 'string' }, out: { type: 'string' } } });
-const CLI = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
+const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, model: { type: 'string', default: 'sonnet' }, only: { type: 'string' }, out: { type: 'string' }, changed: { type: 'string', default: 'both' }, cli: { type: 'string' } } });
+const CLI = values.cli ?? fileURLToPath(new URL('../dist/cli.js', import.meta.url));
+const modes = values.changed === 'both' ? [false, true] : [values.changed === 'on'];
 const SKILL = new URL('../plugins/plainwright/skills/using-plainwright/', import.meta.url);
 const TASKS = {
   hn: 'Open https://news.ycombinator.com, click the "new" link in the top bar, and tell me the title of the first story on that page.',
@@ -22,9 +25,11 @@ const TASKS = {
   gh: 'Open https://github.com/microsoft/playwright, click the Issues tab, and tell me the title of the first issue in the list.',
   login: 'Open https://the-internet.herokuapp.com/login, log in with username tomsmith and password SuperSecretPassword!, tell me the message shown after login, then log out and tell me the message shown.',
   ol: 'Open https://openlibrary.org, search for "the left hand of darkness" with the site search, and tell me the author and first published year of the first result.',
+  yahoo: 'Open https://finance.yahoo.com/quote/AAPL/, accept the cookies, open the Statistics tab and tell me the trailing P/E.',
   todo: 'Open https://demo.playwright.dev/todomvc, add three todos: milk, eggs, bread. Mark eggs as completed. Tell me how many items are left.',
 };
-const tasks = Object.keys(TASKS).filter((t) => !values.only || t === values.only);
+// yahoo is the console-noise task (an ad-heavy page): run it with --only yahoo.
+const tasks = Object.keys(TASKS).filter((t) => values.only ? t === values.only : t !== 'yahoo');
 const dir = mkdtempSync(join(tmpdir(), 'plainwright-agent-bench-'));
 // The skill as the agent gets it from the plugin: SKILL.md without front matter, then the browsing mode.
 const skill = readFileSync(new URL('SKILL.md', SKILL), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '') + '\n' + readFileSync(new URL('browsing.md', SKILL), 'utf8');
@@ -59,7 +64,7 @@ function run(task, on) {
 }
 
 const jobs = [];
-for (let r = 0; r < Number(values.runs); r++) for (const t of tasks) for (const on of [false, true]) jobs.push([t, on]);
+for (let r = 0; r < Number(values.runs); r++) for (const t of tasks) for (const on of modes) jobs.push([t, on]);
 const results = [];
 let next = 0;
 await Promise.all(Array.from({ length: 3 }, async () => { while (next < jobs.length) { const [t, on] = jobs[next++]; results.push(await run(t, on)); } }));

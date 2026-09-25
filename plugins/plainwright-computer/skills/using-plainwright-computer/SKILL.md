@@ -77,6 +77,7 @@ drag: {source: "the first row", target: "the destination folder"}
 expect: ["The preview says hello", "The preview checkbox is checked"]
 expect: {that: "The preview says hello", within: "the preview panel"}
 wait: "The results are visible"
+wait: {that: "The results are visible", within: "the results list"} # polls only that region
 ```
 
 `mouse: {x: 100, y: 100}` uses logical desktop coordinates, only when the user supplies them or

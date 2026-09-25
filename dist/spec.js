@@ -19,7 +19,7 @@ export const StepSchema = z.discriminatedUnion('kind', [
     z.object({ kind: z.literal(StepKind.uncheck), target, optional }),
     z.object({ kind: z.literal(StepKind.upload), target, files: z.array(nonEmptyString).min(1), optional }),
     z.object({ kind: z.literal(StepKind.scroll), target, optional }),
-    z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, optional }),
+    z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, within: nonEmptyString.optional(), optional }),
     z.object({ kind: z.literal(StepKind.press), key: nonEmptyString, optional }),
     z.object({ kind: z.literal(StepKind.drag), source: nonEmptyString, target, optional }),
     // Negative y is the escape hatch for exit-intent triggers above the viewport.
@@ -95,11 +95,17 @@ export function parseStep(path, i, raw) {
     if (!STEP_KINDS.some((key) => key === kind))
         fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);
     const val = obj[kind];
-    const field = { goto: 'url', wait: 'condition', press: 'key', click: 'target', hover: 'target', dblclick: 'target',
+    const field = { goto: 'url', press: 'key', click: 'target', hover: 'target', dblclick: 'target',
         rightclick: 'target', check: 'target', uncheck: 'target', scroll: 'target' }[kind];
     let fields;
     if (field)
         fields = { [field]: val };
+    else if (kind === StepKind.wait) {
+        // wait: <claim>, or wait: {that, within} to poll one region instead of the whole page.
+        const scoped = typeof val !== 'string';
+        const w = scoped ? parseData(MappingSchema, val, `${where} "wait"`) : { that: val };
+        fields = { condition: w.that, ...(w.within === undefined ? {} : { within: w.within }) };
+    }
     else if (kind === StepKind.expect) {
         const scoped = typeof val !== 'string' && !Array.isArray(val);
         const expectation = scoped ? parseData(MappingSchema, val, `${where} "expect"`) : { that: val };

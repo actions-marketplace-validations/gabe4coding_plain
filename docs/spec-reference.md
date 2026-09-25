@@ -69,7 +69,7 @@ the selector directly.
 | `expect` | `expect: <claim>` | Judged against a snapshot of the settled page. |
 | | `expect: [claim, claim]` | Several claims, one snapshot, one Jev request. The step fails if any claim fails, is inconclusive if any is inconclusive and none failed, otherwise passes. |
 | | `expect: { that: <claim or list>, within: <target> }` | Judges only that region's accessibility tree (`main`, `dialog`, `form`, `table`, `[role=region]`...). Useful once a page has more than one thing going on. |
-| `wait` | `wait: <claim>` | Asks the claim every 1.5 s, up to 8 times, until it holds or the step timeout runs out. |
+| `wait` | `wait: <claim>` or `wait: { that, within }` | Asks the claim every 1.5 s, up to 8 times, until it holds or the step timeout runs out; a poll that sees the same page after a clear no skips the model. `within` picks the region once and polls only its tree: on a large page it costs less per poll (Wikipedia 17k → 10k tokens), and it is picked again if it re-renders. |
 | | `wait: css=<selector>` | Waits until the selector is visible. |
 
 ### When a step looks at the page
@@ -115,7 +115,10 @@ never shows:
 - popups and new tabs. A new tab becomes the active page for every following step, with dialog,
   download and error capture attached to it. Closing the browser closes every tab.
 - downloads, saved to a fresh per-session directory under `$TMPDIR/plainwright-downloads-*/<suggested filename>`
-- uncaught page errors and `console.error` messages
+- uncaught page errors and the page's own `console.error` messages. Console errors about resources
+  the browser blocked or failed to load (CSP violations, `Failed to load resource`, `net::ERR_*`) and
+  errors logged by another site's script (ads, trackers) are left out: Jev never sees them, and step
+  `notes` count them in one line (`console: 96 errors from other sites or blocked resources …`).
 
 Each message is cut to 300 characters (the full length is noted), and a message repeated back to back
 is kept once with a count, `(×3)`. Step `notes` follow the same rules.

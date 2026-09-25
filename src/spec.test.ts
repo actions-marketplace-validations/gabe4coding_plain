@@ -320,3 +320,10 @@ test('a spec may name the goal of its flow', () => {
   const file = specFile('name: g\nurl: https://example.com\ngoal: read the F-Droid discussion\nsteps:\n  - click: the comments link\n');
   assert.equal(loadSpec(file).goal, 'read the F-Droid discussion');
 });
+
+test('wait takes a claim, or {that, within} to poll one region', () => {
+  assert.deepEqual(parseStep('t', 0, { wait: 'the results are shown' }), { kind: 'wait', condition: 'the results are shown', optional: false });
+  assert.deepEqual(parseStep('t', 0, { wait: { that: 'a price is shown', within: 'the results list' } }),
+    { kind: 'wait', condition: 'a price is shown', within: 'the results list', optional: false });
+  assert.throws(() => parseStep('t', 0, { wait: { within: 'the results list' } }), /invalid spec/);
+});

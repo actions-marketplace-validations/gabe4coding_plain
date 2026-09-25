@@ -4,7 +4,7 @@ import { writeFileSync, mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadSpec } from './spec.js';
-import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimitSettled, shortNote, pushCollapsed } from './runner.js';
+import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimitSettled, shortNote, pushCollapsed, isConsoleNoise, noiseNote } from './runner.js';
 import { startHooks } from './hooks.js';
 import { chromium } from 'playwright';
 
@@ -276,4 +276,24 @@ test('console notes are shortened and consecutive repeats collapse into a count'
   const list: string[] = [];
   for (const m of ['a', 'a', 'a', 'b', 'a']) pushCollapsed(list, m);
   assert.deepEqual(list, ['a (×3)', 'b', 'a']);
+});
+
+test('console noise (blocked resources, other sites) is one counted note; the page\'s own errors stay listed', async () => {
+  assert.equal(isConsoleNoise("Loading the script 'https://ads.example/gpt.js' violates the following Content Security Policy directive", 'https://finance.yahoo.com/q', 'https://finance.yahoo.com/q'), true);
+  assert.equal(isConsoleNoise('Failed to load resource: net::ERR_BLOCKED_BY_CLIENT', '', 'https://a.com/'), true);
+  assert.equal(isConsoleNoise('Uncaught TypeError: x is undefined', 'https://securepubads.g.doubleclick.net/gpt.js', 'https://www.booking.com/'), true);
+  assert.equal(isConsoleNoise('Uncaught TypeError: x is undefined', 'https://cdn.booking.com/app.js', 'https://www.booking.com/'), false);
+  assert.equal(isConsoleNoise('boom', 'https://shop.example.co.uk/a.js', 'https://www.example.co.uk/'), false);
+
+  const dir = tempDir();
+  const spec = loadSpec(writeSpec(dir, 'name: noise\nurl: "about:blank"\nsteps:\n  - goto: "about:blank"\n'));
+  const session = await openSession(spec, OPTS, () => {});
+  await session.ctx.page.goto('data:text/html,' + encodeURIComponent(
+    `<script>console.error('boom'); console.error("Refused to connect because it violates the following Content Security Policy directive"); console.error('Failed to load resource: net::ERR_FAILED')</script>`));
+  await session.ctx.page.waitForTimeout(100);
+  assert.deepEqual(session.drainNotes(), ['console.error: boom', noiseNote(2)]);
+  assert.deepEqual(session.ctx.events, ['console.error: boom'], 'Jev never sees the noise');
+  assert.deepEqual(session.drainNotes(), [], 'the count restarts after a drain');
+  await session.close();
+  await closeSharedBrowser();
 });

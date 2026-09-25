@@ -91,7 +91,9 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   that do not settle first (`settlesFirst`). Several `expect` claims share one Jev call; fail beats inconclusive beats
   pass across them. `check`/`uncheck` read the state (a control's `checked`, following a label, or
   aria-checked/aria-pressed) and click only when it must change (`setChecked`); `scroll: top|bottom` (and spoken
-  forms, `scrollEdge`) scrolls `document.scrollingElement` and reports the distance.
+  forms, `scrollEdge`) scrolls `document.scrollingElement` and reports the distance. A scan with no candidates is
+  retried for up to 2 s (`APPEAR_MS`, a page still redirecting after `open`). `wait: {that, within}` picks the region
+  once and polls only its tree (`judgeRegion`).
 - `src/runner.ts` — `runSpec()`: fork the hooks child first (fails fast, before the browser opens) → open a
   session → `setup()` → interpolate `url`/`steps` with `{env, hooks: data}` → run steps → `teardown()` in
   `finally` → close the child → close the session. `Status` is `pass | fail | inconclusive | error | skipped`.
@@ -109,6 +111,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   turns it off). `save` writes a YAML spec with `${hooks.*}` placeholders kept and `hooks:` relative to the
   saved file. `${env.*}` is not available in an MCP session, only `${hooks.*}`. stdout is the JSON-RPC channel,
   so all logging (here and in `src/cli.ts`/`src/steps.ts`) goes to `console.error`.
+- Console noise (`isConsoleNoise` in `src/runner.ts`): CSP/blocked/failed-resource errors and errors from another
+  site's script never reach `events` (Jev) and are counted in one note per drain; the page's own errors stay listed.
 - `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop), and
   `plugins/plainwright-mobile/` (mobile), each

@@ -10,7 +10,7 @@ import { jsonResult as ok } from './mcp-result.js';
 import { LocalMobileDiscovery, AppListingSchema } from './mobile-discovery.js';
 export function createMobileServer(adapter, timeout = 15000, ai = intelligence, discovery = new LocalMobileDiscovery()) {
     return createNativeServer({
-        name: 'plainwright-mobile', version: '0.1.14', where: 'mobile MCP', ai,
+        name: 'plainwright-mobile', version: '0.1.15', where: 'mobile MCP', ai,
         spec: { name: 'mobile session', platform: 'android', device: '', app: '', dir: process.cwd(), env: {}, steps: [] },
         session: new MobileSession(adapter, timeout, ai), kinds: ['click', 'fill', 'check', 'region', 'scroll'],
         saved: (spec) => ({ platform: spec.platform, device: spec.device, app: spec.app, ...(spec.capabilities ? { capabilities: spec.capabilities } : {}) }),
