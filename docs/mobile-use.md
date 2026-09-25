@@ -98,7 +98,7 @@ All eleven tools are serialized, including reads, so a snapshot cannot race anot
 | `save {path, name?}` | Write passing recorded steps with platform, device, app, capabilities and relative hooks path. Rejects empty recordings. |
 | `close {}` | Run teardown and delete the Appium session. Does not uninstall or clear app data. |
 
-`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `swipe` take one extra capture before acting (~0.5 s on iOS). `PLAINWRIGHT_CHANGES=0` turns it off.
+`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `swipe` take one extra capture before acting (~0.5 s on iOS). `PLAINWRIGHT_CHANGES=0` turns it off. `PLAINWRIGHT_READ=0` hides `read`.
 
 Start with `list_devices`, select the intended ready device, then call `list_apps` with its
 `platform` and `device`. Copy the returned `app` identifier into `open`. Discovery does not
