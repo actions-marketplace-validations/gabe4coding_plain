@@ -47,7 +47,7 @@ attempt per model also failed. The fixture oracle caught these even when the age
 reported success. In `run-012`, a wrong account was modified before the intended account was
 updated, violating the requirement to leave other accounts unchanged.
 
-The candidate description builder in [page.ts](../../../src/page.ts) includes the element's own
+The candidate description builder in [candidates.ts](../../../src/candidates.ts) includes the element's own
 text/attributes and an ordinal for duplicate descriptions, but not its surrounding article or
 row text. In `run-004`, a smart snapshot retained **Field notebook 32**, yet targeting its
 **View details** button selected the 32nd repeated button and returned **OTHER-31**. The smart

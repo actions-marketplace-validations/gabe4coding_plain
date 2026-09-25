@@ -1,7 +1,13 @@
-import type { Page, Locator, BrowserContext } from 'playwright';
+import type { Page, Frame, Locator, BrowserContext } from 'playwright';
 
 import type { Snapshot } from './automation.js';
-import { frameLabel } from './candidates.js';
+
+// Iframe name, or pathname. The candidate scan keeps the same private helper.
+function frameLabel(frame: Frame): string {
+  const name = frame.name();
+  if (name) return name;
+  try { return new URL(frame.url()).pathname || frame.url(); } catch { return frame.url(); }
+}
 
 export { CandidateSchema, type Candidate, SnapshotSchema, type Snapshot } from './automation.js';
 export { CandidateKindSchema, candidates, elementById, type CandidateKind } from './candidates.js';

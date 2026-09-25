@@ -248,7 +248,7 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, lis
         return `${d}${counts.get(d) > 1 ? ` #${n}` : ''}${context(final[i])}`;
     });
 }
-export function frameLabel(frame) {
+function frameLabel(frame) {
     const name = frame.name();
     if (name)
         return name;
