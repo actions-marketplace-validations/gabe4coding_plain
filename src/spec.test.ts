@@ -315,3 +315,8 @@ test('file specs require steps while unknown metadata is ignored', () => {
   assert.deepEqual(spec.env, {});
   assert.equal('metadata' in spec, false);
 });
+
+test('a spec may name the goal of its flow', () => {
+  const file = specFile('name: g\nurl: https://example.com\ngoal: read the F-Droid discussion\nsteps:\n  - click: the comments link\n');
+  assert.equal(loadSpec(file).goal, 'read the F-Droid discussion');
+});

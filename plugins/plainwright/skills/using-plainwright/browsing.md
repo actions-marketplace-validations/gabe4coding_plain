@@ -5,11 +5,13 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
 ## Workflow
 
 1. `open` the URL. Pass `headed: true` when the user wants to watch, or when the site blocks a headless browser
-   (title "Access Denied", an empty page). Do not `snapshot` first: `step` and `find` do the looking.
+   (title "Access Denied", an empty page). Pass `goal`: the user's task in one sentence ("read the discussion
+   about F-Droid 2.0"); picks use it to settle vague targets. Do not `snapshot` first: `step` and `find` do the looking.
 2. Drive with `step`, one action per call, or `batch {steps:[...]}` for up to 16 already-known actions.
    Batch runs sequentially and stops on the first non-pass, including `skipped`; inspect its indexed
    results and `stoppedAt`. End the batch before a decision that needs new page information.
-   Read `status`, `detail`, `notes` and `url` after every call. A cookie
+   Read `status`, `detail`, `notes`, `url` and `changed` after every call: `changed.added` holds the new
+   page lines (a message, a menu, the top of a new page), often the answer itself. A cookie
    or consent dialog comes first: `click: the button that accepts all cookies`.
    When the next action is unknown, use `snapshot {mode:"compact"}` for an overview or
    `snapshot {mode:"smart",intent:"the task"}` for task-focused evidence and Jev classifications. Check omission counts;

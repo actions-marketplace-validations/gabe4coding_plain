@@ -11,7 +11,7 @@ export type Snapshot = z.infer<typeof SnapshotSchema>;
 export interface Frame<T> { snapshot: Snapshot; candidates: Candidate[]; elements: Map<number, T>; }
 export interface TargetAdapter<T> {
   candidates: Candidate[];
-  state: { url: string; title: string };
+  state: { url: string; title: string; goal?: string };
   element(candidate: Candidate): T;
 }
 export interface ResolvedTarget<T> {

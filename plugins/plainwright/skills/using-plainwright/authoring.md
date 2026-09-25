@@ -4,9 +4,9 @@
 
 1. `open` the start URL. Pass `headed: true` when the user wants to watch. Pass `hooks: ./path.mjs` when the flow
    needs leased or generated data; the response lists the `${hooks.*}` placeholders to use in steps, and `save`
-   keeps them as written.
-2. Drive with `step`, one action or one check per call. Read `status`, `detail`, `notes` and `url` after every
-   call. Only steps that pass go in the spec, so an inconclusive attempt costs nothing but a retry.
+   keeps them as written. Pass `goal`, the flow's purpose in one sentence; `save` writes it into the spec.
+2. Drive with `step`, one action or one check per call. Read `status`, `detail`, `notes`, `url` and `changed` (what
+   the action added to the page) after every call. Only steps that pass go in the spec, so an inconclusive attempt costs nothing but a retry.
    Use `batch {steps:[...]}` for up to 16 known actions; it stops on the first non-pass (even `skipped`).
    Inspect the indexed results before recovery. Successful entries save as ordinary individual steps,
    with hook placeholders preserved. End a batch before a decision that requires new page information.

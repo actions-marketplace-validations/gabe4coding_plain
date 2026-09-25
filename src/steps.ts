@@ -230,7 +230,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
       same: (a, b) => a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
       ask: ({ cands, url, title }) => resolveTargets({
         candidates: cands,
-        state: { url, title },
+        state: { url, title, goal: ctx.spec.goal },
         element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
       }, jevTargets),
       discard: ([first]) => { if (first?.usedJev) ctx.track(first.tokens); },
