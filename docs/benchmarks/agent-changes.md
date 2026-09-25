@@ -29,3 +29,19 @@ The gain is largest when the answer appears right after an action (a flash messa
 first rows): the agent reads it from `changed` instead of a `snapshot`/`ask`. GitHub's issue titles
 are past the first 1,500 characters of the new page, so the agent still needed a snapshot there.
 Each step pays one settle and one tree read after the action; the whole runs were still faster.
+
+## Desktop and mobile (2026-09-25)
+
+The native MCP servers return the same `changed` (same diff, same cap). A step that picks a target diffs
+against its own pre-action capture (`NativeSession.firstSnapshot`); only press, swipe and mouse capture before
+acting. Live on an iOS 27 simulator (Settings: General → About → back twice), MCP call time per step:
+
+| | tap General | tap About | back | back |
+|---|---|---|---|---|
+| changed off | 2.6 s | 2.2 s | 2.2 s | 2.1 s |
+| changed on, separate before capture | 4.5 s | 3.6 s | 3.5 s | 3.5 s |
+| changed on, reusing the step's capture | 3.1 s | 2.7 s | 2.9 s | 2.9 s |
+
+So `changed` costs one capture (~0.6 s on iOS) per step. On iOS the added lines include the chain of
+`XCUIElementTypeOther` wrappers that repeat the screen name, which uses part of the 1,500-character cap.
+`read` on the About screen answered "iOS Version, 27.0" for 1.1k Jev tokens in 0.8 s.

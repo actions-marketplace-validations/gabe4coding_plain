@@ -119,7 +119,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     return r.structuredContent as Record<string, any>;
   }
   try {
-    const listed = await client.listTools(); assert.equal(listed.tools.length, 9);
+    const listed = await client.listTools(); assert.equal(listed.tools.length, 10);
     for (const apps of [[{ name: 'Fixture', pid: 42 }], []]) {
       adapter.apps = async () => apps;
       const result = await client.callTool({ name: 'apps', arguments: {} });
@@ -140,7 +140,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     assert.deepEqual(screenshot.content, [{ type: 'image', mimeType: 'image/png', data: Buffer.from('png').toString('base64') }]);
     assert.equal((await call('find', { kind: 'click', target: 'Preview' })).found, true);
     await call('step', { step: { fill: { target: 'Message', value: '${hooks.text}' } } });
-    assert.deepEqual(adapter.log.at(-1), ['fill', 'control', 'leased value']);
+    assert.deepEqual(adapter.log.filter((e) => !(Array.isArray(e) && e[0] === 'capture')).at(-1), ['fill', 'control', 'leased value']);
     await call('step', { step: { press: 'bad' } });
     await call('snapshot');
     const compact = await call('snapshot', { mode: 'compact' });

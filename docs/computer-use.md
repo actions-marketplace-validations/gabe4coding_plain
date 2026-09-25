@@ -96,14 +96,17 @@ Screenshots remain PNG image content blocks.
 | Tool | Purpose |
 |---|---|
 | `apps {}` | List running accessible app names/pids; no focus change. |
-| `open {app}` or `open {pid}` | Attach to exactly one running app. `activate` defaults to true; false leaves focus alone. Optional `hooks` runs setup before attachment. |
-| `step {step}` | Execute one natural-language action/assertion and return status, detail, timings, and token count. |
+| `open {app}` or `open {pid}` | Attach to exactly one running app. `activate` defaults to true; false leaves focus alone. Optional `hooks` runs setup before attachment. Optional `goal` (what the whole flow is for, one sentence; spec key `goal:`) is given to every pick, so a vague target picks the control the flow is about; the target's words win, and claims never see it. |
+| `step {step}` | Execute one natural-language action/assertion and return status, detail, timings, token count and `changed`. |
 | `find {kind, target}` | Dry-run a target with Jev. Kinds: click, fill, check, hover, region, scroll. |
 | `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. `within` resolves a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
 | `ask {claims, within?}` | Yes/no questions about the current state, without acting: 1–16 claims in one Jev call, each answered `yes` (p ≥ 0.9), `no` (p ≤ 0.1) or `unsure`, with its `p`. Not recorded and never changes the session status. Use it to test hypotheses when a step fails ("An error message is shown", "The Save button is disabled"). |
+| `read {question, within?}` | Read data: the exact tree lines that answer the question, copied verbatim (`answer`), with their ancestors (`context`) and `confidence`. Jev picks the first and last line and never writes text; `found: false` with `guesses` when no line answers. `within` scopes it to a region and costs fewer Jev tokens. Not recorded. Same as the browser's `read`. |
 | `screenshot {}` | Return a PNG of an attached app window. Not supplied to Jev. |
 | `save {path, name?}` | Save successful steps as desktop YAML. Rejects an empty recording. |
 | `close {}` | Detach and run teardown; leave the application running. |
+
+`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `mouse` take one extra capture before acting. `PLAINWRIGHT_CHANGES=0` turns it off.
 
 `open` attaches; it does not launch arbitrary programs. Applications must already be running,
 which keeps batch setup in the user's environment or hooks. Every `open` starts a new recording
@@ -128,6 +131,7 @@ app: Desktop Test Fixture
 env:
   message: $TEST_MESSAGE
 hooks: ./hooks/fixture.mjs # optional; use setup to prepare the test application/data
+goal: Preview a message before sending it # optional; every pick sees it, claims never do
 steps:
   - fill: {target: "the Message text field", value: "${env.message}"}
   - check: "the Enable preview checkbox"

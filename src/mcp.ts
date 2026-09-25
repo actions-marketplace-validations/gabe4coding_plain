@@ -10,10 +10,10 @@ import { parseStep, interpolate } from './spec.js';
 import { openSession, closeSharedBrowser, type Session, type RunOptions } from './runner.js';
 import { startHooks, placeholderPaths, type HooksRunner } from './hooks.js';
 import { runStep, runStepSafely, resolveOne, askPage, settlePage, type StepResult } from './steps.js';
-import { ariaChanges, type AriaChanges } from './aria-changes.js';
+import { ariaChanges, CHANGES, CHANGES_NOTE, type AriaChanges } from './aria-changes.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
-import { readAnswer } from './read.js';
+import { readAnswer, READ, READ_DESCRIPTION } from './read.js';
 import { serialQueue } from './serial-queue.js';
 import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from './mcp-result.js';
 
@@ -50,16 +50,6 @@ When \`open\` was called with \`hooks\`, any string in a step may contain \`\${h
 (the \`open\` response lists the ones available); they are resolved right before the step runs and
 kept as written when \`save\` writes the spec, so the saved spec stays dataset-driven. \${env.*} is
 not available in this session — add it to the YAML yourself after saving.`;
-
-// Step and batch results carry `changed`, what the action did to the page: the agent reads the outcome
-// there instead of a snapshot/ask call (-30% tool calls, -20% agent cost; docs/benchmarks/agent-changes.md).
-// PLAINWRIGHT_CHANGES=0 turns it off, to measure against (scripts/benchmark-agent.mjs).
-const CHANGES = process.env.PLAINWRIGHT_CHANGES !== '0';
-// `read` answers a question with the page's own lines (src/read.ts). PLAINWRIGHT_READ=0 hides it, to measure
-// against (scripts/benchmark-agent.mjs --read).
-const READ = process.env.PLAINWRIGHT_READ !== '0';
-const CHANGES_NOTE = !CHANGES ? '' : ' The result also has `changed`: the page title/URL if they changed, and the accessibility-tree ' +
-  'lines the action added (`added`, in page order, capped) and how many it removed. Read it before calling snapshot or ask.';
 
 export async function serveMcp(opts: RunOptions): Promise<void> {
   let session: Session | null = null;
@@ -245,12 +235,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   }));
 
   if (READ) server.registerTool('read', {
-    description:
-      'Read data off the current page: answers `question` ("the price of the first result", "the titles and prices of ' +
-      'the first three books") with the exact lines of the accessibility tree that hold the answer, copied verbatim, ' +
-      'plus their ancestors as `context`. Jev picks the lines and never writes them, so the answer is page text. ' +
-      '`found: false` with `guesses` when no line answers it. `within` scopes it to a region (or css=) and costs ' +
-      'fewer Jev tokens on a large page. Prefer it over snapshot or evaluate for reading values. Not recorded.',
+    description: READ_DESCRIPTION + ' `within` also takes css=.',
     inputSchema: { question: z.string().min(1), within: z.string().min(1).optional() }, annotations: { readOnlyHint: true },
   }, ({ question, within }) => queue(async () => {
     if (!session) throw new Error('call open first');

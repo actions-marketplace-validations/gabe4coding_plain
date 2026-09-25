@@ -141,7 +141,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     return r.structuredContent as Record<string, any>;
   }
   try {
-    const listed = await client.listTools(); assert.equal(listed.tools.length, 10);
+    const listed = await client.listTools(); assert.equal(listed.tools.length, 11);
     for (const name of ['list_devices', 'list_apps']) assert.equal(listed.tools.find(t => t.name === name)?.annotations?.readOnlyHint, true);
     await call('list_devices', { platform: 'android' });
     assert.equal((await call('list_apps', { platform: 'android', device: 'emulator-5554' })).apps[0].app, 'Fixture');
@@ -162,7 +162,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     assert.deepEqual(screenshot.content, [{ type: 'image', mimeType: 'image/png', data: Buffer.from('png').toString('base64') }]);
     assert.equal((await call('find', { kind: 'click', target: 'Preview' })).found, true);
     await call('step', { step: { fill: { target: 'Message', value: '${hooks.text}' } } });
-    assert.deepEqual(adapter.log.at(-1), ['fill', 'control', 'leased value']);
+    assert.deepEqual(adapter.log.filter((e) => !(Array.isArray(e) && e[0] === 'capture')).at(-1), ['fill', 'control', 'leased value']);
     await call('step', { step: { press: 'Enter' } });
     await call('snapshot');
     const compact = await call('snapshot', { mode: 'compact' });
@@ -216,4 +216,45 @@ test('ask maps probabilities to yes/no/unsure at the expect thresholds', () => {
   const r = askResult(['a', 'b', 'c'], [0.93, 0.05, 0.5], { url: 'u', title: 't', truncated: true });
   assert.deepEqual(r.answers.map((a) => a.answer), ['yes', 'no', 'unsure']);
   assert.match(r.note!, /truncated/);
+});
+
+test('MCP steps report what they changed, picks see the open goal, read copies screen lines, save keeps the goal', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobile-mcp-'));
+  const adapter = new FakeAdapter();
+  adapter.text = '- navigationbar "Inbox"\n  - button "Compose"';
+  adapter.act = async (...args: unknown[]) => { adapter.log.push(args); adapter.text = '- navigationbar "New Message"\n  - textfield "To"'; };
+  const states: unknown[] = [];
+  const asked: unknown[] = [];
+  const { server, close } = createMobileServer(adapter, 100, {
+    ...ai,
+    pick: async (c, targets, state) => { states.push(state); return ai.pick(c, targets, state); },
+    ask: async (state, questions) => { asked.push(state); return { tokens: 9, answers: questions.map(() => ({ choice: '1', probabilities: { '1': .97 }, confidence: .96 })) }; },
+  });
+  const client = new Client({ name: 'test', version: '1' });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(a); await client.connect(b);
+  const call = async (name: string, args: Record<string, unknown> = {}) => {
+    const r = await client.callTool({ name, arguments: args });
+    assert.ok(!r.isError, JSON.stringify(r));
+    return r.structuredContent as Record<string, any>;
+  };
+  try {
+    await call('open', { platform: 'ios', device: 'ios-udid', app: 'Mail', goal: 'Send a message to Ada' });
+    const tapped = await call('step', { step: { tap: 'the Compose button' } });
+    assert.deepEqual(tapped.changed, { added: ['- navigationbar "New Message"', '  - textfield "To"'], addedOmitted: 0, removed: 2 });
+    assert.equal((states[0] as { goal?: string }).goal, 'Send a message to Ada');
+    // The tap reused its own targeting capture as the before; a press, which never looks first, captures one.
+    const captures = () => adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length;
+    const n = captures();
+    const pressed = await call('step', { step: { press: 'Home' } });
+    assert.deepEqual(pressed.changed, { added: [], addedOmitted: 0, removed: 0 });
+    assert.equal(captures() - n, 2);
+    const read = await call('read', { question: 'the recipient field' });
+    assert.equal(read.found, true);
+    assert.equal(read.answer, '  - textfield "To"');
+    assert.equal(read.jevTokens, 9);
+    assert.equal((asked[0] as { question: string }).question, 'the recipient field');
+    const path = join(dir, 'saved.yaml'); await call('save', { path });
+    assert.equal(loadMobileSpec(path).goal, 'Send a message to Ada');
+  } finally { await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); }
 });

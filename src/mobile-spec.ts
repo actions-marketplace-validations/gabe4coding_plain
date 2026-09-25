@@ -53,11 +53,12 @@ export interface MobileSpec extends MobileTarget {
   name: string;
   dir: string;
   hooks?: string;
+  goal?: string;
   env: Record<string, unknown>;
   steps: MobileStep[];
 }
 export function loadMobileSpec(file: string): MobileSpec {
   return loadNativeSpec(file, MobileTargetSchema.extend({
-    name: text, hooks: text.optional(), env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
+    name: text, hooks: text.optional(), goal: text.optional(), env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
   }), parseMobileStep);
 }
