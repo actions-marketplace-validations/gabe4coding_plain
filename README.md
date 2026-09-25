@@ -71,7 +71,7 @@ Each server keeps one session, and the agent sends natural-language actions thro
 
 | Tools | Available in |
 |---|---|
-| `open`, `step`, `find`, `snapshot`, `ask`, `save` | All plugins (`ask`: yes/no questions about the current state, not recorded) |
+| `open`, `step`, `find`, `snapshot`, `ask`, `read`, `save` | All plugins (`ask`: yes/no questions about the current state, not recorded; `read`: answers a question with the on-screen tree lines, not recorded) |
 | `evaluate` | Browser: read a JavaScript expression's value |
 | `batch` | Browser: run up to 16 known steps in order, stopping on the first non-pass |
 | `apps` | Desktop: list running apps |
@@ -273,6 +273,8 @@ overridden.
 | `TYPESAFE_API_KEY` | All | TypeSafe direct, the default backend. Wins when both provider keys are set. |
 | `AI_GATEWAY_API_KEY` | All | Use Vercel AI Gateway. |
 | `JEV_PROVIDER` | All | Force `typesafe` or `gateway`. |
+| `PLAINWRIGHT_CHANGES` | All | Step results carry `changed` (title and URL if they changed, new accessibility-tree lines capped at 1,500 characters, and a removed count). On by default; set to `0` to turn it off. |
+| `PLAINWRIGHT_READ` | All | `read` answers a question with the page's own lines. On by default; set to `0` to hide it. |
 | `PLAINWRIGHT_PROFILE` | Browser | Same as `--profile`. |
 | `PLAINWRIGHT_CHANNEL` | Browser | Same as `--channel`. |
 | `PLAINWRIGHT_CDP` | Browser | Same as `--cdp`. |
