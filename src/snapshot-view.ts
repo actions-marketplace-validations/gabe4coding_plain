@@ -33,7 +33,7 @@ const regionRoles = new Set(['search', 'form', 'region', 'navigation', 'contenti
   'dialog', 'alertdialog', 'alert', 'status', 'sheet', 'window', 'table', 'list', 'tablist', 'toolbar', 'menubar']);
 const MAX_REGIONS = 64;
 
-function prepare(snap: Snapshot) {
+export function prepare(snap: Snapshot) {
   const lines: Line[] = [];
   const stack: { indent: number; index: number }[] = [];
   const blocks: SnapshotEvidence['blocks'] = [];

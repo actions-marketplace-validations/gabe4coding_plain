@@ -1,6 +1,6 @@
 {
   "name": "plainwright-computer",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Native desktop automation with xa11y actions and Jev decisions; record and replay natural-language YAML tests",
   "author": {
     "name": "Gabriele Pavanello"
