@@ -3,7 +3,7 @@
 // with `changed` in step/batch results off (PLAINWRIGHT_CHANGES=0) and on. Reports tool calls, agent tokens,
 // cost and time per task, and each final answer (check them by eye). Costs Claude usage.
 //
-//   node scripts/benchmark-agent.mjs [--runs 1] [--model sonnet] [--only <task>] [--changed both|on|off]
+//   node scripts/benchmark-agent.mjs [--runs 1] [--model sonnet] [--only <task,task>] [--changed both|on|off] [--read both|on|off]
 //                                    [--cli <path to cli.js or a plugin's bin/launch.mjs>] [--out result.json]
 // --cli compares another build (an installed plugin version) on the same tasks.
 //
@@ -15,9 +15,12 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, model: { type: 'string', default: 'sonnet' }, only: { type: 'string' }, out: { type: 'string' }, changed: { type: 'string', default: 'both' }, cli: { type: 'string' } } });
+const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, model: { type: 'string', default: 'sonnet' }, only: { type: 'string' }, out: { type: 'string' }, changed: { type: 'string', default: 'both' }, read: { type: 'string' }, cli: { type: 'string' } } });
 const CLI = values.cli ?? fileURLToPath(new URL('../dist/cli.js', import.meta.url));
-const modes = values.changed === 'both' ? [false, true] : [values.changed === 'on'];
+// --read both|on|off compares the `read` tool instead (changed stays on): off hides the tool and its skill lines.
+const flag = values.read ?? values.changed;
+const modes = flag === 'both' ? [false, true] : [flag === 'on'];
+const env = (on) => values.read ? { PLAINWRIGHT_CHANGES: '1', PLAINWRIGHT_READ: on ? '1' : '0' } : { PLAINWRIGHT_CHANGES: on ? '1' : '0' };
 const SKILL = new URL('../plugins/plainwright/skills/using-plainwright/', import.meta.url);
 const TASKS = {
   hn: 'Open https://news.ycombinator.com, click the "new" link in the top bar, and tell me the title of the first story on that page.',
@@ -27,20 +30,27 @@ const TASKS = {
   ol: 'Open https://openlibrary.org, search for "the left hand of darkness" with the site search, and tell me the author and first published year of the first result.',
   yahoo: 'Open https://finance.yahoo.com/quote/AAPL/, accept the cookies, open the Statistics tab and tell me the trailing P/E.',
   todo: 'Open https://demo.playwright.dev/todomvc, add three todos: milk, eggs, bread. Mark eggs as completed. Tell me how many items are left.',
+  books: 'Open https://books.toscrape.com and tell me the titles and prices of the first three books.',
+  tables: 'Open https://the-internet.herokuapp.com/tables and tell me the email and the amount due of Jason Doe in the first table.',
+  repo: 'Open https://github.com/microsoft/playwright and tell me the number of stars, the latest release version and the share of TypeScript.',
 };
+// The data-reading tasks, the default set for --read.
+const READ_TASKS = ['hn', 'wiki', 'gh', 'ol', 'books', 'tables', 'repo'];
 // yahoo is the console-noise task (an ad-heavy page): run it with --only yahoo.
-const tasks = Object.keys(TASKS).filter((t) => values.only ? t === values.only : t !== 'yahoo');
+const tasks = values.only ? values.only.split(',') : values.read ? READ_TASKS : Object.keys(TASKS).filter((t) => !['yahoo', 'books', 'tables', 'repo'].includes(t));
 const dir = mkdtempSync(join(tmpdir(), 'plainwright-agent-bench-'));
 // The skill as the agent gets it from the plugin: SKILL.md without front matter, then the browsing mode.
 const skill = readFileSync(new URL('SKILL.md', SKILL), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '') + '\n' + readFileSync(new URL('browsing.md', SKILL), 'utf8');
-writeFileSync(join(dir, 'skill.md'), skill);
-for (const on of [false, true]) writeFileSync(join(dir, `mcp-${on}.json`), JSON.stringify({ mcpServers: { pw: { command: process.execPath, args: [CLI, '--headless', 'mcp'], env: { PLAINWRIGHT_CHANGES: on ? '1' : '0' } } } }));
+for (const on of [false, true]) {
+  writeFileSync(join(dir, `skill-${on}.md`), values.read && !on ? skill.split('\n').filter((l) => !l.includes('`read')).join('\n').replaceAll(' read,', '').replaceAll('`read {question}`, ', '').replaceAll('`read`, ', '') : skill);
+  writeFileSync(join(dir, `mcp-${on}.json`), JSON.stringify({ mcpServers: { pw: { command: process.execPath, args: [CLI, '--headless', 'mcp'], env: env(on) } } }));
+}
 
 function run(task, on) {
   return new Promise((resolve) => {
     const args = ['-p', `${TASKS[task]} End with a one-line answer.`, '--model', values.model, '--output-format', 'stream-json', '--verbose',
       '--strict-mcp-config', '--mcp-config', join(dir, `mcp-${on}.json`), '--tools', '', '--allowedTools', 'mcp__pw__*',
-      '--setting-sources', '', '--append-system-prompt-file', join(dir, 'skill.md'), '--max-budget-usd', '2'];
+      '--setting-sources', '', '--append-system-prompt-file', join(dir, `skill-${on}.md`), '--max-budget-usd', '2'];
     const p = spawn('claude', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     p.stdout.on('data', (d) => (out += d));
@@ -74,7 +84,7 @@ for (const r of results.filter((x) => x.ok)) for (const key of [`${r.task} ${r.c
   const x = (rows[key] ??= { n: 0, calls: 0, tokens: 0, output: 0, cost: 0, ms: 0 });
   x.n++; x.calls += r.toolCalls; x.tokens += r.tokens; x.output += r.output; x.cost += r.cost; x.ms += r.ms;
 }
-console.log('task  changed  n  calls  tokens  output   cost    time');
+console.log(`task  ${values.read ? 'read   ' : 'changed'}  n  calls  tokens  output   cost    time`);
 for (const [k, x] of Object.entries(rows).sort()) {
   const [task, on] = k.split(' ');
   console.log(`${task.padEnd(6)}${on.padEnd(8)}${String(x.n).padStart(2)} ${(x.calls / x.n).toFixed(1).padStart(6)} ${String(Math.round(x.tokens / x.n)).padStart(7)} ${String(Math.round(x.output / x.n)).padStart(7)} ${('$' + (x.cost / x.n).toFixed(3)).padStart(7)} ${((x.ms / x.n / 1000).toFixed(0) + 's').padStart(6)}`);

@@ -1,0 +1,21 @@
+[
+  {"page": "turing", "question": "When was Alan Turing born?", "expect": ["23 June 1912"]},
+  {"page": "turing", "question": "Who was Alan Turing's doctoral advisor?", "expect": ["Alonzo Church"]},
+  {"page": "turing", "question": "When and where did Alan Turing die?", "expect": ["7 June 1954", "Wilmslow"]},
+  {"page": "hn", "question": "What is the title of the first story in the list?", "expect": ["ASML says it sold"]},
+  {"page": "ghissues", "question": "What is the title of the first issue in the list?", "expect": ["Test Explorer refreshes repeatedly"]},
+  {"page": "ghissues", "question": "How many issues are closed?", "expect": ["17,880"]},
+  {"page": "ol", "question": "Who is the author of the first search result?", "expect": ["Ursula K. Le Guin"]},
+  {"page": "ol", "question": "In which year was the first search result first published?", "expect": ["1969"]},
+  {"page": "tables", "question": "How much is due for Jason Doe in the first table?", "expect": ["$100.00"]},
+  {"page": "tables", "question": "What is Frank Bach's email address?", "expect": ["fbach@yahoo.com"]},
+  {"page": "books", "question": "What is the price of Sharp Objects?", "expect": ["£47.82"]},
+  {"page": "books", "question": "What are the titles and prices of the first three books?", "expect": ["A Light in the", "£51.77", "Tipping the Velvet", "£53.74", "Soumission", "£50.10"]},
+  {"page": "quotes", "question": "Who said the quote about choices showing what we truly are?", "expect": ["J.K. Rowling"]},
+  {"page": "quotes", "question": "What are the tags of the first quote?", "expect": ["change", "deep-thoughts", "thinking", "world"]},
+  {"page": "ghrepo", "question": "What share of the code is TypeScript?", "expect": ["91.9%"]},
+  {"page": "ghrepo", "question": "What is the latest release version?", "expect": ["v1.63.0"]},
+  {"page": "ghrepo", "question": "How many stars does the repository have?", "expect": ["96.7k"]},
+  {"page": "books", "question": "What is the ISBN of Sharp Objects?", "none": true},
+  {"page": "tables", "question": "What is John Smith's phone number?", "none": true}
+]

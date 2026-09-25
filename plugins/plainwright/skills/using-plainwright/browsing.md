@@ -17,6 +17,7 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
    `snapshot {mode:"smart",intent:"the task"}` for task-focused evidence and Jev classifications. Check omission counts;
    use scoped raw snapshots for exact data. These are optional discovery reads, not prerequisites.
 3. Read the data once the page is there:
+   - `read {question}` returns the exact page lines that answer it ("the author and year of the first result"). Start here; add `within` on a large page, it costs fewer Jev tokens.
    - `snapshot` with `within: "the results list"` (or `css=...`) returns only that region's tree. A table comes as
      rows and cells you read directly. Start with a small `maxChars`.
    - `evaluate` with a JavaScript expression returns clean JSON:
@@ -32,7 +33,7 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
   the box holds your text and whether a suggestion list is shown, then `wait: a list of suggestions is shown`;
   do not retype. `press: Enter` often submits the search instead.
 - Pages with hundreds of links (Wikipedia, Hacker News, GitHub lists) cost 20–35k Jev tokens per pick. Read data
-  with `evaluate` or a scoped `snapshot`, and navigate by URL (`open`) when you know it, instead of clicking.
+  with `read`, `evaluate` or a scoped `snapshot`, and navigate by URL (`open`) when you know it, instead of clicking.
 - Filters: `check: the Hotels filter chip` (a no-op if already on). A chip without a state: `click`.
 - Long pages: `scroll: bottom`, read the distance in `detail`; `press: End` and `press: Escape` also work.
 - A popover or calendar that opened by itself is already open: act inside it, do not click its trigger again.

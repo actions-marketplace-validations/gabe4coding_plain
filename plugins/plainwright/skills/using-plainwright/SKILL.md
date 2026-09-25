@@ -1,6 +1,6 @@
 ---
 name: using-plainwright
-description: Use when driving a website through the plainwright MCP tools (open, step, batch, find, snapshot, ask, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
+description: Use when driving a website through the plainwright MCP tools (open, step, batch, find, snapshot, ask, read, evaluate, save) — for a browser task, for reading data off a page, or for writing, debugging or replaying a plainwright YAML end-to-end test — including when a step comes back inconclusive.
 ---
 
 # Using plainwright
@@ -134,7 +134,7 @@ A third rephrasing of the same fact is never the next move.
 | `expect: "the secure area is shown with a success message"` | Two facts: use the list form |
 | `wait: "the checkbox is gone"` | Absence: `wait: the message "It's gone!" is shown` |
 | `expect` to check a guess while debugging | `ask`: not recorded, does not fail the session |
-| `snapshot` of the whole page to read a table | `snapshot` with `within`, or `evaluate` |
+| `snapshot` of the whole page to read a table | `read {question}`, `snapshot` with `within`, or `evaluate` |
 | `click: the "P3" option or the first option` | One answer only: `the first option in the Filter by label dialog` |
 | Region not found: `the daily forecast` | Name it by its heading (`the list under the "Day by day forecast" heading`), or find it with `snapshot {mode:"smart", intent}` |
 | `check: the Hotels chip` on a plain button | `click` it; `check` needs a state to read |

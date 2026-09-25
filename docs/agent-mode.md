@@ -28,6 +28,7 @@ MCP tool errors use `isError: true` and a text message; action outcomes (includi
 | `find` | `kind`, `target` | Dry run of a pick: what Jev would choose, without acting. `kind` is `click`, `hover`, `fill`, `select`, `check`, `upload` or `region`. |
 | `snapshot` | optional `within`, `maxChars`, `mode`, `intent` | Raw accessibility tree by default; `compact` selects exact excerpts and `smart` adds Jev classifications. `intent` is smart-only. Scope with `within` (`the results list`, `css=main`) to read data. See [snapshot views](snapshots.md). |
 | `ask` | `claims`, optional `within` | Yes/no questions about the page, without acting: 1–16 claims in one Jev call, each answered `yes` (p ≥ 0.9), `no` (p ≤ 0.1) or `unsure`, with its `p`. Not recorded by `save` and never changes the session status (use an `expect` step for a test assertion). `within` scopes it to a region (`css=` works). Use it to test hypotheses when a step fails or comes back inconclusive. |
+| `read` | `question`, optional `within` | Reads data: answers the question with the exact accessibility-tree lines that hold the answer, copied verbatim (`answer`), plus their ancestors (`context`) and `confidence`. Jev picks the first and last line; it never writes text. `found: false` with `guesses` when no line answers. `within` scopes it to a region (`css=` works) and costs fewer Jev tokens. Not recorded. |
 | `evaluate` | `js` | Runs a JavaScript expression in the page and returns its JSON value. The raw way to pull data once the flow got there. |
 | `save` | `path`, optional `name` | Writes everything run so far as a spec, with the session's `goal`. Only steps that passed are kept. `${hooks.*}` placeholders stay as written and `hooks:` is written relative to the saved file. |
 
@@ -72,7 +73,19 @@ Canceling a batch prevents later entries from starting; an action already in fli
 
 ## Reading data
 
-Steps act; two tools read. `snapshot` with `within` returns the accessibility tree of one region, so a
+Steps act; three tools read. `read` answers a question with the page's own lines:
+
+```
+read { question: 'the titles and prices of the first three books' }
+→ { found: true, answer: '- heading "A Light in the ..." ...\n- paragraph: £51.77 ...', context: [...], confidence: 0.97 }
+```
+
+Code numbers the lines that carry text (not `/url:` lines, bare containers, or a line repeating its parent's
+text), Jev picks the first and the last line of the answer in one request, and the lines in between are copied.
+The answer is always page text. Each offered line costs Jev ~22 tokens per question, so a whole large page costs
+20–50k Jev tokens and a region (`within`) a few thousand; results in `docs/benchmarks/read.md`.
+
+`snapshot` with `within` returns the accessibility tree of one region, so a
 results table arrives as rows and cells instead of the whole page. `evaluate` runs a JavaScript
 expression in the page and returns its value as JSON, for when the data should arrive already shaped:
 
@@ -80,7 +93,7 @@ expression in the page and returns its value as JSON, for when the data should a
 evaluate { js: '[...document.querySelectorAll("article")].map(a => a.querySelector("h3").innerText)' }
 ```
 
-Neither is a step: `save` does not record them and a spec has no equivalent. They are for the agent's own
+None is a step: `save` does not record them and a spec has no equivalent. They are for the agent's own
 reading, after plainwright's steps got the page there.
 
 The plugin's skill, `plugins/plainwright/skills/using-plainwright/`, teaches the agent the [phrasing rules](phrasing.md) in

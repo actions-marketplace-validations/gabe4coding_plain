@@ -33,7 +33,8 @@ node scripts/benchmark-steps.mjs --runs 3 --out /tmp/new.json --compare /tmp/bas
 node scripts/benchmark-mcp.mjs --cli dist/cli.js --gap 5000 --runs 2
 node scripts/benchmark-planner.mjs --runs 3          # sentence → steps planner vs scripts/planner-cases.json
 node scripts/benchmark-picks.mjs --runs 3            # picks with/without goal on saved pages (scripts/pick-states/)
-node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, changed on vs off (costs Claude usage)
+node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, changed on vs off (costs Claude usage); --read both: read on vs off
+node scripts/benchmark-read.mjs --runs 2 --smart     # read vs smart snapshot on saved pages (scripts/read-states/, read-cases.json)
 ```
 
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
@@ -105,7 +106,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   between specs and `--workers` can't make hooks interfere. Only JSON crosses the IPC channel. Dataset shape is
   not imposed. See `examples/login-dataset.yaml` + `examples/hooks/login-dataset.mjs`.
 - `src/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `find`,
-  `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/steps.ts`), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask` and
+  `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/steps.ts`), `read` (a question answered with
+  the page's own lines: Jev picks the first and last line, `src/read.ts`; `PLAINWRIGHT_READ=0` hides it), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask`, `read` and
   `evaluate` read without acting and are not recorded. `step`/`batch` results carry `changed` (title/url if changed,
   new aria lines capped at 1,500 chars, removed count; `src/aria-changes.ts`, after a settle; `PLAINWRIGHT_CHANGES=0`
   turns it off). `save` writes a YAML spec with `${hooks.*}` placeholders kept and `hooks:` relative to the

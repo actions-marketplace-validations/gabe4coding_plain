@@ -20,7 +20,7 @@ const usefulRoles = new Set(['heading', 'header', 'button', 'link', 'textbox', '
 const regionRoles = new Set(['search', 'form', 'region', 'navigation', 'contentinfo', 'banner', 'main', 'complementary',
     'dialog', 'alertdialog', 'alert', 'status', 'sheet', 'window', 'table', 'list', 'tablist', 'toolbar', 'menubar']);
 const MAX_REGIONS = 64;
-function prepare(snap) {
+export function prepare(snap) {
     const lines = [];
     const stack = [];
     const blocks = [];

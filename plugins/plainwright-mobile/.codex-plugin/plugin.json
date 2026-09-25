@@ -1,6 +1,6 @@
 {
   "name": "plainwright-mobile",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Native iOS and Android automation with Appium actions and Jev decisions; record and replay natural-language YAML tests",
   "author": {
     "name": "Gabriele Pavanello"
