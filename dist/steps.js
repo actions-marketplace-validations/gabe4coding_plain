@@ -173,6 +173,8 @@ export async function settledAsk(ctx, o) {
 // share ONE settle + ONE candidate scan + ONE pickElements() request (one request = one Jev call —
 // only the first Jev-resolved entry carries usedJev/tokens, matching pickElements()'s own contract).
 // Results come back in the same order as `targets`.
+// How long a step waits for a page with no candidates yet to show some.
+const APPEAR_MS = 2000;
 export async function resolveLocators(ctx, kind, targets) {
     const page = ctx.page;
     const results = new Array(targets.length);
@@ -196,21 +198,34 @@ export async function resolveLocators(ctx, kind, targets) {
     if (jevTargets.length > 0) {
         // Let debounced autocompletes, modals etc. finish rendering before we act (networkidle fires too early:
         // it sees the quiet gap *before* a debounced request starts); Jev already works on the early look.
-        const { state: { cands }, result } = await settledAsk(ctx, {
-            observe: async () => ({
-                cands: await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES)),
-                url: page.url(),
-                title: await page.title(),
-            }),
-            same: (a, b) => a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
-            ask: ({ cands, url, title }) => resolveTargets({
-                candidates: cands,
-                state: { url, title, goal: ctx.spec.goal },
-                element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
-            }, jevTargets),
-            discard: ([first]) => { if (first?.usedJev)
-                ctx.track(first.tokens); },
-        });
+        // A page still redirecting or rendering after `open` has no candidates yet (Booking answered "no
+        // candidates" in 243 ms): look again for a moment, as the desktop adapter does, before reporting it.
+        const deadline = Date.now() + Math.min(APPEAR_MS, ctx.timeout);
+        let look;
+        for (;;) {
+            look = await settledAsk(ctx, {
+                observe: async () => ({
+                    cands: await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES)),
+                    url: page.url(),
+                    title: await page.title(),
+                }),
+                same: (a, b) => a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
+                ask: ({ cands, url, title }) => resolveTargets({
+                    candidates: cands,
+                    state: { url, title, goal: ctx.spec.goal },
+                    element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
+                }, jevTargets),
+                discard: ([first]) => { if (first?.usedJev)
+                    ctx.track(first.tokens); },
+            }).catch((err) => { if (Date.now() < deadline && /context was destroyed|navigat/i.test(String(err)))
+                return null; throw err; });
+            if ((look && look.state.cands.length) || Date.now() >= deadline)
+                break;
+            await timed(ctx, 'idle', () => new Promise((r) => setTimeout(r, 150)));
+        }
+        if (!look)
+            throw new Error('the page kept navigating; no candidates could be read');
+        const { state: { cands }, result } = look;
         result.forEach((r, j) => {
             results[jevIndices[j]] = { ...r, detail: cands.length ? r.detail :
                     `no candidates: nothing on the page matches a ${kind} target${NO_CANDIDATES_HINT[kind] ?? ''}` };
@@ -315,6 +330,16 @@ async function runWait(ctx, step, stepLabel) {
     const MAX_POLLS = 8; // ponytail: hard cap on Jev polls per wait, floor against a condition that never holds
     const MIN_SNAPSHOT_GAP_MS = 250; // floor against a hot loop: settle→snapshot→skip→wake spinning on a constantly-mutating, unchanged-key page
     const deadline = Date.now() + ctx.timeout;
+    // `within`: one region pick, then every poll reads and sends only that region (a big page's whole
+    // tree costs ~17k tokens per poll). The region is picked again if its element leaves the page.
+    let region = null;
+    if (step.within) {
+        const r = await resolveOne(ctx, 'region', step.within);
+        if (!r.element)
+            return { step: stepLabel, status: 'inconclusive', detail: r.detail };
+        region = r.element;
+    }
+    const within = step.within;
     let polls = 0, skipped = 0, lastProbability = 0;
     let lastSnap = null, lastKey = null;
     const keyOf = (o) => JSON.stringify([o.snap, o.events]);
@@ -325,7 +350,15 @@ async function runWait(ctx, step, stepLabel) {
         // console errors, dialogs). If neither changed since the last poll and Jev already said a clear no,
         // asking again buys nothing — skip the round trip. A grey-zone answer is re-asked as documented
         // ("wait repeats the question"): a borderline p flips between runs, and the retry is what rescues it.
-        const { state, probabilities } = await judgeSettled(ctx, [step.condition], (o) => keyOf(o) === lastKey && decide(lastProbability, 'expect') === 'fail');
+        if (region && within && await region.count() === 0) { // re-rendered: its data-jev-id is gone
+            const r = await resolveOne(ctx, 'region', within);
+            if (!r.element)
+                return { step: stepLabel, status: 'inconclusive', detail: r.detail };
+            region = r.element;
+        }
+        const unchanged = (o) => keyOf(o) === lastKey && decide(lastProbability, 'expect') === 'fail';
+        const { state, probabilities } = region ? await judgeRegion(ctx, region, step.condition, unchanged)
+            : await judgeSettled(ctx, [step.condition], unchanged);
         if (probabilities === null)
             skipped++;
         else {
@@ -347,6 +380,18 @@ async function runWait(ctx, step, stepLabel) {
     }
     const file = dumpDebug(StepKind.wait, { condition: step.condition, probability: lastProbability, state: lastSnap });
     return { step: stepLabel, status: 'inconclusive', detail: `${detail()} — state: ${file}` };
+}
+// One wait poll against a region: its snapshot plus the events; null probabilities when `skip` says the
+// observation is unchanged since a clear no.
+async function judgeRegion(ctx, region, claim, skip) {
+    await timed(ctx, 'settle', () => settlePage(ctx.page));
+    const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, region));
+    const state = { snap, events: [...ctx.events] };
+    if (skip(state))
+        return { state, probabilities: null };
+    const result = await timed(ctx, 'jev', () => judgeState(snap, [claim], state.events));
+    ctx.track(result.tokens);
+    return { state, probabilities: result.probabilities };
 }
 async function runExpect(ctx, step, stepLabel) {
     const judgeExpectations = (snap, probabilities) => {

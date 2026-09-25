@@ -101,6 +101,7 @@ press: Back # Android only; Enter is Android only too
 expect: ["The preview says hello", "The preview switch is checked"]
 expect: {that: "The preview says hello", within: "the preview panel"}
 wait: "The results are visible"
+wait: {that: "The results are visible", within: "the results list"} # polls only that region
 ```
 
 Name controls as the native tree does, not by their visual role; read a `snapshot` first when

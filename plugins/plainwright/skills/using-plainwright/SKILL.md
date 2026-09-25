@@ -39,7 +39,8 @@ The rules below apply to both.
   before reading a snapshot. It cannot explain in free text. Use `expect` only for assertions that belong
   in the test: `ask` never changes the session status and `save` never records it.
   To get a sure answer instead of `unsure`:
-  - Name the exact thing: its text, role and place. Jev also sees console errors, dialogs and downloads,
+  - Name the exact thing: its text, role and place. Jev also sees the page's own console errors (not ads' or
+    blocked resources', which notes only count), dialogs and downloads,
     so "An error message is shown" is unsure on a page with a console error, or whose instructions mention
     errors. "The form shows a message saying the username is invalid" gets a clear `no`.
   - For absence, ask the positive claim and read a sure `no`: "The Password textbox contains any text" →
@@ -85,6 +86,9 @@ A claim is one fact about something that is visible when the condition holds.
   is shown` (0.98), where `the footer says 2 items left` stayed at 0.47 (TodoMVC's footer is plain text).
 - Nondeterministic pages: claim what is stable (`a notification bar is shown at the top`), not the random text.
 - `wait` when the thing appears after a delay or animation; `expect` for a settled page.
+- On a large page, scope a wait to where the thing will appear: `wait: {that: "a price is shown", within: "the
+  results list"}`. Every poll then reads that region only. Whole-page waits on a page that keeps changing (ads,
+  carousels) re-ask on every poll and can cost 100k+ tokens.
 
 ## Snapshot views
 

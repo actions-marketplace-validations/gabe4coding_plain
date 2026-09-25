@@ -40,7 +40,7 @@ export function label(step: Step): string {
     case StepKind.goto: return `goto ${step.url}`;
     case StepKind.select: return `select "${step.value}" in "${step.target}"`;
     case StepKind.upload: return `upload ${step.files.length} file(s) to "${step.target}"`;
-    case StepKind.wait: return `wait "${step.condition}"`;
+    case StepKind.wait: return `wait "${step.condition}"${step.within ? ` within "${step.within}"` : ''}`;
     case StepKind.press: return `press ${step.key}`;
     case StepKind.drag: return `drag "${step.source}" to "${step.target}"`;
     case StepKind.mouse: return `mouse to (${step.x}, ${step.y})`;

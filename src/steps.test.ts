@@ -70,3 +70,21 @@ test('scroll bottom/top and their spoken forms report the movement', async () =>
   r = await run({ scroll: 'top' });
   assert.match(r.detail!, /^scrolled \d+ → 0px$/);
 });
+
+test('a page with no candidates yet is looked at again for up to 2 s before "no candidates"', async () => {
+  const keys = { t: process.env.TYPESAFE_API_KEY, g: process.env.AI_GATEWAY_API_KEY };
+  delete process.env.TYPESAFE_API_KEY; delete process.env.AI_GATEWAY_API_KEY; // the late button reaches the model step, which then fails without a key
+  try {
+    await page.goto(html(`<script>setTimeout(() => document.body.innerHTML = '<button>Go</button>', 600)</script>`));
+    // Found, so the pick reached the model, which fails without a key (instead of "no candidates").
+    await assert.rejects(run({ click: 'the Go button' }), /TYPESAFE_API_KEY/);
+    await page.goto(html('<p>nothing to click</p>'));
+    const started = Date.now();
+    const empty = await run({ click: 'the Go button' });
+    assert.match(empty.detail ?? '', /no candidates/);
+    assert.ok(Date.now() - started >= 1900, 'looked again before giving up');
+  } finally {
+    if (keys.t !== undefined) process.env.TYPESAFE_API_KEY = keys.t;
+    if (keys.g !== undefined) process.env.AI_GATEWAY_API_KEY = keys.g;
+  }
+});

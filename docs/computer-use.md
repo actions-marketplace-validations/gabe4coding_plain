@@ -154,6 +154,7 @@ Supported steps reuse the browser schema:
 | `drag: {source, target}` | Resolve both endpoints in one Jev batch, then simulate a drag. |
 | `expect: [...]` | Judge multiple atomic claims in one request; can scope with `{that, within}`. |
 | `wait: "claim"` | Poll accessibility state, with up to eight Jev calls; avoid rejudging unchanged definite failures. |
+| `wait: {that, within}` | The same, polling only the region picked once by `within`. |
 
 Browser `goto`, `select`, `upload`, `css=`, and browser scroll-to-edge syntax are rejected.
 Use accessible native menus and file-dialog controls instead. `optional: true` changes only

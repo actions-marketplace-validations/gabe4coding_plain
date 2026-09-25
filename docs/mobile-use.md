@@ -165,6 +165,7 @@ verification on each platform. Unknown top-level keys and unsupported actions fa
 | `press: Back` / `Enter` | Android only; iOS returns an error. On iOS tap the visible back/keyboard button. |
 | `expect: ["claim", "another claim"]` | Judge atomic claims together. Supports `{that, within}` scoping. |
 | `wait: "claim"` | Poll until the claim passes, up to eight model calls; unchanged definite negatives are not rejudged. |
+| `wait: {that, within}` | The same, polling only the region picked once by `within`. |
 
 `goto`, `select`, `upload`, `hover`, `rightclick`, `mouse`, `drag`, and `css=` are unsupported.
 Operate native menus and pickers via their visible controls. `optional: true` converts errors
