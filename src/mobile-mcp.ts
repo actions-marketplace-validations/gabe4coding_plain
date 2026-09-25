@@ -12,7 +12,7 @@ import { LocalMobileDiscovery, AppListingSchema, type MobileDiscovery } from './
 export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000, ai: Intelligence = intelligence,
   discovery: MobileDiscovery = new LocalMobileDiscovery()) {
   return createNativeServer<MobileSpec>({
-    name: 'plainwright-mobile', version: '0.1.16', where: 'mobile MCP', ai,
+    name: 'plainwright-mobile', version: '0.1.17', where: 'mobile MCP', ai,
     spec: { name: 'mobile session', platform: 'android', device: '', app: '', dir: process.cwd(), env: {}, steps: [] },
     session: new MobileSession(adapter, timeout, ai) as MobileSession, kinds: ['click', 'fill', 'check', 'region', 'scroll'],
     saved: (spec) => ({ platform: spec.platform, device: spec.device, app: spec.app, ...(spec.capabilities ? { capabilities: spec.capabilities } : {}) }),
@@ -34,11 +34,11 @@ export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000
         inputSchema: AppListingSchema.shape, annotations: { readOnlyHint: true },
       }, (args) => queue(async () => ok(await discovery.listApps(args))));
       server.registerTool('open', {
-        description: 'Launch/activate an installed native app on an explicit iOS UDID or Android ADB serial through Appium. Requires platform (ios/android), device and app (bundle ID/package). Optional capabilities configure signing/activity. Preserves app data; starts a new recording and releases the previous hooks lease. Optional hooks supplies ${hooks.*} placeholders. Does not install apps, start emulators, or start Appium.',
-        inputSchema: { ...MobileTargetSchema.shape, hooks: z.string().min(1).optional() },
-      }, ({ hooks, ...raw }) => queue(async () => {
+        description: 'Launch/activate an installed native app on an explicit iOS UDID or Android ADB serial through Appium. Requires platform (ios/android), device and app (bundle ID/package). Optional capabilities configure signing/activity. Preserves app data; starts a new recording and releases the previous hooks lease. Optional hooks supplies ${hooks.*} placeholders. Optional goal (what the whole flow is for, one sentence) settles vague targets toward it; claims never see it. Does not install apps, start emulators, or start Appium.',
+        inputSchema: { ...MobileTargetSchema.shape, hooks: z.string().min(1).optional(), goal: z.string().min(1).optional() },
+      }, ({ hooks, goal, ...raw }) => queue(async () => {
         const target = MobileTargetSchema.parse(raw);
-        return open({ name: 'mobile session', ...target, dir: process.cwd(), env: {}, steps: [], hooks: hooks ? resolve(hooks) : undefined }, async (data) => {
+        return open({ name: 'mobile session', ...target, dir: process.cwd(), env: {}, steps: [], hooks: hooks ? resolve(hooks) : undefined, goal }, async (data) => {
           const app = await adapter.open(interpolate(target, { env: {}, hooks: data }, 'mobile MCP'));
           return { platform: app.platform, device: app.device, app: app.app };
         });

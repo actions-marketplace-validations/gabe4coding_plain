@@ -1,3 +1,9 @@
+// Step (and batch) results in every MCP server carry `changed`, what the action did to the page or screen: the
+// agent reads the outcome there instead of a snapshot/ask call (browser: -30% tool calls, -20% agent cost;
+// docs/benchmarks/agent-changes.md). PLAINWRIGHT_CHANGES=0 turns it off, to measure against (scripts/benchmark-agent.mjs).
+export const CHANGES = process.env.PLAINWRIGHT_CHANGES !== '0';
+export const CHANGES_NOTE = !CHANGES ? '' : ' The result also has `changed`: the page title/URL if they changed, and the accessibility-tree ' +
+    'lines the action added (`added`, in page order, capped) and how many it removed. Read it before calling snapshot or ask.';
 // About a compact snapshot's worth of the new lines: a navigation shows the top of the new page.
 export const ADDED_CHARS = 1500;
 /** What an action changed in the page: a line-multiset diff of two aria snapshots. */

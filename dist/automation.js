@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { pickElements, judge, decide, isTooLong, describeSnapshot } from './jev.js';
+import { pickElements, judge, decide, isTooLong, describeSnapshot, ask } from './jev.js';
 import { dumpDebug, topGuesses } from './results.js';
 // Shared perception boundary. Handles stay inside adapters; only descriptions reach Jev.
 export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), frameIndex: z.number().optional() });
 export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
-export const intelligence = { pick: pickElements, judge, describe: describeSnapshot };
+export const intelligence = { pick: pickElements, judge, describe: describeSnapshot, ask };
 export async function resolveTargets(adapter, targets, ai = intelligence) {
     if (!adapter.candidates.length)
         return targets.map(() => ({ element: null, detail: 'no candidates', tokens: 0, usedJev: false }));

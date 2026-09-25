@@ -70,8 +70,17 @@ do not assume the app exposes no controls or repeatedly tap unrelated navigation
 
 `step` accepts one YAML-style action as JSON. Describe an unambiguous native control. `find`
 dry-runs target selection using kinds `click`, `fill`, `check`, `region`, or `scroll`; use `click`
-for taps/long presses. The ten tools are `list_devices`, `list_apps`, `open`, `step`, `find`,
-`snapshot`, `ask`, `screenshot`, `save`, and `close`. All requests are serialized.
+for taps/long presses. The eleven tools are `list_devices`, `list_apps`, `open`, `step`, `find`,
+`snapshot`, `ask`, `read`, `screenshot`, `save`, and `close`. All requests are serialized.
+
+Pass `goal` to `open` (what the whole flow is for, one sentence): picks use it to settle a
+vague target toward the flow; the target's words still win, and claims never see it. Each `step`
+result carries `changed`: the tree lines the step added (capped) and how many it removed. Read it
+before a snapshot or `ask`: it often holds the new screen or the answer itself.
+
+`read {question, within?}` returns the exact tree lines that answer a question ("the iOS version
+on the About screen"), copied verbatim with their ancestors. Use it instead of a snapshot to read
+values; add `within` on a large screen.
 
 `ask {claims, within?}` answers yes/no questions about the current screen without acting or
 recording: 1-16 claims in one Jev call, each `yes` (p >= 0.9), `no` (p <= 0.1) or `unsure`. When a

@@ -9,7 +9,7 @@ import { jsonResult as ok } from './mcp-result.js';
 const blank = () => ({ name: 'computer session', app: '', dir: process.cwd(), env: {}, steps: [] });
 export function createComputerServer(adapter, timeout = 15000, ai = intelligence) {
     return createNativeServer({
-        name: 'plainwright-computer', version: '0.1.16', where: 'computer MCP', spec: blank(), ai,
+        name: 'plainwright-computer', version: '0.1.17', where: 'computer MCP', spec: blank(), ai,
         session: new ComputerSession(adapter, timeout, ai), kinds: ['click', 'fill', 'check', 'hover', 'region', 'scroll'],
         saved: (spec) => ({ app: spec.app }),
         describe: {
@@ -29,11 +29,11 @@ export function createComputerServer(adapter, timeout = 15000, ai = intelligence
                 return ok({ apps }, JSON.stringify(apps));
             }));
             server.registerTool('open', {
-                description: 'Attach to one running app by exact app name OR pid. activate defaults to true and brings a window forward; false only attaches. Starts a new recording, releasing the previous hooks lease. Optional hooks module supplies ${hooks.*} placeholders. Does not launch or quit applications.',
-                inputSchema: { app: z.string().optional(), pid: z.number().int().positive().optional(), activate: z.boolean().default(true), hooks: z.string().optional() },
+                description: 'Attach to one running app by exact app name OR pid. activate defaults to true and brings a window forward; false only attaches. Starts a new recording, releasing the previous hooks lease. Optional hooks module supplies ${hooks.*} placeholders. Optional goal (what the whole flow is for, one sentence) settles vague targets toward it; claims never see it. Does not launch or quit applications.',
+                inputSchema: { app: z.string().optional(), pid: z.number().int().positive().optional(), activate: z.boolean().default(true), hooks: z.string().optional(), goal: z.string().min(1).optional() },
             }, (args) => queue(async () => {
                 const target = ComputerTargetSchema.parse(args);
-                const spec = { ...blank(), app: target.app ?? `pid:${target.pid}`, hooks: args.hooks ? resolve(args.hooks) : undefined };
+                const spec = { ...blank(), app: target.app ?? `pid:${target.pid}`, hooks: args.hooks ? resolve(args.hooks) : undefined, goal: args.goal };
                 return open(spec, async () => {
                     const app = await adapter.open(target, args.activate);
                     spec.app = app.name;

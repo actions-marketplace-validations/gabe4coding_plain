@@ -16,12 +16,13 @@ export interface ComputerSpec {
   app: string;
   dir: string;
   hooks?: string;
+  goal?: string;
   env: Record<string, unknown>;
   steps: Step[];
 }
 export function loadComputerSpec(file: string): ComputerSpec {
   return loadNativeSpec(file, z.object({
-    name: z.string().min(1), app: z.string().min(1), hooks: z.string().min(1).optional(),
+    name: z.string().min(1), app: z.string().min(1), hooks: z.string().min(1).optional(), goal: z.string().min(1).optional(),
     env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
   }).strict(), parseComputerStep);
 }

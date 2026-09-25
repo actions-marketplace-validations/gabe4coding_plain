@@ -82,20 +82,23 @@ MCP tool errors use `isError: true` and a text message; action outcomes (includi
 `status: "error"`) remain structured results.
 Screenshots remain PNG image content blocks.
 
-All ten tools are serialized, including reads, so a snapshot cannot race another MCP action.
+All eleven tools are serialized, including reads, so a snapshot cannot race another MCP action.
 
 | Tool | Purpose |
 |---|---|
 | `list_devices {platform?}` | Discover connected Android devices/emulators and available iOS simulators on the MCP host. Returns `device`, `platform`, name, type, state and `ready`, plus per-platform setup errors. No session required. |
 | `list_apps {platform, device, query?, include_system?, offset?, limit?}` | List installed app IDs on an explicit ready local device. iOS also returns display names; Android returns package IDs, including packages without a launchable UI. Case-insensitive search matches ID/name. `include_system` defaults true, `offset` 0 and `limit` 100 (max 500). Pass `nextOffset` to retrieve another page; `total` counts filtered matches. |
-| `open {platform, device, app, capabilities?, hooks?}` | Launch/activate an installed app. `platform` is `ios` or `android`; `device` is a UDID/ADB serial; `app` is a bundle ID/package. Starts a new recording and tears down the old session. |
-| `step {step}` | Execute one YAML-style action or assertion; return status, detail, timing and Jev tokens. |
+| `open {platform, device, app, capabilities?, hooks?, goal?}` | Launch/activate an installed app. `platform` is `ios` or `android`; `device` is a UDID/ADB serial; `app` is a bundle ID/package. Starts a new recording and tears down the old session. Optional `goal` (what the whole flow is for, one sentence; spec key `goal:`) is given to every pick, so a vague target picks the control the flow is about; the target's words win, and claims never see it. |
+| `step {step}` | Execute one YAML-style action or assertion; return status, detail, timing, Jev tokens and `changed`. |
 | `find {kind, target}` | Resolve without acting. Kinds: `click`, `fill`, `check`, `region`, `scroll`. Use `click` for tap/longpress targets. |
 | `snapshot {within?, maxChars?, mode?, intent?}` | Raw text by default (20,000 chars); `compact`/`smart` default to 6,000. Maximum 60,000. Scoped reads resolve a region with Jev. Smart-only `intent` filters to relevant UI regions plus critical messages. See [snapshot views](snapshots.md). |
 | `ask {claims, within?}` | Yes/no questions about the current state, without acting: 1–16 claims in one Jev call, each answered `yes` (p ≥ 0.9), `no` (p ≤ 0.1) or `unsure`, with its `p`. Not recorded and never changes the session status. Use it to test hypotheses when a step fails ("An error message is shown", "The Save button is disabled"). |
+| `read {question, within?}` | Read data: the exact tree lines that answer the question, copied verbatim (`answer`), with their ancestors (`context`) and `confidence`. Jev picks the first and last line and never writes text; `found: false` with `guesses` when no line answers. `within` scopes it to a region and costs fewer Jev tokens. Not recorded. Same as the browser's `read`. |
 | `screenshot {}` | Return a device PNG for inspection; pixels are not supplied to Jev. |
 | `save {path, name?}` | Write passing recorded steps with platform, device, app, capabilities and relative hooks path. Rejects empty recordings. |
 | `close {}` | Run teardown and delete the Appium session. Does not uninstall or clear app data. |
+
+`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `swipe` take one extra capture before acting (~0.5 s on iOS). `PLAINWRIGHT_CHANGES=0` turns it off.
 
 Start with `list_devices`, select the intended ready device, then call `list_apps` with its
 `platform` and `device`. Copy the returned `app` identifier into `open`. Discovery does not
@@ -140,6 +143,7 @@ env:
   device: $TEST_DEVICE
   app: $TEST_APP
   message: $TEST_MESSAGE
+goal: Preview a message before sending it # optional; every pick sees it, claims never do
 steps:
   - fill: {target: "the Message text field", value: "${env.message}"}
   - check: "the Enable preview switch"

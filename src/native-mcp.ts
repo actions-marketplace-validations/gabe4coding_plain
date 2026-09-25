@@ -12,8 +12,10 @@ import { startHooks, placeholderPaths, type HooksRunner, type HookSpec } from '.
 import type { StepResult, Status } from './results.js';
 import { serialQueue } from './serial-queue.js';
 import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from './mcp-result.js';
+import { ariaChanges, CHANGES, CHANGES_NOTE, type AriaChanges } from './aria-changes.js';
+import { READ, READ_DESCRIPTION } from './read.js';
 
-type Spec = HookSpec & { hooks?: string };
+type Spec = HookSpec & { hooks?: string; goal?: string };
 type Tools<S extends Spec> = {
   server: McpServer;
   // Desktop/device input is a shared resource. Serialize reads too: a second snapshot must not race an action.
@@ -52,7 +54,7 @@ export function createNativeServer<S extends Spec>(cfg: {
   }
   cfg.tools({ server, queue, async open(next, attach) {
     await close();
-    transcript = []; results = []; overall = 'pass'; spec = next;
+    transcript = []; results = []; overall = 'pass'; spec = next; session.goal = next.goal;
     let setupDone = false;
     try {
       if (spec.hooks) { hooks = await startHooks<S>(spec.hooks); if (hooks.has.setup) data = await hooks.setup(spec); }
@@ -67,15 +69,27 @@ export function createNativeServer<S extends Spec>(cfg: {
       throw error;
     }
   } });
-  server.registerTool('step', { description: cfg.describe.step, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
+  // `changed`: the same diff as the browser's (src/aria-changes.ts), between the screen before the step and after
+  // it. A step that targets something captured the whole screen before acting (NativeSession.firstSnapshot):
+  // that is the before, since each capture costs ~0.5 s on iOS. press, swipe and mouse never look first, so
+  // they get a capture of their own. The after capture waits for the UI to go idle like any capture.
+  const capture = () => adapter.capture('region').then((f) => f.snapshot, () => null);
+  const looksFirst = (step: { kind: string; within?: string }) => !['press', 'swipe', 'mouse'].includes(step.kind);
+  async function changes(before: Awaited<ReturnType<typeof capture>> | undefined): Promise<{ changed?: AriaChanges }> {
+    if (!before) return {};
+    const after = await capture();
+    return after ? { changed: ariaChanges(before, after) } : {};
+  }
+  server.registerTool('step', { description: cfg.describe.step + CHANGES_NOTE, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
     requireOpen();
     const parsed = session.parse(step);
     const before = session.tokens;
+    const screen = CHANGES && !looksFirst(parsed) ? await capture() : null;
     const result = await session.run(fill(parsed));
     results.push(result);
     if (result.status !== 'pass' && result.status !== 'skipped') overall = result.status;
     if (result.status === 'pass') transcript.push(step);
-    return ok({ ...result, jevTokens: session.tokens - before });
+    return ok({ ...result, jevTokens: session.tokens - before, ...(CHANGES ? await changes(screen ?? session.firstSnapshot) : {}) });
   }));
   server.registerTool('find', {
     description: cfg.describe.find, inputSchema: { kind: z.enum(cfg.kinds), target: z.string().min(1) }, annotations: { readOnlyHint: true },
@@ -106,6 +120,15 @@ export function createNativeServer<S extends Spec>(cfg: {
     const { snapshot, probabilities, ms } = await session.ask(fill(claims), within ? fill(within) : undefined);
     return ok({ ...askResult(claims, probabilities, snapshot), jevTokens: session.tokens - before, ms });
   }));
+  if (READ) server.registerTool('read', {
+    description: READ_DESCRIPTION, inputSchema: { question: z.string().min(1), within: z.string().min(1).optional() }, annotations: { readOnlyHint: true },
+  }, ({ question, within }) => queue(async () => {
+    requireOpen();
+    const started = performance.now();
+    const before = session.tokens;
+    const { tokens: _, ...result } = await session.read(fill(question), within ? fill(within) : undefined);
+    return ok({ ...result, jevTokens: session.tokens - before, ms: Math.round(performance.now() - started) });
+  }));
   server.registerTool('screenshot', { description: cfg.describe.screenshot, inputSchema: {}, annotations: { readOnlyHint: true } }, () => queue(async () => {
     requireOpen();
     return { content: [{ type: 'image' as const, mimeType: 'image/png', data: (await adapter.screenshot()).toString('base64') }] };
@@ -116,7 +139,7 @@ export function createNativeServer<S extends Spec>(cfg: {
     requireOpen();
     if (!transcript.length) throw new Error('No successful steps to save');
     const file = resolve(path);
-    const doc = { name: name ?? spec.name, ...cfg.saved(spec), ...(spec.hooks ? { hooks: relative(dirname(file), spec.hooks) } : {}), steps: transcript };
+    const doc = { name: name ?? spec.name, ...cfg.saved(spec), ...(spec.goal ? { goal: spec.goal } : {}), ...(spec.hooks ? { hooks: relative(dirname(file), spec.hooks) } : {}), steps: transcript };
     writeFileSync(file, stringify(doc), { mode: 0o600 });
     return ok({ path: file, steps: transcript.length });
   }));

@@ -3,6 +3,7 @@ import type { Step } from './spec.js';
 import { intelligence, resolveTargets, judgeState, askSettled, type Intelligence, type Frame } from './automation.js';
 import { decide, loadEnvFiles, provider, warmUp } from './jev.js';
 import { timedInto, dumpDebug, type StepResult, type Status } from './results.js';
+import { readAnswer } from './read.js';
 import { startHooks, type HooksRunner, type HookSpec } from './hooks.js';
 
 // Shared by the desktop (computer.ts) and mobile (mobile.ts) paths: Jev targeting, expect/wait polling,
@@ -23,6 +24,8 @@ const APPEAR_MS = 2000;
 export abstract class NativeSession<T, K extends string, S extends { kind: string; optional?: boolean }, A extends NativeAdapter<T, K>> {
   calls = 0;
   tokens = 0;
+  /** What the whole flow is for (spec `goal:`, MCP `open {goal}`): every pick sees it, claims never do. */
+  goal?: string;
   constructor(readonly adapter: A, readonly timeout = 15000, protected ai: Intelligence = intelligence) {}
   abstract parse(raw: unknown): S;
   protected abstract label(step: S): string;
@@ -36,6 +39,8 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
   // End of the last step. Seconds later (an agent's turn) the UI is idle, the settled capture is quick,
   // and an early capture would only add calls (measured: no gain with 5 s between steps).
   private lastStepEnd = 0;
+  /** The first whole-screen capture of the current step, before it acted: `changed` in the MCP step result diffs against it. */
+  firstSnapshot?: Frame<T>['snapshot'];
   /** The UI was just driven outside a step (the app was opened): the next step may find it busy. */
   noteActivity() { this.lastStepEnd = Date.now(); }
   // Captures the settled UI and asks Jev about it. Where the adapter offers an early capture (Android),
@@ -47,7 +52,10 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     const early = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
     const { frame, result, reasked } = await askSettled({
       early: early && (() => this.timed('capture', () => early(kind, within))),
-      settled: () => this.timed('capture', () => this.adapter.capture(kind, within)),
+      settled: () => this.timed('capture', () => this.adapter.capture(kind, within)).then((f) => {
+        if (within === undefined) this.firstSnapshot ??= f.snapshot;
+        return f;
+      }),
       same: sameFrame, ask, discard, skip,
       waitAnswer: (fn) => this.timed('jev', fn),
     });
@@ -59,7 +67,7 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     // an empty capture is looked at again for a moment instead of reported as "no candidates".
     const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
     for (;;) {
-      const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: frame.snapshot,
+      const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
         element: (c) => { const el = frame.elements.get(c.id); if (el === undefined) throw new Error('Candidate handle missing'); return el; },
       }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); });
       if (frame.candidates.length === 0 && Date.now() < deadline) { await this.timed('idle', () => new Promise((r) => setTimeout(r, 150))); continue; }
@@ -85,10 +93,18 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     this.track(result!.tokens);
     return { snapshot: frame.snapshot, probabilities: result!.probabilities, ms: this.ms };
   }
+  /** The MCP `read` tool: the tree lines that answer `question` (src/read.ts), not recorded. */
+  async read(question: string, within?: string) {
+    const snapshot = await this.snapshot(within);
+    const result = await readAnswer(snapshot, question, this.ai.ask);
+    this.track(result.tokens);
+    return result;
+  }
   step(raw: unknown): Promise<StepResult> { return this.run(this.parse(raw)); }
   async run(step: S): Promise<StepResult> {
     const start = Date.now();
     this.ms = {};
+    this.firstSnapshot = undefined;
     let result: StepResult;
     try {
       const valid = this.validate(step);
@@ -131,7 +147,7 @@ function sameFrame<T>(a: Frame<T>, b: Frame<T>): boolean {
     JSON.stringify([...a.elements]) === JSON.stringify([...b.elements]);
 }
 
-type NativeSpec<S> = HookSpec & { env: Record<string, unknown>; hooks?: string; steps: S[] };
+type NativeSpec<S> = HookSpec & { env: Record<string, unknown>; hooks?: string; goal?: string; steps: S[] };
 
 /** hooks setup → `open` (interpolates, attaches, returns the resolved steps) → steps → teardown → close. */
 export async function runNativeSpec<S extends { kind: string; optional?: boolean }, P extends NativeSpec<S>>(spec: P,
@@ -141,6 +157,7 @@ export async function runNativeSpec<S extends { kind: string; optional?: boolean
   let hooks: HooksRunner<P> | undefined;
   let data: Record<string, unknown> = {};
   let setupDone = false;
+  session.goal = spec.goal;
   try {
     if (spec.hooks) {
       hooks = await startHooks<P>(spec.hooks);

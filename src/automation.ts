@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { pickElements, judge, decide, isTooLong, describeSnapshot } from './jev.js';
+import { pickElements, judge, decide, isTooLong, describeSnapshot, ask } from './jev.js';
 import { dumpDebug, topGuesses } from './results.js';
 
 // Shared perception boundary. Handles stay inside adapters; only descriptions reach Jev.
@@ -21,8 +21,9 @@ export interface ResolvedTarget<T> {
   usedJev: boolean;
   confidence?: number;
 }
-export type Intelligence = { pick: typeof pickElements; judge: typeof judge; describe?: typeof describeSnapshot };
-export const intelligence: Intelligence = { pick: pickElements, judge, describe: describeSnapshot };
+// `ask` is the raw call `read` (src/read.ts) makes; tests inject it with the rest.
+export type Intelligence = { pick: typeof pickElements; judge: typeof judge; describe?: typeof describeSnapshot; ask?: typeof ask };
+export const intelligence: Intelligence = { pick: pickElements, judge, describe: describeSnapshot, ask };
 
 export async function resolveTargets<T>(adapter: TargetAdapter<T>, targets: string[], ai = intelligence): Promise<ResolvedTarget<T>[]> {
   if (!adapter.candidates.length) return targets.map(() => ({ element: null, detail: 'no candidates', tokens: 0, usedJev: false }));

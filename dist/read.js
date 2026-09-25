@@ -4,6 +4,13 @@ import { prepare } from './snapshot-view.js';
 // tree. Code numbers the lines, Jev picks the first and the last line of the answer (two Choice questions,
 // one request), code copies the lines in between. Jev selects; it never writes the answer, so nothing is
 // made up. More lines than one Choice holds are cut into equal chunks asked in parallel; the surest chunk wins.
+// The MCP `read` tool in every server. PLAINWRIGHT_READ=0 hides it, to measure against (scripts/benchmark-agent.mjs --read).
+export const READ = process.env.PLAINWRIGHT_READ !== '0';
+export const READ_DESCRIPTION = 'Read data off the current page or screen: answers `question` ("the price of the first result", "the titles and prices of ' +
+    'the first three books") with the exact accessibility-tree lines that hold the answer, copied verbatim, ' +
+    'plus their ancestors as `context`. Jev picks the lines and never writes them, so the answer is on-screen text. ' +
+    '`found: false` with `guesses` when no line answers it. `within` scopes it to a region and costs ' +
+    'fewer Jev tokens on a large tree. Prefer it over snapshot or evaluate for reading values. Not recorded.';
 // A Choice holds 255 options, one of them `none`.
 export const READ_LINES = 254;
 const STATE_LINE_CHARS = 400; // a line as the state shows it; the answer always has the full line

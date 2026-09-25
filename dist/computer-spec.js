@@ -14,7 +14,7 @@ export function parseComputerStep(raw, where = 'computer', index = 0) {
 }
 export function loadComputerSpec(file) {
     return loadNativeSpec(file, z.object({
-        name: z.string().min(1), app: z.string().min(1), hooks: z.string().min(1).optional(),
+        name: z.string().min(1), app: z.string().min(1), hooks: z.string().min(1).optional(), goal: z.string().min(1).optional(),
         env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
     }).strict(), parseComputerStep);
 }
