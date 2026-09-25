@@ -11,13 +11,13 @@ const blank = (): ComputerSpec => ({ name: 'computer session', app: '', dir: pro
 
 export function createComputerServer<T>(adapter: ComputerAdapter<T>, timeout = 15000, ai: Intelligence = intelligence) {
   return createNativeServer<ComputerSpec>({
-    name: 'plainwright-computer', version: '0.1.17', where: 'computer MCP', spec: blank(), ai,
+    name: 'plainwright-computer', version: '0.1.18', where: 'computer MCP', spec: blank(), ai,
     session: new ComputerSession(adapter, timeout, ai) as ComputerSession, kinds: ['click', 'fill', 'check', 'hover', 'region', 'scroll'],
     saved: (spec) => ({ app: spec.app }),
     describe: {
       step: 'One natural-language desktop action: {click:"the OK button"}, {fill:{target:"the editor",value:"hello"}}, {check:"the checkbox"}, {uncheck:"the checkbox"}, {hover:"the icon"}, {dblclick:"the file"}, {rightclick:"the row"}, {scroll:"down: the list"} (or up:), {press:"Control+a"}, {drag:{source:"the row",target:"the folder"}}, {mouse:{x:100,y:100}}, {expect:["claim"]}, {expect:{that:"claim",within:"the dialog"}}, {wait:"claim"}. optional:true tolerates errors/inconclusive as skipped. css=, goto, select and upload are browser-only. Jev picks at >=0.5 confidence (probability fallback); claims pass >=0.9, fail <=0.1. Rephrase inconclusive targets. Coordinates are logical desktop coordinates. Only passing steps are recorded; ${hooks.*} remain placeholders in saved YAML.',
       find: 'Ask Jev which desktop control matches a target without acting. No selector escape hatch.',
-      snapshot: 'Read the attached app accessibility tree, optionally within a natural-language region. This reading is not recorded.',
+      snapshot: 'Read the attached app accessibility tree, optionally within a natural-language region. To read a value, use `read` instead. This reading is not recorded.',
       screenshot: 'Capture an attached application window as a PNG for inspection. May require screen-recording permission. Screenshot pixels do not feed Jev targeting.',
       save: 'Write successful recorded steps as a replayable desktop YAML spec. Uses the app name instead of its ephemeral pid. Preserves hook placeholders and makes hooks path relative to the saved file.',
       close: 'Detach and run teardown. Leaves the desktop application running.',

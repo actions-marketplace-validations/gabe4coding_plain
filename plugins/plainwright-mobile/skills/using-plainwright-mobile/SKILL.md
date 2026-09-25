@@ -57,7 +57,8 @@ Screen classification
 requires confidence >= 0.9 (probability fallback); signals are present at p >= 0.9, absent at
 p <= 0.1, otherwise inconclusive. Source truncation prevents absence claims. Failed
 classification returns compact evidence with unavailable inference. Omitted content is not
-absent; expand with `within` or raw mode to read exact data. Known actions need no snapshot first.
+absent; expand with `within` or raw mode. To read a value, use `read`, not a snapshot. Known
+actions need no snapshot first.
 `screenshot` returns the device PNG for inspection. Neither
 reading is recorded. Jev uses text, not screenshots; inaccessible canvas controls require app
 accessibility support. React Native controls work through their native accessibility labels,
@@ -78,9 +79,11 @@ vague target toward the flow; the target's words still win, and claims never see
 result carries `changed`: the tree lines the step added (capped) and how many it removed. Read it
 before a snapshot or `ask`: it often holds the new screen or the answer itself.
 
-`read {question, within?}` returns the exact tree lines that answer a question ("the iOS version
-on the About screen"), copied verbatim with their ancestors. Use it instead of a snapshot to read
-values; add `within` on a large screen.
+To read a value, call `read {question, within?}` first: it returns the exact tree lines that answer
+the question ("the iOS version on the About screen"), copied verbatim with their ancestors. Several
+facts about one item fit in one question; add `within` on a large screen. On `found: false`,
+rephrase once with the words of `guesses` or scope with `within`. A snapshot is for seeing
+structure while debugging, not for reading values.
 
 `ask {claims, within?}` answers yes/no questions about the current screen without acting or
 recording: 1-16 claims in one Jev call, each `yes` (p >= 0.9), `no` (p <= 0.1) or `unsure`. When a

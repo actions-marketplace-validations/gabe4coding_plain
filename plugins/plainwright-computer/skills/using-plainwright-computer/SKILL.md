@@ -29,14 +29,18 @@ Compact/smart return exact `observed.aria`,
 Screen classification requires confidence >= 0.9 (probability fallback). Signals are present
 at p >= 0.9, absent at p <= 0.1, otherwise inconclusive; source truncation prevents absence
 claims. Classification failure returns compact evidence with unavailable inference. Missing
-excerpt content is not absent; expand with `within` or raw mode. Known actions need no snapshot
-first. Unscoped raw/compact reads need no model key; smart classification uses one.
+excerpt content is not absent; expand with `within` or raw mode. To read a value, use `read`, not a
+snapshot. Known actions need no snapshot first. Unscoped raw/compact reads need no model key; smart classification uses one.
 
 - `apps` lists running applications and their pids without focusing them. `open` attaches by exact
   `app` name or `pid`, never both. It does not launch an app. `activate: true` (default) brings a
   window forward; use `activate: false` for reading without activation.
 - `step` accepts one YAML-style action as a JSON object. Describe one unambiguous element using
   accessibility names. `find` is a dry run of Jev targeting, useful when a target is unclear.
+- To read a value, call `read {question, within?}` first: it returns the exact tree lines that answer the
+  question, copied verbatim with their ancestors ("the file size in the Info panel"). Several facts about
+  one item fit in one question; add `within` on a large window. On `found: false`, rephrase once with the
+  words of `guesses` or scope with `within`. A snapshot is for seeing structure, not for reading values.
 - `snapshot` reads the app tree; `within` selects a region. `screenshot` returns a window PNG for
   inspection. Neither reading is recorded. Jev uses accessibility text, not screenshots; a canvas
   with no accessible controls needs application accessibility support, not invented targets.
@@ -49,8 +53,6 @@ first. Unscoped raw/compact reads need no model key; smart classification uses o
   a vague "an error is shown"; for absence, ask the positive claim and read a sure `no` ("The field
   contains any text" → no, where "The field is empty" stays unsure: an empty field has no value in
   the tree); scope with `within` to cut noise. `unsure` is not evidence either way: rephrase or split.
-- `read {question, within?}` returns the exact tree lines that answer a question, copied verbatim with
-  their ancestors. Use it instead of a snapshot to read values; add `within` on a large window.
 - Each `step` result carries `changed`: the tree lines the step added (capped) and how many it removed.
   Read it before a snapshot or `ask`: it often holds the new window content or the answer itself.
 - Pass `goal` to `open` (what the whole flow is for, one sentence): picks use it to settle a vague

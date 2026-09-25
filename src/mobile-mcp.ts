@@ -12,14 +12,14 @@ import { LocalMobileDiscovery, AppListingSchema, type MobileDiscovery } from './
 export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000, ai: Intelligence = intelligence,
   discovery: MobileDiscovery = new LocalMobileDiscovery()) {
   return createNativeServer<MobileSpec>({
-    name: 'plainwright-mobile', version: '0.1.17', where: 'mobile MCP', ai,
+    name: 'plainwright-mobile', version: '0.1.18', where: 'mobile MCP', ai,
     spec: { name: 'mobile session', platform: 'android', device: '', app: '', dir: process.cwd(), env: {}, steps: [] },
     session: new MobileSession(adapter, timeout, ai) as MobileSession, kinds: ['click', 'fill', 'check', 'region', 'scroll'],
     saved: (spec) => ({ platform: spec.platform, device: spec.device, app: spec.app, ...(spec.capabilities ? { capabilities: spec.capabilities } : {}) }),
     describe: {
       step: 'One mobile action: {tap:"the Sign in button"} (click alias), {fill:{target:"Email",value:"hello"}}, {longpress:"the row"}, {dblclick:"the image"}, {check:"the switch"}, {uncheck:"the switch"}, {scroll:"down: the list"}, {swipe:"left"} or {swipe:{direction:"up",within:"the panel"}}, {press:"Back"}, {expect:["claim"]}, {expect:{that:"claim",within:"the dialog"}}, {wait:"claim"}. fill replaces text or selects an iOS picker-wheel value. Back/Enter are Android only; Home/HideKeyboard work on both platforms. Scroll direction is content navigation; swipe direction is finger movement. Browser/desktop-only steps and css= are rejected. optional:true skips errors/inconclusive, never a definite failed assertion. Picks need confidence >=0.5 (probability fallback); claims pass >=0.9, fail <=0.1. Only passing steps are recorded; ${hooks.*} remain placeholders.',
       find: 'Ask Jev which mobile control matches a target without acting. No selector escape hatch.',
-      snapshot: 'Read the device native UI tree, optionally within a natural-language region. This reading is not recorded.',
+      snapshot: 'Read the device native UI tree, optionally within a natural-language region. To read a value, use `read` instead. This reading is not recorded.',
       screenshot: 'Capture the device screen as a PNG for inspection. Screenshot pixels do not feed Jev targeting.',
       save: 'Write successful recorded steps as a replayable mobile YAML spec with platform, device and app. Preserves hook placeholders and makes hooks path relative to the saved file.',
       close: 'Run teardown and delete the Appium session. Preserves app data; does not uninstall the app.',

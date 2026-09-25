@@ -210,9 +210,8 @@ export async function serveMcp(opts) {
     }));
     server.registerTool('snapshot', {
         description: 'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
-            '("the results list", "the hotel table", or css=...). Reading data: prefer `within` so you get the table or list ' +
-            'and not the whole page, or `evaluate` when you want clean JSON. Debugging: only when a step came back ' +
-            'inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
+            '("the results list", "the hotel table", or css=...). Reading a value: use `read`, not this; `evaluate` for many ' +
+            'rows as JSON. Debugging: only when a step came back inconclusive and rephrasing did not help.' + SNAPSHOT_MODES_DESCRIPTION,
         inputSchema: { ...SnapshotOptions, within: z.string().optional() },
     }, ({ maxChars, within, mode, intent }) => queue(async () => {
         if (!session)
@@ -280,8 +279,8 @@ export async function serveMcp(opts) {
         return ok('detail' in r ? { found: false, detail: r.detail, ...base } : { ...askResult(claims, r.probabilities, r.snap), ...base });
     }));
     server.registerTool('evaluate', {
-        description: 'Run a JavaScript expression in the page and return its JSON value: the raw escape hatch for pulling data ' +
-            'once the flow got there, e.g. `[...document.querySelectorAll("article")].map(a => ({ name: a.querySelector("h3")?.innerText, price: a.querySelector("[data-testid=price]")?.innerText }))`. ' +
+        description: 'Run a JavaScript expression in the page and return its JSON value: the raw escape hatch for pulling many rows as JSON ' +
+            'once the flow got there (a single value or a few rows: use `read`), e.g. `[...document.querySelectorAll("article")].map(a => ({ name: a.querySelector("h3")?.innerText, price: a.querySelector("[data-testid=price]")?.innerText }))`. ' +
             'The expression may be async (a promise is awaited). Read-only by convention: it is not a step, so `save` does not record it.',
         inputSchema: { js: z.string() },
     }, ({ js }) => queue(async () => {
