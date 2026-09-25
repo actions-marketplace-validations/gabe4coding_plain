@@ -64,11 +64,12 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   `geolocation`, `env`, `hooks`, plus `steps`). `$VAR` leaves in `auth`/`env` resolve from `process.env` at load
   time. `interpolate()` replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
   leaf, is an error.
-- `src/page.ts` — candidate collection (`candidates()`, selector + shadow-DOM walk per step kind, with
+- `src/candidates.ts` — candidate collection (`candidates()`, selector + shadow-DOM walk per step kind, with
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
-  nav/footer, so a cookie banner appended at the end of the body is never cut. Also the accessibility snapshot
-  (`snapshot()`/`snapshotRegion()`, 60k-char cap) and DOM-quiet waiting (`settle()`).
+  nav/footer, so a cookie banner appended at the end of the body is never cut.
+- `src/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap) and DOM-quiet waiting
+  (`settle()`). Re-exports the candidate helpers from `src/candidates.ts`.
 - `src/jev.ts` — provider selection and the `ask()` call to either backend; `pickElements()` (one Choice per
   target; ≤254 candidates per request, more are split into equal chunks asked in parallel and merged by
   `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim); `decide()`: a claim passes at p ≥ 0.9, fails at

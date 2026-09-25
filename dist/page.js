@@ -1,4 +1,15 @@
-import { frameLabel } from './candidates.js';
+// Iframe name, or pathname. The candidate scan keeps the same private helper.
+function frameLabel(frame) {
+    const name = frame.name();
+    if (name)
+        return name;
+    try {
+        return new URL(frame.url()).pathname || frame.url();
+    }
+    catch {
+        return frame.url();
+    }
+}
 export { CandidateSchema, SnapshotSchema } from './automation.js';
 export { CandidateKindSchema, candidates, elementById } from './candidates.js';
 // The candidate scan tags elements with data-jev-id. That is our own write, not the page changing, so

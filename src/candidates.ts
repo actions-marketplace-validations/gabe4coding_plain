@@ -228,7 +228,7 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, lis
   });
 }
 
-export function frameLabel(frame: Frame): string {
+function frameLabel(frame: Frame): string {
   const name = frame.name();
   if (name) return name;
   try { return new URL(frame.url()).pathname || frame.url(); } catch { return frame.url(); }
