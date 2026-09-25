@@ -37,7 +37,7 @@ MCP tool errors use `isError: true` and a text message; action outcomes (includi
 1,500 characters; `addedOmitted` counts the rest) and `removed` (how many lines are gone). After a navigation
 `added` is the top of the new page. It costs one settle and one tree read after the action and no Jev call.
 Measured with a Sonnet agent on six tasks: tool calls -30%, agent cost -20%, same answers
-([agent benchmark](benchmarks/agent-changes.md)). `PLAINWRIGHT_CHANGES=0` turns it off.
+([agent benchmark](benchmarks/agent-changes.md)). `PLAINWRIGHT_CHANGES=0` turns it off. `PLAINWRIGHT_READ=0` hides `read`.
 
 A rejected pick comes back `inconclusive` with the top guesses in `detail`, so the agent rephrases and
 retries. `${env.*}` is not available in a session, only `${hooks.*}`.

@@ -106,7 +106,7 @@ Screenshots remain PNG image content blocks.
 | `save {path, name?}` | Save successful steps as desktop YAML. Rejects an empty recording. |
 | `close {}` | Detach and run teardown; leave the application running. |
 
-`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `mouse` take one extra capture before acting. `PLAINWRIGHT_CHANGES=0` turns it off.
+`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `mouse` take one extra capture before acting. `PLAINWRIGHT_CHANGES=0` turns it off. `PLAINWRIGHT_READ=0` hides `read`.
 
 `open` attaches; it does not launch arbitrary programs. Applications must already be running,
 which keeps batch setup in the user's environment or hooks. Every `open` starts a new recording
