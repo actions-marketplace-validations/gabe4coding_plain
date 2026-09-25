@@ -53,6 +53,17 @@ test('candidates: a row labelled by its own heading names it once', async () => 
   assert.match(different, /context: li name="Row two" heading="Other heading"$/);
 });
 
+test('candidates: a region is a list of things, not a row of short labels', async () => {
+  const book = (t: string) => `<li><h3>${t}</h3><span>First published in 1969 · 91 editions · 8 ebooks</span></li>`;
+  await page.goto(html(`<ul id="results">${book('The Left Hand of Darkness')}${book('The Dispossessed')}</ul>` +
+    '<div><ul id="meta"><li>Python</li><li>4.2k</li><li>Updated yesterday</li></ul></div>' +
+    '<ul role="list" id="named"><li>A</li><li>B</li></ul>'));
+  const regions = (await candidates(page, 'region', 254)).map((c) => c.desc);
+  assert.equal(regions.length, 2);
+  assert.match(regions[0], /^ul .*The Left Hand of Darkness/);
+  assert.match(regions[1], /^ul\[role=list\]/); // an explicit role=list always counts
+});
+
 test('candidates: repeated buttons retain their own card context, ordinal and actionable identity', async () => {
   await page.goto(html('<main>' + Array.from({ length: 72 }, (_, i) =>
     `<article><h2>${i === 53 ? 'Field notebook 32' : `Office supply ${i + 1}`}</h2><p>In stock</p><button onclick="this.textContent=\'Opened\'">View details</button></article>`
