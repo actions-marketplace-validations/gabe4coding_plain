@@ -54,7 +54,8 @@ The rules below apply to both.
 ## Writing a target (click, fill, hover, select, check, scroll)
 
 One element, one true answer, named the way the accessibility tree names it: role, visible text, and what
-sets it apart from its siblings.
+sets it apart from its siblings. The `goal` given to `open` (or a spec's `goal:`) settles a target that still
+fits several elements toward the one the flow is about; it never overrides the target's words.
 
 - `the Login button`, `the username textbox`, `the edit link in the 5th table row`
 - `the cuisine search input (not the location field)`

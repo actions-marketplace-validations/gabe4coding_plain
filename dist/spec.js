@@ -31,6 +31,8 @@ export const SpecSchema = z.object({
     url: nonEmptyString,
     dir: z.string(), // directory used to resolve upload paths
     dialogs: z.enum(['accept', 'dismiss']),
+    // What the whole flow is for; picks see it and settle vague targets toward it (claims never see it).
+    goal: nonEmptyString.optional(),
     auth: z.object({ user: nonEmptyString, pass: nonEmptyString }).optional(),
     geolocation: z.object({ lat: z.number(), lon: z.number() }).optional(),
     // MCP-built specs have no env block; loadSpec supplies {} for file-based specs.

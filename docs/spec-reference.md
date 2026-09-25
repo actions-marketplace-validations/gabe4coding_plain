@@ -27,6 +27,7 @@ steps:
 |---|---|
 | `name` | Label in the report. |
 | `url` | Start URL. Relative `goto` paths resolve against it. May contain `${env.*}` and `${hooks.*}`. |
+| `goal` | Optional. What the whole flow is for, in one sentence. Every pick sees it, so a vague target (`the comments link`) picks the element the flow is about; the target's words win when they disagree. Claims (`expect`, `wait`) never see it. Browser specs only. |
 | `dialogs` | How `alert`, `confirm` and `prompt` are answered: `accept` (default) or `dismiss`. Each dialog is logged on the step that fired it. |
 | `auth` | `{ user, pass }` HTTP credentials for Basic or Digest prompts. |
 | `geolocation` | `{ lat, lon }` emulates a GPS position and grants the `geolocation` permission. |

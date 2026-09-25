@@ -32,6 +32,8 @@ time between calls. Compare a change against a saved run; results and method in 
 node scripts/benchmark-steps.mjs --runs 3 --out /tmp/new.json --compare /tmp/base.json
 node scripts/benchmark-mcp.mjs --cli dist/cli.js --gap 5000 --runs 2
 node scripts/benchmark-planner.mjs --runs 3          # sentence → steps planner vs scripts/planner-cases.json
+node scripts/benchmark-picks.mjs --runs 3            # picks with/without goal on saved pages (scripts/pick-states/)
+node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, changed on vs off (costs Claude usage)
 ```
 
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
@@ -71,7 +73,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim); `decide()`: a claim passes at p ≥ 0.9, fails at
   p ≤ 0.1, else `inconclusive`; a pick is accepted when (`confidence` if TypeSafe returned one, else
   `probability`) ≥ 0.5 and the answer isn't `none`. A rejected pick or non-passing claim dumps the exact state
-  to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/steps.ts`). The model is pinned (`MODEL_BY_PROVIDER`), not `jev-latest`:
+  to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/steps.ts`). A pick's state carries the flow's `goal`
+  (spec `goal:` or MCP `open {goal}`, browser only) when there is one, never in the question; claims never see it. The model is pinned (`MODEL_BY_PROVIDER`), not `jev-latest`:
   thresholds and phrasing advice were tuned against it. The TypeSafe SDK client handles timeouts and retries
   (429/5xx, `Retry-After`); the gateway path keeps its own retry loop because the AI SDK's backoff cannot outlast
   a rate-limit window. A global undici keep-alive dispatcher keeps API connections open between calls (Node's default
@@ -101,7 +104,9 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   not imposed. See `examples/login-dataset.yaml` + `examples/hooks/login-dataset.mjs`.
 - `src/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `find`,
   `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/steps.ts`), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask` and
-  `evaluate` read without acting and are not recorded. `save` writes a YAML spec with `${hooks.*}` placeholders kept and `hooks:` relative to the
+  `evaluate` read without acting and are not recorded. `step`/`batch` results carry `changed` (title/url if changed,
+  new aria lines capped at 1,500 chars, removed count; `src/aria-changes.ts`, after a settle; `PLAINWRIGHT_CHANGES=0`
+  turns it off). `save` writes a YAML spec with `${hooks.*}` placeholders kept and `hooks:` relative to the
   saved file. `${env.*}` is not available in an MCP session, only `${hooks.*}`. stdout is the JSON-RPC channel,
   so all logging (here and in `src/cli.ts`/`src/steps.ts`) goes to `console.error`.
 - `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.

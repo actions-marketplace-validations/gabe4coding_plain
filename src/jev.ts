@@ -209,13 +209,19 @@ export interface PickResult {
 // are deliberately sent twice (state.elements and criteria). Measured 2026-09-19 with them only in
 // criteria: pick tokens -40% on a 192-candidate page, but pick p -0.05 on average and up to -0.33;
 // for a test tool a wrong pick costs more than the tokens.
-async function pickChunk(candidates: Candidate[], instructions: string[], page: { url: string; title: string }): Promise<PickResult[]> {
+// What a pick knows about the page, plus the flow's goal when the spec or the MCP session gave one.
+export interface PickPage { url: string; title: string; goal?: string }
+
+async function pickChunk(candidates: Candidate[], instructions: string[], page: PickPage): Promise<PickResult[]> {
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
   for (const c of candidates) criteria[String(c.id)] = c.desc;
 
   // `instructions` as a list (not folded into each question's text) plus `today` lets a step like
   // "the earliest day after today" have one answer instead of one per instruction wording.
-  const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), instructions, elements: candidates };
+  // `goal` is state only, never named in the question: a vague target ("the comments link") then picks the
+  // element the flow is about, and words still beat the goal when they disagree (scripts/benchmark-picks.mjs,
+  // docs/benchmarks/picks.md). Without a goal the request is byte-for-byte what it was.
+  const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), ...(page.goal ? { goal: page.goal } : {}), instructions, elements: candidates };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',
     instructions: `Which element does \`instructions[${i}]\` refer to? Pick \`none\` if no listed element matches.`,
@@ -233,7 +239,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
 
 // Up to MAX_PICK_CANDIDATES: one request, as before. Past it: equal chunks, one request each, run in
 // parallel so a dense page costs one round trip (and one request's tokens per chunk), then merged.
-export async function pickElements(candidates: Candidate[], instructions: string[], page: { url: string; title: string },
+export async function pickElements(candidates: Candidate[], instructions: string[], page: PickPage,
   ask: typeof pickChunk = pickChunk): Promise<PickResult[]> {
   if (candidates.length <= MAX_PICK_CANDIDATES) return pickSplitting(candidates, instructions, page, ask);
   const chunkCount = Math.ceil(candidates.length / MAX_PICK_CANDIDATES);
@@ -244,7 +250,7 @@ export async function pickElements(candidates: Candidate[], instructions: string
 
 // Under 254 candidates a request can still be over the token limit when descriptions are long (a busy
 // Slack channel: every message row carries its text as context). Halve and merge, as for too many.
-async function pickSplitting(candidates: Candidate[], instructions: string[], page: { url: string; title: string }, ask: typeof pickChunk): Promise<PickResult[]> {
+async function pickSplitting(candidates: Candidate[], instructions: string[], page: PickPage, ask: typeof pickChunk): Promise<PickResult[]> {
   try {
     return await ask(candidates, instructions, page);
   } catch (err) {

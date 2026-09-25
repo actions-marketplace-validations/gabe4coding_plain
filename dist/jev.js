@@ -180,17 +180,16 @@ export const MAX_PICK_CANDIDATES = 254;
 // (dialog first, nav/footer last) so a page past this loses link farms, not controls.
 // ponytail: past this, target the step with css= or scope it with `within`.
 export const MAX_CANDIDATES = MAX_PICK_CANDIDATES * 4;
-// One Choice question per instruction, all sharing the same criteria and one request. Descriptions
-// are deliberately sent twice (state.elements and criteria). Measured 2026-09-19 with them only in
-// criteria: pick tokens -40% on a 192-candidate page, but pick p -0.05 on average and up to -0.33;
-// for a test tool a wrong pick costs more than the tokens.
 async function pickChunk(candidates, instructions, page) {
     const criteria = { none: 'No listed element matches the instruction' };
     for (const c of candidates)
         criteria[String(c.id)] = c.desc;
     // `instructions` as a list (not folded into each question's text) plus `today` lets a step like
     // "the earliest day after today" have one answer instead of one per instruction wording.
-    const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), instructions, elements: candidates };
+    // `goal` is state only, never named in the question: a vague target ("the comments link") then picks the
+    // element the flow is about, and words still beat the goal when they disagree (scripts/benchmark-picks.mjs,
+    // docs/benchmarks/picks.md). Without a goal the request is byte-for-byte what it was.
+    const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), ...(page.goal ? { goal: page.goal } : {}), instructions, elements: candidates };
     const questions = instructions.map((_, i) => ({
         kind: 'choice',
         instructions: `Which element does \`instructions[${i}]\` refer to? Pick \`none\` if no listed element matches.`,

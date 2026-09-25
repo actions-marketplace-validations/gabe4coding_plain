@@ -8,7 +8,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { parseStep, interpolate } from './spec.js';
 import { openSession, closeSharedBrowser } from './runner.js';
 import { startHooks, placeholderPaths } from './hooks.js';
-import { runStep, runStepSafely, resolveOne, askPage } from './steps.js';
+import { runStep, runStepSafely, resolveOne, askPage, settlePage } from './steps.js';
+import { ariaChanges } from './aria-changes.js';
 import { snapshot, snapshotRegion, CandidateKindSchema } from './page.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from './snapshot-view.js';
 import { serialQueue } from './serial-queue.js';
@@ -46,6 +47,12 @@ When \`open\` was called with \`hooks\`, any string in a step may contain \`\${h
 (the \`open\` response lists the ones available); they are resolved right before the step runs and
 kept as written when \`save\` writes the spec, so the saved spec stays dataset-driven. \${env.*} is
 not available in this session — add it to the YAML yourself after saving.`;
+// Step and batch results carry `changed`, what the action did to the page: the agent reads the outcome
+// there instead of a snapshot/ask call (-30% tool calls, -20% agent cost; docs/benchmarks/agent-changes.md).
+// PLAINWRIGHT_CHANGES=0 turns it off, to measure against (scripts/benchmark-agent.mjs).
+const CHANGES = process.env.PLAINWRIGHT_CHANGES !== '0';
+const CHANGES_NOTE = !CHANGES ? '' : ' The result also has `changed`: the page title/URL if they changed, and the accessibility-tree ' +
+    'lines the action added (`added`, in page order, capped) and how many it removed. Read it before calling snapshot or ask.';
 export async function serveMcp(opts) {
     let session = null;
     const sessionOpts = { ...opts, handleSignals: false }; // `open {headed}` may flip headed per session
@@ -80,9 +87,12 @@ export async function serveMcp(opts) {
             'when the session ends or when `open` is called again with `hooks`. `headed`: true shows the browser window ' +
             '(when the user wants to watch), false hides it; default is how the server was started. Changing it on a ' +
             'later call relaunches the browser, so cookies and logins of the current session are lost. Ignored when ' +
-            'attached to a running Chrome (--cdp).',
-        inputSchema: { url: z.string(), hooks: z.string().optional(), headed: z.boolean().optional() },
-    }, ({ url, hooks: hooksPath, headed }) => queue(async () => {
+            'attached to a running Chrome (--cdp). `goal`: what the whole flow is for, in one sentence ("read the ' +
+            'discussion about F-Droid 2.0"); every later pick sees it, so a vague target ("the comments link") picks the ' +
+            'element the flow is about, while the target\'s words still win when they disagree. Claims never see it. ' +
+            'Kept until an `open` passes another goal; `save` writes it into the spec.',
+        inputSchema: { url: z.string(), hooks: z.string().optional(), headed: z.boolean().optional(), goal: z.string().min(1).optional() },
+    }, ({ url, hooks: hooksPath, headed, goal }) => queue(async () => {
         const notes = [];
         if (session && headed !== undefined && headed !== sessionOpts.headed && !sessionOpts.cdp) {
             await session.close();
@@ -95,6 +105,8 @@ export async function serveMcp(opts) {
             session = await openSession(spec, sessionOpts, track);
             spec.url = url;
         }
+        if (goal)
+            spec.goal = goal;
         if (hooksPath) {
             const file = resolve(spec.dir, hooksPath);
             if (hooksFile)
@@ -136,10 +148,26 @@ export async function serveMcp(opts) {
             transcript.push(step); // failed attempts are exploration, not spec — placeholders kept intact for `save`
         return { status: result.status, detail: result.detail, notes: session.drainNotes(), url: session.ctx.page.url(), jevTokens: totalTokens - before };
     }
-    server.registerTool('step', { description: STEP_DESCRIPTION, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
+    // The page before an action, for `changed`; null when the flag is off or the page cannot be read.
+    async function look() {
+        if (!CHANGES || !session)
+            return null;
+        return snapshot(session.ctx.page).catch(() => null);
+    }
+    async function changes(before) {
+        if (!before || !session)
+            return {};
+        await settlePage(session.ctx.page).catch(() => null);
+        const after = await snapshot(session.ctx.page).catch(() => null);
+        return after ? { changed: ariaChanges(before, after) } : {};
+    }
+    server.registerTool('step', { description: STEP_DESCRIPTION + CHANGES_NOTE, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
         if (!session)
             throw new Error('call open first');
-        return ok(await execute(step, parseStep('mcp', transcript.length, step)));
+        const parsed = parseStep('mcp', transcript.length, step);
+        const before = await look();
+        const result = await execute(step, parsed);
+        return ok({ ...result, ...(await changes(before)) });
     }));
     server.registerTool('batch', {
         description: 'Run 1–16 already-known steps in order in one browser tool call (call open first). ' +
@@ -149,7 +177,8 @@ export async function serveMcp(opts) {
             'Stops on the first non-pass, including optional steps returning skipped; later steps are not attempted. ' +
             'Returns status, indexed results with per-step tokens/URL/notes, completed (passing steps), remaining, stoppedAt (zero-based or null), and total jevTokens. ' +
             'Passing steps are recorded individually for save; completed actions are not rolled back. ' +
-            'Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.',
+            'Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.' +
+            CHANGES_NOTE.replace('the action', 'the whole batch'),
         inputSchema: { steps: z.array(z.record(z.string(), z.unknown())).min(1).max(16) },
     }, ({ steps }, { signal }) => queue(async () => {
         signal.throwIfAborted();
@@ -160,6 +189,7 @@ export async function serveMcp(opts) {
         for (const step of parsed)
             interpolate(step, { env: {}, hooks: data }, 'mcp batch');
         const before = totalTokens;
+        const page = await look();
         const outcomes = [];
         for (const [index, step] of steps.entries()) {
             signal.throwIfAborted(); // An in-flight action may finish; cancellation prevents later actions.
@@ -171,7 +201,7 @@ export async function serveMcp(opts) {
         const last = outcomes.at(-1);
         return ok({ status: last.status, results: outcomes, completed: outcomes.filter(r => r.status === 'pass').length,
             remaining: steps.length - outcomes.length, stoppedAt: last.status === 'pass' ? null : last.index,
-            url: session.ctx.page.url(), jevTokens: totalTokens - before });
+            url: session.ctx.page.url(), jevTokens: totalTokens - before, ...(await changes(page)) });
     }));
     server.registerTool('find', {
         description: "Dry run of a step target: tells you what Jev would pick, without acting.",
@@ -246,7 +276,7 @@ export async function serveMcp(opts) {
         const filePath = resolve(path);
         const rel = hooksFile && relative(dirname(filePath), hooksFile);
         const hooks = rel ? { hooks: rel.startsWith('.') ? rel : './' + rel } : {};
-        writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...hooks, steps: transcript }));
+        writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...(spec.goal ? { goal: spec.goal } : {}), ...hooks, steps: transcript }));
         return ok({ path: filePath, steps: transcript.length });
     }));
     const transport = new StdioServerTransport();

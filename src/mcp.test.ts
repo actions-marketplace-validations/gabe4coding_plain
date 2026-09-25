@@ -177,3 +177,14 @@ test('canceling a batch allows its in-flight action to finish but prevents later
     await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });
+
+test('step results carry what the action changed; open keeps a goal that save writes', async () => {
+  const page = 'data:text/html,' + encodeURIComponent(`<!doctype html><title>Menu</title><button onclick="document.body.insertAdjacentHTML('beforeend','<p>Saved: 3 items</p>')">Save</button>`);
+  await call('open', { url: page, goal: 'save the list' });
+  const r = await call('step', { step: { click: 'css=button' } });
+  assert.equal(r.status, 'pass');
+  assert.deepEqual(r.changed, { added: ['- paragraph: "Saved: 3 items"'], addedOmitted: 0, removed: 0 });
+  const path = join(scratch, 'goal.yaml');
+  await call('save', { path });
+  assert.equal(parse(readFileSync(path, 'utf8')).goal, 'save the list');
+});

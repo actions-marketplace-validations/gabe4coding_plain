@@ -1,0 +1,370 @@
+{
+ "_format": "Each case: the saved page (scripts/pick-states/<page>.json: url, title, kind and the candidate list captured on 2026-09-25 by page.ts), the target as a step would say it, the goal of the flow, and the candidate ids that are right ([] = the target is not on the page, the right answer is none). type: clear (the words name one element), vague (the words fit several; the goal says which), conflict (the goal is about another element; the words must win), none.",
+ "cases": [
+  {
+   "page": "hn-click",
+   "type": "clear",
+   "target": "the new link in the top bar",
+   "goal": "see the newest stories on Hacker News",
+   "expect": [
+    2
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "clear",
+   "target": "the comments link of the first story",
+   "goal": "read the discussion about F-Droid 2.0",
+   "expect": [
+    16
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "vague",
+   "target": "the comments link",
+   "goal": "read the discussion about F-Droid 2.0",
+   "expect": [
+    16
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "vague",
+   "target": "the story title link",
+   "goal": "open the story about the cursed fonts",
+   "expect": [
+    18
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "vague",
+   "target": "the upvote arrow",
+   "goal": "upvote the Whiteboard story",
+   "expect": [
+    31
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "conflict",
+   "target": "the login link",
+   "goal": "read the discussion about Goodbye Google",
+   "expect": [
+    9
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "conflict",
+   "target": "the comments link of the second story",
+   "goal": "read the discussion about F-Droid 2.0",
+   "expect": [
+    23
+   ]
+  },
+  {
+   "page": "hn-click",
+   "type": "none",
+   "target": "the Settings link",
+   "goal": "change my Hacker News settings",
+   "expect": []
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "clear",
+   "target": "the Sort by button",
+   "goal": "find the most starred repositories about jev",
+   "expect": [
+    37
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "clear",
+   "target": "the Repositories filter",
+   "goal": "find repositories about jev",
+   "expect": [
+    7
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "vague",
+   "target": "the Star button",
+   "goal": "star the yibie/awesome-jev list",
+   "expect": [
+    74
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "vague",
+   "target": "the repository link",
+   "goal": "open the SemIf-OpenJev repository",
+   "expect": [
+    75
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "conflict",
+   "target": "the Sign in link",
+   "goal": "find the top repositories about jev",
+   "expect": [
+    3
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "conflict",
+   "target": "the Python language filter",
+   "goal": "find the top TypeScript repositories about jev",
+   "expect": [
+    13
+   ]
+  },
+  {
+   "page": "ghrepo-click",
+   "type": "clear",
+   "target": "the Issues tab",
+   "goal": "read the open issues of Playwright",
+   "expect": [
+    255
+   ]
+  },
+  {
+   "page": "ghrepo-click",
+   "type": "vague",
+   "target": "the releases link",
+   "goal": "see the latest Playwright release",
+   "expect": [
+    218,
+    191
+   ]
+  },
+  {
+   "page": "ghrepo-click",
+   "type": "vague",
+   "target": "the website link",
+   "goal": "open the Playwright documentation website",
+   "expect": [
+    193
+   ]
+  },
+  {
+   "page": "ghrepo-click",
+   "type": "conflict",
+   "target": "the Code button",
+   "goal": "read the open issues of Playwright",
+   "expect": [
+    15,
+    254
+   ]
+  },
+  {
+   "page": "ghrepo-click",
+   "type": "none",
+   "target": "the repository Settings tab",
+   "goal": "change the repository settings",
+   "expect": []
+  },
+  {
+   "page": "ghissues-click",
+   "type": "clear",
+   "target": "the Closed issues link",
+   "goal": "see the closed issues",
+   "expect": [
+    16
+   ]
+  },
+  {
+   "page": "ghissues-click",
+   "type": "vague",
+   "target": "the first issue",
+   "goal": "read the VS Code Test Explorer bug",
+   "expect": [
+    24
+   ]
+  },
+  {
+   "page": "ghissues-click",
+   "type": "vague",
+   "target": "the issue title link",
+   "goal": "read the bug about connectOverCDP",
+   "expect": [
+    33
+   ]
+  },
+  {
+   "page": "ghissues-click",
+   "type": "conflict",
+   "target": "the Labels filter button",
+   "goal": "find issues opened by Yury Semikhatsky",
+   "expect": [
+    18
+   ]
+  },
+  {
+   "page": "ghissues-click",
+   "type": "conflict",
+   "target": "the Author filter button",
+   "goal": "find issues with the browser-chromium label",
+   "expect": [
+    17
+   ]
+  },
+  {
+   "page": "turing-click",
+   "type": "clear",
+   "target": "the Search button",
+   "goal": "search Wikipedia for Enigma",
+   "expect": [
+    3
+   ]
+  },
+  {
+   "page": "turing-click",
+   "type": "vague",
+   "target": "the Maida Vale link",
+   "goal": "learn where Alan Turing was born",
+   "expect": [
+    14,
+    119,
+    120,
+    143
+   ]
+  },
+  {
+   "page": "wikimain-click",
+   "type": "clear",
+   "target": "the search box",
+   "goal": "search Wikipedia for Alan Turing",
+   "expect": [
+    2
+   ]
+  },
+  {
+   "page": "ol-click",
+   "type": "vague",
+   "target": "the first result's title link",
+   "goal": "open the book page of The Left Hand of Darkness",
+   "expect": [
+    41,
+    39
+   ]
+  },
+  {
+   "page": "ol-click",
+   "type": "vague",
+   "target": "the author link",
+   "goal": "see other books by Ursula K. Le Guin",
+   "expect": [
+    42
+   ]
+  },
+  {
+   "page": "ol-click",
+   "type": "vague",
+   "target": "the editions link",
+   "goal": "see all editions of The Left Hand of Darkness",
+   "expect": [
+    48
+   ]
+  },
+  {
+   "page": "ol-click",
+   "type": "conflict",
+   "target": "the Log In link",
+   "goal": "find the first published year of The Left Hand of Darkness",
+   "expect": [
+    23
+   ]
+  },
+  {
+   "page": "todo-check",
+   "type": "vague",
+   "target": "the checkbox",
+   "goal": "mark the todo 'call the bank' as done",
+   "expect": [
+    2
+   ]
+  },
+  {
+   "page": "todo-check",
+   "type": "conflict",
+   "target": "the Toggle Todo checkbox of buy milk",
+   "goal": "mark the todo 'call the bank' as done",
+   "expect": [
+    1
+   ]
+  },
+  {
+   "page": "todo-click",
+   "type": "clear",
+   "target": "the Active filter link",
+   "goal": "see only the todos still to do",
+   "expect": [
+    11
+   ]
+  },
+  {
+   "page": "todo-click",
+   "type": "none",
+   "target": "the Clear completed button",
+   "goal": "remove the completed todos",
+   "expect": []
+  },
+  {
+   "page": "login-click",
+   "type": "clear",
+   "target": "the Login button",
+   "goal": "log in as tomsmith",
+   "expect": [
+    2
+   ]
+  },
+  {
+   "page": "login-click",
+   "type": "none",
+   "target": "the Forgot password link",
+   "goal": "reset my password",
+   "expect": []
+  },
+  {
+   "page": "login-fill",
+   "type": "vague",
+   "target": "the text field",
+   "goal": "log in: type the password",
+   "expect": [
+    1
+   ]
+  },
+  {
+   "page": "login-fill",
+   "type": "conflict",
+   "target": "the username field",
+   "goal": "log in: type the password",
+   "expect": [
+    0
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "clear",
+   "target": "the Next page button",
+   "goal": "see more repositories about jev",
+   "expect": [
+    105
+   ]
+  },
+  {
+   "page": "ghsearch-click",
+   "type": "none",
+   "target": "the Create repository button",
+   "goal": "create a new repository about jev",
+   "expect": []
+  }
+ ]
+}
