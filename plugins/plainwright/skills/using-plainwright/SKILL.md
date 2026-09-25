@@ -52,6 +52,13 @@ The rules below apply to both.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plainwright/*.json`; the path
   is in `detail`.
 
+## Reading a value
+
+`read {question, within?}` is the way to get data off the page: it returns the exact lines that answer the
+question, copied verbatim, never written by the model. Use it before `snapshot` or `evaluate`, and read
+`changed` first after a step: it often holds the answer already. `evaluate` is for many rows as JSON; a
+`snapshot` is for seeing structure while debugging, not for reading values.
+
 ## Writing a target (click, fill, hover, select, check, scroll)
 
 One element, one true answer, named the way the accessibility tree names it: role, visible text, and what
@@ -134,7 +141,7 @@ A third rephrasing of the same fact is never the next move.
 | `expect: "the secure area is shown with a success message"` | Two facts: use the list form |
 | `wait: "the checkbox is gone"` | Absence: `wait: the message "It's gone!" is shown` |
 | `expect` to check a guess while debugging | `ask`: not recorded, does not fail the session |
-| `snapshot` of the whole page to read a table | `read {question}`, `snapshot` with `within`, or `evaluate` |
+| `snapshot` or `evaluate` to read a value or a few rows | `read {question}`, with `within` on a large page |
 | `click: the "P3" option or the first option` | One answer only: `the first option in the Filter by label dialog` |
 | Region not found: `the daily forecast` | Name it by its heading (`the list under the "Day by day forecast" heading`), or find it with `snapshot {mode:"smart", intent}` |
 | `check: the Hotels chip` on a plain button | `click` it; `check` needs a state to read |

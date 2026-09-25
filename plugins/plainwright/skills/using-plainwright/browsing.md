@@ -1,6 +1,6 @@
 # Browsing: do or read something on a site
 
-Steps act, two tools read, nothing is saved. There is no test here: do not `save`, do not replay.
+Steps act, `read` reads, nothing is saved. There is no test here: do not `save`, do not replay.
 
 ## Workflow
 
@@ -15,15 +15,17 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
    or consent dialog comes first: `click: the button that accepts all cookies`.
    When the next action is unknown, use `snapshot {mode:"compact"}` for an overview or
    `snapshot {mode:"smart",intent:"the task"}` for task-focused evidence and Jev classifications. Check omission counts;
-   use scoped raw snapshots for exact data. These are optional discovery reads, not prerequisites.
-3. Read the data once the page is there:
-   - `read {question}` returns the exact page lines that answer it ("the author and year of the first result"). Start here; add `within` on a large page, it costs fewer Jev tokens.
-   - `snapshot` with `within: "the results list"` (or `css=...`) returns only that region's tree. A table comes as
-     rows and cells you read directly. Start with a small `maxChars`.
-   - `evaluate` with a JavaScript expression returns clean JSON:
-     `[...document.querySelectorAll('article')].map(a => a.innerText)`. Use it when the region tree is still
-     too long or you want exact fields.
-   Never the whole-page snapshot for data.
+   These are optional discovery reads, not prerequisites, and never the way to get a value: that is `read`.
+3. Read the data once the page is there, with `read`:
+   - `read {question}` returns the exact page lines that answer it, copied verbatim: "the author and first
+     published year of the first result", "the titles and prices of the first three books". One call per
+     question; several facts about one item fit in one question. Add `within` on a large page (Wikipedia,
+     GitHub, long results): it costs a few thousand Jev tokens instead of 30–50k.
+   - `found: false`: rephrase once with the words of `guesses`, or scope with `within`. Still not found: the
+     value is probably not on the page (scroll, open the item, or say so).
+   - Fall back only when `read` cannot do it: `evaluate` for many rows as structured JSON (every result's name
+     and price), `snapshot` with `within` to see a region's structure. Never the whole-page snapshot for data.
+   Measured: `read` cut agent cost 23% on data tasks, with the same answers.
 4. Report what you found to the user, with the page URL. Stop.
 
 ## Steps that help here
@@ -33,7 +35,7 @@ Steps act, two tools read, nothing is saved. There is no test here: do not `save
   the box holds your text and whether a suggestion list is shown, then `wait: a list of suggestions is shown`;
   do not retype. `press: Enter` often submits the search instead.
 - Pages with hundreds of links (Wikipedia, Hacker News, GitHub lists) cost 20–35k Jev tokens per pick. Read data
-  with `read`, `evaluate` or a scoped `snapshot`, and navigate by URL (`open`) when you know it, instead of clicking.
+  with `read` (with `within`), and navigate by URL (`open`) when you know it, instead of clicking.
 - Filters: `check: the Hotels filter chip` (a no-op if already on). A chip without a state: `click`.
 - Long pages: `scroll: bottom`, read the distance in `detail`; `press: End` and `press: Escape` also work.
 - A popover or calendar that opened by itself is already open: act inside it, do not click its trigger again.
