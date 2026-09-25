@@ -98,10 +98,13 @@ export function waitForMutation(page, maxMs) {
  * elements that match `selector`. For `includeExtras` (the `click` kind), also collects React-style
  * clickables that match no selector: cursor:pointer, [tabindex], [contenteditable], summary, label.
  * For `labelsOfToggles` (the `check` kind), a label whose checkbox/radio has no size stands in for it.
+ * For `listsOfThings` (the `region` kind), a plain ul/ol counts only when it lists things: 2+ items of
+ * 40+ characters on average (Open Library's results), not a row's inline labels (GitHub's "Python · 4.2k
+ * · Updated yesterday" under every result) or a short menu. An explicit role=list always counts.
  * Order before the cap: dialog content, then the page, then nav/footer; within a layer selector-matched
  * elements first (DOM order), extras after.
  */
-function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, skipVisibility, max, startId }) {
+function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max, startId }) {
     // Layers decide what a dense page loses to the cap: an open dialog blocks everything else, so its controls
     // come first; nav and footer link farms (131 of trivago's first 254 candidates) come last.
     const dialogSelector = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
@@ -270,6 +273,11 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, ski
     const isHiddenToggle = (c) => c instanceof HTMLInputElement && (c.type === 'checkbox' || c.type === 'radio') && !visible(c);
     // Last scan's tags are removed after the walk: a write between style reads makes the next read recompute styles.
     const stale = [];
+    const isPlainList = (el) => (el.tagName === 'UL' || el.tagName === 'OL') && !el.hasAttribute('role');
+    function listsThings(el) {
+        const items = Array.from(el.children).filter((c) => c.tagName === 'LI');
+        return items.length >= 2 && (el.textContent ?? '').replace(/\s+/g, ' ').trim().length / items.length >= 40;
+    }
     function visit(el, layer) {
         if (el.hasAttribute('data-jev-id'))
             stale.push(el);
@@ -277,8 +285,10 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, ski
             layer = 0;
         else if (layer === 1 && el.matches(chromeSelector))
             layer = 2;
-        if (el.matches(selector))
-            found.push({ el, key: layer * 2 });
+        if (el.matches(selector)) {
+            if (!listsOfThings || !isPlainList(el) || listsThings(el))
+                found.push({ el, key: layer * 2 });
+        }
         else if (labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control))
             found.push({ el, key: layer * 2 });
         else if (includeExtras && !(el instanceof SVGElement) && (el.matches(EXTRA_SELECTOR) || (isPointer(el) && !(el.parentElement && isPointer(el.parentElement))))) {
@@ -332,6 +342,7 @@ export async function candidates(page, kind, max) {
     const selector = SELECTORS[kind];
     const includeExtras = kind === StepKind.click || kind === StepKind.hover;
     const labelsOfToggles = kind === StepKind.check;
+    const listsOfThings = kind === 'region';
     const skipVisibility = kind === StepKind.upload;
     const out = [];
     const frames = page.frames();
@@ -340,7 +351,7 @@ export async function candidates(page, kind, max) {
         const startId = out.length;
         let descs;
         try {
-            descs = await frame.evaluate(collectCandidatesInPage, { selector, includeExtras, labelsOfToggles, skipVisibility, max: max - out.length, startId });
+            descs = await frame.evaluate(collectCandidatesInPage, { selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max: max - out.length, startId });
         }
         catch {
             continue; // detached or cross-origin frame — skip, never fatal
