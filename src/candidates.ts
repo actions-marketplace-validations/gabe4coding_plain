@@ -1,8 +1,9 @@
 import { StepKind } from './step-kind.js';
 import { z } from 'zod';
-import type { Page, Frame, Locator } from 'playwright';
+import type { Page, Locator } from 'playwright';
 
 import type { Candidate } from './automation.js';
+import { frameLabel } from './frames.js';
 
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 export type CandidateKind = z.infer<typeof CandidateKindSchema>;
@@ -226,12 +227,6 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, lis
     seen.set(d, n);
     return `${d}${counts.get(d)! > 1 ? ` #${n}` : ''}${context(final[i])}`;
   });
-}
-
-function frameLabel(frame: Frame): string {
-  const name = frame.name();
-  if (name) return name;
-  try { return new URL(frame.url()).pathname || frame.url(); } catch { return frame.url(); }
 }
 
 export async function candidates(page: Page, kind: CandidateKind, max: number): Promise<Candidate[]> {
