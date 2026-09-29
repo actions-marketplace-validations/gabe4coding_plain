@@ -14,12 +14,14 @@ shows `p=` (probability) and, on the TypeSafe backend, `c=` (confidence). Otherw
 
 Candidates come in three layers: everything inside an open dialog first (a cookie banner blocks the
 rest of the page), then the page, then `nav` and `footer` (link farms). Within a layer the real controls
-come first (buttons, links, inputs, options...), then extras: the outermost element with a
-`cursor: pointer` style (React-style clickable cards), `[tabindex]`, `[contenteditable]`, `summary`,
-`label`, `[draggable=true]`, `img`/`svg`/`figure` for `hover`, anything inside an open shadow root, and
-everything inside same-page iframes (prefixed `[iframe ...]`). For `check`, a label whose checkbox has no
-size stands in for it, and `aria-pressed` toggles count. Identical descriptions get `#1`, `#2`... in
-list order, so "the first ..." has one answer.
+come first (buttons, links, inputs, options..., and for `hover` also `img`, `svg` and `figure`), then,
+for `click` and `hover`, extras: the outermost element with a `cursor: pointer` style (React-style
+clickable cards), `[tabindex]`, `[contenteditable]`, `summary`, `label`, `[draggable=true]`. Open shadow
+roots are walked with the document, so an element inside one ranks by that same selector-versus-extra
+rule. Same-page iframes come after all of the main frame's candidates, each with its own layers, and
+their elements are prefixed `[iframe <label>] ` ([how the label is chosen](snapshots.md#iframe-labels)).
+For `check`, a label whose checkbox has no size stands in for it, and `aria-pressed` toggles count.
+Identical descriptions get `#1`, `#2`... in list order, so "the first ..." has one answer.
 
 Browser candidates also include bounded context from their nearest row, article, list item,
 named group or container with a direct heading. For example, `the Edit button for Account 32`
@@ -32,7 +34,9 @@ A Jev Choice takes at most 255 options, so up to 254 candidates go in one questi
 split into equal chunks asked in parallel: one round trip, one request's tokens per chunk. When two
 chunks are each sure of a different element, the score is split between them as a single question
 would have done, and the step stays `inconclusive` with both guesses in `detail`. Hard ceiling: 1016
-candidates; past that the last layers are dropped. Scope with `within` or use `css=` on such a page.
+candidates (`MAX_CANDIDATES` in `src/jev.ts`). Within a frame, past that the last layers are dropped.
+Iframe candidates are collected after the main frame, so that ceiling cuts them first. Scope with
+`within` or use `css=` on such a page.
 
 **Judging a claim** (`expect`, `wait`). One yes/no question per claim against the snapshot. It passes
 at p ≥ 0.9, fails at p ≤ 0.1, and is `inconclusive` in between. `wait` repeats the question every
