@@ -22,6 +22,14 @@ overview when deciding what to do next, or a scoped raw snapshot to read exact d
 model key for classification even without `within`. `intent` is at most 2,000 characters and is
 literal task context, not a hooks/env template. These reads are not recorded in saved specs.
 
+## Iframe labels
+
+`frameLabel()` (`src/frames.ts`) uses the frame's name when it is set, otherwise the URL pathname,
+otherwise the raw URL. A whole-page snapshot appends each readable iframe's accessibility tree under
+a `--- iframe <label> ---` line. `snapshotRegion` adds no iframe headers. Candidates inside an iframe
+use the same label as a `[iframe <label>] ` prefix; where those candidates sit in the list is in the
+[phrasing guide](phrasing.md#how-jev-decides).
+
 ## Evidence and inference
 
 Compact views remove only anonymous wrapper lines. They prioritize recognized dialogs, alerts,

@@ -69,8 +69,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
   nav/footer, so a cookie banner appended at the end of the body is never cut.
 - `src/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap) and DOM-quiet waiting
-  (`settle()`). Re-exports the candidate helpers from `src/candidates.ts`. Both label iframes with `frameLabel()`
-  (`src/frames.ts`).
+  (`settle()`). Re-exports the candidate helpers from `src/candidates.ts`. `page.ts` (snapshot sections)
+  and `candidates.ts` (candidate prefixes) both label iframes with `frameLabel()` (`src/frames.ts`).
 - `src/jev.ts` — provider selection and the `ask()` call to either backend; `pickElements()` (one Choice per
   target; ≤254 candidates per request, more are split into equal chunks asked in parallel and merged by
   `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim); `decide()`: a claim passes at p ≥ 0.9, fails at
