@@ -6,6 +6,8 @@ import { parseMobileTree, findMobileNode, nodeIdentity, mobileFrame, type Mobile
 export type MobileAction = 'click' | 'tap' | 'fill' | 'dblclick' | 'longpress' | 'check' | 'uncheck';
 export interface MobileAdapter<T = unknown> extends NativeAdapter<T, MobileKind> {
   open(target: MobileTarget): Promise<MobileTarget>;
+  /** The next target capture is exact, not approximate (a pick from an approximate one was unsure or hidden). */
+  preferExact?(): void;
   act(kind: MobileAction, element: T, value?: string): Promise<void>;
   gesture(kind: 'swipe' | 'scroll', direction: Direction, element?: T): Promise<void>;
 }
@@ -98,13 +100,15 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     if (fast) this.exactNext = false;
     return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
   }
+  preferExact() { this.exactNext = true; }
   private async iosSource(driver: MobileDriver, excludedAttributes: 'visible' | 'accessible') {
     return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
   }
   private frame(source: string, kind: MobileKind, within?: MobileElement, boundsVisibility = false) {
     const tree = parseMobileTree(source, { boundsVisibility });
     const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
-    return mobileFrame(roots, kind, { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app }, this.generation, tree.truncated);
+    const frame = mobileFrame(roots, kind, { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app }, this.generation, tree.truncated);
+    return boundsVisibility ? { ...frame, approximate: true } : frame;
   }
   /**
    * Android only: the tree without UiAutomator's idle wait. After an action, getPageSource waits for

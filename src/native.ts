@@ -72,7 +72,7 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
       }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); });
       if (frame.candidates.length === 0 && Date.now() < deadline) { await this.timed('idle', () => new Promise((r) => setTimeout(r, 150))); continue; }
       for (const r of result!) if (r.usedJev) this.track(r.tokens);
-      return result!;
+      return frame.approximate ? result!.map((r) => ({ ...r, approximate: true })) : result!;
     }
   }
   /** The element a region description names; throws when Jev finds none. */

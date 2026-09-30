@@ -5,6 +5,10 @@ import type { MobileKind } from './mobile-tree.js';
 import type { StepResult } from './results.js';
 import { NativeSession, runNativeSpec } from './native.js';
 
+// Calendar's sheet steps scored 0.81-0.95 from exact captures and 0.43-0.75 from approximate ones,
+// every other step 0.95-1.00 from both: below this, the exact capture decides.
+const SURE_APPROXIMATE_PICK = 0.9;
+
 export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, MobileStep, MobileAdapter<T>> {
   parse(raw: unknown) { return parseMobileStep(raw); }
   protected label(step: MobileStep) { return mobileLabel(step); }
@@ -23,9 +27,12 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
       const kind: MobileKind = step.kind === 'fill' ? 'fill' : step.kind === 'check' || step.kind === 'uncheck' ? 'check' :
         step.kind === 'scroll' ? 'scroll' : 'click';
       const target = step.kind === 'scroll' ? step.target.replace(/^(up|down|left|right):\s*/, '') : step.target;
-      // A pick from a fast capture can be covered (AppiumAdapter.capture): once, target again from an exact one.
+      // An approximate capture (AppiumAdapter.capture) also lists covered elements, which blurs Jev's view.
+      // Its pick is used only when sure and visible; otherwise the target is picked once more from an exact one.
       for (let retargeted = false; ; retargeted = true) {
         const [r] = await this.find(kind, [target]);
+        const retry = () => { this.ms.retargeted = 1; this.adapter.preferExact?.(); };
+        if (r.approximate && !retargeted && !((r.score ?? 0) >= SURE_APPROXIMATE_PICK)) { retry(); continue; }
         if (r.element === null) return { step: name, status: 'inconclusive', detail: r.detail };
         const element = r.element;
         try {
@@ -34,7 +41,7 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
           return { step: name, status: 'pass', detail: r.detail };
         } catch (error) {
           if (retargeted || !(error instanceof HiddenTargetError)) throw error;
-          this.ms.retargeted = 1;
+          retry();
         }
       }
     }
