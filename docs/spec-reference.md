@@ -74,7 +74,7 @@ the selector directly.
 
 ### When a step looks at the page
 
-Every step that asks Jev acts on, or judges, a *settled* page: the DOM has not changed for 300 ms and
+Every step that asks Jev acts on, or judges, a *settled* page: the DOM has not changed for 150 ms (counted from the load event: the parser building the page does not count) and
 no xhr/fetch that started in the last 2 s is still in flight (an older request is a long poll or a
 stream and stops counting), with a 3 s cap. The step does not wait idle for that: it looks at the page
 at once and sends Jev that early look while the page settles. The answer is used only if the page did

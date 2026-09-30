@@ -63,7 +63,7 @@ export function holdActivity(page: Page): () => void {
 
 // The DOM must be quiet this long before a step observes it. Requests are waited for separately
 // (settlePage), so this only has to outlast rendering bursts, not a slow response.
-const SETTLE_QUIET_MS = 300;
+const SETTLE_QUIET_MS = 150;
 const SETTLE_MAX_MS = 3000;
 // A request older than this is a long poll, a stream or a stuck beacon, not a response the page is about
 // to render: it stops holding the settle, or every step on such a site would wait out SETTLE_MAX_MS.
