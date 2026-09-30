@@ -24,6 +24,8 @@ export interface NativeAdapter<T, K extends string> {
 type Assert = Extract<Step, { kind: 'expect' | 'wait' }>;
 
 const EARLY_WINDOW_MS = 1000;
+// The second early look (askSettled `confirm`): long enough for a running transition to move something.
+const CONFIRM_MS = 200;
 const APPEAR_MS = 2000;
 
 export abstract class NativeSession<T, K extends string, S extends { kind: string; optional?: boolean }, A extends NativeAdapter<T, K>> {
@@ -52,11 +54,16 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
   // Jev already works on it while the adapter waits for the UI to go idle (askSettled) — only right
   // after the previous step, when the UI may still be busy.
   private async settled<R>(kind: K | 'region', within: T | undefined, ask: (frame: Frame<T>) => Promise<R>,
-    discard: (result: R) => void, skip?: (frame: Frame<T>) => boolean, regionPick = false) {
+    discard: (result: R) => void, skip?: (frame: Frame<T>) => boolean, regionPick = false, sure?: (result: R) => boolean) {
     const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
     const early = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
-    const { frame, result, reasked } = await askSettled({
+    const { frame, result, reasked, confirmed } = await askSettled({
       early: early && (() => this.timed('capture', () => early(kind, within))),
+      // Android's settled read waits for ~500 ms without accessibility events, even on a still screen.
+      confirm: early && sure && { sure, look: () => this.timed('capture', async () => {
+        await new Promise((r) => setTimeout(r, CONFIRM_MS));
+        return early(kind, within);
+      }) },
       settled: () => this.timed('capture', () => this.adapter.capture(kind, within, regionPick ? { regionPick } : undefined)).then((f) => {
         if (within === undefined && !f.approximate) this.firstSnapshot ??= f.snapshot;
         return f;
@@ -65,6 +72,7 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
       waitAnswer: (fn) => this.timed('jev', fn),
     });
     if (reasked) this.ms.reasked = (this.ms.reasked ?? 0) + 1;
+    if (confirmed) this.ms.confirmed = (this.ms.confirmed ?? 0) + 1;
     return { frame, result };
   }
   async find(kind: K | 'region', targets: string[], regionPick = false) {
@@ -74,7 +82,8 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     for (;;) {
       const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
         element: (c) => { const el = frame.elements.get(c.id); if (el === undefined) throw new Error('Candidate handle missing'); return el; },
-      }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); }, undefined, regionPick);
+      }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); }, undefined, regionPick,
+      (picks) => picks.every((p) => p.element !== null));
       if (frame.candidates.length === 0 && Date.now() < deadline) { await this.timed('idle', () => new Promise((r) => setTimeout(r, 150))); continue; }
       for (const r of result!) if (r.usedJev) this.track(r.tokens);
       return frame.approximate ? result!.map((r) => ({ ...r, approximate: true })) : result!;
@@ -144,7 +153,8 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
       let looked;
       try {
         looked = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai),
-          (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');
+          (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail', false,
+          (r) => r.probabilities.every((p) => decide(p, 'expect') === 'pass'));
       } catch (error) {
         // A region picked from an approximate capture turned out covered: pick it once more from an exact one.
         if (!(error instanceof HiddenTargetError) || this.ms.retargeted || !step.within) throw error;

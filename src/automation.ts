@@ -68,13 +68,26 @@ export async function askSettled<F, R>(o: {
   ask: (frame: F) => Promise<R>;
   discard: (result: R) => void;
   skip?: (frame: F) => boolean;
+  /**
+   * A second early look, a moment after the first. When both are the same, the UI held still between them,
+   * and an answer `sure` accepts (a pick found, claims passing) is used without waiting for the settled look.
+   * Any other answer still waits for it: content that is late (a search result) is never judged missing early.
+   */
+  confirm?: { look: () => Promise<F | null>; sure: (result: R) => boolean };
   /** Wraps the wait for an answer, for phase timing. */
   waitAnswer?: <T>(fn: () => Promise<T>) => Promise<T>;
-}): Promise<{ frame: F; result: R | null; reasked: boolean }> {
+}): Promise<{ frame: F; result: R | null; reasked: boolean; confirmed?: boolean }> {
   const wait = o.waitAnswer ?? (<T>(fn: () => Promise<T>) => fn());
   const first = o.early ? await o.early().catch(() => null) : null;
   const answer = first !== null && !o.skip?.(first) ? o.ask(first) : null;
   answer?.catch(() => {}); // surfaces below only if this answer is the one used
+  if (answer && o.confirm) {
+    const second = await o.confirm.look().catch(() => null);
+    if (second !== null && o.same(first!, second)) {
+      const result = await wait(() => answer).catch(() => null);
+      if (result !== null && o.confirm.sure(result)) return { frame: second, result, reasked: false, confirmed: true };
+    }
+  }
   const frame = await o.settled();
   if (answer && o.same(first!, frame)) return { frame, result: await wait(() => answer), reasked: false };
   const stale = answer?.then(o.discard, () => {});

@@ -5,6 +5,8 @@ import { timedInto, dumpDebug } from './results.js';
 import { readAnswer } from './read.js';
 import { startHooks } from './hooks.js';
 const EARLY_WINDOW_MS = 1000;
+// The second early look (askSettled `confirm`): long enough for a running transition to move something.
+const CONFIRM_MS = 200;
 const APPEAR_MS = 2000;
 export class NativeSession {
     adapter;
@@ -34,11 +36,16 @@ export class NativeSession {
     // Captures the settled UI and asks Jev about it. Where the adapter offers an early capture (Android),
     // Jev already works on it while the adapter waits for the UI to go idle (askSettled) — only right
     // after the previous step, when the UI may still be busy.
-    async settled(kind, within, ask, discard, skip, regionPick = false) {
+    async settled(kind, within, ask, discard, skip, regionPick = false, sure) {
         const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
         const early = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
-        const { frame, result, reasked } = await askSettled({
+        const { frame, result, reasked, confirmed } = await askSettled({
             early: early && (() => this.timed('capture', () => early(kind, within))),
+            // Android's settled read waits for ~500 ms without accessibility events, even on a still screen.
+            confirm: early && sure && { sure, look: () => this.timed('capture', async () => {
+                    await new Promise((r) => setTimeout(r, CONFIRM_MS));
+                    return early(kind, within);
+                }) },
             settled: () => this.timed('capture', () => this.adapter.capture(kind, within, regionPick ? { regionPick } : undefined)).then((f) => {
                 if (within === undefined && !f.approximate)
                     this.firstSnapshot ??= f.snapshot;
@@ -49,6 +56,8 @@ export class NativeSession {
         });
         if (reasked)
             this.ms.reasked = (this.ms.reasked ?? 0) + 1;
+        if (confirmed)
+            this.ms.confirmed = (this.ms.confirmed ?? 0) + 1;
         return { frame, result };
     }
     async find(kind, targets, regionPick = false) {
@@ -60,7 +69,7 @@ export class NativeSession {
                 element: (c) => { const el = frame.elements.get(c.id); if (el === undefined)
                     throw new Error('Candidate handle missing'); return el; },
             }, targets, this.ai), ([first]) => { if (first?.usedJev)
-                this.track(first.tokens); }, undefined, regionPick);
+                this.track(first.tokens); }, undefined, regionPick, (picks) => picks.every((p) => p.element !== null));
             if (frame.candidates.length === 0 && Date.now() < deadline) {
                 await this.timed('idle', () => new Promise((r) => setTimeout(r, 150)));
                 continue;
@@ -148,7 +157,7 @@ export class NativeSession {
             // Unchanged since a clear "no": asking again buys nothing.
             let looked;
             try {
-                looked = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');
+                looked = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail', false, (r) => r.probabilities.every((p) => decide(p, 'expect') === 'pass'));
             }
             catch (error) {
                 // A region picked from an approximate capture turned out covered: pick it once more from an exact one.
