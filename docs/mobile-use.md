@@ -227,9 +227,11 @@ check that the target is unchanged right before a native action is the same on b
 On iOS most of a tree read is XCUITest's `visible` attribute (measured on a Calendar sheet: ~2.4 s
 with it, ~0.4 s without). Spec runs (`plainwright-mobile <spec.yaml>`) therefore pick action targets
 from a tree read without it, judging visibility by bounds inside the window and scrolling ancestors.
-That view keeps every visible control but also shows covered ones (the view under a sheet), so its
-pick is used only when accepted with confidence >= 0.9 and when the lookup before acting reports the
-element visible; otherwise the target is picked once more from the exact tree (`retargeted`).
+That view keeps every visible control but also shows covered ones (the view under a sheet). This
+lowers Jev's confidence there (0.43-0.75 against 0.80-0.96 on the exact tree) but did not change its
+choice in any recorded Calendar step, so its pick is used when accepted (>= 0.5, like any pick) and
+when the lookup before acting reports the element visible; a rejected or covered pick is picked once
+more from the exact tree (`retargeted`).
 Claims, `within` regions and every MCP capture read the exact tree (without `accessible`, which only
 click candidates use).
 
