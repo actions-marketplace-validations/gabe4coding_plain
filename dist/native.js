@@ -40,7 +40,7 @@ export class NativeSession {
         const { frame, result, reasked } = await askSettled({
             early: early && (() => this.timed('capture', () => early(kind, within))),
             settled: () => this.timed('capture', () => this.adapter.capture(kind, within, regionPick ? { regionPick } : undefined)).then((f) => {
-                if (within === undefined)
+                if (within === undefined && !f.approximate)
                     this.firstSnapshot ??= f.snapshot;
                 return f;
             }),
@@ -87,15 +87,28 @@ export class NativeSession {
         return r.element;
     }
     retarget() { this.ms.retargeted = 1; this.adapter.preferExact?.(); }
+    /** Runs `look` inside the region `within` names, picked fast where the adapter can; a covered one is picked once more exactly. */
+    async inRegion(within, look) {
+        if (!within)
+            return look(undefined);
+        const region = await this.region(within, true);
+        try {
+            return await look(region);
+        }
+        catch (error) {
+            if (!(error instanceof HiddenTargetError))
+                throw error;
+            this.retarget();
+            return look(await this.region(within));
+        }
+    }
     async snapshot(within) {
-        const region = within ? await this.region(within) : undefined;
-        return (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot;
+        return this.inRegion(within, async (region) => (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot);
     }
     /** Judges claims once against the settled UI (or a region of it), without recording or polling: the MCP `ask` tool. */
     async ask(claims, within) {
         this.ms = {};
-        const region = within ? await this.region(within) : undefined;
-        const { frame, result } = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens));
+        const { frame, result } = await this.inRegion(within, (region) => this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens)));
         this.track(result.tokens);
         return { snapshot: frame.snapshot, probabilities: result.probabilities, ms: this.ms };
     }

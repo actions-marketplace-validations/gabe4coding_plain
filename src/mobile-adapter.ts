@@ -49,7 +49,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
   private generation = 0;
   private idleTimeout?: number; // the session's UiAutomator2 waitForIdleTimeout, restored after each early capture
   private exactNext = false; // a fast pick was hidden: the next targeting capture is exact
-  /** `fastTargets`: iOS target captures skip XCUITest's `visible` attribute (see capture()). Spec runs only. */
+  /** `fastTargets`: iOS target captures skip XCUITest's `visible` attribute (see capture()). */
   constructor(private server = 'http://127.0.0.1:4723', private timeout = 15000,
     private connect: ConnectMobile = async options => (await import('webdriverio')).remote(options), private fastTargets = false) {}
   private current(): MobileDriver {
@@ -99,6 +99,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
   }
   preferExact() { this.exactNext = true; }
+  get approximateTargets() { return this.fastTargets && this.target?.platform === 'ios'; }
   private async iosSource(driver: MobileDriver, excludedAttributes: 'visible' | 'accessible' | 'visible,accessible') {
     return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
   }

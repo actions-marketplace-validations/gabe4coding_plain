@@ -34,7 +34,7 @@ export class AppiumAdapter {
     generation = 0;
     idleTimeout; // the session's UiAutomator2 waitForIdleTimeout, restored after each early capture
     exactNext = false; // a fast pick was hidden: the next targeting capture is exact
-    /** `fastTargets`: iOS target captures skip XCUITest's `visible` attribute (see capture()). Spec runs only. */
+    /** `fastTargets`: iOS target captures skip XCUITest's `visible` attribute (see capture()). */
     constructor(server = 'http://127.0.0.1:4723', timeout = 15000, connect = async (options) => (await import('webdriverio')).remote(options), fastTargets = false) {
         this.server = server;
         this.timeout = timeout;
@@ -97,6 +97,7 @@ export class AppiumAdapter {
         return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
     }
     preferExact() { this.exactNext = true; }
+    get approximateTargets() { return this.fastTargets && this.target?.platform === 'ios'; }
     async iosSource(driver, excludedAttributes) {
         return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
     }

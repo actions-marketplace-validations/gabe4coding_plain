@@ -45,5 +45,5 @@ export function createMobileServer(adapter, timeout = 15000, ai = intelligence, 
     });
 }
 export async function serveMobileMcp(timeout, endpoint = 'http://127.0.0.1:4723') {
-    await serveNative(createMobileServer(new AppiumAdapter(endpoint, timeout), timeout));
+    await serveNative(createMobileServer(new AppiumAdapter(endpoint, timeout, undefined, true), timeout));
 }
