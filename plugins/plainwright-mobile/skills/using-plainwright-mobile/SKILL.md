@@ -35,6 +35,10 @@ ID/package name. The app must already be installed and the device booted/connect
 already be running with its platform driver. Do not substitute arbitrary connected devices.
 Optional vendor-prefixed `capabilities` supply signing/activity settings; Plainwright owns app,
 device, driver, reset, launch and native-context settings. Optional `hooks` runs setup first.
+For faster runs, `capabilities: {"appium:disableWindowAnimation": true}` (Android) or
+`{"appium:reduceMotion": true}` (iOS) turns animations off for the session (Android contacts flow:
+~1-2 s less out of ~14 s). Opt-in only: it changes device settings (Reduce Motion may stay on) and hides
+transition bugs, so ask before using it on a device that is not a disposable test device.
 
 ```json
 {"platform":"android","device":"emulator-5554","app":"com.example.fixture"}
