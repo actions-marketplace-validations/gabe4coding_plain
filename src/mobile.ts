@@ -38,6 +38,9 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
           return { step: name, status: 'pass', detail: r.detail };
         } catch (error) {
           if (retargeted || !(error instanceof HiddenTargetError)) throw error;
+          // Jev accepted a covered element over a visible one: the case the approximate capture assumes is rare
+          // (Calendar: 0 of 24). Logged so other apps can check that assumption.
+          if (r.approximate) console.error(`plainwright-mobile: accepted pick from an approximate capture was covered, picking again from the exact tree: ${target} ${r.detail}`);
           this.retarget();
         }
       }

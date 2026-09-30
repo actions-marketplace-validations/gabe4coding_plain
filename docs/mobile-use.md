@@ -245,12 +245,16 @@ check that the target is unchanged right before a native action is the same on b
 
 On iOS most of a tree read is XCUITest's `visible` attribute (measured on a Calendar sheet: ~2.4 s
 with it, ~0.4 s without). Spec runs and the MCP server therefore pick action targets
-from a tree read without it, judging visibility by bounds inside the window and scrolling ancestors.
+from a tree read without it, judging visibility by bounds inside the window and scrolling ancestors
+(scroll, table, collection and web views).
 That view keeps every visible control but also shows covered ones (the view under a sheet). This
 lowers Jev's confidence there (0.43-0.75 against 0.80-0.96 on the exact tree) but did not change its
 choice in any recorded Calendar step, so its pick is used when accepted (>= 0.5, like any pick) and
 when the lookup before acting reports the element visible; a rejected or covered pick is picked once
-more from the exact tree (`retargeted`).
+more from the exact tree (`retargeted`). Before acting, the lookup's `visible` must say yes for a pick
+from the faster tree (a missing flag counts as no); for a pick from the exact tree only a no stops it.
+When Jev accepted a covered element, stderr says so (`accepted pick from an approximate capture was
+covered`): watch for it on a new app, since the faster tree relies on this being rare.
 A `within` region for a claim is picked the same way, from containers only (the covered views
 would push the candidates past one Jev request); the first exact look inside it must show something
 visible, or the region is picked once more from the exact tree. The MCP `ask`, `snapshot` and `read`

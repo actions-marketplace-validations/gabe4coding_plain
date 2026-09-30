@@ -30,7 +30,8 @@ export function nodeIdentity(node: MobileNode): string {
 
 /**
  * `boundsVisibility`: for an iOS source read without the costly `visible` attribute (AppiumAdapter), a node
- * counts as visible when its frame has an area inside the window and every scrolling ancestor. This keeps
+ * counts as visible when its frame has an area inside the window and every scrolling ancestor (scroll, table,
+ * collection and web views). This keeps
  * every node XCUITest reports visible (checked on recorded Calendar trees) but also keeps covered ones
  * (content under a sheet), so it is only for picking targets whose visibility is confirmed before acting.
  */
@@ -62,7 +63,8 @@ export function parseMobileTree(xml: string, { boundsVisibility = false } = {}):
       let box: Box | undefined, childClip = clip;
       if (boundsVisibility && attrs.visible === undefined && attrs.x !== undefined) {
         box = { left: +attrs.x, top: +attrs.y, right: +attrs.x + +attrs.width, bottom: +attrs.y + +attrs.height };
-        if (/ScrollView|Table|CollectionView|Window|Application/.test(role)) childClip = !clip ? box : { left: Math.max(clip.left, box.left),
+        // Containers whose content can lie outside their own frame (scrolled away): a web view's page too.
+        if (/ScrollView|Table|CollectionView|WebView|Window|Application/.test(role)) childClip = !clip ? box : { left: Math.max(clip.left, box.left),
           top: Math.max(clip.top, box.top), right: Math.min(clip.right, box.right), bottom: Math.min(clip.bottom, box.bottom) };
       }
       const effectiveVisible = box ? box.right > box.left && box.bottom > box.top && (!clip ||

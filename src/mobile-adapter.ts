@@ -171,8 +171,10 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
       if (name !== '' && name === (label || ownName)) {
         if (ref.type !== role || (ref['attribute/name'] ?? '') !== ownName || (ref['attribute/label'] ?? '') !== label) throw new Error(CHANGED);
       } else this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
-      // Expected on this path (elementResponseAttributes). "false" is covered; a missing flag is not a yes.
-      if (reportedVisible(ref['attribute/visible']) !== true) { this.exactNext = true; throw new HiddenTargetError(); }
+      // Expected on this path (elementResponseAttributes). "false" is covered. A missing flag is not a yes for a
+      // pick from an approximate capture (its visibility is still unconfirmed), but an exact capture already showed it.
+      const visible = reportedVisible(ref['attribute/visible']);
+      if (visible === false || (visible === undefined && element.approximate)) { this.exactNext = true; throw new HiddenTargetError(); }
       if (!ref.enabled || !(ref.rect && ref.rect.width > 0 && ref.rect.height > 0)) throw new Error('Mobile control is no longer visible/enabled');
       return { id, role };
     }

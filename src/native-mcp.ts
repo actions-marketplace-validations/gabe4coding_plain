@@ -101,7 +101,10 @@ export function createNativeServer<S extends Spec>(cfg: {
     description: cfg.describe.find, inputSchema: { kind: z.enum(cfg.kinds), target: z.string().min(1) }, annotations: { readOnlyHint: true },
   }, ({ kind, target }) => queue(async () => {
     requireOpen();
-    if (kind !== 'region') adapter.preferExact?.(); // an approximate capture could report a covered element as found
+    // An approximate capture could report a covered element as found. A region find is exact anyway (only claim
+    // regions are picked approximately, NativeSession.region(within, true)); asking would leave the flag unused,
+    // and it would make the next step's target capture exact for nothing.
+    if (kind !== 'region') adapter.preferExact?.();
     const [r] = await session.find(kind, [fill(target)]);
     return ok({ found: r.element !== null, detail: r.detail, confidence: r.confidence, jevTokens: r.tokens });
   }));

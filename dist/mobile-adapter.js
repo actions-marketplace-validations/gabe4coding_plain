@@ -188,8 +188,10 @@ export class AppiumAdapter {
             }
             else
                 this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
-            // Expected on this path (elementResponseAttributes). "false" is covered; a missing flag is not a yes.
-            if (reportedVisible(ref['attribute/visible']) !== true) {
+            // Expected on this path (elementResponseAttributes). "false" is covered. A missing flag is not a yes for a
+            // pick from an approximate capture (its visibility is still unconfirmed), but an exact capture already showed it.
+            const visible = reportedVisible(ref['attribute/visible']);
+            if (visible === false || (visible === undefined && element.approximate)) {
                 this.exactNext = true;
                 throw new HiddenTargetError();
             }
