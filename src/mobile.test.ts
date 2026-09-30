@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MobileSession, runMobileSpec } from './mobile.js';
 import { loadMobileSpec, parseMobileStep, MobileTargetSchema } from './mobile-spec.js';
-import type { MobileAdapter } from './mobile-adapter.js';
+import { HiddenTargetError, type MobileAdapter } from './mobile-adapter.js';
 import type { MobileTarget } from './mobile-spec.js';
 import { createMobileServer } from './mobile-mcp.js';
 import { serialQueue } from './serial-queue.js';
@@ -53,6 +53,17 @@ test('mobile acts only after accepted picks, and gestures retain their direction
   const before = adapter.log.length;
   assert.equal((await reject.step({ click: 'Preview' })).status, 'inconclusive');
   assert.equal(adapter.log.length, before + 1); // capture only
+});
+test('a hidden pick is targeted again once from a new capture, then reported', async () => {
+  const adapter = new FakeAdapter(); const session = new MobileSession(adapter, 100, ai);
+  let hidden = 1;
+  adapter.act = async (...args: unknown[]) => { adapter.log.push(args); if (hidden-- > 0) throw new HiddenTargetError(); };
+  const r = await session.step({ tap: 'Preview' });
+  assert.equal(r.status, 'pass'); assert.equal(r.ms?.retargeted, 1);
+  assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length, 2);
+  hidden = 2;
+  const twice = await session.step({ tap: 'Preview' });
+  assert.equal(twice.status, 'error'); assert.match(twice.detail ?? '', /not visible/);
 });
 test('scoped expectations use subtree, combine claims, and fail beats inconclusive', async () => {
   const adapter = new FakeAdapter();

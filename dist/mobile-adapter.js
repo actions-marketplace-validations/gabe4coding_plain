@@ -20,19 +20,27 @@ export function mobileCapabilities(target) {
     };
 }
 const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry';
-const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label';
+const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label,attribute/visible';
+/** The picked element is covered or off screen: MobileSession targets it again from an exact capture. */
+export class HiddenTargetError extends Error {
+    constructor() { super('Mobile control is not visible (covered or off screen)'); this.name = 'HiddenTargetError'; }
+}
 export class AppiumAdapter {
     server;
     timeout;
     connect;
+    fastTargets;
     driver;
     target;
     generation = 0;
     idleTimeout; // the session's UiAutomator2 waitForIdleTimeout, restored after each early capture
-    constructor(server = 'http://127.0.0.1:4723', timeout = 15000, connect = async (options) => (await import('webdriverio')).remote(options)) {
+    exactNext = false; // a fast pick was hidden: the next targeting capture is exact
+    /** `fastTargets`: iOS target captures skip XCUITest's `visible` attribute (see capture()). Spec runs only. */
+    constructor(server = 'http://127.0.0.1:4723', timeout = 15000, connect = async (options) => (await import('webdriverio')).remote(options), fastTargets = false) {
         this.server = server;
         this.timeout = timeout;
         this.connect = connect;
+        this.fastTargets = fastTargets;
     }
     current() {
         if (!this.driver)
@@ -70,11 +78,27 @@ export class AppiumAdapter {
             throw new Error(CHANGED);
         return node;
     }
+    /**
+     * With `fastTargets`, an iOS capture for picking a target (every kind but region, whole screen) reads the
+     * source without XCUITest's `visible` attribute, most of its cost (Calendar: 1,050-2,450 ms with it,
+     * 150-460 ms without), and judges visibility by bounds (parseMobileTree). That view also shows covered
+     * elements, so resolve() confirms the pick's own `visible` before acting (free in the lookup's response),
+     * and a hidden pick is targeted again from an exact capture. Claims and regions always see the exact tree.
+     */
     async capture(kind, within) {
-        return this.frame(await this.current().getPageSource(), kind, within);
+        const driver = this.current();
+        const fast = this.fastTargets && this.target.platform === 'ios' && kind !== 'region' && !within;
+        if (fast && !this.exactNext)
+            return this.frame(await this.iosSourceWithoutVisible(driver), kind, undefined, true);
+        if (fast)
+            this.exactNext = false;
+        return this.frame(await driver.getPageSource(), kind, within);
     }
-    frame(source, kind, within) {
-        const tree = parseMobileTree(source);
+    async iosSourceWithoutVisible(driver) {
+        return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes: 'visible' }]));
+    }
+    frame(source, kind, within, boundsVisibility = false) {
+        const tree = parseMobileTree(source, { boundsVisibility });
         const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
         return mobileFrame(roots, kind, { url: `mobile://${this.target.platform}/${encodeURIComponent(this.target.app)}`, title: this.target.app }, this.generation, tree.truncated);
     }
@@ -102,16 +126,13 @@ export class AppiumAdapter {
     }
     /**
      * Finds the target again and checks it is still the element Jev picked (same path, type and names),
-     * visible and enabled. The tree read this needed costs ~1 s on iOS, where XCUITest's `visible`
-     * attribute is most of the page source (measured on Calendar: 1,050-2,450 ms with it, 150-460 ms
-     * without, ~270 ms for the lookup). So on iOS the lookup's own response carries type, names, enabled
-     * and size (IOS_FOUND_ATTRIBUTES), which is enough when the element names itself. An element named
-     * only by its children falls back to a source read without `visible`; the size stands in for it:
-     * the target was visible when Jev picked it, and identity proves it is the same element.
+     * visible and enabled. On iOS a tree read costs 1-2.5 s (see capture()), so the lookup's own response
+     * carries type, names, enabled, size and `visible` (IOS_FOUND_ATTRIBUTES, ~270 ms in all). That is the
+     * whole check when the element names itself; one named only by its children is also compared against a
+     * source read without `visible`. Android reads the tree as before.
      */
     async resolve(element) {
         const driver = this.current();
-        const ios = this.target.platform === 'ios';
         const [role, name, , ownName, label] = JSON.parse(element.identity);
         const found = async () => {
             // WebdriverIO returns a missing element as an error object, not a rejection.
@@ -121,26 +142,34 @@ export class AppiumAdapter {
                 throw new Error(ref.error === 'no such element' ? CHANGED : 'Appium returned no element handle');
             return { id, ref };
         };
-        let id;
-        if (ios && name !== '' && name === (label || ownName)) {
+        if (this.target.platform === 'ios') {
             if (element.generation !== this.generation)
                 throw new Error(CHANGED);
-            const { id: foundId, ref } = await found();
-            if (ref.type !== undefined) {
+            const { id, ref } = await found();
+            if (ref.type === undefined) { // a server that ignores elementResponseAttributes: the tree, with size for visibility
+                const node = this.checkHandle(element, parseMobileTree(await this.iosSourceWithoutVisible(driver)).roots);
+                if (!node.enabled || !(Number(node.attrs.width ?? 1) > 0 && Number(node.attrs.height ?? 1) > 0))
+                    throw new Error('Mobile control is no longer visible/enabled');
+                return { id, role: node.role };
+            }
+            if (name !== '' && name === (label || ownName)) {
                 if (ref.type !== role || (ref['attribute/name'] ?? '') !== ownName || (ref['attribute/label'] ?? '') !== label)
                     throw new Error(CHANGED);
-                if (!ref.enabled || !(ref.rect && ref.rect.width > 0 && ref.rect.height > 0))
-                    throw new Error('Mobile control is no longer visible/enabled');
-                return { id: foundId, role };
             }
-            id = foundId; // a server that ignores elementResponseAttributes: validate against the tree
+            else
+                this.checkHandle(element, parseMobileTree(await this.iosSourceWithoutVisible(driver)).roots);
+            if (ref['attribute/visible'] === false) {
+                this.exactNext = true;
+                throw new HiddenTargetError();
+            }
+            if (!ref.enabled || !(ref.rect && ref.rect.width > 0 && ref.rect.height > 0))
+                throw new Error('Mobile control is no longer visible/enabled');
+            return { id, role };
         }
-        const tree = parseMobileTree(ios ? String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes: 'visible' }])) : await driver.getPageSource());
-        const node = this.checkHandle(element, tree.roots);
-        const sized = node.attrs.width === undefined || (Number(node.attrs.width) > 0 && Number(node.attrs.height) > 0);
-        if (!node.visible || !sized || !node.enabled)
+        const node = this.checkHandle(element, parseMobileTree(await driver.getPageSource()).roots);
+        if (!node.visible || !node.enabled)
             throw new Error('Mobile control is no longer visible/enabled');
-        return { id: id ?? (await found()).id, role: node.role };
+        return { id: (await found()).id, role: node.role };
     }
     async act(kind, element, value) {
         const driver = this.current(), { id, role } = await this.resolve(element);
