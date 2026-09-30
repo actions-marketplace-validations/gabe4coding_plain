@@ -133,6 +133,8 @@ Picks need confidence >= 0.5 (probability fallback). Claims pass at p >= 0.9, fa
 otherwise are inconclusive. On inconclusive, rephrase or split the claim. Captures cap at 1,016
 candidates, 5,000 nodes / 32 levels and 60,000 text characters. Use scoped reads when truncated.
 `wait` makes at most eight model calls; native/model requests can outlast the polling deadline.
+iOS spec replay picks action targets from a faster tree first and keeps that pick only at confidence
+>= 0.9 with the element confirmed visible; otherwise it picks again from the exact tree (`ms.retargeted`).
 
 After an error, inspect current state before retrying: an input may already have taken effect.
 The adapter checks target identity before acting and errors if the captured node changed.
