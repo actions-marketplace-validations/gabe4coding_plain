@@ -77,6 +77,11 @@ test('an unsure pick from an approximate capture is picked again from an exact o
   exact = false; scores.push(.95);
   const sure = await session.step({ tap: 'Preview' });
   assert.equal(sure.ms?.retargeted, undefined, 'a sure approximate pick is used as is');
+  exact = false;
+  const picks = [{ id: null, probability: .97 }, { id: 0, probability: .95 }]; // a sure "none", then the element
+  const none = new MobileSession(adapter, 100, { ...ai, pick: async () => [{ ...picks.shift()!, probabilities: {}, tokens: 1 }] as never });
+  const rejected = await none.step({ tap: 'Preview' });
+  assert.equal(rejected.status, 'pass'); assert.equal(rejected.ms?.retargeted, 1, 'a rejected approximate pick is asked again from an exact capture');
 });
 test('scoped expectations use subtree, combine claims, and fail beats inconclusive', async () => {
   const adapter = new FakeAdapter();

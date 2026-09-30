@@ -27,11 +27,12 @@ export class MobileSession extends NativeSession {
                 step.kind === 'scroll' ? 'scroll' : 'click';
             const target = step.kind === 'scroll' ? step.target.replace(/^(up|down|left|right):\s*/, '') : step.target;
             // An approximate capture (AppiumAdapter.capture) also lists covered elements, which blurs Jev's view.
-            // Its pick is used only when sure and visible; otherwise the target is picked once more from an exact one.
+            // Its pick is used only when accepted, sure and visible; otherwise (a keyboard still sliding in can be
+            // missing too) the target is picked once more from an exact one.
             for (let retargeted = false;; retargeted = true) {
                 const [r] = await this.find(kind, [target]);
                 const retry = () => { this.ms.retargeted = 1; this.adapter.preferExact?.(); };
-                if (r.approximate && !retargeted && !((r.score ?? 0) >= SURE_APPROXIMATE_PICK)) {
+                if (r.approximate && !retargeted && (r.element === null || !((r.score ?? 0) >= SURE_APPROXIMATE_PICK))) {
                     retry();
                     continue;
                 }
