@@ -124,10 +124,11 @@ for (const platform of ['android', 'ios'] as const) {
         platformName: platform === 'ios' ? 'iOS' : 'Android', 'appium:automationName': platform === 'ios' ? 'XCUITest' : 'UiAutomator2',
       } };
       else if (path.endsWith('/source')) value = source;
-      // iOS revalidates targets with a source read that leaves out the costly `visible` attribute.
+      // iOS reads leave out costly attributes: `visible` for targets, `accessible` for claims and regions.
       else if (path.endsWith('/execute/sync') && body.script === 'mobile: source') {
-        assert.equal(platform, 'ios'); assert.equal(body.args[0].excludedAttributes, 'visible');
-        value = source.replaceAll(/ visible="[^"]*"/g, '');
+        const excluded = body.args[0].excludedAttributes;
+        assert.equal(platform, 'ios'); assert.ok(['visible', 'accessible'].includes(excluded));
+        value = source.replaceAll(new RegExp(` ${excluded}="[^"]*"`, 'g'), '');
       }
       else if (path.endsWith('/element') && req.method === 'POST') {
         value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
@@ -170,7 +171,7 @@ for (const platform of ['android', 'ios'] as const) {
         platform === 'ios' ? '/*[1]/*[2]' : '/*[1]/*[1]/*[2]');
       assert.ok(requests.some(r => r.path.endsWith('/value') && r.body.text === 'hello'));
       assert.ok(requests.some(r => r.path.endsWith('/clear')));
-      const sourceReads = () => requests.filter(r => r.body.script === 'mobile: source').length;
+      const sourceReads = () => requests.filter(r => r.body.args?.[0]?.excludedAttributes === 'visible').length;
       if (platform === 'ios') {
         // A self-named target is revalidated from the lookup's response alone.
         assert.equal(caps['appium:shouldUseCompactResponses'], false);
@@ -217,7 +218,7 @@ for (const platform of ['android', 'ios'] as const) {
         // fastTargets: target captures skip `visible`; the lookup reports a covered pick, and the next capture is exact.
         const fast = new AppiumAdapter(`http://127.0.0.1:${port}/wd/hub`, 1000, undefined, true);
         await fast.open({ platform, device: 'fixture-device', app: 'com.example.fixture' });
-        const reads = () => requests.filter(r => r.path.endsWith('/source')).length;
+        const reads = () => requests.filter(r => r.path.endsWith('/source') || r.body.args?.[0]?.excludedAttributes === 'accessible').length;
         const exactBefore = reads();
         const frame = await fast.capture('click');
         assert.equal(reads(), exactBefore, 'a target capture reads the source without `visible`');
