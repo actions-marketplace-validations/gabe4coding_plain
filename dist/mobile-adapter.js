@@ -22,6 +22,14 @@ export function mobileCapabilities(target) {
 }
 const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry';
 const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label,attribute/visible';
+/** Lookup `attribute/visible` is a boolean or the strings "true"/"false". Missing or anything else is unknown. */
+function reportedVisible(value) {
+    if (value === true || value === 'true')
+        return true;
+    if (value === false || value === 'false')
+        return false;
+    return undefined;
+}
 export { HiddenTargetError };
 const showsAnything = (node) => node.visible || node.children.some(showsAnything);
 export class AppiumAdapter {
@@ -162,9 +170,15 @@ export class AppiumAdapter {
             if (element.generation !== this.generation)
                 throw new Error(CHANGED);
             const { id, ref } = await found();
-            if (ref.type === undefined) { // a server that ignores elementResponseAttributes: the tree, with size for visibility
-                const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
-                if (!node.enabled || !(Number(node.attrs.width ?? 1) > 0 && Number(node.attrs.height ?? 1) > 0))
+            if (ref.type === undefined) { // a server that ignores elementResponseAttributes
+                // Size is not visibility. Use the tree node's own `visible` when the source still has it;
+                // a missing flag is not visible, so the next targeting capture is exact.
+                const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'accessible')).roots);
+                if (node.attrs.visible === undefined || !node.visible) {
+                    this.exactNext = true;
+                    throw new HiddenTargetError();
+                }
+                if (!node.enabled)
                     throw new Error('Mobile control is no longer visible/enabled');
                 return { id, role: node.role };
             }
@@ -174,7 +188,8 @@ export class AppiumAdapter {
             }
             else
                 this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
-            if (ref['attribute/visible'] === false) {
+            // Expected on this path (elementResponseAttributes). "false" is covered; a missing flag is not a yes.
+            if (reportedVisible(ref['attribute/visible']) !== true) {
                 this.exactNext = true;
                 throw new HiddenTargetError();
             }
