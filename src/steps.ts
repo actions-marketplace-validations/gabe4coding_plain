@@ -104,12 +104,14 @@ export async function waitHold(page: Page): Promise<void> {
  * shows up instead of a flat timeout. A navigation always wins and is awaited to `load`. Otherwise: give
  * the page `graceMs` after the action to start an xhr/fetch, then once none are pending wait another
  * `graceMs` of quiet before returning. `graceMs` is per-action (clicks settle fast; a debounced input
- * needs longer). 1500 ms is the hard cap either way.
+ * needs longer). 1500 ms is the hard cap either way. A click's grace is short and its 200 ms watch is a
+ * hold instead: a request the click starts a little later (a handler's setTimeout) is still waited
+ * for, by the next step's settle, while that step's Jev call runs.
  * `holdMs` (> graceMs): the page is not settled before this long after the action, e.g. a debounced
  * input's request may start only after ~300-400 ms. The rest of it is not waited here but by the next
  * step's settle (settlePage, or waitHold in runStep), so the next step's Jev call runs meanwhile.
  */
-export async function mayNavigate(ctx: StepContext, action: () => Promise<void>, graceMs = 200, holdMs = 0): Promise<void> {
+export async function mayNavigate(ctx: StepContext, action: () => Promise<void>, graceMs = 50, holdMs = 200): Promise<void> {
   const page = ctx.page;
   const requests = trackRequests(page); // before the action, so requests it starts are counted
   let navStarted = false;
@@ -178,7 +180,8 @@ export async function settledAsk<S, R>(
   const settled = await timed(ctx, 'settle', () => settlePage(page));
   let state = first;
   // Iframes have their own documents, which the main-document mark does not cover: always look again.
-  if (!unchangedSince(before, settled) || page.frames().length > 1) {
+  // So does a popup that became the active page while this one settled.
+  if (ctx.page !== page || !unchangedSince(before, settled) || page.frames().length > 1) {
     const again = await o.observe();
     if (!o.same(first, again)) state = again;
   }

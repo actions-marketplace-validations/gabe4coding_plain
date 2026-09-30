@@ -179,11 +179,16 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
       await (acceptDialogs ? dialog.accept() : dialog.dismiss());
     });
     p.on('popup', async (popup) => {
-      popup.setDefaultTimeout(opts.timeout);
-      await popup.waitForLoadState('load').catch(() => {});
-      note(`→ switched to new tab ${popup.url()}`);
-      attach(popup);
-      page = popup;
+      const release = holdActivity(p); // the next step's settle waits until the new tab is the active page
+      try {
+        popup.setDefaultTimeout(opts.timeout);
+        await popup.waitForLoadState('load').catch(() => {});
+        note(`→ switched to new tab ${popup.url()}`);
+        attach(popup);
+        page = popup;
+      } finally {
+        release();
+      }
     });
     p.on('download', async (download) => {
       const release = holdActivity(p); // the click that started it keeps waiting until the note is written
