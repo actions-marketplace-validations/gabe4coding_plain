@@ -35,6 +35,10 @@ ID/package name. The app must already be installed and the device booted/connect
 already be running with its platform driver. Do not substitute arbitrary connected devices.
 Optional vendor-prefixed `capabilities` supply signing/activity settings; Plainwright owns app,
 device, driver, reset, launch and native-context settings. Optional `hooks` runs setup first.
+For faster Android runs, `capabilities: {"appium:disableWindowAnimation": true}` turns animations off
+for the session (contacts flow: ~1-2 s less out of ~14 s). Opt-in only: it changes device animation
+settings and hides transition bugs, so ask before using it on a device that is not a disposable test
+device. iOS `appium:reduceMotion` gave no measurable gain and stays on after the session: do not suggest it for speed.
 
 ```json
 {"platform":"android","device":"emulator-5554","app":"com.example.fixture"}
@@ -133,6 +137,8 @@ Picks need confidence >= 0.5 (probability fallback). Claims pass at p >= 0.9, fa
 otherwise are inconclusive. On inconclusive, rephrase or split the claim. Captures cap at 1,016
 candidates, 5,000 nodes / 32 levels and 60,000 text characters. Use scoped reads when truncated.
 `wait` makes at most eight model calls; native/model requests can outlast the polling deadline.
+On iOS, steps (spec replay and MCP) pick action targets from a faster tree that also lists covered elements (confidence
+there runs lower); a rejected pick, or one confirmed covered, is picked again from the exact tree (`ms.retargeted`).
 
 After an error, inspect current state before retrying: an input may already have taken effect.
 The adapter checks target identity before acting and errors if the captured node changed.

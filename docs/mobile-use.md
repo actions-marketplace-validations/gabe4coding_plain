@@ -98,7 +98,7 @@ All eleven tools are serialized, including reads, so a snapshot cannot race anot
 | `save {path, name?}` | Write passing recorded steps with platform, device, app, capabilities and relative hooks path. Rejects empty recordings. |
 | `close {}` | Run teardown and delete the Appium session. Does not uninstall or clear app data. |
 
-`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `swipe` take one extra capture before acting (~0.5 s on iOS). `PLAINWRIGHT_CHANGES=0` turns it off. `PLAINWRIGHT_READ=0` hides `read`.
+`step` results carry `changed`, the same diff as the browser's: the title if it changed, the tree lines the step added (`added`, in tree order, capped at 1,500 characters, `addedOmitted` past that) and how many it `removed`. Read it before a snapshot or `ask`. A step that picks a target diffs against its own pre-action capture; `press` and `swipe` take one extra capture before acting (0.5-3.5 s on iOS). On iOS, where a target is picked from a faster tree that also lists covered elements (below), the before is the exact screen the previous step's `changed` ended on (so changes during your think time show too); the first such step after `open` takes an exact capture of its own. `find` always uses the exact tree. `PLAINWRIGHT_CHANGES=0` turns it off. `PLAINWRIGHT_READ=0` hides `read`.
 
 Start with `list_devices`, select the intended ready device, then call `list_apps` with its
 `platform` and `device`. Copy the returned `app` identifier into `open`. Discovery does not
@@ -123,6 +123,25 @@ reset, launch and native-context capabilities are managed by Plainwright and can
 Plainwright sets `noReset: true` and explicitly activates the app. Platform lifecycle behavior
 still depends on the installed Appium driver. It does not reset the app between replay runs;
 prepare the starting screen/data in hooks or explicit test steps.
+
+Faster runs without animations (opt-in, never a Plainwright default): after an action, the drivers
+wait for the app to go idle, and screen transitions are most of that wait. The spec or `open` can
+turn animations off for the session:
+
+```yaml
+capabilities:
+  appium:disableWindowAnimation: true   # Android (UiAutomator2)
+  # appium:reduceMotion: true           # iOS (XCUITest): turns on the simulator's Reduce Motion
+```
+
+On `examples/mobile/android-contacts.yaml` this took 12.8 s against 13.5-15.2 s with animations
+(3 runs each, all passing): screen changes got 0.3-0.7 s faster, typing did not change. On iOS,
+`reduceMotion` gave no measurable gain on `examples/mobile/ios-calendar.yaml` (38.4 s both ways, 3 runs
+each): sheets and pickers still animate and XCUITest still waits for them. Both change device settings:
+UiAutomator2 sets the animation scales back after the session (an unset animator duration scale comes
+back explicitly set to 1.0), while Reduce Motion stays on in the simulator after the session until a
+session with `appium:reduceMotion: false` (or Settings) turns it off. A run without animations can miss
+bugs that only happen during transitions, so keep specs that check those with animations on.
 
 Targets match best when they use the native tree's names rather than visual roles: a tab bar item
 is a button ("the Workout button"), and the iOS back button carries the previous screen's title
@@ -185,8 +204,11 @@ layout ancestor reports invisible; hidden layout nodes do not hide visible desce
 Android visibility remains inherited. Jev does not see React component internals, DOM selectors or pixels.
 Custom canvas controls require accessibility support in the app.
 
-The adapter checks a selected node's path and identity against a fresh tree before resolving its
-Appium handle. UI changes return an error rather than acting on a changed target. As with native
+The adapter checks a selected node's path and identity before acting: against a fresh tree on
+Android; on iOS against the element lookup's own response (type, name, label, enabled, size and
+`visible`, requested with the `shouldUseCompactResponses`/`elementResponseAttributes` capabilities),
+plus a tree read without `visible` for a node named only by its children. UI changes return an error
+rather than acting on a changed target. As with native
 automation generally, UI can still change between a check and an action. Inspect state after an
 error before retrying; text clearing or another input may already have taken effect. Transport
 retries are disabled to avoid automatically repeating side effects. Driver/native commands and
@@ -209,7 +231,7 @@ Batch replay runs files sequentially and prints one JSON result per spec. Exit 0
 passed; 1 means failure/error/inconclusive; 2 means CLI usage/provider configuration errors.
 Results use the shared statuses, timing, debug dumps in `$TMPDIR/plainwright/` and token counts.
 Each step's `ms` splits into `capture` (reading the UI tree), `jev`, `act` and `idle` (between
-`wait` polls), plus `reasked` (below).
+`wait` polls), plus `reasked` and `retargeted` (below).
 
 On Android, UiAutomator waits for the UI to go idle (about 500 ms without accessibility events)
 before it returns the tree, so right after an action a tree read takes ~0.5 s. A step that starts
@@ -220,6 +242,25 @@ the early answer's tokens still count). The session's `waitForIdleTimeout` setti
 that one read and restored right after. Nothing changes on iOS: XCUITest already waits for the app
 to be idle inside the action itself, and a quick read there was neither faster nor different. The
 check that the target is unchanged right before a native action is the same on both platforms.
+
+On iOS most of a tree read is XCUITest's `visible` attribute (measured on a Calendar sheet: ~2.4 s
+with it, ~0.4 s without). Spec runs and the MCP server therefore pick action targets
+from a tree read without it, judging visibility by bounds inside the window and scrolling ancestors
+(scroll, table, collection and web views).
+That view keeps every visible control but also shows covered ones (the view under a sheet). This
+lowers Jev's confidence there (0.43-0.75 against 0.80-0.96 on the exact tree) but did not change its
+choice in any recorded Calendar step, so its pick is used when accepted (>= 0.5, like any pick) and
+when the lookup before acting reports the element visible; a rejected or covered pick is picked once
+more from the exact tree (`retargeted`). Before acting, the lookup's `visible` must say yes for a pick
+from the faster tree (a missing flag counts as no); for a pick from the exact tree only a no stops it.
+When Jev accepted a covered element, stderr says so (`accepted pick from an approximate capture was
+covered`): watch for it on a new app, since the faster tree relies on this being rare.
+A `within` region for a claim is picked the same way, from containers only (the covered views
+would push the candidates past one Jev request); the first exact look inside it must show something
+visible, or the region is picked once more from the exact tree. The MCP `ask`, `snapshot` and `read`
+tools pick their `within` region this way too. Claims themselves, `find` and the `changed` captures
+read the exact tree. Reads leave out `accessible` wherever only click candidates would use it,
+and iOS targets are looked up by class chain (~220 ms on a Calendar sheet, against ~270 ms by XPath).
 
 ## Verification
 

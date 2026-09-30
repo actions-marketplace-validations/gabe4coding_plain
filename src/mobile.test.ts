@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MobileSession, runMobileSpec } from './mobile.js';
 import { loadMobileSpec, parseMobileStep, MobileTargetSchema } from './mobile-spec.js';
-import type { MobileAdapter } from './mobile-adapter.js';
+import { HiddenTargetError, type MobileAdapter } from './mobile-adapter.js';
 import type { MobileTarget } from './mobile-spec.js';
 import { createMobileServer } from './mobile-mcp.js';
 import { serialQueue } from './serial-queue.js';
@@ -53,6 +53,47 @@ test('mobile acts only after accepted picks, and gestures retain their direction
   const before = adapter.log.length;
   assert.equal((await reject.step({ click: 'Preview' })).status, 'inconclusive');
   assert.equal(adapter.log.length, before + 1); // capture only
+});
+test('a hidden pick is targeted again once from a new capture, then reported', async () => {
+  const adapter = new FakeAdapter(); const session = new MobileSession(adapter, 100, ai);
+  let hidden = 1;
+  adapter.act = async (...args: unknown[]) => { adapter.log.push(args); if (hidden-- > 0) throw new HiddenTargetError(); };
+  const r = await session.step({ tap: 'Preview' });
+  assert.equal(r.status, 'pass'); assert.equal(r.ms?.retargeted, 1);
+  assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length, 2);
+  hidden = 2;
+  const twice = await session.step({ tap: 'Preview' });
+  assert.equal(twice.status, 'error'); assert.match(twice.detail ?? '', /not visible/);
+});
+test('a rejected pick from an approximate capture is picked again from an exact one', async () => {
+  const adapter = new FakeAdapter(); let exact = false, prefer = 0;
+  const capture = adapter.capture.bind(adapter);
+  adapter.capture = async (kind: unknown, within?: string) => ({ ...await capture(kind, within), ...(exact ? {} : { approximate: true }) });
+  (adapter as FakeAdapter & { preferExact(): void }).preferExact = () => { prefer++; exact = true; };
+  const scores = [.3, .8];
+  const session = new MobileSession(adapter, 100, { ...ai, pick: async () => [{ id: 0, probability: scores.shift()!, probabilities: {}, tokens: 1 }] });
+  const r = await session.step({ tap: 'Preview' });
+  assert.equal(r.status, 'pass'); assert.equal(r.ms?.retargeted, 1); assert.equal(prefer, 1);
+  exact = false; scores.push(.6);
+  const accepted = await session.step({ tap: 'Preview' });
+  assert.equal(accepted.ms?.retargeted, undefined, 'an accepted approximate pick is used as is');
+  exact = false;
+  const picks = [{ id: null, probability: .97 }, { id: 0, probability: .95 }]; // a sure "none", then the element
+  const none = new MobileSession(adapter, 100, { ...ai, pick: async () => [{ ...picks.shift()!, probabilities: {}, tokens: 1 }] as never });
+  const rejected = await none.step({ tap: 'Preview' });
+  assert.equal(rejected.status, 'pass'); assert.equal(rejected.ms?.retargeted, 1, 'a rejected approximate pick is asked again from an exact capture');
+});
+test('a covered region from an approximate pick is picked once more before its claims are judged', async () => {
+  const adapter = new FakeAdapter(); let covered = 1, prefer = 0;
+  const capture = adapter.capture.bind(adapter);
+  adapter.capture = async (kind: unknown, within?: string, options?: { regionPick?: boolean }) => {
+    if (within && covered-- > 0) throw new HiddenTargetError('Region');
+    return { ...await capture(kind, within), ...(options?.regionPick && !prefer ? { approximate: true } : {}) };
+  };
+  (adapter as FakeAdapter & { preferExact(): void }).preferExact = () => { prefer++; };
+  const r = await new MobileSession(adapter, 100, ai).step({ wait: { that: 'Ready', within: 'panel' } });
+  assert.equal(r.status, 'pass'); assert.equal(r.ms?.retargeted, 1); assert.equal(prefer, 1);
+  assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture' && e[1] === 'region' && e[2] === undefined).length, 2, 'two region picks');
 });
 test('scoped expectations use subtree, combine claims, and fail beats inconclusive', async () => {
   const adapter = new FakeAdapter();
@@ -211,6 +252,45 @@ test('mobile early capture: Jev works on it while the settled capture runs; kept
   r = await session.step({ expect: 'ready' });
   assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready', 'Loading', 'Ready']); assert.equal(r.ms?.reasked, 1);
   assert.equal(session.calls, 4); assert.equal(session.tokens, 28); // the discarded answer is still accounted
+});
+test('MCP: an approximate target capture is never the before of changed; the previous after is', async () => {
+  const adapter = new FakeAdapter() as FakeAdapter & { approximateTargets: boolean; preferExact(): void };
+  adapter.approximateTargets = true;
+  let exact = false;
+  adapter.preferExact = () => { exact = true; };
+  const capture = adapter.capture.bind(adapter);
+  adapter.capture = async (kind: unknown, within?: string) => {
+    const frame = await capture(kind, within);
+    if (kind === 'region' || exact) { exact = false; return frame; }
+    return { ...frame, snapshot: { ...frame.snapshot, aria: `${frame.snapshot.aria}\n- button "Covered"` }, approximate: true };
+  };
+  adapter.text = '- button "Compose"';
+  const screens = ['- navigationbar "New Message"', '- navigationbar "Sent"'];
+  adapter.act = async (...args: unknown[]) => { adapter.log.push(args); adapter.text = screens.shift()!; };
+  const { server, close } = createMobileServer(adapter, 100, ai);
+  const client = new Client({ name: 'test', version: '1' });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(a); await client.connect(b);
+  const call = async (name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })).structuredContent as Record<string, any>;
+  const captures = () => adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length;
+  try {
+    await call('open', { platform: 'ios', device: 'ios-udid', app: 'Mail' });
+    let n = captures();
+    await call('step', { step: { expect: 'Compose is shown' } });
+    assert.equal(captures() - n, 2, 'a whole-screen claim looks first with an exact capture: no extra before');
+    await call('open', { platform: 'ios', device: 'ios-udid', app: 'Mail' });
+    n = captures();
+    const first = await call('step', { step: { tap: 'Compose' } });
+    assert.deepEqual(first.changed, { added: ['- navigationbar "New Message"'], addedOmitted: 0, removed: 1 });
+    assert.equal(captures() - n, 3, 'right after open: an exact before, the approximate target capture, the after');
+    n = captures();
+    const second = await call('step', { step: { tap: 'Compose' } });
+    assert.deepEqual(second.changed, { added: ['- navigationbar "Sent"'], addedOmitted: 0, removed: 1 }, 'diffed against the previous after');
+    assert.equal(captures() - n, 2);
+    await call('find', { kind: 'click', target: 'Compose' });
+    assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length - n, 3);
+    assert.equal(exact, false, 'find asked for an exact capture and got it');
+  } finally { await close(); await client.close(); await server.close(); }
 });
 test('ask maps probabilities to yes/no/unsure at the expect thresholds', () => {
   const r = askResult(['a', 'b', 'c'], [0.93, 0.05, 0.5], { url: 'u', title: 't', truncated: true });

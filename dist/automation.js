@@ -4,6 +4,10 @@ import { dumpDebug, topGuesses } from './results.js';
 // Shared perception boundary. Handles stay inside adapters; only descriptions reach Jev.
 export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), frameIndex: z.number().optional() });
 export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
+/** A pick from an approximate frame is covered or off screen: the caller picks it again from an exact capture. */
+export class HiddenTargetError extends Error {
+    constructor(what = 'Mobile control') { super(`${what} is not visible (covered or off screen)`); this.name = 'HiddenTargetError'; }
+}
 export const intelligence = { pick: pickElements, judge, describe: describeSnapshot, ask };
 export async function resolveTargets(adapter, targets, ai = intelligence) {
     if (!adapter.candidates.length)
@@ -17,7 +21,7 @@ export async function resolveTargets(adapter, targets, ai = intelligence) {
         const candidate = adapter.candidates.find((c) => c.id === id);
         const accepted = candidate !== undefined && decide(confidence ?? probability, 'pick') === 'pass';
         const c = confidence === undefined ? '' : ` c=${confidence.toFixed(2)}`;
-        const base = { tokens, usedJev: i === 0, confidence };
+        const base = { tokens, usedJev: i === 0, confidence, score: confidence ?? probability };
         if (accepted)
             return { ...base, element: adapter.element(candidate), detail: `→ ${candidate.desc} (p=${probability.toFixed(2)}${c})` };
         const file = dumpDebug('pick', { instruction: target, probabilities, confidence, candidates: adapter.candidates });
