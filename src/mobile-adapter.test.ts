@@ -273,3 +273,101 @@ for (const platform of ['android', 'ios'] as const) {
     } finally { await adapter.close(); server.close(); server.closeAllConnections(); await once(server, 'close'); }
   });
 }
+
+test('iOS resolve fails closed on string or missing lookup visibility, and does not treat size as visible', async () => {
+  const requests: { method: string; path: string; body: Record<string, any> }[] = [];
+  // bool: the attribute path's "true" string still acts. string-false / missing: fail closed.
+  // no-type: elementResponseAttributes ignored; the tree's visible decides, not width/height.
+  // no-type-bare: that tree also lacks `visible`, so a positive size is not enough.
+  let mode: 'string-true' | 'string-false' | 'missing' | 'no-type' | 'no-type-bare' = 'string-true';
+  const server = createServer(async (req, res) => {
+    let text = ''; for await (const chunk of req) text += chunk;
+    const body = text ? JSON.parse(text) : {};
+    const path = req.url!; requests.push({ method: req.method!, path, body });
+    let value: unknown = null;
+    if (path === '/wd/hub/session' && req.method === 'POST') value = { sessionId: 'fixture', capabilities: {
+      platformName: 'iOS', 'appium:automationName': 'XCUITest' } };
+    else if (path.endsWith('/source')) value = ios;
+    else if (path.endsWith('/execute/sync') && body.script === 'mobile: source') {
+      const excluded: string = body.args[0].excludedAttributes;
+      value = excluded.split(',').reduce((xml: string, name) => xml.replaceAll(new RegExp(` ${name}="[^"]*"`, 'g'), ''), ios);
+      if (mode === 'no-type-bare') value = String(value).replaceAll(/ visible="[^"]*"/g, '');
+    } else if (path.endsWith('/element') && req.method === 'POST') {
+      value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
+      if (mode === 'no-type' || mode === 'no-type-bare') { /* id only: ref.type stays undefined */ }
+      else {
+        const all = (nodes: MobileNode[]): MobileNode[] => nodes.flatMap(n => [n, ...all(n.children)]);
+        const roots = parseMobileTree(ios).roots;
+        const node = body.using === '-ios class chain' ? all(roots).find(n => n.chain === body.value) : findMobileNode(roots, body.value);
+        if (!node) value = { error: 'no such element' };
+        else {
+          value = { ...value as object, type: node.role, enabled: node.enabled, rect: { x: 0, y: 0, width: 10, height: 10 },
+            'attribute/name': node.attrs.name ?? null, 'attribute/label': node.attrs.label ?? null };
+          if (mode === 'string-true') (value as Record<string, unknown>)['attribute/visible'] = 'true';
+          if (mode === 'string-false') (value as Record<string, unknown>)['attribute/visible'] = 'false';
+        }
+      }
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ value }));
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  const fast = new AppiumAdapter(`http://127.0.0.1:${port}/wd/hub`, 1000, undefined, true);
+  const clicks = () => requests.filter(r => r.path.endsWith('/click')).length;
+  const exactSources = () => requests.filter(r => r.method === 'GET' && r.path.endsWith('/source')).length;
+  const approxSources = () => requests.filter(r => r.body.args?.[0]?.excludedAttributes === 'visible').length;
+  try {
+    await fast.open({ platform: 'ios', device: 'fixture-device', app: 'com.example.fixture' });
+    const frame = await fast.capture('click');
+    const el = (label: string) => frame.elements.get(frame.candidates.find(c => c.desc.includes(`"${label}"`))!.id)!;
+    const signIn = el('Sign in & continue');
+    const hidden = el('Hidden');
+    await fast.act('tap', signIn);
+    assert.equal(clicks(), 1, 'a lookup visible of "true" is visible');
+    const approxAfterTrue = approxSources();
+    await fast.capture('click');
+    assert.equal(approxSources(), approxAfterTrue + 1, 'accepting "true" does not force an exact capture');
+
+    mode = 'string-false';
+    const clicksBeforeFalse = clicks();
+    const exactBeforeFalse = exactSources();
+    await assert.rejects(fast.act('tap', signIn), HiddenTargetError);
+    assert.equal(clicks(), clicksBeforeFalse, '"false" is not visible, even with a positive rect');
+    await fast.capture('click');
+    assert.equal(exactSources(), exactBeforeFalse + 1, 'string "false" falls back to an exact capture');
+
+    mode = 'missing';
+    const clicksBeforeMissing = clicks();
+    const exactBeforeMissing = exactSources();
+    await assert.rejects(fast.act('tap', signIn), HiddenTargetError);
+    assert.equal(clicks(), clicksBeforeMissing, 'a missing attribute/visible is not treated as visible');
+    await fast.capture('click');
+    assert.equal(exactSources(), exactBeforeMissing + 1, 'a missing visibility flag falls back to an exact capture');
+
+    mode = 'no-type';
+    const clicksBeforeHidden = clicks();
+    const start = requests.length;
+    await assert.rejects(fast.act('tap', hidden), HiddenTargetError);
+    assert.equal(clicks(), clicksBeforeHidden, 'a positive size does not make a visible="false" node visible');
+    assert.ok(requests.slice(start).some(r => r.body.args?.[0]?.excludedAttributes === 'accessible'),
+      'the no-type fallback reads a tree that still has visible');
+    const exactBeforeBare = exactSources();
+    await fast.capture('click');
+    assert.equal(exactSources(), exactBeforeBare + 1, 'a not-visible no-type pick retargets exactly');
+
+    mode = 'no-type';
+    await fast.act('tap', signIn);
+    assert.equal(clicks(), clicksBeforeHidden + 1, 'the no-type fallback acts when the tree node is visible');
+    const approxBefore = approxSources();
+    await fast.capture('click');
+    assert.equal(approxSources(), approxBefore + 1, 'a visible no-type node does not force an exact capture');
+
+    mode = 'no-type-bare';
+    const clicksBeforeBare = clicks();
+    const exactBeforeStrip = exactSources();
+    await assert.rejects(fast.act('tap', signIn), HiddenTargetError);
+    assert.equal(clicks(), clicksBeforeBare, 'without the tree visible flag, size is not enough');
+    await fast.capture('click');
+    assert.equal(exactSources(), exactBeforeStrip + 1, 'a missing tree visible flag forces an exact retarget');
+  } finally { await fast.close(); server.close(); server.closeAllConnections(); await once(server, 'close'); }
+});

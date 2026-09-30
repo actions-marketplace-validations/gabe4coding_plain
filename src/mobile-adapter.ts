@@ -39,7 +39,13 @@ export function mobileCapabilities(target: MobileTarget): Record<string, unknown
 const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry';
 const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label,attribute/visible';
 type FoundElement = { 'element-6066-11e4-a52e-4f735466cecf'?: string; type?: string; enabled?: boolean;
-  rect?: { width: number; height: number }; 'attribute/name'?: string | null; 'attribute/label'?: string | null; 'attribute/visible'?: boolean };
+  rect?: { width: number; height: number }; 'attribute/name'?: string | null; 'attribute/label'?: string | null; 'attribute/visible'?: boolean | string };
+/** Lookup `attribute/visible` is a boolean or the strings "true"/"false". Missing or anything else is unknown. */
+function reportedVisible(value: unknown): boolean | undefined {
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  return undefined;
+}
 export { HiddenTargetError };
 const showsAnything = (node: MobileNode): boolean => node.visible || node.children.some(showsAnything);
 
@@ -154,15 +160,19 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     if (this.target!.platform === 'ios') {
       if (element.generation !== this.generation) throw new Error(CHANGED);
       const { id, ref } = await found();
-      if (ref.type === undefined) { // a server that ignores elementResponseAttributes: the tree, with size for visibility
-        const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
-        if (!node.enabled || !(Number(node.attrs.width ?? 1) > 0 && Number(node.attrs.height ?? 1) > 0)) throw new Error('Mobile control is no longer visible/enabled');
+      if (ref.type === undefined) { // a server that ignores elementResponseAttributes
+        // Size is not visibility. Use the tree node's own `visible` when the source still has it;
+        // a missing flag is not visible, so the next targeting capture is exact.
+        const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'accessible')).roots);
+        if (node.attrs.visible === undefined || !node.visible) { this.exactNext = true; throw new HiddenTargetError(); }
+        if (!node.enabled) throw new Error('Mobile control is no longer visible/enabled');
         return { id, role: node.role };
       }
       if (name !== '' && name === (label || ownName)) {
         if (ref.type !== role || (ref['attribute/name'] ?? '') !== ownName || (ref['attribute/label'] ?? '') !== label) throw new Error(CHANGED);
       } else this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
-      if (ref['attribute/visible'] === false) { this.exactNext = true; throw new HiddenTargetError(); }
+      // Expected on this path (elementResponseAttributes). "false" is covered; a missing flag is not a yes.
+      if (reportedVisible(ref['attribute/visible']) !== true) { this.exactNext = true; throw new HiddenTargetError(); }
       if (!ref.enabled || !(ref.rect && ref.rect.width > 0 && ref.rect.height > 0)) throw new Error('Mobile control is no longer visible/enabled');
       return { id, role };
     }
