@@ -4,7 +4,13 @@ import { MAX_CANDIDATES } from './jev.js';
 export function nodeIdentity(node) {
     return JSON.stringify([node.role, node.name, ...['resource-id', 'name', 'label', 'content-desc', 'text'].map(k => node.attrs[k] ?? '')]);
 }
-export function parseMobileTree(xml) {
+/**
+ * `boundsVisibility`: for an iOS source read without the costly `visible` attribute (AppiumAdapter), a node
+ * counts as visible when its frame has an area inside the window and every scrolling ancestor. This keeps
+ * every node XCUITest reports visible (checked on recorded Calendar trees) but also keeps covered ones
+ * (content under a sheet), so it is only for picking targets whose visibility is confirmed before acting.
+ */
+export function parseMobileTree(xml, { boundsVisibility = false } = {}) {
     if (xml.length > 5_000_000)
         throw new Error('Mobile UI source exceeds 5 MB');
     if (/<!DOCTYPE|<!ENTITY/i.test(xml))
@@ -14,7 +20,7 @@ export function parseMobileTree(xml) {
     const parsed = new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '',
         parseAttributeValue: false, parseTagValue: false, ignoreDeclaration: true }).parse(xml);
     let count = 0, truncated = false;
-    function walk(items, path, depth, visible, enabled) {
+    function walk(items, path, depth, visible, enabled, clip) {
         const nodes = [];
         let ordinal = 0;
         for (const item of items) {
@@ -34,12 +40,20 @@ export function parseMobileTree(xml) {
             // XCUITest can mark a layout container invisible while its controls are visible.
             // Its explicit per-element visibility wins; Android visibility remains inherited.
             const nativeVisible = attrs.visible !== 'false' && attrs.displayed !== 'false';
-            const effectiveVisible = role.startsWith('XCUIElementType') && attrs.visible !== undefined
-                ? nativeVisible : visible && nativeVisible;
+            let box, childClip = clip;
+            if (boundsVisibility && attrs.visible === undefined && attrs.x !== undefined) {
+                box = { left: +attrs.x, top: +attrs.y, right: +attrs.x + +attrs.width, bottom: +attrs.y + +attrs.height };
+                if (/ScrollView|Table|CollectionView|Window|Application/.test(role))
+                    childClip = !clip ? box : { left: Math.max(clip.left, box.left),
+                        top: Math.max(clip.top, box.top), right: Math.min(clip.right, box.right), bottom: Math.min(clip.bottom, box.bottom) };
+            }
+            const effectiveVisible = box ? box.right > box.left && box.bottom > box.top && (!clip ||
+                (box.left < clip.right && box.right > clip.left && box.top < clip.bottom && box.bottom > clip.top))
+                : role.startsWith('XCUIElementType') && attrs.visible !== undefined ? nativeVisible : visible && nativeVisible;
             const node = { path: `${path}/*[${ordinal}]`, attrs, role, name: ownName,
                 visible: effectiveVisible,
                 enabled: enabled && attrs.enabled !== 'false', children: [] };
-            node.children = walk(item[tag], node.path, depth + 1, node.visible, node.enabled);
+            node.children = walk(item[tag], node.path, depth + 1, node.visible, node.enabled, childClip);
             // React Native often puts text inside an otherwise unnamed pressable container.
             if (!node.name)
                 node.name = node.children.filter(c => c.visible).map(c => c.name).filter(Boolean).join(' ').slice(0, 500);

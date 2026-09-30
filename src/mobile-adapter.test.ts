@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { AppiumAdapter, mobileCapabilities } from './mobile-adapter.js';
+import { AppiumAdapter, HiddenTargetError, mobileCapabilities } from './mobile-adapter.js';
 import { parseMobileTree, mobileFrame, findMobileNode, type MobileElement, type MobileKind } from './mobile-tree.js';
 
 const android = `<?xml version="1.0"?><hierarchy rotation="0"><android.widget.FrameLayout enabled="true">
@@ -95,6 +95,20 @@ test('mobile session capabilities pin platform, device, native context and prese
   assert.equal(mobileCapabilities({ ...target, capabilities: { 'appium:xcodeOrgId': 'TEAM' } })['appium:xcodeOrgId'], 'TEAM');
 });
 
+test('bounds visibility keeps on-screen nodes and drops empty or scrolled-out ones', () => {
+  const xml = `<AppiumAUT><XCUIElementTypeApplication type="XCUIElementTypeApplication" name="A" x="0" y="0" width="400" height="800">
+    <XCUIElementTypeButton type="XCUIElementTypeButton" label="Shown" x="10" y="10" width="50" height="20"/>
+    <XCUIElementTypeButton type="XCUIElementTypeButton" label="Empty" x="10" y="40" width="0" height="20"/>
+    <XCUIElementTypeButton type="XCUIElementTypeButton" label="Below" x="10" y="900" width="50" height="20"/>
+    <XCUIElementTypeScrollView type="XCUIElementTypeScrollView" label="List" x="0" y="100" width="400" height="200">
+      <XCUIElementTypeCell type="XCUIElementTypeCell" label="In view" x="0" y="120" width="400" height="40"/>
+      <XCUIElementTypeCell type="XCUIElementTypeCell" label="Scrolled out" x="0" y="400" width="400" height="40"/>
+    </XCUIElementTypeScrollView></XCUIElementTypeApplication></AppiumAUT>`;
+  const labels = (bounds: boolean) => mobileFrame(parseMobileTree(xml, { boundsVisibility: bounds }).roots, 'click', { url: '', title: '' }, 0).candidates.map(c => c.desc.split('"')[1]);
+  assert.deepEqual(labels(true), ['Shown', 'In view']);
+  assert.equal(labels(false).length, 5, 'without the option, a source lacking `visible` shows every node');
+});
+
 // Exercise the actual WebdriverIO transport against a local W3C/Appium server. No device or model key.
 for (const platform of ['android', 'ios'] as const) {
   test(`${platform} Appium transport: actions, state, gestures, stale targets, and cleanup`, async () => {
@@ -120,7 +134,7 @@ for (const platform of ['android', 'ios'] as const) {
         // XCUITest answers with the attributes the session asked for (elementResponseAttributes).
         const node = platform === 'ios' ? findMobileNode(parseMobileTree(source).roots, body.value) : undefined;
         if (node) value = { ...value as object, type: node.role, enabled: node.enabled, rect: { x: 0, y: 0, width: 10, height: 10 },
-          'attribute/name': node.attrs.name ?? null, 'attribute/label': node.attrs.label ?? null };
+          'attribute/name': node.attrs.name ?? null, 'attribute/label': node.attrs.label ?? null, 'attribute/visible': node.visible };
       }
       else if (/\/attribute\//.test(path)) value = platform === 'ios' ? (checked ? '1' : '0') : String(checked);
       else if (path.endsWith('/click')) checked = !checked;
@@ -199,6 +213,22 @@ for (const platform of ['android', 'ios'] as const) {
       await adapter.open({ platform, device: 'fixture-device', app: 'com.example.fixture' });
       source = platform === 'ios' ? ios : android;
       await assert.rejects(adapter.act('tap', stale), /UI changed/);
+      if (platform === 'ios') {
+        // fastTargets: target captures skip `visible`; the lookup reports a covered pick, and the next capture is exact.
+        const fast = new AppiumAdapter(`http://127.0.0.1:${port}/wd/hub`, 1000, undefined, true);
+        await fast.open({ platform, device: 'fixture-device', app: 'com.example.fixture' });
+        const reads = () => requests.filter(r => r.path.endsWith('/source')).length;
+        const exactBefore = reads();
+        const frame = await fast.capture('click');
+        assert.equal(reads(), exactBefore, 'a target capture reads the source without `visible`');
+        const hidden = frame.candidates.find(c => c.desc.includes('"Hidden"'))!;
+        await assert.rejects(fast.act('tap', frame.elements.get(hidden.id)!), HiddenTargetError);
+        assert.ok(!(await fast.capture('click')).candidates.some(c => c.desc.includes('"Hidden"')));
+        assert.equal(reads(), exactBefore + 1, 'after a hidden pick the next target capture is exact');
+        await fast.capture('region');
+        assert.equal(reads(), exactBefore + 2, 'claims and regions always see the exact tree');
+        await fast.close();
+      }
     } finally { await adapter.close(); server.close(); server.closeAllConnections(); await once(server, 'close'); }
   });
 }
