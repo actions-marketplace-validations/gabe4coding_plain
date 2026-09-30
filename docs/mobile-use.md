@@ -124,6 +124,23 @@ Plainwright sets `noReset: true` and explicitly activates the app. Platform life
 still depends on the installed Appium driver. It does not reset the app between replay runs;
 prepare the starting screen/data in hooks or explicit test steps.
 
+Faster runs without animations (opt-in, never a Plainwright default): after an action, the drivers
+wait for the app to go idle, and screen transitions are most of that wait. The spec or `open` can
+turn animations off for the session:
+
+```yaml
+capabilities:
+  appium:disableWindowAnimation: true   # Android (UiAutomator2)
+  # appium:reduceMotion: true           # iOS (XCUITest): turns on the simulator's Reduce Motion
+```
+
+On `examples/mobile/android-contacts.yaml` this took 12.8 s against 13.5-15.2 s with animations
+(3 runs each, all passing): screen changes got 0.3-0.7 s faster, typing did not change. `reduceMotion`
+is not measured yet. Both change device settings: UiAutomator2 sets the animation scales back after
+the session (an unset animator duration scale comes back explicitly set to 1.0), while Reduce Motion is
+an iOS accessibility setting that may stay on after the session. A run without animations can miss bugs
+that only happen during transitions, so keep specs that check those with animations on.
+
 Targets match best when they use the native tree's names rather than visual roles: a tab bar item
 is a button ("the Workout button"), and the iOS back button carries the previous screen's title
 ("the Summary button in the Step Count navigation bar"). An inconclusive pick lists its top
