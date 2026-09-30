@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { AppiumAdapter, HiddenTargetError, mobileCapabilities } from './mobile-adapter.js';
-import { parseMobileTree, mobileFrame, findMobileNode, type MobileElement, type MobileKind } from './mobile-tree.js';
+import { parseMobileTree, mobileFrame, findMobileNode, type MobileNode, type MobileElement, type MobileKind } from './mobile-tree.js';
 
 const android = `<?xml version="1.0"?><hierarchy rotation="0"><android.widget.FrameLayout enabled="true">
   <android.view.ViewGroup clickable="true" enabled="true"><android.widget.TextView text="Sign in &amp; continue" enabled="true"/></android.view.ViewGroup>
@@ -95,6 +95,20 @@ test('mobile session capabilities pin platform, device, native context and prese
   assert.equal(mobileCapabilities({ ...target, capabilities: { 'appium:xcodeOrgId': 'TEAM' } })['appium:xcodeOrgId'], 'TEAM');
 });
 
+test('iOS class chains count each type among siblings, from below the application', () => {
+  const xml = `<AppiumAUT><XCUIElementTypeApplication type="XCUIElementTypeApplication" name="A"><XCUIElementTypeWindow type="XCUIElementTypeWindow">
+    <XCUIElementTypeButton type="XCUIElementTypeButton" label="One"/><XCUIElementTypeOther type="XCUIElementTypeOther">
+    <XCUIElementTypeButton type="XCUIElementTypeButton" label="Two"/></XCUIElementTypeOther><XCUIElementTypeButton type="XCUIElementTypeButton" label="Three"/>
+  </XCUIElementTypeWindow></XCUIElementTypeApplication></AppiumAUT>`;
+  const chains = mobileFrame(parseMobileTree(xml).roots, 'click', { url: '', title: '' }, 0).candidates
+    .map(c => c.desc.split('"')[1]);
+  const elements = [...mobileFrame(parseMobileTree(xml).roots, 'click', { url: '', title: '' }, 0).elements.values()].map(e => e.chain);
+  assert.deepEqual(chains, ['One', 'Two', 'Three']);
+  assert.deepEqual(elements, ['XCUIElementTypeWindow[1]/XCUIElementTypeButton[1]', 'XCUIElementTypeWindow[1]/XCUIElementTypeOther[1]/XCUIElementTypeButton[1]',
+    'XCUIElementTypeWindow[1]/XCUIElementTypeButton[2]']);
+  assert.equal(mobileFrame(parseMobileTree(android).roots, 'click', { url: '', title: '' }, 0).elements.get(0)?.chain, undefined, 'Android has no class chains');
+});
+
 test('bounds visibility keeps on-screen nodes and drops empty or scrolled-out ones', () => {
   const xml = `<AppiumAUT><XCUIElementTypeApplication type="XCUIElementTypeApplication" name="A" x="0" y="0" width="400" height="800">
     <XCUIElementTypeButton type="XCUIElementTypeButton" label="Shown" x="10" y="10" width="50" height="20"/>
@@ -133,7 +147,10 @@ for (const platform of ['android', 'ios'] as const) {
       else if (path.endsWith('/element') && req.method === 'POST') {
         value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
         // XCUITest answers with the attributes the session asked for (elementResponseAttributes).
-        const node = platform === 'ios' ? findMobileNode(parseMobileTree(source).roots, body.value) : undefined;
+        const all = (nodes: MobileNode[]): MobileNode[] => nodes.flatMap(n => [n, ...all(n.children)]);
+        const roots = parseMobileTree(source).roots;
+        const node = platform !== 'ios' ? undefined : body.using === '-ios class chain'
+          ? all(roots).find(n => n.chain === body.value) : findMobileNode(roots, body.value);
         if (node) value = { ...value as object, type: node.role, enabled: node.enabled, rect: { x: 0, y: 0, width: 10, height: 10 },
           'attribute/name': node.attrs.name ?? null, 'attribute/label': node.attrs.label ?? null, 'attribute/visible': node.visible };
       }
@@ -167,8 +184,9 @@ for (const platform of ['android', 'ios'] as const) {
         assert.ok(requests[i + 1].path.endsWith('/source'));
       }
       await adapter.act('fill', await target('fill'), 'hello');
-      assert.equal(requests.find(r => r.path.endsWith('/element'))?.body.value,
-        platform === 'ios' ? '/*[1]/*[2]' : '/*[1]/*[1]/*[2]');
+      // iOS looks targets up by class chain (quicker than XPath there), Android by XPath.
+      assert.deepEqual([requests.find(r => r.path.endsWith('/element'))?.body.using, requests.find(r => r.path.endsWith('/element'))?.body.value],
+        platform === 'ios' ? ['-ios class chain', 'XCUIElementTypeTextField[1]'] : ['xpath', '/*[1]/*[1]/*[2]']);
       assert.ok(requests.some(r => r.path.endsWith('/value') && r.body.text === 'hello'));
       assert.ok(requests.some(r => r.path.endsWith('/clear')));
       const sourceReads = () => requests.filter(r => r.body.args?.[0]?.excludedAttributes?.startsWith('visible')).length;

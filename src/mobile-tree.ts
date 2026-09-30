@@ -5,6 +5,8 @@ import type { Candidate, Frame } from './automation.js';
 export type MobileKind = 'click' | 'fill' | 'check' | 'region' | 'scroll';
 export interface MobileNode {
   path: string;
+  /** iOS class chain to the node from the application (type and index among same-type siblings); '' elsewhere. */
+  chain?: string;
   attrs: Record<string, string>;
   role: string;
   name: string;
@@ -18,6 +20,8 @@ export interface MobileElement {
   generation: number;
   /** Picked from a capture without XCUITest's `visible` (AppiumAdapter.capture): visibility still unconfirmed. */
   approximate?: boolean;
+  /** iOS: a class chain lookup (~220 ms on a Calendar sheet) is quicker than the XPath one (~270 ms). */
+  chain?: string;
 }
 // Identity excludes changing values/checked state, but includes labels and native identifiers.
 export function nodeIdentity(node: MobileNode): string {
@@ -38,9 +42,10 @@ export function parseMobileTree(xml: string, { boundsVisibility = false } = {}):
     parseAttributeValue: false, parseTagValue: false, ignoreDeclaration: true }).parse(xml) as Record<string, unknown>[];
   let count = 0, truncated = false;
   type Box = { left: number; top: number; right: number; bottom: number };
-  function walk(items: Record<string, unknown>[], path: string, depth: number, visible: boolean, enabled: boolean, clip?: Box): MobileNode[] {
+  function walk(items: Record<string, unknown>[], path: string, depth: number, visible: boolean, enabled: boolean, clip?: Box, chain?: string): MobileNode[] {
     const nodes: MobileNode[] = [];
     let ordinal = 0;
+    const sameType = new Map<string, number>();
     for (const item of items) {
       const tag = Object.keys(item).find(k => k !== ':@' && !k.startsWith('#') && !k.startsWith('?'));
       if (!tag) continue;
@@ -63,10 +68,14 @@ export function parseMobileTree(xml: string, { boundsVisibility = false } = {}):
       const effectiveVisible = box ? box.right > box.left && box.bottom > box.top && (!clip ||
           (box.left < clip.right && box.right > clip.left && box.top < clip.bottom && box.bottom > clip.top))
         : role.startsWith('XCUIElementType') && attrs.visible !== undefined ? nativeVisible : visible && nativeVisible;
-      const node: MobileNode = { path: `${path}/*[${ordinal}]`, attrs, role, name: ownName,
+      const typeIndex = (sameType.get(role) ?? 0) + 1; sameType.set(role, typeIndex);
+      // The application itself (depth 0) is the chain's root; below it, iOS types only.
+      const nodeChain = chain === undefined ? '' : role.startsWith('XCUIElementType') ? `${chain}${chain ? '/' : ''}${role}[${typeIndex}]` : '';
+      const node: MobileNode = { path: `${path}/*[${ordinal}]`, chain: nodeChain, attrs, role, name: ownName,
         visible: effectiveVisible,
         enabled: enabled && attrs.enabled !== 'false', children: [] };
-      node.children = walk(item[tag] as Record<string, unknown>[], node.path, depth + 1, node.visible, node.enabled, childClip);
+      const childChain = depth === 0 && role === 'XCUIElementTypeApplication' ? '' : nodeChain || undefined;
+      node.children = walk(item[tag] as Record<string, unknown>[], node.path, depth + 1, node.visible, node.enabled, childClip, childChain);
       // React Native often puts text inside an otherwise unnamed pressable container.
       if (!node.name) node.name = node.children.filter(c => c.visible).map(c => c.name).filter(Boolean).join(' ').slice(0, 500);
       nodes.push(node);
@@ -129,7 +138,7 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
         else {
           const id = candidates.length;
           candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });
-          elements.set(id, { path: node.path, identity: nodeIdentity(node), generation });
+          elements.set(id, { path: node.path, identity: nodeIdentity(node), generation, ...(node.chain ? { chain: node.chain } : {}) });
         }
       }
       walk(node.children, depth + 1, node.name ? `${node.role} ${JSON.stringify(node.name)}` : context);
