@@ -11,6 +11,10 @@ export type Snapshot = z.infer<typeof SnapshotSchema>;
 export interface Frame<T> { snapshot: Snapshot; candidates: Candidate[]; elements: Map<number, T>;
   /** A cheaper view that may also list covered elements (AppiumAdapter.capture on iOS): picks from it are checked. */
   approximate?: boolean; }
+/** A pick from an approximate frame is covered or off screen: the caller picks it again from an exact capture. */
+export class HiddenTargetError extends Error {
+  constructor(what = 'Mobile control') { super(`${what} is not visible (covered or off screen)`); this.name = 'HiddenTargetError'; }
+}
 export interface TargetAdapter<T> {
   candidates: Candidate[];
   state: { url: string; title: string; goal?: string };

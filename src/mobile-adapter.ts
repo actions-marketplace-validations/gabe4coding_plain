@@ -1,13 +1,12 @@
 import type { Browser } from 'webdriverio';
 import type { NativeAdapter } from './native.js';
+import { HiddenTargetError } from './automation.js';
 import { MobileTargetSchema, type MobileTarget, type Direction } from './mobile-spec.js';
-import { parseMobileTree, findMobileNode, nodeIdentity, mobileFrame, type MobileElement, type MobileKind } from './mobile-tree.js';
+import { parseMobileTree, findMobileNode, nodeIdentity, mobileFrame, type MobileElement, type MobileKind, type MobileNode } from './mobile-tree.js';
 
 export type MobileAction = 'click' | 'tap' | 'fill' | 'dblclick' | 'longpress' | 'check' | 'uncheck';
 export interface MobileAdapter<T = unknown> extends NativeAdapter<T, MobileKind> {
   open(target: MobileTarget): Promise<MobileTarget>;
-  /** The next target capture is exact, not approximate (a pick from an approximate one was unsure or hidden). */
-  preferExact?(): void;
   act(kind: MobileAction, element: T, value?: string): Promise<void>;
   gesture(kind: 'swipe' | 'scroll', direction: Direction, element?: T): Promise<void>;
 }
@@ -41,10 +40,8 @@ const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry
 const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label,attribute/visible';
 type FoundElement = { 'element-6066-11e4-a52e-4f735466cecf'?: string; type?: string; enabled?: boolean;
   rect?: { width: number; height: number }; 'attribute/name'?: string | null; 'attribute/label'?: string | null; 'attribute/visible'?: boolean };
-/** The picked element is covered or off screen: MobileSession targets it again from an exact capture. */
-export class HiddenTargetError extends Error {
-  constructor() { super('Mobile control is not visible (covered or off screen)'); this.name = 'HiddenTargetError'; }
-}
+export { HiddenTargetError };
+const showsAnything = (node: MobileNode): boolean => node.visible || node.children.some(showsAnything);
 
 export class AppiumAdapter implements MobileAdapter<MobileElement> {
   private driver?: MobileDriver;
@@ -92,10 +89,10 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
    * and a hidden pick is targeted again from an exact capture. Claims and regions always see the exact tree,
    * read without `accessible` (only click candidates use it; ~250 ms less on a 340-node Calendar sheet).
    */
-  async capture(kind: MobileKind, within?: MobileElement) {
+  async capture(kind: MobileKind, within?: MobileElement, { regionPick = false } = {}) {
     const driver = this.current();
     const ios = this.target!.platform === 'ios';
-    const fast = this.fastTargets && ios && kind !== 'region' && !within;
+    const fast = this.fastTargets && ios && (kind !== 'region' || regionPick) && !within;
     if (fast && !this.exactNext) return this.frame(await this.iosSource(driver, 'visible'), kind, undefined, true);
     if (fast) this.exactNext = false;
     return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
@@ -107,8 +104,13 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
   private frame(source: string, kind: MobileKind, within?: MobileElement, boundsVisibility = false) {
     const tree = parseMobileTree(source, { boundsVisibility });
     const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
+    // A region picked from an approximate capture must show something in the exact tree. Not its own flag:
+    // XCUITest often marks containers invisible while controls inside them are visible.
+    if (within?.approximate && !showsAnything(roots[0])) { this.exactNext = true; throw new HiddenTargetError('Region'); }
     const frame = mobileFrame(roots, kind, { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app }, this.generation, tree.truncated);
-    return boundsVisibility ? { ...frame, approximate: true } : frame;
+    if (!boundsVisibility) return frame;
+    const elements = new Map([...frame.elements].map(([id, el]) => [id, { ...el, approximate: true }]));
+    return { ...frame, elements, approximate: true };
   }
   /**
    * Android only: the tree without UiAutomator's idle wait. After an action, getPageSource waits for

@@ -1,3 +1,4 @@
+import { HiddenTargetError } from './automation.js';
 import { MobileTargetSchema } from './mobile-spec.js';
 import { parseMobileTree, findMobileNode, nodeIdentity, mobileFrame } from './mobile-tree.js';
 export function mobileCapabilities(target) {
@@ -21,10 +22,8 @@ export function mobileCapabilities(target) {
 }
 const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry';
 const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label,attribute/visible';
-/** The picked element is covered or off screen: MobileSession targets it again from an exact capture. */
-export class HiddenTargetError extends Error {
-    constructor() { super('Mobile control is not visible (covered or off screen)'); this.name = 'HiddenTargetError'; }
-}
+export { HiddenTargetError };
+const showsAnything = (node) => node.visible || node.children.some(showsAnything);
 export class AppiumAdapter {
     server;
     timeout;
@@ -86,10 +85,10 @@ export class AppiumAdapter {
      * and a hidden pick is targeted again from an exact capture. Claims and regions always see the exact tree,
      * read without `accessible` (only click candidates use it; ~250 ms less on a 340-node Calendar sheet).
      */
-    async capture(kind, within) {
+    async capture(kind, within, { regionPick = false } = {}) {
         const driver = this.current();
         const ios = this.target.platform === 'ios';
-        const fast = this.fastTargets && ios && kind !== 'region' && !within;
+        const fast = this.fastTargets && ios && (kind !== 'region' || regionPick) && !within;
         if (fast && !this.exactNext)
             return this.frame(await this.iosSource(driver, 'visible'), kind, undefined, true);
         if (fast)
@@ -103,8 +102,17 @@ export class AppiumAdapter {
     frame(source, kind, within, boundsVisibility = false) {
         const tree = parseMobileTree(source, { boundsVisibility });
         const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
+        // A region picked from an approximate capture must show something in the exact tree. Not its own flag:
+        // XCUITest often marks containers invisible while controls inside them are visible.
+        if (within?.approximate && !showsAnything(roots[0])) {
+            this.exactNext = true;
+            throw new HiddenTargetError('Region');
+        }
         const frame = mobileFrame(roots, kind, { url: `mobile://${this.target.platform}/${encodeURIComponent(this.target.app)}`, title: this.target.app }, this.generation, tree.truncated);
-        return boundsVisibility ? { ...frame, approximate: true } : frame;
+        if (!boundsVisibility)
+            return frame;
+        const elements = new Map([...frame.elements].map(([id, el]) => [id, { ...el, approximate: true }]));
+        return { ...frame, elements, approximate: true };
     }
     /**
      * Android only: the tree without UiAutomator's idle wait. After an action, getPageSource waits for

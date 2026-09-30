@@ -29,9 +29,8 @@ export class MobileSession extends NativeSession {
             // a rejected (a keyboard still sliding in can be missing) or covered pick is picked again from an exact one.
             for (let retargeted = false;; retargeted = true) {
                 const [r] = await this.find(kind, [target]);
-                const retry = () => { this.ms.retargeted = 1; this.adapter.preferExact?.(); };
                 if (r.approximate && !retargeted && r.element === null) {
-                    retry();
+                    this.retarget();
                     continue;
                 }
                 if (r.element === null)
@@ -47,7 +46,7 @@ export class MobileSession extends NativeSession {
                 catch (error) {
                     if (retargeted || !(error instanceof HiddenTargetError))
                         throw error;
-                    retry();
+                    this.retarget();
                 }
             }
         }
