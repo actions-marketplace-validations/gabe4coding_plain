@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { AppiumAdapter, mobileCapabilities } from './mobile-adapter.js';
-import { parseMobileTree, mobileFrame, type MobileElement, type MobileKind } from './mobile-tree.js';
+import { parseMobileTree, mobileFrame, findMobileNode, type MobileElement, type MobileKind } from './mobile-tree.js';
 
 const android = `<?xml version="1.0"?><hierarchy rotation="0"><android.widget.FrameLayout enabled="true">
   <android.view.ViewGroup clickable="true" enabled="true"><android.widget.TextView text="Sign in &amp; continue" enabled="true"/></android.view.ViewGroup>
@@ -115,7 +115,13 @@ for (const platform of ['android', 'ios'] as const) {
         assert.equal(platform, 'ios'); assert.equal(body.args[0].excludedAttributes, 'visible');
         value = source.replaceAll(/ visible="[^"]*"/g, '');
       }
-      else if (path.endsWith('/element') && req.method === 'POST') value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
+      else if (path.endsWith('/element') && req.method === 'POST') {
+        value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
+        // XCUITest answers with the attributes the session asked for (elementResponseAttributes).
+        const node = platform === 'ios' ? findMobileNode(parseMobileTree(source).roots, body.value) : undefined;
+        if (node) value = { ...value as object, type: node.role, enabled: node.enabled, rect: { x: 0, y: 0, width: 10, height: 10 },
+          'attribute/name': node.attrs.name ?? null, 'attribute/label': node.attrs.label ?? null };
+      }
       else if (/\/attribute\//.test(path)) value = platform === 'ios' ? (checked ? '1' : '0') : String(checked);
       else if (path.endsWith('/click')) checked = !checked;
       else if (path.endsWith('/window/rect')) value = { x: 0, y: 0, width: 400, height: 800 };
@@ -150,12 +156,17 @@ for (const platform of ['android', 'ios'] as const) {
         platform === 'ios' ? '/*[1]/*[2]' : '/*[1]/*[1]/*[2]');
       assert.ok(requests.some(r => r.path.endsWith('/value') && r.body.text === 'hello'));
       assert.ok(requests.some(r => r.path.endsWith('/clear')));
+      const sourceReads = () => requests.filter(r => r.body.script === 'mobile: source').length;
       if (platform === 'ios') {
+        // A self-named target is revalidated from the lookup's response alone.
+        assert.equal(caps['appium:shouldUseCompactResponses'], false);
+        assert.equal(sourceReads(), 0);
         const inputs = await adapter.capture('fill');
         const wheel = inputs.candidates.find(c => c.desc.includes('PickerWheel'))!;
         assert.match(wheel.desc, /11 o’clock/);
         await adapter.act('fill', inputs.elements.get(wheel.id)!, '14');
         assert.equal(requests.filter(r => r.path.endsWith('/clear')).length, 1, 'Picker wheels must not be cleared');
+        assert.equal(sourceReads(), 1, 'a target named only by its children is revalidated against the tree');
         assert.equal(requests.filter(r => r.path.endsWith('/value')).at(-1)?.body.text, '14');
       }
       const control = await target('check');

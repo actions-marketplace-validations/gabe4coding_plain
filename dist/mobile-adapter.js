@@ -13,10 +13,14 @@ export function mobileCapabilities(target) {
         'appium:automationName': target.platform === 'ios' ? 'XCUITest' : 'UiAutomator2',
         'appium:udid': target.device, 'appium:noReset': true, 'appium:fullReset': false,
         'appium:autoLaunch': true,
-        ...(target.platform === 'ios' ? { 'appium:bundleId': target.app, 'appium:shouldTerminateApp': false } :
+        ...(target.platform === 'ios' ? { 'appium:bundleId': target.app, 'appium:shouldTerminateApp': false,
+            // Element lookups return what revalidation checks (AppiumAdapter.resolve), so no tree read is needed.
+            'appium:shouldUseCompactResponses': false, 'appium:elementResponseAttributes': IOS_FOUND_ATTRIBUTES } :
             { 'appium:appPackage': target.app, 'appium:dontStopAppOnReset': true, 'appium:forceAppLaunch': false }),
     };
 }
+const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry';
+const IOS_FOUND_ATTRIBUTES = 'type,enabled,rect,attribute/name,attribute/label';
 export class AppiumAdapter {
     server;
     timeout;
@@ -63,7 +67,7 @@ export class AppiumAdapter {
     checkHandle(element, roots) {
         const node = findMobileNode(roots, element.path);
         if (element.generation !== this.generation || !node || nodeIdentity(node) !== element.identity)
-            throw new Error('Mobile UI changed after targeting; inspect the screen and retry');
+            throw new Error(CHANGED);
         return node;
     }
     async capture(kind, within) {
@@ -97,35 +101,53 @@ export class AppiumAdapter {
         return this.frame(source, kind, within);
     }
     /**
-     * The tree read just before an action, to revalidate the target. On iOS, XCUITest's `visible`
-     * attribute is most of the page source's cost (measured on Calendar: ~1,050 ms with it, ~150 ms
-     * without), so this read leaves it out and checks the element's size instead: the target was
-     * visible when Jev picked it, and identity proves it is the same element.
+     * Finds the target again and checks it is still the element Jev picked (same path, type and names),
+     * visible and enabled. The tree read this needed costs ~1 s on iOS, where XCUITest's `visible`
+     * attribute is most of the page source (measured on Calendar: 1,050-2,450 ms with it, 150-460 ms
+     * without, ~270 ms for the lookup). So on iOS the lookup's own response carries type, names, enabled
+     * and size (IOS_FOUND_ATTRIBUTES), which is enough when the element names itself. An element named
+     * only by its children falls back to a source read without `visible`; the size stands in for it:
+     * the target was visible when Jev picked it, and identity proves it is the same element.
      */
-    async actionTree(driver) {
-        if (this.target.platform !== 'ios')
-            return parseMobileTree(await driver.getPageSource());
-        return parseMobileTree(String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes: 'visible' }])));
-    }
     async resolve(element) {
         const driver = this.current();
-        const tree = await this.actionTree(driver);
+        const ios = this.target.platform === 'ios';
+        const [role, name, , ownName, label] = JSON.parse(element.identity);
+        const found = async () => {
+            // WebdriverIO returns a missing element as an error object, not a rejection.
+            const ref = await driver.findElement('xpath', element.path);
+            const id = ref['element-6066-11e4-a52e-4f735466cecf'];
+            if (!id)
+                throw new Error(ref.error === 'no such element' ? CHANGED : 'Appium returned no element handle');
+            return { id, ref };
+        };
+        let id;
+        if (ios && name !== '' && name === (label || ownName)) {
+            if (element.generation !== this.generation)
+                throw new Error(CHANGED);
+            const { id: foundId, ref } = await found();
+            if (ref.type !== undefined) {
+                if (ref.type !== role || (ref['attribute/name'] ?? '') !== ownName || (ref['attribute/label'] ?? '') !== label)
+                    throw new Error(CHANGED);
+                if (!ref.enabled || !(ref.rect && ref.rect.width > 0 && ref.rect.height > 0))
+                    throw new Error('Mobile control is no longer visible/enabled');
+                return { id: foundId, role };
+            }
+            id = foundId; // a server that ignores elementResponseAttributes: validate against the tree
+        }
+        const tree = parseMobileTree(ios ? String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes: 'visible' }])) : await driver.getPageSource());
         const node = this.checkHandle(element, tree.roots);
         const sized = node.attrs.width === undefined || (Number(node.attrs.width) > 0 && Number(node.attrs.height) > 0);
         if (!node.visible || !sized || !node.enabled)
             throw new Error('Mobile control is no longer visible/enabled');
-        const ref = await driver.findElement('xpath', element.path);
-        const id = ref['element-6066-11e4-a52e-4f735466cecf'];
-        if (!id)
-            throw new Error('Appium returned no element handle');
-        return { id, node };
+        return { id: id ?? (await found()).id, role: node.role };
     }
     async act(kind, element, value) {
-        const driver = this.current(), { id, node } = await this.resolve(element);
+        const driver = this.current(), { id, role } = await this.resolve(element);
         if (kind === 'fill') {
             // XCUITest sets picker wheels through the value endpoint; they cannot be cleared
             // as text fields. Use the role from the freshly validated native snapshot.
-            if (!(this.target.platform === 'ios' && node.role === 'XCUIElementTypePickerWheel'))
+            if (!(this.target.platform === 'ios' && role === 'XCUIElementTypePickerWheel'))
                 await driver.elementClear(id);
             await driver.elementSendKeys(id, value ?? '');
         }
