@@ -110,6 +110,11 @@ for (const platform of ['android', 'ios'] as const) {
         platformName: platform === 'ios' ? 'iOS' : 'Android', 'appium:automationName': platform === 'ios' ? 'XCUITest' : 'UiAutomator2',
       } };
       else if (path.endsWith('/source')) value = source;
+      // iOS revalidates targets with a source read that leaves out the costly `visible` attribute.
+      else if (path.endsWith('/execute/sync') && body.script === 'mobile: source') {
+        assert.equal(platform, 'ios'); assert.equal(body.args[0].excludedAttributes, 'visible');
+        value = source.replaceAll(/ visible="[^"]*"/g, '');
+      }
       else if (path.endsWith('/element') && req.method === 'POST') value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
       else if (/\/attribute\//.test(path)) value = platform === 'ios' ? (checked ? '1' : '0') : String(checked);
       else if (path.endsWith('/click')) checked = !checked;

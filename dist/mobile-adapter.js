@@ -96,11 +96,23 @@ export class AppiumAdapter {
         }
         return this.frame(source, kind, within);
     }
+    /**
+     * The tree read just before an action, to revalidate the target. On iOS, XCUITest's `visible`
+     * attribute is most of the page source's cost (measured on Calendar: ~1,050 ms with it, ~150 ms
+     * without), so this read leaves it out and checks the element's size instead: the target was
+     * visible when Jev picked it, and identity proves it is the same element.
+     */
+    async actionTree(driver) {
+        if (this.target.platform !== 'ios')
+            return parseMobileTree(await driver.getPageSource());
+        return parseMobileTree(String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes: 'visible' }])));
+    }
     async resolve(element) {
         const driver = this.current();
-        const tree = parseMobileTree(await driver.getPageSource());
+        const tree = await this.actionTree(driver);
         const node = this.checkHandle(element, tree.roots);
-        if (!node.visible || !node.enabled)
+        const sized = node.attrs.width === undefined || (Number(node.attrs.width) > 0 && Number(node.attrs.height) > 0);
+        if (!node.visible || !sized || !node.enabled)
             throw new Error('Mobile control is no longer visible/enabled');
         const ref = await driver.findElement('xpath', element.path);
         const id = ref['element-6066-11e4-a52e-4f735466cecf'];
