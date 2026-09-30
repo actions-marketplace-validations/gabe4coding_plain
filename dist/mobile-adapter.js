@@ -83,19 +83,21 @@ export class AppiumAdapter {
      * source without XCUITest's `visible` attribute, most of its cost (Calendar: 1,050-2,450 ms with it,
      * 150-460 ms without), and judges visibility by bounds (parseMobileTree). That view also shows covered
      * elements, so resolve() confirms the pick's own `visible` before acting (free in the lookup's response),
-     * and a hidden pick is targeted again from an exact capture. Claims and regions always see the exact tree.
+     * and a hidden pick is targeted again from an exact capture. Claims and regions always see the exact tree,
+     * read without `accessible` (only click candidates use it; ~250 ms less on a 340-node Calendar sheet).
      */
     async capture(kind, within) {
         const driver = this.current();
-        const fast = this.fastTargets && this.target.platform === 'ios' && kind !== 'region' && !within;
+        const ios = this.target.platform === 'ios';
+        const fast = this.fastTargets && ios && kind !== 'region' && !within;
         if (fast && !this.exactNext)
-            return this.frame(await this.iosSourceWithoutVisible(driver), kind, undefined, true);
+            return this.frame(await this.iosSource(driver, 'visible'), kind, undefined, true);
         if (fast)
             this.exactNext = false;
-        return this.frame(await driver.getPageSource(), kind, within);
+        return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
     }
-    async iosSourceWithoutVisible(driver) {
-        return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes: 'visible' }]));
+    async iosSource(driver, excludedAttributes) {
+        return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
     }
     frame(source, kind, within, boundsVisibility = false) {
         const tree = parseMobileTree(source, { boundsVisibility });
@@ -147,7 +149,7 @@ export class AppiumAdapter {
                 throw new Error(CHANGED);
             const { id, ref } = await found();
             if (ref.type === undefined) { // a server that ignores elementResponseAttributes: the tree, with size for visibility
-                const node = this.checkHandle(element, parseMobileTree(await this.iosSourceWithoutVisible(driver)).roots);
+                const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible')).roots);
                 if (!node.enabled || !(Number(node.attrs.width ?? 1) > 0 && Number(node.attrs.height ?? 1) > 0))
                     throw new Error('Mobile control is no longer visible/enabled');
                 return { id, role: node.role };
@@ -157,7 +159,7 @@ export class AppiumAdapter {
                     throw new Error(CHANGED);
             }
             else
-                this.checkHandle(element, parseMobileTree(await this.iosSourceWithoutVisible(driver)).roots);
+                this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible')).roots);
             if (ref['attribute/visible'] === false) {
                 this.exactNext = true;
                 throw new HiddenTargetError();
