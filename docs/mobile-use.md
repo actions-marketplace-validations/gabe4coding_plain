@@ -185,8 +185,11 @@ layout ancestor reports invisible; hidden layout nodes do not hide visible desce
 Android visibility remains inherited. Jev does not see React component internals, DOM selectors or pixels.
 Custom canvas controls require accessibility support in the app.
 
-The adapter checks a selected node's path and identity against a fresh tree before resolving its
-Appium handle. UI changes return an error rather than acting on a changed target. As with native
+The adapter checks a selected node's path and identity before acting: against a fresh tree on
+Android; on iOS against the element lookup's own response (type, name, label, enabled, size and
+`visible`, requested with the `shouldUseCompactResponses`/`elementResponseAttributes` capabilities),
+plus a tree read without `visible` for a node named only by its children. UI changes return an error
+rather than acting on a changed target. As with native
 automation generally, UI can still change between a check and an action. Inspect state after an
 error before retrying; text clearing or another input may already have taken effect. Transport
 retries are disabled to avoid automatically repeating side effects. Driver/native commands and
@@ -209,7 +212,7 @@ Batch replay runs files sequentially and prints one JSON result per spec. Exit 0
 passed; 1 means failure/error/inconclusive; 2 means CLI usage/provider configuration errors.
 Results use the shared statuses, timing, debug dumps in `$TMPDIR/plainwright/` and token counts.
 Each step's `ms` splits into `capture` (reading the UI tree), `jev`, `act` and `idle` (between
-`wait` polls), plus `reasked` (below).
+`wait` polls), plus `reasked` and `retargeted` (below).
 
 On Android, UiAutomator waits for the UI to go idle (about 500 ms without accessibility events)
 before it returns the tree, so right after an action a tree read takes ~0.5 s. A step that starts
@@ -220,6 +223,15 @@ the early answer's tokens still count). The session's `waitForIdleTimeout` setti
 that one read and restored right after. Nothing changes on iOS: XCUITest already waits for the app
 to be idle inside the action itself, and a quick read there was neither faster nor different. The
 check that the target is unchanged right before a native action is the same on both platforms.
+
+On iOS most of a tree read is XCUITest's `visible` attribute (measured on a Calendar sheet: ~2.4 s
+with it, ~0.4 s without). Spec runs (`plainwright-mobile <spec.yaml>`) therefore pick action targets
+from a tree read without it, judging visibility by bounds inside the window and scrolling ancestors.
+That view keeps every visible control but also shows covered ones (the view under a sheet), so its
+pick is used only when accepted with confidence >= 0.9 and when the lookup before acting reports the
+element visible; otherwise the target is picked once more from the exact tree (`retargeted`).
+Claims, `within` regions and every MCP capture read the exact tree (without `accessible`, which only
+click candidates use).
 
 ## Verification
 
