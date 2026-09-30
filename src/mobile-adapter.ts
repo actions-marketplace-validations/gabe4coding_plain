@@ -107,7 +107,10 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     // A region picked from an approximate capture must show something in the exact tree. Not its own flag:
     // XCUITest often marks containers invisible while controls inside them are visible.
     if (within?.approximate && !showsAnything(roots[0])) { this.exactNext = true; throw new HiddenTargetError('Region'); }
-    const frame = mobileFrame(roots, kind, { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app }, this.generation, tree.truncated);
+    // An approximate region pick lists containers only: covered views double the nodes (374 on a Calendar date
+    // picker), past one Jev request (254), and a split request can disagree with itself.
+    const frame = mobileFrame(roots, kind, { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app },
+      this.generation, tree.truncated, { containersOnly: boundsVisibility && kind === 'region' });
     if (!boundsVisibility) return frame;
     const elements = new Map([...frame.elements].map(([id, el]) => [id, { ...el, approximate: true }]));
     return { ...frame, elements, approximate: true };
