@@ -96,7 +96,8 @@ export function mobileMatches(node, kind) {
         /Button|Link|Cell|TextField|TextView|EditText|Switch|CheckBox|Checkbox|Image|StaticText/.test(node.role) ||
         (node.attrs.accessible === 'true' && !!node.name);
 }
-export function mobileFrame(roots, kind, state, generation, truncated = false) {
+/** `containersOnly`: region candidates are only nodes with children (AppiumAdapter's approximate region picks). */
+export function mobileFrame(roots, kind, state, generation, truncated = false, { containersOnly = false } = {}) {
     const candidates = [], elements = new Map(), lines = [];
     let chars = 0;
     function walk(nodes, depth, context) {
@@ -123,7 +124,7 @@ export function mobileFrame(roots, kind, state, generation, truncated = false) {
                 truncated = true;
             lines.push(line.slice(0, 60000 - chars));
             chars += line.length;
-            if (mobileMatches(node, kind)) {
+            if (mobileMatches(node, kind) && !(containersOnly && !node.children.length)) {
                 if (candidates.length >= MAX_CANDIDATES)
                     truncated = true;
                 else {

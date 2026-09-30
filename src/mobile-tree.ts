@@ -100,7 +100,9 @@ export function mobileMatches(node: MobileNode, kind: MobileKind): boolean {
     (node.attrs.accessible === 'true' && !!node.name);
 }
 
-export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url: string; title: string }, generation: number, truncated = false): Frame<MobileElement> {
+/** `containersOnly`: region candidates are only nodes with children (AppiumAdapter's approximate region picks). */
+export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url: string; title: string }, generation: number, truncated = false,
+  { containersOnly = false } = {}): Frame<MobileElement> {
   const candidates: Candidate[] = [], elements = new Map<number, MobileElement>(), lines: string[] = [];
   let chars = 0;
   function walk(nodes: MobileNode[], depth: number, context: string) {
@@ -122,7 +124,7 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
       const line = `${'  '.repeat(depth)}${desc}\n`;
       if (chars + line.length > 60000) truncated = true;
       lines.push(line.slice(0, 60000 - chars)); chars += line.length;
-      if (mobileMatches(node, kind)) {
+      if (mobileMatches(node, kind) && !(containersOnly && !node.children.length)) {
         if (candidates.length >= MAX_CANDIDATES) truncated = true;
         else {
           const id = candidates.length;

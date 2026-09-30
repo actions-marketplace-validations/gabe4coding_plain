@@ -233,7 +233,12 @@ for (const platform of ['android', 'ios'] as const) {
         assert.equal(regions.approximate, true); assert.equal(reads(), exactBefore + 2);
         const regionOf = (label: string) => regions.elements.get(regions.candidates.find(c => c.desc.includes(`"${label}"`))!.id)!;
         assert.match((await fast.capture('region', regionOf('Results'))).snapshot.aria, /First result/);
-        await assert.rejects(fast.capture('region', regionOf('Hidden')), HiddenTargetError);
+        assert.ok(!regions.candidates.some(c => c.desc.includes('"Email"')), 'an approximate region pick lists containers only');
+        const coveredSource = source;
+        source = source.replace('label="Results" enabled="true" visible="true"', 'label="Results" enabled="true" visible="false"')
+          .replace('label="First result" visible="true"', 'label="First result" visible="false"');
+        await assert.rejects(fast.capture('region', regionOf('Results')), HiddenTargetError);
+        source = coveredSource;
         assert.equal((await fast.capture('region', undefined, { regionPick: true })).approximate, undefined, 'then the next pick is exact');
         await fast.close();
       }
