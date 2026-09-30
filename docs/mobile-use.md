@@ -232,8 +232,11 @@ lowers Jev's confidence there (0.43-0.75 against 0.80-0.96 on the exact tree) bu
 choice in any recorded Calendar step, so its pick is used when accepted (>= 0.5, like any pick) and
 when the lookup before acting reports the element visible; a rejected or covered pick is picked once
 more from the exact tree (`retargeted`).
-Claims, `within` regions and every MCP capture read the exact tree (without `accessible`, which only
-click candidates use).
+A `within` region for a claim is picked the same way, from containers only (the covered views
+would push the candidates past one Jev request); the first exact look inside it must show something
+visible, or the region is picked once more from the exact tree. Claims themselves and every MCP
+capture read the exact tree. Reads leave out `accessible` wherever only click candidates would use it,
+and iOS targets are looked up by class chain (~220 ms on a Calendar sheet, against ~270 ms by XPath).
 
 ## Verification
 
