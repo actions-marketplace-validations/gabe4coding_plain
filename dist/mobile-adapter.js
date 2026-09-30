@@ -89,8 +89,9 @@ export class AppiumAdapter {
         const driver = this.current();
         const ios = this.target.platform === 'ios';
         const fast = this.fastTargets && ios && (kind !== 'region' || regionPick) && !within;
+        // Only click candidates read `accessible` (mobileMatches); leaving it out too halves a fast read on a sheet (364 -> 158 ms).
         if (fast && !this.exactNext)
-            return this.frame(await this.iosSource(driver, 'visible'), kind, undefined, true);
+            return this.frame(await this.iosSource(driver, kind === 'click' ? 'visible' : 'visible,accessible'), kind, undefined, true);
         if (fast)
             this.exactNext = false;
         return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
@@ -161,7 +162,7 @@ export class AppiumAdapter {
                 throw new Error(CHANGED);
             const { id, ref } = await found();
             if (ref.type === undefined) { // a server that ignores elementResponseAttributes: the tree, with size for visibility
-                const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible')).roots);
+                const node = this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
                 if (!node.enabled || !(Number(node.attrs.width ?? 1) > 0 && Number(node.attrs.height ?? 1) > 0))
                     throw new Error('Mobile control is no longer visible/enabled');
                 return { id, role: node.role };
@@ -171,7 +172,7 @@ export class AppiumAdapter {
                     throw new Error(CHANGED);
             }
             else
-                this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible')).roots);
+                this.checkHandle(element, parseMobileTree(await this.iosSource(driver, 'visible,accessible')).roots);
             if (ref['attribute/visible'] === false) {
                 this.exactNext = true;
                 throw new HiddenTargetError();

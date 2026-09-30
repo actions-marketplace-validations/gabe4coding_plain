@@ -126,9 +126,9 @@ for (const platform of ['android', 'ios'] as const) {
       else if (path.endsWith('/source')) value = source;
       // iOS reads leave out costly attributes: `visible` for targets, `accessible` for claims and regions.
       else if (path.endsWith('/execute/sync') && body.script === 'mobile: source') {
-        const excluded = body.args[0].excludedAttributes;
-        assert.equal(platform, 'ios'); assert.ok(['visible', 'accessible'].includes(excluded));
-        value = source.replaceAll(new RegExp(` ${excluded}="[^"]*"`, 'g'), '');
+        const excluded: string = body.args[0].excludedAttributes;
+        assert.equal(platform, 'ios'); assert.ok(['visible', 'accessible', 'visible,accessible'].includes(excluded));
+        value = excluded.split(',').reduce((xml: string, name) => xml.replaceAll(new RegExp(` ${name}="[^"]*"`, 'g'), ''), source);
       }
       else if (path.endsWith('/element') && req.method === 'POST') {
         value = { 'element-6066-11e4-a52e-4f735466cecf': 'control' };
@@ -171,7 +171,7 @@ for (const platform of ['android', 'ios'] as const) {
         platform === 'ios' ? '/*[1]/*[2]' : '/*[1]/*[1]/*[2]');
       assert.ok(requests.some(r => r.path.endsWith('/value') && r.body.text === 'hello'));
       assert.ok(requests.some(r => r.path.endsWith('/clear')));
-      const sourceReads = () => requests.filter(r => r.body.args?.[0]?.excludedAttributes === 'visible').length;
+      const sourceReads = () => requests.filter(r => r.body.args?.[0]?.excludedAttributes?.startsWith('visible')).length;
       if (platform === 'ios') {
         // A self-named target is revalidated from the lookup's response alone.
         assert.equal(caps['appium:shouldUseCompactResponses'], false);
