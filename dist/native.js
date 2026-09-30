@@ -68,7 +68,7 @@ export class NativeSession {
             for (const r of result)
                 if (r.usedJev)
                     this.track(r.tokens);
-            return result;
+            return frame.approximate ? result.map((r) => ({ ...r, approximate: true })) : result;
         }
     }
     /** The element a region description names; throws when Jev finds none. */

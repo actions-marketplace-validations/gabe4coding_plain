@@ -96,13 +96,15 @@ export class AppiumAdapter {
             this.exactNext = false;
         return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
     }
+    preferExact() { this.exactNext = true; }
     async iosSource(driver, excludedAttributes) {
         return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
     }
     frame(source, kind, within, boundsVisibility = false) {
         const tree = parseMobileTree(source, { boundsVisibility });
         const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
-        return mobileFrame(roots, kind, { url: `mobile://${this.target.platform}/${encodeURIComponent(this.target.app)}`, title: this.target.app }, this.generation, tree.truncated);
+        const frame = mobileFrame(roots, kind, { url: `mobile://${this.target.platform}/${encodeURIComponent(this.target.app)}`, title: this.target.app }, this.generation, tree.truncated);
+        return boundsVisibility ? { ...frame, approximate: true } : frame;
     }
     /**
      * Android only: the tree without UiAutomator's idle wait. After an action, getPageSource waits for

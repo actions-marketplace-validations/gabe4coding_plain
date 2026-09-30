@@ -17,7 +17,7 @@ export async function resolveTargets(adapter, targets, ai = intelligence) {
         const candidate = adapter.candidates.find((c) => c.id === id);
         const accepted = candidate !== undefined && decide(confidence ?? probability, 'pick') === 'pass';
         const c = confidence === undefined ? '' : ` c=${confidence.toFixed(2)}`;
-        const base = { tokens, usedJev: i === 0, confidence };
+        const base = { tokens, usedJev: i === 0, confidence, score: confidence ?? probability };
         if (accepted)
             return { ...base, element: adapter.element(candidate), detail: `→ ${candidate.desc} (p=${probability.toFixed(2)}${c})` };
         const file = dumpDebug('pick', { instruction: target, probabilities, confidence, candidates: adapter.candidates });

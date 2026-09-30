@@ -8,7 +8,9 @@ export type Candidate = z.infer<typeof CandidateSchema>;
 export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
 export type Snapshot = z.infer<typeof SnapshotSchema>;
 /** One native capture: what Jev sees, plus the adapter's handle for each candidate id. */
-export interface Frame<T> { snapshot: Snapshot; candidates: Candidate[]; elements: Map<number, T>; }
+export interface Frame<T> { snapshot: Snapshot; candidates: Candidate[]; elements: Map<number, T>;
+  /** A cheaper view that may also list covered elements (AppiumAdapter.capture on iOS): picks from it are checked. */
+  approximate?: boolean; }
 export interface TargetAdapter<T> {
   candidates: Candidate[];
   state: { url: string; title: string; goal?: string };
@@ -20,6 +22,10 @@ export interface ResolvedTarget<T> {
   tokens: number;
   usedJev: boolean;
   confidence?: number;
+  /** What acceptance used: confidence when the provider returned one, else probability. */
+  score?: number;
+  /** Picked from an approximate frame. */
+  approximate?: boolean;
 }
 // `ask` is the raw call `read` (src/read.ts) makes; tests inject it with the rest.
 export type Intelligence = { pick: typeof pickElements; judge: typeof judge; describe?: typeof describeSnapshot; ask?: typeof ask };
@@ -35,7 +41,7 @@ export async function resolveTargets<T>(adapter: TargetAdapter<T>, targets: stri
     const candidate = adapter.candidates.find((c) => c.id === id);
     const accepted = candidate !== undefined && decide(confidence ?? probability, 'pick') === 'pass';
     const c = confidence === undefined ? '' : ` c=${confidence.toFixed(2)}`;
-    const base = { tokens, usedJev: i === 0, confidence };
+    const base = { tokens, usedJev: i === 0, confidence, score: confidence ?? probability };
     if (accepted) return { ...base, element: adapter.element(candidate!), detail: `→ ${candidate!.desc} (p=${probability.toFixed(2)}${c})` };
     const file = dumpDebug('pick', { instruction: target, probabilities, confidence, candidates: adapter.candidates });
     return { ...base, element: null, detail: `${id === null ? 'no matching element' : 'low confidence or invalid candidate'}${c} — top: ${topGuesses(probabilities, adapter.candidates)} — candidates: ${file}` };
