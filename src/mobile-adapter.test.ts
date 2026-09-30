@@ -127,10 +127,14 @@ test('bounds visibility keeps on-screen nodes and drops empty or scrolled-out on
     <XCUIElementTypeScrollView type="XCUIElementTypeScrollView" label="List" x="0" y="100" width="400" height="200">
       <XCUIElementTypeCell type="XCUIElementTypeCell" label="In view" x="0" y="120" width="400" height="40"/>
       <XCUIElementTypeCell type="XCUIElementTypeCell" label="Scrolled out" x="0" y="400" width="400" height="40"/>
-    </XCUIElementTypeScrollView></XCUIElementTypeApplication></AppiumAUT>`;
+    </XCUIElementTypeScrollView>
+    <XCUIElementTypeWebView type="XCUIElementTypeWebView" label="Page" x="0" y="400" width="400" height="200">
+      <XCUIElementTypeLink type="XCUIElementTypeLink" label="Web in view" x="10" y="420" width="100" height="20"/>
+      <XCUIElementTypeLink type="XCUIElementTypeLink" label="Web scrolled out" x="10" y="700" width="100" height="20"/>
+    </XCUIElementTypeWebView></XCUIElementTypeApplication></AppiumAUT>`;
   const labels = (bounds: boolean) => mobileFrame(parseMobileTree(xml, { boundsVisibility: bounds }).roots, 'click', { url: '', title: '' }, 0).candidates.map(c => c.desc.split('"')[1]);
-  assert.deepEqual(labels(true), ['Shown', 'In view']);
-  assert.equal(labels(false).length, 5, 'without the option, a source lacking `visible` shows every node');
+  assert.deepEqual(labels(true), ['Shown', 'In view', 'Web in view'], 'a web view clips its page like a scroll view');
+  assert.equal(labels(false).length, 7, 'without the option, a source lacking `visible` shows every node');
 });
 
 // Exercise the actual WebdriverIO transport against a local W3C/Appium server. No device or model key.
@@ -341,8 +345,11 @@ test('iOS resolve fails closed on string or missing lookup visibility, and does 
     const exactBeforeMissing = exactSources();
     await assert.rejects(fast.act('tap', signIn), HiddenTargetError);
     assert.equal(clicks(), clicksBeforeMissing, 'a missing attribute/visible is not treated as visible');
-    await fast.capture('click');
+    const exactFrame = await fast.capture('click');
     assert.equal(exactSources(), exactBeforeMissing + 1, 'a missing visibility flag falls back to an exact capture');
+    // The exact capture already showed the target visible: a server that leaves the flag out does not block it.
+    await fast.act('tap', exactFrame.elements.get(exactFrame.candidates.find(c => c.desc.includes('"Sign in & continue"'))!.id)!);
+    assert.equal(clicks(), clicksBeforeMissing + 1, 'a pick from an exact capture acts without the flag');
 
     mode = 'no-type';
     const clicksBeforeHidden = clicks();
