@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import type { Step } from './spec.js';
-import { intelligence, resolveTargets, judgeState, askSettled, type Intelligence, type Frame } from './automation.js';
+import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError, type Intelligence, type Frame } from './automation.js';
 import { decide, loadEnvFiles, provider, warmUp } from './jev.js';
 import { timedInto, dumpDebug, type StepResult, type Status } from './results.js';
 import { readAnswer } from './read.js';
@@ -9,7 +9,10 @@ import { startHooks, type HooksRunner, type HookSpec } from './hooks.js';
 // Shared by the desktop (computer.ts) and mobile (mobile.ts) paths: Jev targeting, expect/wait polling,
 // phase timing, spec runs and the CLI. Subclasses only perform their platform's actions.
 export interface NativeAdapter<T, K extends string> {
-  capture(kind: K | 'region', within?: T): Promise<Frame<T>>;
+  /** `regionPick`: the capture only picks a region, so an approximate frame may do (see AppiumAdapter). */
+  capture(kind: K | 'region', within?: T, options?: { regionPick?: boolean }): Promise<Frame<T>>;
+  /** The next target capture is exact, not approximate (a pick from an approximate one was rejected or hidden). */
+  preferExact?(): void;
   /** A capture that skips the platform's wait for an idle UI, or null where that is not faster (see AppiumAdapter). */
   captureEarly?(kind: K | 'region', within?: T): Promise<Frame<T> | null>;
   press(key: string): Promise<void>;
@@ -47,12 +50,12 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
   // Jev already works on it while the adapter waits for the UI to go idle (askSettled) — only right
   // after the previous step, when the UI may still be busy.
   private async settled<R>(kind: K | 'region', within: T | undefined, ask: (frame: Frame<T>) => Promise<R>,
-    discard: (result: R) => void, skip?: (frame: Frame<T>) => boolean) {
+    discard: (result: R) => void, skip?: (frame: Frame<T>) => boolean, regionPick = false) {
     const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
     const early = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
     const { frame, result, reasked } = await askSettled({
       early: early && (() => this.timed('capture', () => early(kind, within))),
-      settled: () => this.timed('capture', () => this.adapter.capture(kind, within)).then((f) => {
+      settled: () => this.timed('capture', () => this.adapter.capture(kind, within, regionPick ? { regionPick } : undefined)).then((f) => {
         if (within === undefined) this.firstSnapshot ??= f.snapshot;
         return f;
       }),
@@ -62,25 +65,31 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     if (reasked) this.ms.reasked = (this.ms.reasked ?? 0) + 1;
     return { frame, result };
   }
-  async find(kind: K | 'region', targets: string[]) {
+  async find(kind: K | 'region', targets: string[], regionPick = false) {
     // A key or click that opens a window returns before the window exists (TextEdit's Command-N):
     // an empty capture is looked at again for a moment instead of reported as "no candidates".
     const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
     for (;;) {
       const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
         element: (c) => { const el = frame.elements.get(c.id); if (el === undefined) throw new Error('Candidate handle missing'); return el; },
-      }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); });
+      }, targets, this.ai), ([first]) => { if (first?.usedJev) this.track(first.tokens); }, undefined, regionPick);
       if (frame.candidates.length === 0 && Date.now() < deadline) { await this.timed('idle', () => new Promise((r) => setTimeout(r, 150))); continue; }
       for (const r of result!) if (r.usedJev) this.track(r.tokens);
       return frame.approximate ? result!.map((r) => ({ ...r, approximate: true })) : result!;
     }
   }
-  /** The element a region description names; throws when Jev finds none. */
-  protected async region(within: string) {
-    const [r] = await this.find('region', [within]);
+  /**
+   * The element a region description names; throws when Jev finds none. `fast`: the adapter may pick from an
+   * approximate capture (a rejected pick there is asked again from an exact one); the first look inside the
+   * region then confirms it shows something, or throws HiddenTargetError.
+   */
+  protected async region(within: string, fast = false) {
+    let [r] = await this.find('region', [within], fast);
+    if (r.approximate && r.element === null) { this.retarget(); [r] = await this.find('region', [within]); }
     if (r.element === null) throw new Error(r.detail);
     return r.element;
   }
+  protected retarget() { this.ms.retargeted = 1; this.adapter.preferExact?.(); }
   async snapshot(within?: string) {
     const region = within ? await this.region(within) : undefined;
     return (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot;
@@ -120,11 +129,19 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     let polls = 0, last = '', probabilities: number[] = [], status: Status = 'inconclusive';
     let snap;
     // A wait polls its region too: one region pick, then only that part of the tree per poll.
-    const region = step.within ? await this.region(step.within) : undefined;
+    let region = step.within ? await this.region(step.within, true) : undefined;
     do {
       // Unchanged since a clear "no": asking again buys nothing.
-      const { frame, result: judged } = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai),
-        (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');
+      let looked;
+      try {
+        looked = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai),
+          (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');
+      } catch (error) {
+        // A region picked from an approximate capture turned out covered: pick it once more from an exact one.
+        if (!(error instanceof HiddenTargetError) || this.ms.retargeted || !step.within) throw error;
+        this.retarget(); region = await this.region(step.within); continue;
+      }
+      const { frame, result: judged } = looked;
       snap = frame.snapshot;
       if (judged) {
         this.track(judged.tokens); probabilities = judged.probabilities; polls++;

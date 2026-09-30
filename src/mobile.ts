@@ -29,8 +29,7 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
       // a rejected (a keyboard still sliding in can be missing) or covered pick is picked again from an exact one.
       for (let retargeted = false; ; retargeted = true) {
         const [r] = await this.find(kind, [target]);
-        const retry = () => { this.ms.retargeted = 1; this.adapter.preferExact?.(); };
-        if (r.approximate && !retargeted && r.element === null) { retry(); continue; }
+        if (r.approximate && !retargeted && r.element === null) { this.retarget(); continue; }
         if (r.element === null) return { step: name, status: 'inconclusive', detail: r.detail };
         const element = r.element;
         try {
@@ -39,7 +38,7 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
           return { step: name, status: 'pass', detail: r.detail };
         } catch (error) {
           if (retargeted || !(error instanceof HiddenTargetError)) throw error;
-          retry();
+          this.retarget();
         }
       }
     }

@@ -16,6 +16,8 @@ export interface MobileElement {
   path: string;
   identity: string;
   generation: number;
+  /** Picked from a capture without XCUITest's `visible` (AppiumAdapter.capture): visibility still unconfirmed. */
+  approximate?: boolean;
 }
 // Identity excludes changing values/checked state, but includes labels and native identifiers.
 export function nodeIdentity(node: MobileNode): string {

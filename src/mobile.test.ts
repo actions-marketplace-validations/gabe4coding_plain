@@ -83,6 +83,18 @@ test('a rejected pick from an approximate capture is picked again from an exact 
   const rejected = await none.step({ tap: 'Preview' });
   assert.equal(rejected.status, 'pass'); assert.equal(rejected.ms?.retargeted, 1, 'a rejected approximate pick is asked again from an exact capture');
 });
+test('a covered region from an approximate pick is picked once more before its claims are judged', async () => {
+  const adapter = new FakeAdapter(); let covered = 1, prefer = 0;
+  const capture = adapter.capture.bind(adapter);
+  adapter.capture = async (kind: unknown, within?: string, options?: { regionPick?: boolean }) => {
+    if (within && covered-- > 0) throw new HiddenTargetError('Region');
+    return { ...await capture(kind, within), ...(options?.regionPick && !prefer ? { approximate: true } : {}) };
+  };
+  (adapter as FakeAdapter & { preferExact(): void }).preferExact = () => { prefer++; };
+  const r = await new MobileSession(adapter, 100, ai).step({ wait: { that: 'Ready', within: 'panel' } });
+  assert.equal(r.status, 'pass'); assert.equal(r.ms?.retargeted, 1); assert.equal(prefer, 1);
+  assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture' && e[1] === 'region' && e[2] === undefined).length, 2, 'two region picks');
+});
 test('scoped expectations use subtree, combine claims, and fail beats inconclusive', async () => {
   const adapter = new FakeAdapter();
   const session = new MobileSession(adapter, 100, { ...ai, judge: async () => ({ probabilities: [.5, .05], tokens: 8 }) });

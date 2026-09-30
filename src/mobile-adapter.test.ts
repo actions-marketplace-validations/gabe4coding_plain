@@ -227,7 +227,14 @@ for (const platform of ['android', 'ios'] as const) {
         assert.ok(!(await fast.capture('click')).candidates.some(c => c.desc.includes('"Hidden"')));
         assert.equal(reads(), exactBefore + 1, 'after a hidden pick the next target capture is exact');
         await fast.capture('region');
-        assert.equal(reads(), exactBefore + 2, 'claims and regions always see the exact tree');
+        assert.equal(reads(), exactBefore + 2, 'claims always see the exact tree');
+        // A region pick may use the fast tree; the first exact look inside it confirms it shows something.
+        const regions = await fast.capture('region', undefined, { regionPick: true });
+        assert.equal(regions.approximate, true); assert.equal(reads(), exactBefore + 2);
+        const regionOf = (label: string) => regions.elements.get(regions.candidates.find(c => c.desc.includes(`"${label}"`))!.id)!;
+        assert.match((await fast.capture('region', regionOf('Results'))).snapshot.aria, /First result/);
+        await assert.rejects(fast.capture('region', regionOf('Hidden')), HiddenTargetError);
+        assert.equal((await fast.capture('region', undefined, { regionPick: true })).approximate, undefined, 'then the next pick is exact');
         await fast.close();
       }
     } finally { await adapter.close(); server.close(); server.closeAllConnections(); await once(server, 'close'); }
