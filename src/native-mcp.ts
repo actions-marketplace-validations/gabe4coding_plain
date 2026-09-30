@@ -44,13 +44,15 @@ export function createNativeServer<S extends Spec>(cfg: {
   let hooks: HooksRunner<S> | undefined;
   let data: Record<string, unknown> = {};
   let results: StepResult[] = [];
+  // The screen the last step's `changed` ended on: the before of a step whose own first capture was approximate.
+  let lastScreen: Awaited<ReturnType<typeof capture>> = null;
   let overall: Status = 'pass';
   const requireOpen = () => { if (!opened) throw new Error('call open first'); };
   const fill = <V>(value: V) => interpolate(value, { env: {}, hooks: data }, where);
   async function close() {
     opened = false;
     try { if (hooks?.has.teardown) await hooks.teardown({ spec, data, result: { status: overall, steps: results } }); }
-    finally { hooks?.close(); hooks = undefined; data = {}; await adapter.close(); }
+    finally { hooks?.close(); hooks = undefined; data = {}; lastScreen = null; await adapter.close(); }
   }
   cfg.tools({ server, queue, async open(next, attach) {
     await close();
@@ -71,30 +73,38 @@ export function createNativeServer<S extends Spec>(cfg: {
   } });
   // `changed`: the same diff as the browser's (src/aria-changes.ts), between the screen before the step and after
   // it. A step that targets something captured the whole screen before acting (NativeSession.firstSnapshot):
-  // that is the before, since each capture costs ~0.5 s on iOS. press, swipe and mouse never look first, so
-  // they get a capture of their own. The after capture waits for the UI to go idle like any capture.
+  // that is the before, since an exact capture costs 0.5-3.5 s on iOS. press, swipe and mouse never look first,
+  // so they get a capture of their own. An approximate target capture (iOS, AppiumAdapter) also lists covered
+  // elements and cannot be the before: the previous step's after is, or, right after open, a capture of its own.
+  // The after capture waits for the UI to go idle like any capture.
   const capture = () => adapter.capture('region').then((f) => f.snapshot, () => null);
   const looksFirst = (step: { kind: string; within?: string }) => !['press', 'swipe', 'mouse'].includes(step.kind);
   async function changes(before: Awaited<ReturnType<typeof capture>> | undefined): Promise<{ changed?: AriaChanges }> {
     if (!before) return {};
-    const after = await capture();
+    const after = lastScreen = await capture();
     return after ? { changed: ariaChanges(before, after) } : {};
   }
   server.registerTool('step', { description: cfg.describe.step + CHANGES_NOTE, inputSchema: { step: z.record(z.string(), z.unknown()) } }, ({ step }) => queue(async () => {
     requireOpen();
     const parsed = session.parse(step);
     const before = session.tokens;
-    const screen = CHANGES && !looksFirst(parsed) ? await capture() : null;
+    // Only a claim over the whole screen is sure to look first with an exact capture.
+    const exactFirst = ['expect', 'wait'].includes(parsed.kind) && !(parsed as { within?: string }).within;
+    const screen = CHANGES && (!looksFirst(parsed) || (adapter.approximateTargets && !lastScreen && !exactFirst)) ? await capture() : null;
     const result = await session.run(fill(parsed));
     results.push(result);
     if (result.status !== 'pass' && result.status !== 'skipped') overall = result.status;
     if (result.status === 'pass') transcript.push(step);
-    return ok({ ...result, jevTokens: session.tokens - before, ...(CHANGES ? await changes(screen ?? session.firstSnapshot) : {}) });
+    return ok({ ...result, jevTokens: session.tokens - before, ...(CHANGES ? await changes(screen ?? session.firstSnapshot ?? lastScreen) : {}) });
   }));
   server.registerTool('find', {
     description: cfg.describe.find, inputSchema: { kind: z.enum(cfg.kinds), target: z.string().min(1) }, annotations: { readOnlyHint: true },
   }, ({ kind, target }) => queue(async () => {
     requireOpen();
+    // An approximate capture could report a covered element as found. A region find is exact anyway (only claim
+    // regions are picked approximately, NativeSession.region(within, true)); asking would leave the flag unused,
+    // and it would make the next step's target capture exact for nothing.
+    if (kind !== 'region') adapter.preferExact?.();
     const [r] = await session.find(kind, [fill(target)]);
     return ok({ found: r.element !== null, detail: r.detail, confidence: r.confidence, jevTokens: r.tokens });
   }));
