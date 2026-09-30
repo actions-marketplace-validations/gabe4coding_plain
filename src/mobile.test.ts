@@ -65,18 +65,18 @@ test('a hidden pick is targeted again once from a new capture, then reported', a
   const twice = await session.step({ tap: 'Preview' });
   assert.equal(twice.status, 'error'); assert.match(twice.detail ?? '', /not visible/);
 });
-test('an unsure pick from an approximate capture is picked again from an exact one', async () => {
+test('a rejected pick from an approximate capture is picked again from an exact one', async () => {
   const adapter = new FakeAdapter(); let exact = false, prefer = 0;
   const capture = adapter.capture.bind(adapter);
   adapter.capture = async (kind: unknown, within?: string) => ({ ...await capture(kind, within), ...(exact ? {} : { approximate: true }) });
   (adapter as FakeAdapter & { preferExact(): void }).preferExact = () => { prefer++; exact = true; };
-  const scores = [.8, .8];
+  const scores = [.3, .8];
   const session = new MobileSession(adapter, 100, { ...ai, pick: async () => [{ id: 0, probability: scores.shift()!, probabilities: {}, tokens: 1 }] });
   const r = await session.step({ tap: 'Preview' });
   assert.equal(r.status, 'pass'); assert.equal(r.ms?.retargeted, 1); assert.equal(prefer, 1);
-  exact = false; scores.push(.95);
-  const sure = await session.step({ tap: 'Preview' });
-  assert.equal(sure.ms?.retargeted, undefined, 'a sure approximate pick is used as is');
+  exact = false; scores.push(.6);
+  const accepted = await session.step({ tap: 'Preview' });
+  assert.equal(accepted.ms?.retargeted, undefined, 'an accepted approximate pick is used as is');
   exact = false;
   const picks = [{ id: null, probability: .97 }, { id: 0, probability: .95 }]; // a sure "none", then the element
   const none = new MobileSession(adapter, 100, { ...ai, pick: async () => [{ ...picks.shift()!, probabilities: {}, tokens: 1 }] as never });
