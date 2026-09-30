@@ -151,7 +151,7 @@ export class AppiumAdapter {
         const [role, name, , ownName, label] = JSON.parse(element.identity);
         const found = async () => {
             // WebdriverIO returns a missing element as an error object, not a rejection.
-            const ref = await driver.findElement('xpath', element.path);
+            const ref = await (element.chain ? driver.findElement('-ios class chain', element.chain) : driver.findElement('xpath', element.path));
             const id = ref['element-6066-11e4-a52e-4f735466cecf'];
             if (!id)
                 throw new Error(ref.error === 'no such element' ? CHANGED : 'Appium returned no element handle');

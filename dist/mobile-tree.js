@@ -20,9 +20,10 @@ export function parseMobileTree(xml, { boundsVisibility = false } = {}) {
     const parsed = new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '',
         parseAttributeValue: false, parseTagValue: false, ignoreDeclaration: true }).parse(xml);
     let count = 0, truncated = false;
-    function walk(items, path, depth, visible, enabled, clip) {
+    function walk(items, path, depth, visible, enabled, clip, chain) {
         const nodes = [];
         let ordinal = 0;
+        const sameType = new Map();
         for (const item of items) {
             const tag = Object.keys(item).find(k => k !== ':@' && !k.startsWith('#') && !k.startsWith('?'));
             if (!tag)
@@ -50,10 +51,15 @@ export function parseMobileTree(xml, { boundsVisibility = false } = {}) {
             const effectiveVisible = box ? box.right > box.left && box.bottom > box.top && (!clip ||
                 (box.left < clip.right && box.right > clip.left && box.top < clip.bottom && box.bottom > clip.top))
                 : role.startsWith('XCUIElementType') && attrs.visible !== undefined ? nativeVisible : visible && nativeVisible;
-            const node = { path: `${path}/*[${ordinal}]`, attrs, role, name: ownName,
+            const typeIndex = (sameType.get(role) ?? 0) + 1;
+            sameType.set(role, typeIndex);
+            // The application itself (depth 0) is the chain's root; below it, iOS types only.
+            const nodeChain = chain === undefined ? '' : role.startsWith('XCUIElementType') ? `${chain}${chain ? '/' : ''}${role}[${typeIndex}]` : '';
+            const node = { path: `${path}/*[${ordinal}]`, chain: nodeChain, attrs, role, name: ownName,
                 visible: effectiveVisible,
                 enabled: enabled && attrs.enabled !== 'false', children: [] };
-            node.children = walk(item[tag], node.path, depth + 1, node.visible, node.enabled, childClip);
+            const childChain = depth === 0 && role === 'XCUIElementTypeApplication' ? '' : nodeChain || undefined;
+            node.children = walk(item[tag], node.path, depth + 1, node.visible, node.enabled, childClip, childChain);
             // React Native often puts text inside an otherwise unnamed pressable container.
             if (!node.name)
                 node.name = node.children.filter(c => c.visible).map(c => c.name).filter(Boolean).join(' ').slice(0, 500);
@@ -130,7 +136,7 @@ export function mobileFrame(roots, kind, state, generation, truncated = false, {
                 else {
                     const id = candidates.length;
                     candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });
-                    elements.set(id, { path: node.path, identity: nodeIdentity(node), generation });
+                    elements.set(id, { path: node.path, identity: nodeIdentity(node), generation, ...(node.chain ? { chain: node.chain } : {}) });
                 }
             }
             walk(node.children, depth + 1, node.name ? `${node.role} ${JSON.stringify(node.name)}` : context);
