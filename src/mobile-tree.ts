@@ -110,16 +110,27 @@ export function mobileMatches(node: MobileNode, kind: MobileKind): boolean {
 }
 
 /** `containersOnly`: region candidates are only nodes with children (AppiumAdapter's approximate region picks). */
+/**
+ * Jetpack Compose marks a clickable View's role with an unnamed, non-clickable child of the same bounds
+ * (a Button inside "Add email" in Google Contacts). It is the same control: listing both split Jev's pick
+ * between them (0.51/0.47, rejected), so the marker is not a candidate; its parent is.
+ */
+function roleMarker(node: MobileNode, parent?: MobileNode): boolean {
+  const a = node.attrs;
+  return !!parent && parent.attrs.clickable === 'true' && a.clickable === 'false' && a['long-clickable'] !== 'true' &&
+    !a.text && !a['content-desc'] && a.bounds !== undefined && a.bounds === parent.attrs.bounds;
+}
+
 export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url: string; title: string }, generation: number, truncated = false,
   { containersOnly = false } = {}): Frame<MobileElement> {
   const candidates: Candidate[] = [], elements = new Map<number, MobileElement>(), lines: string[] = [];
   let chars = 0;
-  function walk(nodes: MobileNode[], depth: number, context: string) {
+  function walk(nodes: MobileNode[], depth: number, context: string, parent?: MobileNode) {
     for (const node of nodes) {
       if (!node.visible) {
         // Keep hidden nodes out of the snapshot/candidates, but inspect descendants:
         // a native iOS child's explicit visible=true is independent of its container.
-        walk(node.children, depth, context);
+        walk(node.children, depth, context, parent);
         continue;
       }
       if (chars >= 60000) { truncated = true; return; }
@@ -133,7 +144,7 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
       const line = `${'  '.repeat(depth)}${desc}\n`;
       if (chars + line.length > 60000) truncated = true;
       lines.push(line.slice(0, 60000 - chars)); chars += line.length;
-      if (mobileMatches(node, kind) && !(containersOnly && !node.children.length)) {
+      if (mobileMatches(node, kind) && !(containersOnly && !node.children.length) && !roleMarker(node, parent)) {
         if (candidates.length >= MAX_CANDIDATES) truncated = true;
         else {
           const id = candidates.length;
@@ -141,7 +152,7 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
           elements.set(id, { path: node.path, identity: nodeIdentity(node), generation, ...(node.chain ? { chain: node.chain } : {}) });
         }
       }
-      walk(node.children, depth + 1, node.name ? `${node.role} ${JSON.stringify(node.name)}` : context);
+      walk(node.children, depth + 1, node.name ? `${node.role} ${JSON.stringify(node.name)}` : context, node);
     }
   }
   walk(roots, 0, '');

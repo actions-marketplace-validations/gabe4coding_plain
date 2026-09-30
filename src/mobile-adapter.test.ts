@@ -109,6 +109,16 @@ test('iOS class chains count each type among siblings, from below the applicatio
   assert.equal(mobileFrame(parseMobileTree(android).roots, 'click', { url: '', title: '' }, 0).elements.get(0)?.chain, undefined, 'Android has no class chains');
 });
 
+test('an unnamed non-clickable child with its clickable parent\'s bounds (a Compose role marker) is not a separate candidate', () => {
+  const xml = `<hierarchy><android.view.View class="android.view.View" clickable="true" enabled="true" bounds="[0,0][100,50]">
+    <android.widget.TextView class="android.widget.TextView" text="Add email" clickable="false" enabled="true" bounds="[10,10][90,40]"/>
+    <android.widget.Button class="android.widget.Button" text="" clickable="false" enabled="true" bounds="[0,0][100,50]"/>
+  </android.view.View><android.widget.Button class="android.widget.Button" text="" clickable="false" enabled="true" bounds="[0,60][100,110]"/></hierarchy>`;
+  const descs = mobileFrame(parseMobileTree(xml).roots, 'click', { url: '', title: '' }, 0).candidates.map(c => c.desc);
+  assert.deepEqual(descs, ['android.view.View "Add email" in hierarchy "Add email"', 'android.widget.TextView "Add email" in android.view.View "Add email"',
+    'android.widget.Button "" in hierarchy "Add email"'], 'a same-looking button elsewhere stays');
+});
+
 test('bounds visibility keeps on-screen nodes and drops empty or scrolled-out ones', () => {
   const xml = `<AppiumAUT><XCUIElementTypeApplication type="XCUIElementTypeApplication" name="A" x="0" y="0" width="400" height="800">
     <XCUIElementTypeButton type="XCUIElementTypeButton" label="Shown" x="10" y="10" width="50" height="20"/>
