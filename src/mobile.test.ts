@@ -233,41 +233,25 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
 
 test('mobile early capture: Jev works on it while the settled capture runs; kept only when both match', async () => {
   class EarlyAdapter extends FakeAdapter {
-    earlyTexts: string[] = [];
-    async captureEarly(kind: unknown, within?: string) {
-      this.log.push(['early', kind, within]); const f = await super.capture(kind, within); this.log.pop();
-      return { ...f, snapshot: { ...f.snapshot, aria: this.earlyTexts.shift() ?? this.text } };
-    }
+    earlyText = 'Ready';
+    async captureEarly(kind: unknown, within?: string) { this.log.push(['early', kind, within]); const f = await super.capture(kind, within); this.log.pop(); return { ...f, snapshot: { ...f.snapshot, aria: this.earlyText } }; }
   }
   const adapter = new EarlyAdapter();
   const judged: string[] = [];
-  const session = new MobileSession(adapter, 100, { ...ai, judge: async (state, claims) => {
-    const aria = (state as { aria: string }).aria; judged.push(aria);
-    return { probabilities: claims.map(() => aria === 'Ready' ? .95 : .05), tokens: 7 };
-  } });
-  const kinds = () => adapter.log.filter((e) => Array.isArray(e) && ['early', 'capture'].includes(e[0] as string)).map((e) => (e as unknown[])[0]);
+  const session = new MobileSession(adapter, 100, { ...ai, judge: async (state, claims) => { judged.push((state as { aria: string }).aria); return { probabilities: claims.map(() => .95), tokens: 7 }; } });
   // Seconds after the last step (an agent's turn) the UI is idle: no early capture.
   let r = await session.step({ expect: 'ready' });
   assert.deepEqual(adapter.log.at(-1), ['capture', 'region', undefined]); assert.ok(!adapter.log.some(e => Array.isArray(e) && e[0] === 'early'));
-  // Right after activity: two identical early looks and a passing claim need no settled look.
-  judged.length = 0; adapter.log.length = 0;
-  session.noteActivity();
+  judged.length = 0;
+  session.noteActivity(); // e.g. the app was just opened
   r = await session.step({ expect: 'ready' });
-  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready']); assert.equal(r.ms?.confirmed, 1);
-  assert.deepEqual(kinds(), ['early', 'early']);
-  // The UI moved between the two early looks: the settled look decides, as before.
-  judged.length = 0; adapter.log.length = 0;
-  adapter.earlyTexts = ['Loading', 'Ready'];
+  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready']); assert.equal(r.ms?.reasked, undefined);
+  assert.deepEqual(adapter.log.slice(-2), [['early', 'region', undefined], ['capture', 'region', undefined]]);
+  // The UI was still changing: the early answer is about a stale tree, so the settled tree is judged too.
+  adapter.earlyText = 'Loading';
   r = await session.step({ expect: 'ready' });
-  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Loading', 'Ready']); assert.equal(r.ms?.reasked, 1); assert.equal(r.ms?.confirmed, undefined);
-  assert.deepEqual(kinds(), ['early', 'early', 'capture']);
-  // Still, but the claim does not pass: a late screen is never judged missing early, the settled look decides.
-  judged.length = 0; adapter.log.length = 0;
-  adapter.earlyTexts = ['Loading', 'Loading'];
-  r = await session.step({ expect: 'ready' });
-  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Loading', 'Ready']); assert.equal(r.ms?.confirmed, undefined);
-  assert.deepEqual(kinds(), ['early', 'early', 'capture']);
-  assert.equal(session.calls, 6); assert.equal(session.tokens, 42); // discarded answers are still accounted
+  assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready', 'Loading', 'Ready']); assert.equal(r.ms?.reasked, 1);
+  assert.equal(session.calls, 4); assert.equal(session.tokens, 28); // the discarded answer is still accounted
 });
 test('MCP: an approximate target capture is never the before of changed; the previous after is', async () => {
   const adapter = new FakeAdapter() as FakeAdapter & { approximateTargets: boolean; preferExact(): void };

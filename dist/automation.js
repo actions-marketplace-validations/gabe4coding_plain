@@ -42,14 +42,6 @@ export async function askSettled(o) {
     const first = o.early ? await o.early().catch(() => null) : null;
     const answer = first !== null && !o.skip?.(first) ? o.ask(first) : null;
     answer?.catch(() => { }); // surfaces below only if this answer is the one used
-    if (answer && o.confirm) {
-        const second = await o.confirm.look().catch(() => null);
-        if (second !== null && o.same(first, second)) {
-            const result = await wait(() => answer).catch(() => null);
-            if (result !== null && o.confirm.sure(result))
-                return { frame: second, result, reasked: false, confirmed: true };
-        }
-    }
     const frame = await o.settled();
     if (answer && o.same(first, frame))
         return { frame, result: await wait(() => answer), reasked: false };
