@@ -153,10 +153,12 @@ test('mayNavigate: returns quickly on a no-op action, waits out a triggered fetc
   await mayNavigate(ctx, () => page.click('#noop'));
   assert.ok(Date.now() - fastStart < 500, `no-op action should finish well under the cap, took ${Date.now() - fastStart}ms`);
 
+  // The click returns after its short grace; its hold makes the next step's settle wait out a fetch the
+  // click starts ~100ms in (fulfilled ~400ms later, ~500ms after the click).
   const slowStart = Date.now();
   await mayNavigate(ctx, () => page.click('#slow'));
+  await settlePage(page);
   const elapsed = Date.now() - slowStart;
-  // fetch starts ~100ms in, the route fulfils it ~400ms later (~500ms), then the default 200ms grace ≈ 700ms
   assert.ok(elapsed >= 500, `should wait out the triggered fetch, took only ${elapsed}ms`);
   assert.ok(elapsed < 1500, `should return before the hard cap, took ${elapsed}ms`);
 

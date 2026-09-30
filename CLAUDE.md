@@ -89,8 +89,9 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   `expect`/`wait` are snapshot → Jev judges while the page settles (`settledAsk`: the early answer is kept only if
   the main document did not mutate after the look, via `mark()`/`unchangedSince()`, or a second look is identical;
   otherwise the settled state is asked again and `ms.reasked` counts it). `settlePage()` = DOM quiet 150 ms (mutations before the load event do not count) plus no
-  xhr/fetch younger than 2 s in flight, 3 s cap; observers ignore the scan's own `data-jev-id` writes. `fill`'s 500 ms
-  debounce hold (`mayNavigate` `holdMs`) is waited by the next step's settle, or by `waitHold` in `runStep` for steps
+  xhr/fetch younger than 2 s in flight, 3 s cap; observers ignore the scan's own `data-jev-id` writes. A click's 200 ms
+  hold and `fill`'s 500 ms debounce hold (`mayNavigate` `holdMs`; clicks watch only 50 ms themselves), and a loading
+  popup (`holdActivity` in the runner's popup handler), are waited by the next step's settle, or by `waitHold` in `runStep` for steps
   that do not settle first (`settlesFirst`). Several `expect` claims share one Jev call; fail beats inconclusive beats
   pass across them. `check`/`uncheck` read the state (a control's `checked`, following a label, or
   aria-checked/aria-pressed) and click only when it must change (`setChecked`); `scroll: top|bottom` (and spoken
