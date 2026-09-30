@@ -135,11 +135,13 @@ capabilities:
 ```
 
 On `examples/mobile/android-contacts.yaml` this took 12.8 s against 13.5-15.2 s with animations
-(3 runs each, all passing): screen changes got 0.3-0.7 s faster, typing did not change. `reduceMotion`
-is not measured yet. Both change device settings: UiAutomator2 sets the animation scales back after
-the session (an unset animator duration scale comes back explicitly set to 1.0), while Reduce Motion is
-an iOS accessibility setting that may stay on after the session. A run without animations can miss bugs
-that only happen during transitions, so keep specs that check those with animations on.
+(3 runs each, all passing): screen changes got 0.3-0.7 s faster, typing did not change. On iOS,
+`reduceMotion` gave no measurable gain on `examples/mobile/ios-calendar.yaml` (38.4 s both ways, 3 runs
+each): sheets and pickers still animate and XCUITest still waits for them. Both change device settings:
+UiAutomator2 sets the animation scales back after the session (an unset animator duration scale comes
+back explicitly set to 1.0), while Reduce Motion stays on in the simulator after the session until a
+session with `appium:reduceMotion: false` (or Settings) turns it off. A run without animations can miss
+bugs that only happen during transitions, so keep specs that check those with animations on.
 
 Targets match best when they use the native tree's names rather than visual roles: a tab bar item
 is a button ("the Workout button"), and the iOS back button carries the previous screen's title
