@@ -13,6 +13,8 @@ export interface NativeAdapter<T, K extends string> {
   capture(kind: K | 'region', within?: T, options?: { regionPick?: boolean }): Promise<Frame<T>>;
   /** The next target capture is exact, not approximate (a pick from an approximate one was rejected or hidden). */
   preferExact?(): void;
+  /** Target captures may be approximate (AppiumAdapter with fastTargets on iOS): they never serve as a step's `changed` baseline. */
+  readonly approximateTargets?: boolean;
   /** A capture that skips the platform's wait for an idle UI, or null where that is not faster (see AppiumAdapter). */
   captureEarly?(kind: K | 'region', within?: T): Promise<Frame<T> | null>;
   press(key: string): Promise<void>;
@@ -56,7 +58,7 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     const { frame, result, reasked } = await askSettled({
       early: early && (() => this.timed('capture', () => early(kind, within))),
       settled: () => this.timed('capture', () => this.adapter.capture(kind, within, regionPick ? { regionPick } : undefined)).then((f) => {
-        if (within === undefined) this.firstSnapshot ??= f.snapshot;
+        if (within === undefined && !f.approximate) this.firstSnapshot ??= f.snapshot;
         return f;
       }),
       same: sameFrame, ask, discard, skip,
@@ -90,15 +92,22 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     return r.element;
   }
   protected retarget() { this.ms.retargeted = 1; this.adapter.preferExact?.(); }
+  /** Runs `look` inside the region `within` names, picked fast where the adapter can; a covered one is picked once more exactly. */
+  private async inRegion<R>(within: string | undefined, look: (region: T | undefined) => Promise<R>): Promise<R> {
+    if (!within) return look(undefined);
+    const region = await this.region(within, true);
+    try { return await look(region); } catch (error) {
+      if (!(error instanceof HiddenTargetError)) throw error;
+      this.retarget(); return look(await this.region(within));
+    }
+  }
   async snapshot(within?: string) {
-    const region = within ? await this.region(within) : undefined;
-    return (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot;
+    return this.inRegion(within, async (region) => (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot);
   }
   /** Judges claims once against the settled UI (or a region of it), without recording or polling: the MCP `ask` tool. */
   async ask(claims: string[], within?: string) {
     this.ms = {};
-    const region = within ? await this.region(within) : undefined;
-    const { frame, result } = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens));
+    const { frame, result } = await this.inRegion(within, (region) => this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens)));
     this.track(result!.tokens);
     return { snapshot: frame.snapshot, probabilities: result!.probabilities, ms: this.ms };
   }

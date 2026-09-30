@@ -253,6 +253,41 @@ test('mobile early capture: Jev works on it while the settled capture runs; kept
   assert.equal(r.status, 'pass'); assert.deepEqual(judged, ['Ready', 'Loading', 'Ready']); assert.equal(r.ms?.reasked, 1);
   assert.equal(session.calls, 4); assert.equal(session.tokens, 28); // the discarded answer is still accounted
 });
+test('MCP: an approximate target capture is never the before of changed; the previous after is', async () => {
+  const adapter = new FakeAdapter() as FakeAdapter & { approximateTargets: boolean; preferExact(): void };
+  adapter.approximateTargets = true;
+  let exact = false;
+  adapter.preferExact = () => { exact = true; };
+  const capture = adapter.capture.bind(adapter);
+  adapter.capture = async (kind: unknown, within?: string) => {
+    const frame = await capture(kind, within);
+    if (kind === 'region' || exact) { exact = false; return frame; }
+    return { ...frame, snapshot: { ...frame.snapshot, aria: `${frame.snapshot.aria}\n- button "Covered"` }, approximate: true };
+  };
+  adapter.text = '- button "Compose"';
+  const screens = ['- navigationbar "New Message"', '- navigationbar "Sent"'];
+  adapter.act = async (...args: unknown[]) => { adapter.log.push(args); adapter.text = screens.shift()!; };
+  const { server, close } = createMobileServer(adapter, 100, ai);
+  const client = new Client({ name: 'test', version: '1' });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(a); await client.connect(b);
+  const call = async (name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })).structuredContent as Record<string, any>;
+  const captures = () => adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length;
+  try {
+    await call('open', { platform: 'ios', device: 'ios-udid', app: 'Mail' });
+    let n = captures();
+    const first = await call('step', { step: { tap: 'Compose' } });
+    assert.deepEqual(first.changed, { added: ['- navigationbar "New Message"'], addedOmitted: 0, removed: 1 });
+    assert.equal(captures() - n, 3, 'right after open: an exact before, the approximate target capture, the after');
+    n = captures();
+    const second = await call('step', { step: { tap: 'Compose' } });
+    assert.deepEqual(second.changed, { added: ['- navigationbar "Sent"'], addedOmitted: 0, removed: 1 }, 'diffed against the previous after');
+    assert.equal(captures() - n, 2);
+    await call('find', { kind: 'click', target: 'Compose' });
+    assert.equal(adapter.log.filter((e) => Array.isArray(e) && e[0] === 'capture').length - n, 3);
+    assert.equal(exact, false, 'find asked for an exact capture and got it');
+  } finally { await close(); await client.close(); await server.close(); }
+});
 test('ask maps probabilities to yes/no/unsure at the expect thresholds', () => {
   const r = askResult(['a', 'b', 'c'], [0.93, 0.05, 0.5], { url: 'u', title: 't', truncated: true });
   assert.deepEqual(r.answers.map((a) => a.answer), ['yes', 'no', 'unsure']);
