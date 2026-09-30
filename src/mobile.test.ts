@@ -276,6 +276,10 @@ test('MCP: an approximate target capture is never the before of changed; the pre
   try {
     await call('open', { platform: 'ios', device: 'ios-udid', app: 'Mail' });
     let n = captures();
+    await call('step', { step: { expect: 'Compose is shown' } });
+    assert.equal(captures() - n, 2, 'a whole-screen claim looks first with an exact capture: no extra before');
+    await call('open', { platform: 'ios', device: 'ios-udid', app: 'Mail' });
+    n = captures();
     const first = await call('step', { step: { tap: 'Compose' } });
     assert.deepEqual(first.changed, { added: ['- navigationbar "New Message"'], addedOmitted: 0, removed: 1 });
     assert.equal(captures() - n, 3, 'right after open: an exact before, the approximate target capture, the after');

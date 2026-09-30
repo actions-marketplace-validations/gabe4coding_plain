@@ -97,7 +97,9 @@ export function createNativeServer(cfg) {
         requireOpen();
         const parsed = session.parse(step);
         const before = session.tokens;
-        const screen = CHANGES && (!looksFirst(parsed) || (adapter.approximateTargets && !lastScreen)) ? await capture() : null;
+        // Only a claim over the whole screen is sure to look first with an exact capture.
+        const exactFirst = ['expect', 'wait'].includes(parsed.kind) && !parsed.within;
+        const screen = CHANGES && (!looksFirst(parsed) || (adapter.approximateTargets && !lastScreen && !exactFirst)) ? await capture() : null;
         const result = await session.run(fill(parsed));
         results.push(result);
         if (result.status !== 'pass' && result.status !== 'skipped')
