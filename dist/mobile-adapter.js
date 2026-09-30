@@ -35,6 +35,9 @@ export class AppiumAdapter {
     generation = 0;
     idleTimeout; // the session's UiAutomator2 waitForIdleTimeout, restored after each early capture
     exactNext = false; // a fast pick was hidden: the next targeting capture is exact
+    // The whole-screen region tree a region pick was made from, until the next action: the first look inside
+    // that region reads it instead of the device (an exact iOS read costs 2-3.5 s on a Calendar sheet).
+    regionSource;
     /** `fastTargets`: iOS target captures skip XCUITest's `visible` attribute (see capture()). Spec runs only. */
     constructor(server = 'http://127.0.0.1:4723', timeout = 15000, connect = async (options) => (await import('webdriverio')).remote(options), fastTargets = false) {
         this.server = server;
@@ -94,7 +97,14 @@ export class AppiumAdapter {
             return this.frame(await this.iosSource(driver, 'visible'), kind, undefined, true);
         if (fast)
             this.exactNext = false;
-        return this.frame(ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource(), kind, within);
+        if (kind === 'region' && within && this.regionSource !== undefined) {
+            const source = this.regionSource;
+            this.regionSource = undefined;
+            return this.frame(source, kind, within);
+        }
+        const source = ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource();
+        this.regionSource = kind === 'region' && !within ? source : undefined;
+        return this.frame(source, kind, within);
     }
     preferExact() { this.exactNext = true; }
     async iosSource(driver, excludedAttributes) {
@@ -176,6 +186,7 @@ export class AppiumAdapter {
         return { id: (await found()).id, role: node.role };
     }
     async act(kind, element, value) {
+        this.regionSource = undefined;
         const driver = this.current(), { id, role } = await this.resolve(element);
         if (kind === 'fill') {
             // XCUITest sets picker wheels through the value endpoint; they cannot be cleared
@@ -200,6 +211,7 @@ export class AppiumAdapter {
             await driver.elementClick(id);
     }
     async gesture(kind, direction, element) {
+        this.regionSource = undefined;
         const driver = this.current();
         const elementId = element ? (await this.resolve(element)).id : undefined;
         if (this.target.platform === 'ios') {
@@ -213,6 +225,7 @@ export class AppiumAdapter {
         }
     }
     async press(key) {
+        this.regionSource = undefined;
         const driver = this.current();
         if (key === 'HideKeyboard') {
             await driver.hideKeyboard();
@@ -236,6 +249,7 @@ export class AppiumAdapter {
         this.driver = undefined;
         this.target = undefined;
         this.idleTimeout = undefined;
+        this.regionSource = undefined;
         this.generation++;
         if (driver)
             await driver.deleteSession();

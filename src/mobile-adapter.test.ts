@@ -199,6 +199,17 @@ for (const platform of ['android', 'ios'] as const) {
       assert.ok(commands.some(c => c.script === `mobile: ${platform === 'ios' ? 'swipe' : 'swipeGesture'}` && c.args[0].direction === 'left'));
       const scoped = await adapter.capture('region', await target('scroll'));
       assert.match(scoped.snapshot.aria, /First result/); assert.doesNotMatch(scoped.snapshot.aria, /Email/);
+      // A region pick's own tree serves the first look inside that region, once, until the next action.
+      const treeReads = () => requests.filter(r => r.path.endsWith('/source') || r.body.script === 'mobile: source').length;
+      const picked = await adapter.capture('region');
+      const region = picked.elements.get(picked.candidates.find(c => c.desc.includes('Results'))!.id)!;
+      const readsAfterPick = treeReads();
+      assert.match((await adapter.capture('region', region)).snapshot.aria, /First result/);
+      assert.equal(treeReads(), readsAfterPick, 'the first look reuses the pick tree');
+      await adapter.capture('region', region);
+      assert.equal(treeReads(), readsAfterPick + 1, 'a second look reads the device');
+      await adapter.capture('region'); await adapter.gesture('swipe', 'left'); await adapter.capture('region', region);
+      assert.equal(treeReads(), readsAfterPick + 3, 'an action discards the pick tree');
       assert.equal((await adapter.screenshot()).toString(), 'png fixture');
       await adapter.press('Home');
       if (platform === 'ios') await assert.rejects(adapter.press('Back'), /unsupported on iOS/);
