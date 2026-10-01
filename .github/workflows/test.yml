@@ -1,0 +1,37 @@
+---
+name: Test
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Check generated files
+        shell: bash
+        run: |
+          generated=(
+            dist
+            plugins/plainwright/runtime.tgz
+            plugins/plainwright-computer/runtime.tgz
+            plugins/plainwright-mobile/runtime.tgz
+          )
+          changed="$(git status --porcelain -- "${generated[@]}")"
+          if [[ -n "$changed" ]]; then
+            echo 'Generated files are out of date.' >&2
+            echo 'Run npm run build; commit dist/ and runtime archives.' >&2
+            echo "$changed" >&2
+            exit 1
+          fi
