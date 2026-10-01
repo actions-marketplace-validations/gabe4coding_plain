@@ -11,20 +11,25 @@ const OWN_ATTRIBUTE = 'data-jev-id';
  * that's already quiet from one that still needs to wait out the rest of its quiet window.
  * `__plainwrightDoc` identifies the document, so a mark taken before a navigation is never compared
  * with the next document's clock.
+ * Only mutations after the load event count: building the page is not a rendering burst to wait out
+ * once it has loaded (every step after a goto used to wait a full quiet window for the parser's last
+ * insert). Until then the document is not settled at all (see settle and mark).
  */
 export async function installSettleObserver(target) {
     await target.addInitScript((own) => {
         window.__plainwrightDoc = Math.random();
-        window.__plainwrightLastMutation = performance.now();
+        window.__plainwrightLastMutation = -1e9;
         new MutationObserver((records) => {
+            if (document.readyState !== 'complete')
+                return;
             if (records.some((r) => r.attributeName !== own))
                 window.__plainwrightLastMutation = performance.now();
         }).observe(document, { childList: true, subtree: true, attributes: true });
     }, OWN_ATTRIBUTE);
 }
-/** Now, on the main document's clock; null where the observer is not installed. */
+/** Now, on the main document's clock; null where the observer is not installed or the document is still loading. */
 export function mark(page) {
-    return page.evaluate(() => (typeof window.__plainwrightDoc === 'number' ? { doc: window.__plainwrightDoc, t: performance.now() } : null));
+    return page.evaluate(() => (typeof window.__plainwrightDoc === 'number' && document.readyState === 'complete' ? { doc: window.__plainwrightDoc, t: performance.now() } : null));
 }
 /** True when the main document provably did not mutate between `before` (a mark) and `after` (settle's result). */
 export function unchangedSince(before, after) {
@@ -44,7 +49,8 @@ export function settle(page, quietMs = 500, maxMs = 3000) {
             const t = window.__plainwrightLastMutation;
             return typeof doc === 'number' && typeof t === 'number' ? { doc, t } : null;
         };
-        const last = window.__plainwrightLastMutation;
+        // A document still loading is never retroactively quiet: its parser inserts are not counted.
+        const last = document.readyState === 'complete' ? window.__plainwrightLastMutation : undefined;
         if (typeof last === 'number' && performance.now() - last >= quietMs)
             return resolve(lastMutation());
         const initialWait = typeof last === 'number' ? quietMs - (performance.now() - last) : quietMs;

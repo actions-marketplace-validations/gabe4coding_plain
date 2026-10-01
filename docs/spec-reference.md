@@ -74,7 +74,7 @@ the selector directly.
 
 ### When a step looks at the page
 
-Every step that asks Jev acts on, or judges, a *settled* page: the DOM has not changed for 300 ms and
+Every step that asks Jev acts on, or judges, a *settled* page: the DOM has not changed for 150 ms (counted from the load event: the parser building the page does not count) and
 no xhr/fetch that started in the last 2 s is still in flight (an older request is a long poll or a
 stream and stops counting), with a 3 s cap. The step does not wait idle for that: it looks at the page
 at once and sends Jev that early look while the page settles. The answer is used only if the page did
@@ -82,10 +82,12 @@ not change meanwhile (or a second look gives Jev the same input); otherwise the 
 again. `--timing` shows that as `reasked=1`. The early answer's tokens still count, so a page that keeps
 changing costs more tokens but never acts on a stale answer.
 
-After an action, `click`, `dblclick`, `rightclick` and `press` wait until the page is quiet for 200 ms
-(or a navigation they started has loaded). `fill` does the same, but the page counts as settled only
-500 ms after typing, for a debounced autocomplete or validation request; the next step waits out the
-rest of that time (overlapped with its own Jev call).
+After an action, `click`, `dblclick`, `rightclick` and `press` wait until the page is quiet for 50 ms
+(or a navigation they started has loaded), and the page counts as settled only 200 ms after the action,
+so a request the click starts a little later is still waited for. `fill` waits for 200 ms of quiet, and
+the page counts as settled only 500 ms after typing, for a debounced autocomplete or validation request.
+The next step waits out the rest of that time, overlapped with its own Jev call. A new tab the action
+opens keeps the next step waiting until it has loaded and become the active page.
 
 ### `optional: true`
 
