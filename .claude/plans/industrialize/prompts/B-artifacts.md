@@ -16,8 +16,10 @@ Remove the "not implemented yet" guard for `--artifacts`, `--screenshot` and `--
 
 Implement `artifactsObserver(opts)`: `null` when `opts.artifacts` is undefined, else an observer that
 writes evidence for each attempt. Capture is off until `artifacts.dir` is set (`--artifacts <dir>`
-or the config); `--screenshot` / `--trace` alone do not turn it on — print one warning in that case
-(check how Phase 0 passes those flags when no dir is set, and report if it drops them silently).
+or the config). Phase 0 (`options.ts`, contract §9) already validates the modes, passes them in
+`opts.artifacts` only when a dir is set, and warns when they come without one — do not repeat that.
+On desktop/mobile, `sessionOpen` fires only after the adapter is attached (§9), so a screenshot is
+safe in every observer call you get.
 
 1. Layout: `<dir>/<slug of the spec file path relative to cwd>/attempt-<n>/`. Slug: path separators
    and anything outside `[A-Za-z0-9._-]` become `-`. Two specs never share a folder, even with

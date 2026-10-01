@@ -13,6 +13,9 @@ Branch: create and work on `industrialize/c-scheduling`, starting from `main`.
 ## Your task
 
 Remove the "not implemented yet" guards for `--retries`, `--bail`, `--max-tokens` and `--last-failed` that Phase 0 put in `src/schedule.ts`.
+Keep exporting `checkSchedule(opts)` (contract §9): `runSuite` calls it before any spec starts, so it is where a
+bad combination of these flags fails with exit 2. A thrown run arrives as an `Attempt` with `error` set: retry it
+like any non-pass attempt.
 
 1. Retries (`--retries N`): an attempt whose status is not `pass` is run again, up to N more times,
    right away in the same worker slot (so input-order streaming still works). A load error is never
