@@ -31,6 +31,9 @@ load-time guards, not yours.
        one note `no failures in the last run`;
      - otherwise → keep only the listed files.
      This must match lane C's prompt and contract §5 ("`--last-failed` rules") exactly.
+     Lane C runs in parallel and `readLastFailed` is still a stub on your branch: put the filter in a
+     pure exported function (e.g. `filterLastFailed(specs, failed: Set<string> | undefined)`) and unit-test
+     that; the end-to-end check with a real last-run file happens at integration.
    - Specs with a load error are always kept (so they are reported), whatever the filters.
 2. `--list`: `runSuite` prints what `select` returned and stops (check how Phase 0 wired the output;
    if the printing lives in a frozen file, give `select.ts` a `formatList(specs)` and report the
@@ -52,6 +55,9 @@ load-time guards, not yours.
    and an example), validate in CI.
 
 ## Tests
+
+Your guards are asserted only in `src/guards-d.test.ts`. Delete it (or rewrite it as real tests of
+the new behavior) when you remove the guards. Do not edit any other existing test file.
 
 New files, no browser, no key: each filter alone and combined, order kept, load errors kept,
 invalid regex, `--last-failed` with and without a previous run (inject or stub `readLastFailed` via a

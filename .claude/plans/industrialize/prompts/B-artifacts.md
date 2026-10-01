@@ -49,6 +49,9 @@ safe in every observer call you get.
 
 ## Tests
 
+Your guards are asserted only in `src/guards-b.test.ts`. Delete it (or rewrite it as real tests of
+the new behavior) when you remove the guards. Do not edit any other existing test file.
+
 New files. Use a fake `CaptureTarget` for screenshot logic and folder rules (marker, refusal to
 delete a foreign folder, slugs, empty-folder removal, dump copying from details). One test with real
 headless Chromium against a `data:text/html` URL (as in `src/runner.test.ts`) proving a trace.zip is

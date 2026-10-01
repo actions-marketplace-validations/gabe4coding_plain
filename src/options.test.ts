@@ -4,11 +4,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expandFiles, parseSuiteArgs, UsageError } from './options.js';
-import { createReporters } from './reporters/index.js';
-import { artifactsObserver } from './artifacts.js';
-import { select, listSelected } from './select.js';
-import { checkSchedule } from './schedule.js';
-import { checkSpecTimeoutFlag } from './spec-features.js';
 
 const parsed = (args: string[], engine: 'browser' | 'desktop' | 'mobile' = 'browser', env: NodeJS.ProcessEnv = {}) =>
   parseSuiteArgs([...args, 'case.yaml'], engine, env, '/tmp/plainwright-options-absent');
@@ -59,21 +54,10 @@ test('directory and glob expansion are sorted, while file positionals keep their
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('all Phase 1 guards reject non-default values from their owner files', () => {
-  const base = parsed([]).opts;
-  assert.throws(() => createReporters({ ...base, reporters: [{ name: 'junit' }] }), /--reporter.*not implemented yet/);
-  assert.throws(() => artifactsObserver({ ...base, artifacts: { dir: 'out', screenshot: 'always', trace: 'off' } }), /--artifacts.*not implemented yet/);
-  for (const patch of [{ retries: 1 }, { bail: 1 }, { maxTokens: 10 }, { lastFailed: true }])
-    assert.throws(() => checkSchedule({ ...base, ...patch }), /not implemented yet/);
-  for (const patch of [{ grep: 'x' }, { grepInvert: 'x' }, { tags: ['x'] }])
-    assert.throws(() => select([], { ...base, ...patch }), /not implemented yet/);
-  assert.throws(() => listSelected([], { ...base, list: true }), /--list.*not implemented yet/);
-  assert.throws(() => checkSpecTimeoutFlag(100), /--spec-timeout.*not implemented yet/);
+test('artifact settings pass through to lane B; a missing --config file is an error', () => {
   assert.throws(() => parsed(['--config', 'missing.yaml']), /--config.*file not found/);
-  // options.ts passes the artifact settings through; the guard lives in artifacts.ts (lane B).
   const withDir = parsed(['--artifacts', 'out', '--screenshot', 'always', '--trace', 'off']).opts;
   assert.deepEqual(withDir.artifacts, { dir: 'out', screenshot: 'always', trace: 'off' });
-  assert.throws(() => artifactsObserver(withDir), /--artifacts.*not implemented yet/);
   assert.equal(parsed(['--screenshot', 'always']).opts.artifacts, undefined);
   assert.throws(() => parsed(['--screenshot', 'sometimes']), /--screenshot must be one of off, on-failure, always/);
   assert.deepEqual(parsed(['--trace', 'off'], 'desktop').opts.artifacts, undefined);

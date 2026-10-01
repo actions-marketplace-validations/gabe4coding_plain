@@ -49,6 +49,9 @@ Keep every observer call in `runSpec` / `runNativeSpec` exactly where Phase 0 pu
 
 ## Tests
 
+Your guards are asserted only in `src/guards-e.test.ts`. Delete it (or rewrite it as real tests of
+the new behavior) when you remove the guards. Do not edit any other existing test file.
+
 New files. `include`: nesting, relative paths, cycle, extra keys, `origin` labels, user `origin`
 rejected (no browser). `browserContextOptions`: device + override, unknown device, `--cdp` and
 `--profile` errors (no browser). With real headless Chromium against `data:text/html` URLs (as in
