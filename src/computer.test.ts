@@ -99,31 +99,36 @@ test('setup failure does not attach or call teardown; teardown failure marks run
     }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
-test('sessionOpen fires before the adapter opens and the screenshot is taken on sessionClose', async () => {
+test('native observer: sessionOpen after the adapter opens, a screenshot is safe there; nothing fires when open fails', async () => {
   class RecordingAdapter extends FakeAdapter {
     events: string[] = [];
-    async open(target: unknown) { this.events.push('open'); return super.open(target); }
+    failOpen = false;
+    async open(target: unknown) { this.events.push('open'); if (this.failOpen) throw new Error('no app'); return super.open(target); }
     async screenshot() { this.events.push('screenshot'); return super.screenshot(); }
     async close() { this.events.push('close'); return super.close(); }
   }
-  const adapter = new RecordingAdapter();
   const dir = mkdtempSync(join(tmpdir(), 'native-observer-'));
   const shot = join(dir, 'shots', 'screen.png');
-  const observer: RunObserver = {
-    async sessionOpen() { assert.deepEqual(adapter.events, []); },
-    async sessionClose({ target }) {
-      assert.deepEqual(adapter.events, ['open']);
-      await target.screenshot(shot);
-      assert.deepEqual(adapter.events, ['open', 'screenshot']);
-      return [{ kind: 'screenshot', path: shot }];
-    },
-  };
+  // Observer errors are swallowed by design, so record and assert after the run instead of asserting inside.
+  const recorder = (adapter: RecordingAdapter): RunObserver => ({
+    async sessionOpen({ target }) { adapter.events.push('sessionOpen'); await target.screenshot(shot); },
+    async stepEnd({ result }) { adapter.events.push(`stepEnd ${result.step}`); },
+    async sessionClose() { adapter.events.push('sessionClose'); return [{ kind: 'screenshot', path: shot }]; },
+  });
+  const info = { file: 'observer.yaml', name: 'observer', tags: [], attempt: 0 };
   try {
+    const adapter = new RecordingAdapter();
     const result = await runComputerSpec({ name: 'observer', app: 'Fixture', dir, env: {}, steps: [] },
-      new ComputerSession(adapter, 100), observer, { file: 'observer.yaml', name: 'observer', tags: [], attempt: 0 });
+      new ComputerSession(adapter, 100), recorder(adapter), info);
     assert.equal(result.status, 'pass');
-    assert.deepEqual(adapter.events, ['open', 'screenshot', 'close']);
+    assert.deepEqual(adapter.events, ['open', 'sessionOpen', 'screenshot', 'sessionClose', 'close']);
     assert.equal(readFileSync(shot).toString(), 'png');
+
+    const failing = new RecordingAdapter(); failing.failOpen = true;
+    const failed = await runComputerSpec({ name: 'observer', app: 'Fixture', dir, env: {}, steps: [] },
+      new ComputerSession(failing, 100), recorder(failing), info);
+    assert.equal(failed.status, 'error');
+    assert.deepEqual(failing.events, ['open', 'close']);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 test('queue serializes operations and continues after rejection', async () => {

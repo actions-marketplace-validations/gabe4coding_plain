@@ -55,3 +55,16 @@ test('native load errors go to stderr as file: error and write no stdout JSON', 
   assert.deepEqual(logs, ['{"name":"ok","status":"pass","steps":[{"step":"click \\"Save\\"","status":"pass"}],"jevCalls":1,"totalTokens":4}']);
   assert.deepEqual(errors, expectedErrors);
 });
+
+test('native run exceptions go to stderr as file: error, with no stdout JSON', async () => {
+  const out: string[] = []; const err: string[] = [];
+  const [log, error] = [console.log, console.error];
+  console.log = (line) => { out.push(line); }; console.error = (line) => { err.push(line); };
+  try {
+    await jsonlReporter().specEnd!({ report: { file: 'run.yaml', name: 'native', tags: [], status: 'error', flaky: false,
+      attempts: [{ name: 'native', status: 'error', steps: [], jevCalls: 0, totalTokens: 0, error: 'Error: no adapter',
+        attempt: 0, durationMs: 1, artifacts: [] }] } });
+  } finally { console.log = log; console.error = error; }
+  assert.deepEqual(out, []);
+  assert.deepEqual(err, ['run.yaml: Error: no adapter']);
+});

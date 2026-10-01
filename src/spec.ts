@@ -4,11 +4,14 @@ import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
 import { expandIncludes } from './include.js';
+import { checkSpecFeatures } from './spec-features.js';
 
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
 const origin = z.string().optional();
 const target = nonEmptyString;
+/** `tags: smoke` or `tags: [smoke, checkout]`; always a list after loading. */
+export const TagsSchema = z.union([nonEmptyString.transform((tag) => [tag]), z.array(nonEmptyString)]).optional();
 
 // Schemas are the source of truth for normalized data and its TypeScript types.
 export const StepSchema = z.discriminatedUnion('kind', [
@@ -41,7 +44,7 @@ export const SpecSchema = z.object({
   goal: nonEmptyString.optional(),
   auth: z.object({ user: nonEmptyString, pass: nonEmptyString }).optional(),
   geolocation: z.object({ lat: z.number(), lon: z.number() }).optional(),
-  tags: z.array(nonEmptyString).optional(),
+  tags: TagsSchema,
   timeout: z.number().int().positive().optional(),
   browser: z.object({
     viewport: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
@@ -110,8 +113,8 @@ const STEP_KINDS = StepSchema.options.map((schema) => schema.shape.kind.value);
 export function parseStep(path: string, i: number, raw: unknown): Step {
   const where = `${path}: step ${i}`;
   const obj = parseData(MappingSchema, raw, where);
-  const keys = Object.keys(obj).filter((key) => key !== 'optional' && key !== 'origin');
-  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional" and "origin"), got [${keys.join(', ')}]`);
+  const keys = Object.keys(obj).filter((key) => key !== 'optional');
+  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional"), got [${keys.join(', ')}]`);
   const [kind] = keys;
   if (!STEP_KINDS.some((key) => key === kind))
     fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);
@@ -135,20 +138,30 @@ export function parseStep(path: string, i: number, raw: unknown): Step {
     };
   } else fields = parseData(MappingSchema, val, `${where} "${kind}"`);
   // Preserve the existing flag convention: only literal true enables optional execution.
-  return parseData(StepSchema, { ...fields, kind, optional: obj.optional === true,
-    ...(obj.origin === undefined ? {} : { origin: obj.origin }) }, where);
+  return parseData(StepSchema, { ...fields, kind, optional: obj.optional === true }, where);
+}
+
+/** `origin` is set only by include expansion, never by a spec author or an MCP step: it is taken off before the
+ *  step is parsed (so `parseStep` keeps rejecting it) and put back on the parsed step for its label. */
+export function withOrigin<S>(raw: unknown, parse: (raw: unknown) => S): S {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw) || !('origin' in raw)) return parse(raw);
+  const { origin, ...rest } = raw as Record<string, unknown>;
+  if (typeof origin !== 'string' || !origin) fail('origin must be a non-empty string');
+  return { ...parse(rest), origin };
 }
 
 export function loadSpec(path: string, opts?: LoadOptions): Spec {
   const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
-  return {
+  const spec: Spec = {
     ...raw,
     dir: dirname(path),
     auth: raw.auth && (resolveEnvBlock(path, 'auth', raw.auth, opts) as typeof raw.auth),
     env: resolveEnvBlock(path, 'env', raw.env ?? {}, opts),
     hooks: raw.hooks === undefined ? undefined : resolve(dirname(path), raw.hooks),
-    steps: expandIncludes(raw.steps, path).map((step, i) => parseStep(path, i, step)),
+    steps: expandIncludes(raw.steps, path).map((step, i) => withOrigin(step, (s) => parseStep(path, i, s))),
   };
+  checkSpecFeatures(spec, path);
+  return spec;
 }
 
 // Deep-walks `value`, replacing every `${a.b.c}` in any string with the leaf it names under
@@ -188,6 +201,8 @@ export function loadNativeSpec<R extends { hooks?: string; env: Record<string, u
   schema: z.ZodType<R>, parseOne: (raw: unknown, where: string, index: number) => S, opts?: LoadOptions) {
   const raw = schema.parse(parse(readFileSync(file, 'utf8')));
   const dir = dirname(resolve(file));
+  const env = resolveEnvBlock(file, 'env', raw.env, opts);
+  checkSpecFeatures(raw as { timeout?: number }, file);
   return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
-    env: resolveEnvBlock(file, 'env', raw.env, opts), steps: expandIncludes(raw.steps, file).map((s, i) => parseOne(s, file, i)) };
+    env, steps: expandIncludes(raw.steps, file).map((s, i) => withOrigin(s, (step) => parseOne(step, file, i))) };
 }

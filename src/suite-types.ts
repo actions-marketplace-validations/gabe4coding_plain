@@ -6,7 +6,11 @@ import type { LoadOptions } from './spec.js';
 export type AttemptResult = TestResult;
 export type Engine = 'browser' | 'desktop' | 'mobile';
 export interface Artifact { kind: 'screenshot' | 'trace' | 'dump'; path: string; step?: number }
-export interface Attempt extends AttemptResult { attempt: number; durationMs: number; artifacts: Artifact[] }
+export interface Attempt extends AttemptResult {
+  attempt: number; durationMs: number; artifacts: Artifact[];
+  /** `${error}` when `engine.run` threw (hooks module missing, browser launch failed, ...): no steps ran. */
+  error?: string;
+}
 export interface SpecReport {
   file: string;
   name: string;
@@ -36,7 +40,9 @@ export interface CaptureTarget {
 export interface SpecInfo { file: string; name: string; tags: string[]; attempt: number }
 export interface RunObserver {
   runStart?(e: { engine: Engine; specs: { file: string; name: string; tags: string[] }[] }): Promise<void>;
-  /** Browser fires this after the session opens; native (desktop/mobile) fires it before the adapter opens, so `CaptureTarget.screenshot` isn't safe there on native. */
+  /** The target can be captured; fires before the first step. Browser: right after the context opens, before setup
+   *  hooks. Desktop/mobile: after setup hooks and `open()` (setup may choose the app or device). `stepEnd` fires only
+   *  after it, and `sessionClose` only when it fired. */
   sessionOpen?(e: SpecInfo & { target: CaptureTarget }): Promise<void>;
   stepEnd?(e: SpecInfo & { index: number; result: StepResult; target: CaptureTarget }): Promise<void>;
   sessionClose?(e: SpecInfo & { status: Status; target: CaptureTarget }): Promise<Artifact[]>;
