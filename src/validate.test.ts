@@ -23,30 +23,11 @@ const desktop: SuiteEngine<ReturnType<typeof loadComputerSpec>> = { engine: 'des
   run: async () => { throw new Error('not run'); } };
 const page = 'name: x\nurl: https://example.com\nsteps:\n  - goto: https://example.com\n';
 
-test('validate errors on timeout and non-empty browser: the load-time guards of lane E', () => {
-  const ok = write('ok.yaml', page);
-  const timeout = write('timeout.yaml', page.replace('steps:', 'timeout: 120000\nsteps:'));
-  const context = write('browser.yaml', page.replace('steps:', 'browser:\n  viewport: {width: 1280, height: 800}\nsteps:'));
-  const empty = write('empty.yaml', page.replace('steps:', 'browser: {}\nsteps:'));
-  const native = write('native.yaml', 'name: x\napp: Notes\ntimeout: 120000\nsteps:\n  - click: Save\n');
-  const [okR, timeoutR, contextR, emptyR] = validate(browser, [ok, timeout, context, empty]);
-  assert.equal(okR.error, undefined);
-  assert.match(timeoutR.error ?? '', /timeout\.yaml: timeout: not implemented yet/);
-  assert.match(contextR.error ?? '', /browser\.yaml: browser: not implemented yet/);
-  assert.equal(emptyR.error, undefined);
-  assert.match(validate(desktop, [native])[0].error ?? '', /timeout: not implemented yet/);
-  // The same guard stops a run before any browser opens: it is a load error.
-  assert.throws(() => loadSpec(timeout), /timeout: not implemented yet/);
-});
-
-test('validate keeps load errors and missing-env warnings', () => {
+test('validate keeps missing-env warnings next to a clean load', () => {
   const missing = write('missing.yaml', 'name: x\nurl: https://example.com\nenv: {token: $PLAINWRIGHT_VALIDATE_MISSING}\nsteps:\n  - goto: https://example.com\n');
-  const both = write('missing-timeout.yaml', 'name: x\nurl: https://example.com\ntimeout: 1000\nenv: {token: $PLAINWRIGHT_VALIDATE_MISSING}\nsteps:\n  - goto: https://example.com\n');
-  const include = write('include.yaml', 'name: x\nurl: https://example.com\nsteps:\n  - include: flow.yaml\n');
-  const [warn, timed, broken] = validate(browser, [missing, both, include]);
+  const [okR, warn] = validate(browser, [write('ok.yaml', page), missing]);
+  assert.deepEqual(okR, { file: okR.file, warnings: [] });
   assert.equal(warn.error, undefined);
   assert.match(warn.warnings[0], /env var is not set/);
-  assert.match(timed.error ?? '', /timeout: not implemented yet/);
-  assert.match(timed.warnings[0], /env var is not set/);
-  assert.match(broken.error ?? '', /include: not implemented yet/);
+  assert.match(validate(desktop, [write('bad.yaml', 'name: x\nsteps: []\n')])[0].error ?? '', /app|steps/);
 });
