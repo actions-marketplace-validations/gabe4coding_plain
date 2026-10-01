@@ -29,9 +29,13 @@ Remove the "not implemented yet" guards for `--retries`, `--bail`, `--max-tokens
 5. `src/last-run.ts`: `writeLastRun` writes `.plainwright/last-run.json` (create the folder):
    `{ "schemaVersion": 1, "finishedAt", "engine", "specs": [{ "file", "status", "flaky" }] }`, file
    paths absolute. `readLastFailed` returns the absolute files whose final status was not `pass`,
-   or `undefined` when there is no file (or it is unreadable: then print one warning). Lane D's
-   `select()` calls `readLastFailed` for `--last-failed`; do not implement the filtering yourself.
-   With `--last-failed` and no previous failures, D's select runs nothing — that is fine.
+   an empty `Set` when the file exists and lists no failures, or `undefined` when there is no file
+   (or it is unreadable: then print one warning). Lane D's `select()` calls `readLastFailed` for
+   `--last-failed`; do not implement the filtering yourself. The rules are in contract §5
+   ("`--last-failed` rules") and must match lane D exactly:
+   - no or unreadable last-run file → `undefined` → D runs every selected spec;
+   - the file lists no failures → empty `Set` → D runs nothing;
+   - otherwise → D runs only the listed files.
 6. `docs/scheduling.md`: retries and flaky, bail, max tokens, last failed, with examples.
 
 ## Tests
