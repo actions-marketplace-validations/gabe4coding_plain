@@ -43,7 +43,7 @@ jobs:
           # Or use AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
 ```
 
-The action installs its own locked runtime dependencies and Chromium, runs the specs with text and JUnit reporters, and uploads the artifacts directory if the run fails. The `--reporter` and `--artifacts` flags become available after the reporting and artifacts lanes merge.
+The action installs its own locked runtime dependencies and Chromium, runs the specs with text and JUnit reporters, and uploads the artifacts directory if the run fails. Artifact names must be unique in a workflow run, so in a matrix give each job its own `artifact-name` (for example `plainwright-results-${{ matrix.site }}`). The `--reporter` and `--artifacts` flags become available after the reporting and artifacts lanes merge.
 
 ## Docker
 
@@ -76,4 +76,6 @@ browser-specs:
       junit: plainwright-results/junit.xml
 ```
 
-Configure `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` as a masked CI variable for live specs. Point specs at test environments only. When using your own account at the user's request, stop before payment, booking, sending, posting, or deleting; never bypass bot protection.
+Configure `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` as a masked CI variable for live specs.
+
+Point specs at test environments only, stop before the last irreversible step (payment, booking, sending), and never bypass bot protection.

@@ -18,6 +18,12 @@ inputs:
     description: Directory for screenshots and traces
     required: false
     default: plainwright-results
+  artifact-name:
+    description: >-
+      Name of the uploaded artifact; must be unique in the workflow run
+      (in a matrix, give each job its own name)
+    required: false
+    default: plainwright-results
   node-version:
     description: Node.js version
     required: false
@@ -64,5 +70,5 @@ runs:
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: plainwright-results
+        name: ${{ inputs.artifact-name }}
         path: ${{ inputs.artifacts }}
