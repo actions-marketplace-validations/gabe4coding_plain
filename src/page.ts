@@ -108,7 +108,19 @@ export function waitForMutation(page: Page, maxMs: number): Promise<boolean> {
 
 const ARIA_MAX_CHARS = 60_000; // ponytail: hard truncate, no smart summarization — ≈15k tokens, ≈$0.0006/call
 
+// Playwright marks a checked control `[checked]` and an unchecked one with nothing, and Jev reads a missing
+// mark as weak evidence: "the checkbox is checked" on an unchecked box came out inconclusive, not failed
+// (docs/benchmarks/claims.md). An explicit `[checked=false]` (Playwright's own syntax, and what the mobile tree
+// already writes) makes the state a fact on the line. Role, optional quoted name, then any `[...]` attributes.
+const CHECKABLE_LINE = /^(\s*- '?(?:checkbox|radio|switch|menuitemcheckbox|menuitemradio)(?: "(?:[^"\\]|\\.)*")?)((?: \[[^\]]*\])*)(?=[:']|$)/gm;
+
+export function markUnchecked(aria: string): string {
+  return aria.replace(CHECKABLE_LINE, (line, head: string, attrs: string) =>
+    attrs.includes('[checked') ? line : `${head}${attrs} [checked=false]`);
+}
+
 function toSnapshot(page: Page, title: string, aria: string): Snapshot {
+  aria = markUnchecked(aria);
   return { url: page.url(), title, aria: aria.slice(0, ARIA_MAX_CHARS), truncated: aria.length > ARIA_MAX_CHARS };
 }
 
