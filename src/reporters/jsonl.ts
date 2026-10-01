@@ -6,6 +6,6 @@ export function jsonlReporter(): RunObserver {
     if (attempt) {
       const { name, status, steps, jevCalls, totalTokens } = attempt;
       console.log(JSON.stringify({ name, status, steps, jevCalls, totalTokens }));
-    } else console.log(JSON.stringify({ name: report.name, status: report.status, steps: [], jevCalls: 0, totalTokens: 0, error: report.loadError }));
+    } else console.error(`${report.file}: ${report.loadError}`);
   } };
 }

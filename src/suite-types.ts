@@ -36,6 +36,7 @@ export interface CaptureTarget {
 export interface SpecInfo { file: string; name: string; tags: string[]; attempt: number }
 export interface RunObserver {
   runStart?(e: { engine: Engine; specs: { file: string; name: string; tags: string[] }[] }): Promise<void>;
+  /** Browser fires this after the session opens; native (desktop/mobile) fires it before the adapter opens, so `CaptureTarget.screenshot` isn't safe there on native. */
   sessionOpen?(e: SpecInfo & { target: CaptureTarget }): Promise<void>;
   stepEnd?(e: SpecInfo & { index: number; result: StepResult; target: CaptureTarget }): Promise<void>;
   sessionClose?(e: SpecInfo & { status: Status; target: CaptureTarget }): Promise<Artifact[]>;

@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runSuite } from '../suite.js';
+import { loadSpec } from '../spec.js';
 import type { Status } from '../results.js';
 import type { SuiteEngine, SuiteOptions } from '../suite-types.js';
 
@@ -39,6 +43,28 @@ test('browser text golden output covers every status, load error, and input orde
     '✘ error  (1 Jev calls, 10 tokens)', '  ✘ click "error" detail',
     '✘ missing', '  error: bad yaml',
   ]);
+});
+
+test('browser load errors still print the message on stdout', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-text-load-'));
+  const yaml = path.join(dir, 'bad.yaml');
+  const schema = path.join(dir, 'schema.yaml');
+  fs.writeFileSync(yaml, 'a: [\n');
+  fs.writeFileSync(schema, 'name: x\nurl: /\nsteps:\n  - nope: 1\n');
+  const message = (file: string): string => {
+    try { loadSpec(file); }
+    catch (error) { return error instanceof Error ? error.message : String(error); }
+    throw new Error(`expected ${file} to fail to load`);
+  };
+  const engine: SuiteEngine<ReturnType<typeof loadSpec>> = { engine: 'browser', maxWorkers: Infinity, load: loadSpec,
+    meta: (spec) => ({ name: spec.name, tags: spec.tags ?? [] }),
+    run: async () => { throw new Error('not run'); } };
+  try {
+    assert.deepEqual(await capture(() => runSuite(engine, options([yaml, schema]), services)), [
+      `✘ ${yaml}`, `  error: ${message(yaml)}`,
+      `✘ ${schema}`, `  error: ${message(schema)}`,
+    ]);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('browser timing golden output is unchanged on and off', async () => {
