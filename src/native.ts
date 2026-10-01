@@ -1,10 +1,17 @@
-import { parseArgs } from 'node:util';
 import type { Step } from './spec.js';
 import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError, type Intelligence, type Frame } from './automation.js';
-import { decide, loadEnvFiles, provider, warmUp } from './jev.js';
+import { decide, loadEnvFiles, warmUp } from './jev.js';
 import { timedInto, dumpDebug, type StepResult, type Status } from './results.js';
 import { readAnswer } from './read.js';
 import { startHooks, type HooksRunner, type HookSpec } from './hooks.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { observerCalls } from './observe.js';
+import type { CaptureTarget, RunObserver, SpecInfo } from './suite-types.js';
+import type { Engine, SuiteEngine } from './suite-types.js';
+import { parseSuiteArgs } from './options.js';
+import { runSuite } from './suite.js';
+import { validate } from './validate.js';
 
 // Shared by the desktop (computer.ts) and mobile (mobile.ts) paths: Jev targeting, expect/wait polling,
 // phase timing, spec runs and the CLI. Subclasses only perform their platform's actions.
@@ -173,68 +180,88 @@ function sameFrame<T>(a: Frame<T>, b: Frame<T>): boolean {
     JSON.stringify([...a.elements]) === JSON.stringify([...b.elements]);
 }
 
-type NativeSpec<S> = HookSpec & { env: Record<string, unknown>; hooks?: string; goal?: string; steps: S[] };
+type NativeSpec<S> = HookSpec & { env: Record<string, unknown>; hooks?: string; goal?: string; steps: S[]; tags?: string[]; timeout?: number };
 
 /** hooks setup → `open` (interpolates, attaches, returns the resolved steps) → steps → teardown → close. */
 export async function runNativeSpec<S extends { kind: string; optional?: boolean }, P extends NativeSpec<S>>(spec: P,
-  session: NativeSession<unknown, string, S, NativeAdapter<unknown, string>>, open: (vars: { env: Record<string, unknown>; hooks: Record<string, unknown> }) => Promise<S[]>) {
+  session: NativeSession<unknown, string, S, NativeAdapter<unknown, string>>, open: (vars: { env: Record<string, unknown>; hooks: Record<string, unknown> }) => Promise<S[]>,
+  observer?: RunObserver, info?: SpecInfo, specTimeout?: number) {
   const steps: StepResult[] = [];
+  const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
+  const target: CaptureTarget = { engine: 'platform' in spec ? 'mobile' : 'desktop', screenshot: async (file) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, await session.adapter.screenshot());
+  } };
+  const record = async (result: StepResult): Promise<void> => {
+    const index = steps.push(result) - 1;
+    await observe('stepEnd', { index, result, target });
+  };
   let status: Status = 'pass';
   let hooks: HooksRunner<P> | undefined;
   let data: Record<string, unknown> = {};
   let setupDone = false;
   session.goal = spec.goal;
   try {
+    if (spec.timeout !== undefined) throw new Error('timeout: not implemented yet');
+    checkNativeSpecTimeout(specTimeout);
+    await observe('sessionOpen', { target });
     if (spec.hooks) {
       hooks = await startHooks<P>(spec.hooks);
       if (hooks.has.setup) data = await hooks.setup(spec);
     }
     setupDone = true;
     for (const step of await open({ env: spec.env, hooks: data })) {
-      const result = await session.run(step); steps.push(result);
+      const result = await session.run(step); await record(result);
       if (result.status !== 'pass' && result.status !== 'skipped') { status = result.status; break; }
     }
   } catch (error) {
-    status = 'error'; steps.push({ step: setupDone ? 'open/interpolate' : 'setup', status, detail: String(error) });
+    status = 'error'; await record({ step: setupDone ? 'open/interpolate' : 'setup', status, detail: String(error) });
   } finally {
     try {
       if (setupDone && hooks?.has.teardown) await hooks.teardown({ spec, data, result: { status, steps } });
-    } catch (error) { status = 'error'; steps.push({ step: 'teardown', status, detail: String(error) }); }
+    } catch (error) { status = 'error'; await record({ step: 'teardown', status, detail: String(error) }); }
     finally {
       hooks?.close();
+      await observe('sessionClose', { status, target });
       try { await session.adapter.close(); }
-      catch (error) { status = 'error'; steps.push({ step: 'close', status, detail: String(error) }); }
+      catch (error) { status = 'error'; await record({ step: 'close', status, detail: String(error) }); }
     }
   }
   return { name: spec.name, status, steps, jevCalls: session.calls, totalTokens: session.tokens };
 }
 
+export function checkNativeSpecTimeout(value?: number): void {
+  if (value !== undefined) throw new Error('--spec-timeout: not implemented yet');
+}
+
 /** The desktop and mobile CLI: `mcp`, or spec files run one after another (one input stream: never concurrently). */
-export async function nativeCli(bin: string, usage: string, options: Record<string, { type: 'string' }>, main: {
+export async function nativeCli<S>(bin: string, _usage: string, _options: Record<string, { type: 'string' }>, engineName: Extract<Engine, 'desktop' | 'mobile'>, main: {
   serve(timeout: number, values: Record<string, string | undefined>): Promise<void>;
-  run(file: string, timeout: number, values: Record<string, string | undefined>): Promise<{ status: Status }>;
+  load(file: string, opts?: import('./spec.js').LoadOptions): S;
+  run(spec: S, timeout: number, values: Record<string, string | undefined>, observer?: RunObserver, info?: SpecInfo, specTimeout?: number): Promise<import('./runner.js').TestResult>;
+  meta(spec: S): { name: string; tags: string[]; timeoutMs?: number };
 }) {
   loadEnvFiles();
   try {
-    const { values, positionals } = parseArgs({ options: { timeout: { type: 'string', default: '15000' }, ...options }, allowPositionals: true });
-    const args = values as Record<string, string | undefined>;
-    const timeout = Number(values.timeout);
-    if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('--timeout must be a positive number of milliseconds');
-    if (!positionals.length) throw new Error(`usage: ${bin} [--timeout 15000] ${usage}mcp | <spec.yaml> [more.yaml ...]`);
-    warmUp(); // connect to Jev while the session starts
-    if (positionals[0] === 'mcp') {
-      if (positionals.length !== 1) throw new Error('mcp takes no positional arguments');
+    const { command, opts, flags } = parseSuiteArgs(process.argv.slice(2), engineName);
+    checkNativeSpecTimeout(opts.specTimeout);
+    const args = { server: flags.server as string | undefined };
+    const timeout = Number(flags.timeout);
+    if (command === 'mcp') {
+      warmUp();
       return await main.serve(timeout, args);
     }
-    provider();
-    let passed = true;
-    for (const file of positionals) {
-      try {
-        const result = await main.run(file, timeout, args);
-        console.log(JSON.stringify(result));
-        if (result.status !== 'pass') passed = false;
-      } catch (error) { console.error(`${file}: ${error}`); passed = false; }
+    const engine: SuiteEngine<S> = { engine: engineName, load: main.load, meta: main.meta,
+      run: (spec, observer, info) => main.run(spec, timeout, args, observer, info, opts.specTimeout), maxWorkers: 1 };
+    if (command === 'validate') {
+      const results = validate(engine, opts.files);
+      for (const result of results) {
+        for (const warning of result.warnings) console.error(`${result.file}: ${warning}`);
+        if (result.error) console.error(`${result.file}: ${result.error}`);
+      }
+      process.exitCode = results.some((result) => result.error) ? 1 : 0;
+    } else {
+      process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;
     }
-    process.exitCode = passed ? 0 : 1;
   } catch (error) { console.error(`${bin}: ${error instanceof Error ? error.message : error}`); process.exitCode = 2; }
 }

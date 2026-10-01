@@ -4,6 +4,7 @@ import { HiddenTargetError, type MobileAdapter, type MobileAction } from './mobi
 import type { MobileKind } from './mobile-tree.js';
 import type { StepResult } from './results.js';
 import { NativeSession, runNativeSpec } from './native.js';
+import type { RunObserver, SpecInfo } from './suite-types.js';
 
 export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, MobileStep, MobileAdapter<T>> {
   parse(raw: unknown) { return parseMobileStep(raw); }
@@ -49,11 +50,11 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
   }
 }
 
-export function runMobileSpec<T>(spec: MobileSpec, session: MobileSession<T>) {
+export function runMobileSpec<T>(spec: MobileSpec, session: MobileSession<T>, observer?: RunObserver, info?: SpecInfo, specTimeout?: number) {
   return runNativeSpec(spec, session as MobileSession, async (vars) => {
     const { steps, ...target } = interpolate({ platform: spec.platform, device: spec.device, app: spec.app, capabilities: spec.capabilities, steps: spec.steps }, vars, spec.name);
     await session.adapter.open(target);
     session.noteActivity();
     return steps;
-  });
+  }, observer, info, specTimeout);
 }

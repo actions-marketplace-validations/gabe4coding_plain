@@ -8,9 +8,12 @@ import { loadEnvFiles } from './jev.js';
 
 const [mode] = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 if (mode === 'plan' || mode === 'do') await planOrDo(mode);
-else await nativeCli('plainwright-computer', 'plan|do "<sentence>" | ', {}, {
+else await nativeCli('plainwright-computer', 'plan|do "<sentence>" | ', {}, 'desktop', {
   serve: async (timeout) => (await import('./computer-mcp.js')).serveComputerMcp(timeout), // MCP SDK only when serving
-  run: (file, timeout) => runComputerSpec(loadComputerSpec(file), new ComputerSession(new Xa11yAdapter(timeout), timeout)),
+  load: loadComputerSpec,
+  meta: (spec) => ({ name: spec.name, tags: spec.tags ?? [], timeoutMs: spec.timeout }),
+  run: (spec, timeout, _values, observer, info, specTimeout) => runComputerSpec(spec,
+    new ComputerSession(new Xa11yAdapter(timeout), timeout), observer, info, specTimeout),
 });
 
 // `plan "<sentence>"` prints the plan Jev makes of a sentence (src/planner.ts); `do` also runs it as a
