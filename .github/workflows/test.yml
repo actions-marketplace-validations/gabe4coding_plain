@@ -7,6 +7,9 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,3 +38,14 @@ jobs:
             echo "$changed" >&2
             exit 1
           fi
+      - name: Check Playwright image tags
+        shell: bash
+        run: |
+          version="$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")"
+          image="mcr.microsoft.com/playwright:v${version}-noble"
+          for file in Dockerfile docs/ci.md; do
+            if ! grep -qF "$image" "$file"; then
+              echo "$file must use $image (playwright $version in package-lock.json)." >&2
+              exit 1
+            fi
+          done
