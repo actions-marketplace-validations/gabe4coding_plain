@@ -38,6 +38,11 @@ content. Selected lines retain their original text, states, values, named ancest
 identity, and source order. Whole lines are selected; a line and its ancestors that cannot fit
 are omitted rather than cut mid-label. Unknown roles remain eligible for selection.
 
+In browser trees an unchecked checkbox, radio, switch or checkable menu item shows `[checked=false]`,
+a checked one `[checked]` and a mixed one `[checked=mixed]` (`markUnchecked` in `src/page.ts`), so the
+state is always written on the line, as in the mobile tree. The mark reaches Jev, `snapshot` views and
+`changed` lines alike.
+
 Smart mode classifies the captured interface as `authentication`, `form`, `results`, `detail`,
 `dashboard`, `other`, or `unknown`. It also returns independent `blockingDialog`, `error`, and
 `loading` signals with probabilities. Screen classification needs confidence >= 0.9 (chosen

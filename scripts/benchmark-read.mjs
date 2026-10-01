@@ -10,13 +10,18 @@ import { parseArgs } from 'node:util';
 import { loadEnvFiles } from '../dist/jev.js';
 import { readAnswer, readOptions } from '../dist/read.js';
 import { snapshotView } from '../dist/snapshot-view.js';
+import { markUnchecked } from '../dist/page.js';
 
 loadEnvFiles();
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, only: { type: 'string' }, smart: { type: 'boolean', default: false }, labels: { type: 'string', default: 'short' }, dedupe: { type: 'string', default: 'on' }, out: { type: 'string' } } });
 readOptions.labels = values.labels;
 readOptions.dedupe = values.dedupe === 'on';
 const cases = JSON.parse(readFileSync(new URL('read-cases.json', import.meta.url), 'utf8')).filter((c) => !values.only || c.page === values.only);
-const state = (page) => JSON.parse(readFileSync(new URL(`read-states/${page}.json`, import.meta.url), 'utf8'));
+// The same tree a live snapshot() gives now, also for pages saved before a change to it (it is idempotent).
+const state = (page) => {
+  const snap = JSON.parse(readFileSync(new URL(`read-states/${page}.json`, import.meta.url), 'utf8'));
+  return { ...snap, aria: markUnchecked(snap.aria) };
+};
 const has = (text, c) => c.none ? false : c.expect.every((e) => text.includes(e));
 
 const results = [];

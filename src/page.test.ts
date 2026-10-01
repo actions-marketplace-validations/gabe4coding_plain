@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
 import { intelligence } from './automation.js';
-import { candidates, elementById, installSettleObserver, mark, settle, unchangedSince, waitForMutation } from './page.js';
+import { candidates, elementById, installSettleObserver, mark, markUnchecked, settle, snapshot, unchangedSince, waitForMutation } from './page.js';
 import { holdActivity, mayNavigate, resolveLocators, settledAsk, settlePage, waitHold, type StepContext } from './steps.js';
 
 let browser: Browser;
@@ -309,4 +309,53 @@ test('mayNavigate holdMs: returns after the grace, the rest of the hold is waite
   assert.ok(returned < 450, `should return after the grace, took ${returned}ms`);
   await waitHold(page);
   assert.ok(Date.now() - start >= 490, `the hold should last until 500 ms after the action, took ${Date.now() - start}ms`);
+});
+
+test('markUnchecked: a checkable control without a checked mark says checked=false; other lines are kept', () => {
+  const aria = [
+    '- checkbox',
+    '- checkbox [checked]',
+    '- checkbox "Toggle Todo"',
+    '- checkbox "Mixed" [checked=mixed]',
+    '- checkbox "Off" [disabled]',
+    '- radio "Grid"',
+    '- switch "Filter by availability": Readable Only 27',
+    '  - menuitemcheckbox "Bold":',
+    '- \'checkbox "it\'\'s [x]"\'',
+    '- checkbox "Say \\"checked\\""',
+    '- text: checkbox 1',
+    '- button "checkbox"',
+    '- checkboxes',
+  ].join('\n');
+  assert.equal(markUnchecked(aria), [
+    '- checkbox [checked=false]',
+    '- checkbox [checked]',
+    '- checkbox "Toggle Todo" [checked=false]',
+    '- checkbox "Mixed" [checked=mixed]',
+    '- checkbox "Off" [disabled] [checked=false]',
+    '- radio "Grid" [checked=false]',
+    '- switch "Filter by availability" [checked=false]: Readable Only 27',
+    '  - menuitemcheckbox "Bold" [checked=false]:',
+    '- \'checkbox "it\'\'s [x]" [checked=false]\'',
+    '- checkbox "Say \\"checked\\"" [checked=false]',
+    '- text: checkbox 1',
+    '- button "checkbox"',
+    '- checkboxes',
+  ].join('\n'));
+  assert.equal(markUnchecked(markUnchecked(aria)), markUnchecked(aria));
+});
+
+test('snapshot: an unchecked checkbox, radio or switch is marked checked=false', async () => {
+  await page.goto(html(
+    '<label><input type="checkbox"> one</label><label><input type="checkbox" checked> two</label>' +
+    '<label><input type="radio" name="r"> a</label><label><input type="radio" name="r" checked> b</label>' +
+    '<button role="switch" aria-checked="false">Wifi</button><input type="checkbox" id="m"><script>m.indeterminate = true</script>'
+  ));
+  const { aria } = await snapshot(page);
+  assert.match(aria, /- checkbox "one" \[checked=false\]/);
+  assert.match(aria, /- checkbox "two" \[checked\]$/m);
+  assert.match(aria, /- radio "a" \[checked=false\]/);
+  assert.match(aria, /- radio "b" \[checked\]$/m);
+  assert.match(aria, /- switch "Wifi" \[checked=false\]/);
+  assert.match(aria, /- checkbox \[checked=mixed\]/);
 });
