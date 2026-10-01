@@ -111,7 +111,7 @@ export function parseStep(path: string, i: number, raw: unknown): Step {
   const where = `${path}: step ${i}`;
   const obj = parseData(MappingSchema, raw, where);
   const keys = Object.keys(obj).filter((key) => key !== 'optional' && key !== 'origin');
-  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional"), got [${keys.join(', ')}]`);
+  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional" and "origin"), got [${keys.join(', ')}]`);
   const [kind] = keys;
   if (!STEP_KINDS.some((key) => key === kind))
     fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);

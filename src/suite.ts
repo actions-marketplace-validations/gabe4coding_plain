@@ -17,8 +17,8 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
       const spec = engine.load(file);
       return { loaded: { file, spec, ...engine.meta(spec) } };
     } catch (error) {
-      return { report: { file, name: file, tags: [], status: 'error', flaky: false, attempts: [],
-        loadError: error instanceof Error ? error.message : String(error) } };
+      // `${error}` is what nativeCli printed on stderr (`file: ${error}`); no stdout line.
+      return { report: { file, name: file, tags: [], status: 'error', flaky: false, attempts: [], loadError: `${error}` } };
     }
   });
   const selected = select(entries.flatMap((entry) => 'loaded' in entry ? [entry.loaded] : []), opts);

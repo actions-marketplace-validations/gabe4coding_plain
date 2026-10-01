@@ -33,6 +33,7 @@ test('native schemas accept tags and timeout, and reject browser fields', () => 
 test('step origin prefixes labels; user-written origin is rejected', () => {
   assert.equal(label(parseStep('x', 0, { click: 'Login', origin: 'flows/login.yaml' })), 'flows/login.yaml › click "Login"');
   assert.throws(() => loadSpec(write('name: x\nurl: https://example.com\nsteps:\n  - click: Login\n    origin: fake\n')), /origin: reserved/);
+  assert.throws(() => parseStep('x', 0, { click: 'Login', hover: 'Save' }), /"optional" and "origin"/);
   assert.throws(() => loadSpec(write('name: x\nurl: https://example.com\nsteps:\n  - include: flow.yaml\n')), /include: not implemented yet/);
 });
 

@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ComputerSession, runComputerSpec } from './computer.js';
+import type { RunObserver } from './suite-types.js';
 import { loadComputerSpec, parseComputerStep, ComputerTargetSchema } from './computer-spec.js';
 import { matchesKind, captureTree, type ComputerAdapter } from './computer-adapter.js';
 import { createComputerServer } from './computer-mcp.js';
@@ -96,6 +97,33 @@ test('setup failure does not attach or call teardown; teardown failure marks run
       assert.equal(r.steps.at(-1)?.step, setup ? 'setup' : 'teardown');
       if (setup) assert.equal(adapter.log.length, 0);
     }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('sessionOpen fires before the adapter opens and the screenshot is taken on sessionClose', async () => {
+  class RecordingAdapter extends FakeAdapter {
+    events: string[] = [];
+    async open(target: unknown) { this.events.push('open'); return super.open(target); }
+    async screenshot() { this.events.push('screenshot'); return super.screenshot(); }
+    async close() { this.events.push('close'); return super.close(); }
+  }
+  const adapter = new RecordingAdapter();
+  const dir = mkdtempSync(join(tmpdir(), 'native-observer-'));
+  const shot = join(dir, 'shots', 'screen.png');
+  const observer: RunObserver = {
+    async sessionOpen() { assert.deepEqual(adapter.events, []); },
+    async sessionClose({ target }) {
+      assert.deepEqual(adapter.events, ['open']);
+      await target.screenshot(shot);
+      assert.deepEqual(adapter.events, ['open', 'screenshot']);
+      return [{ kind: 'screenshot', path: shot }];
+    },
+  };
+  try {
+    const result = await runComputerSpec({ name: 'observer', app: 'Fixture', dir, env: {}, steps: [] },
+      new ComputerSession(adapter, 100), observer, { file: 'observer.yaml', name: 'observer', tags: [], attempt: 0 });
+    assert.equal(result.status, 'pass');
+    assert.deepEqual(adapter.events, ['open', 'screenshot', 'close']);
+    assert.equal(readFileSync(shot).toString(), 'png');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 test('queue serializes operations and continues after rejection', async () => {
