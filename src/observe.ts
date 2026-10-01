@@ -1,0 +1,18 @@
+import type { RunObserver, SpecInfo } from './suite-types.js';
+
+export function observerCalls(observer: RunObserver | undefined, info: SpecInfo) {
+  let warned = false;
+  const call = async <T>(name: 'sessionOpen' | 'stepEnd' | 'sessionClose', event: object): Promise<T | undefined> => {
+    const fn = observer?.[name] as ((event: object) => Promise<T>) | undefined;
+    if (!fn) return undefined;
+    try { return await fn({ ...info, ...event }); }
+    catch (error) {
+      if (!warned) {
+        warned = true;
+        console.error(`plainwright: observer: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return undefined;
+    }
+  };
+  return call;
+}

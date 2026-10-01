@@ -36,6 +36,11 @@ export function formatMs(ms: Record<string, number>): string {
 }
 
 export function label(step: Step): string {
+  const base = baseLabel(step);
+  return step.origin ? `${step.origin} › ${base}` : base;
+}
+
+function baseLabel(step: Step): string {
   switch (step.kind) {
     case StepKind.goto: return `goto ${step.url}`;
     case StepKind.select: return `select "${step.value}" in "${step.target}"`;
@@ -72,4 +77,3 @@ export function topGuesses(probabilities: Record<string, number>, candidates: Ca
     .map(([k, p]) => `${k === 'none' ? 'none' : candidates.find((c) => String(c.id) === k)?.desc} (p=${p.toFixed(2)})`)
     .join(' | ');
 }
-
