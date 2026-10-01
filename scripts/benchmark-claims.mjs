@@ -18,6 +18,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { loadEnvFiles, decide } from '../dist/jev.js';
 import { judgeState } from '../dist/automation.js';
+import { markUnchecked } from '../dist/page.js';
 
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, group: { type: 'string', default: 'single' }, only: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' } } });
 if (!['single', 'page'].includes(values.group)) throw new Error('--group must be single or page');
@@ -30,7 +31,9 @@ function page(name) {
   if (pages[name]) return pages[name];
   const file = ['claim-states', 'read-states'].map((dir) => new URL(`./${dir}/${name}.json`, import.meta.url)).find((u) => existsSync(u));
   if (!file) throw new Error(`no saved state for page "${name}" in scripts/claim-states/ or scripts/read-states/`);
-  return (pages[name] = JSON.parse(readFileSync(file)));
+  // The same tree a live snapshot() gives now, also for pages saved before a change to it (it is idempotent).
+  const state = JSON.parse(readFileSync(file));
+  return (pages[name] = { ...state, aria: markUnchecked(state.aria) });
 }
 
 async function mapLimit(items, limit, fn) {

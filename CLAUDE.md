@@ -70,7 +70,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
   nav/footer, so a cookie banner appended at the end of the body is never cut.
-- `src/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap) and DOM-quiet waiting
+- `src/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
+  checkable control gets `[checked=false]`, `markUnchecked`) and DOM-quiet waiting
   (`settle()`). Re-exports the candidate helpers from `src/candidates.ts`. `page.ts` (snapshot sections)
   and `candidates.ts` (candidate prefixes) both label iframes with `frameLabel()` (`src/frames.ts`).
 - `src/jev.ts` — provider selection and the `ask()` call to either backend; `pickElements()` (one Choice per
