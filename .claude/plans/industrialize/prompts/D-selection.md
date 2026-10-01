@@ -19,9 +19,14 @@ Remove the "not implemented yet" guards Phase 0 put in `src/select.ts` and `src/
    - `--grep RE`: keep a spec when RE matches its `name` OR its file path (relative to cwd).
      `--grep-invert RE`: drop those that match. An invalid regex is an error (exit 2).
    - `--tag T` (repeatable): keep a spec only if its `tags` contain ALL given tags (decided).
-   - `--last-failed`: keep only files in `readLastFailed(cwd)` (from `src/last-run.ts`, lane C;
-     today a stub returning `undefined`). `undefined` → keep everything and print one note
-     `no previous run found; running all selected specs`.
+   - `--last-failed`: filter with `readLastFailed(cwd)` (from `src/last-run.ts`, lane C; today a
+     stub returning `undefined`):
+     - `undefined` (no or unreadable last-run file) → keep everything and print one note
+       `no previous run found; running all selected specs`;
+     - empty `Set` (the last run had no failures) → keep nothing (load errors excepted) and print
+       one note `no failures in the last run`;
+     - otherwise → keep only the listed files.
+     This must match lane C's prompt and contract §5 ("`--last-failed` rules") exactly.
    - Specs with a load error are always kept (so they are reported), whatever the filters.
 2. `--list`: `runSuite` prints what `select` returned and stops (check how Phase 0 wired the output;
    if the printing lives in a frozen file, give `select.ts` a `formatList(specs)` and report the

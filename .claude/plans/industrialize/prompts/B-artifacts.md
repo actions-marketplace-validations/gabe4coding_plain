@@ -15,7 +15,9 @@ Branch: create and work on `industrialize/b-artifacts`, starting from `main`.
 Remove the "not implemented yet" guard for `--artifacts`, `--screenshot` and `--trace` that Phase 0 put in `src/artifacts.ts`.
 
 Implement `artifactsObserver(opts)`: `null` when `opts.artifacts` is undefined, else an observer that
-writes evidence for each attempt.
+writes evidence for each attempt. Capture is off until `artifacts.dir` is set (`--artifacts <dir>`
+or the config); `--screenshot` / `--trace` alone do not turn it on — print one warning in that case
+(check how Phase 0 passes those flags when no dir is set, and report if it drops them silently).
 
 1. Layout: `<dir>/<slug of the spec file path relative to cwd>/attempt-<n>/`. Slug: path separators
    and anything outside `[A-Za-z0-9._-]` become `-`. Two specs never share a folder, even with

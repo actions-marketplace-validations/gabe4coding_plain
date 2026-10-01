@@ -275,7 +275,7 @@ export interface SuiteOptions {
   workers: number;            // default 1
   retries: number;            // C, default 0
   bail: number;               // C, stop after N failed specs; 0 = never
-  lastFailed: boolean;        // C, run only specs that failed in .plainwright/last-run.json
+  lastFailed: boolean;        // C+D, run only specs that failed in .plainwright/last-run.json (rules below)
   maxTokens?: number;         // C, stop starting new specs once totals.tokens >= this
   grep?: string;              // D, regex on spec name or file
   grepInvert?: string;        // D
@@ -284,7 +284,7 @@ export interface SuiteOptions {
   reporters: ReporterSpec[];  // A, default [{name: 'text'}] browser, [{name: 'jsonl'}] native
   timing: boolean;            // A (text reporter), browser only, as today
   artifacts?: {               // B, undefined = off
-    dir: string;              // default 'plainwright-results'
+    dir: string;              // no default: setting it turns capture on; conventionally 'plainwright-results'
     screenshot: 'off' | 'on-failure' | 'always'; // default 'on-failure' when dir is set
     trace: 'off' | 'on-failure' | 'always';      // default 'on-failure' when dir is set; browser only
   };
@@ -316,6 +316,14 @@ Capture stays off until `artifacts.dir` is set (with `--artifacts` or config). `
 | `--timeout MS` | number | 15000 | exists | `timeout` |
 | `--headless`, `--profile`, `--channel`, `--cdp` (browser) | as today | | exists | same names |
 | `--server URL` (mobile) | as today | | exists | `server` |
+
+`--last-failed` rules (C reads the file, D filters):
+
+- no `.plainwright/last-run.json`, or an unreadable one → `readLastFailed` returns `undefined` →
+  every selected spec runs, with one note `no previous run found; running all selected specs`;
+- a last-run file that lists no failures → an empty `Set` → nothing runs (load errors are still
+  reported), with one note `no failures in the last run`;
+- otherwise → only the listed files run.
 
 Subcommands (first positional, like `mcp`): `validate <files...>` (D).
 
