@@ -28,6 +28,10 @@ export function formatMs(ms) {
     return ordered.map((k) => `${k}=${ms[k]}`).join(' ');
 }
 export function label(step) {
+    const base = baseLabel(step);
+    return step.origin ? `${step.origin} › ${base}` : base;
+}
+function baseLabel(step) {
     switch (step.kind) {
         case StepKind.goto: return `goto ${step.url}`;
         case StepKind.select: return `select "${step.value}" in "${step.target}"`;

@@ -57,11 +57,11 @@ export class MobileSession extends NativeSession {
         return { step: name, status: 'pass' };
     }
 }
-export function runMobileSpec(spec, session) {
+export function runMobileSpec(spec, session, observer, info, specTimeout) {
     return runNativeSpec(spec, session, async (vars) => {
         const { steps, ...target } = interpolate({ platform: spec.platform, device: spec.device, app: spec.app, capabilities: spec.capabilities, steps: spec.steps }, vars, spec.name);
         await session.adapter.open(target);
         session.noteActivity();
         return steps;
-    });
+    }, observer, info, specTimeout);
 }

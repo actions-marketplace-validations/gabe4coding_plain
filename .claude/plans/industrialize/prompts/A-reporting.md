@@ -12,7 +12,9 @@ Branch: create and work on `industrialize/a-reporting`, starting from `main`.
 
 ## Your task
 
-Remove the `--reporter` "not implemented yet" guard Phase 0 put in `src/reporters/index.ts`.
+Remove the `--reporter` "not implemented yet" guard Phase 0 put in `src/reporters/index.ts`. Read contract §9 first:
+`createReporters` must return one observer per `ReporterSpec`, in order, and a thrown run is `Attempt.error`
+(no steps) — the text reporter already prints it like a load error; keep that, and map it to `<error>` in JUnit.
 
 1. `--reporter junit:<file>`: JUnit XML written at `runEnd`, no new dependency (escape XML by hand:
    `& < > " '` and strip characters that XML 1.0 forbids). Shape:

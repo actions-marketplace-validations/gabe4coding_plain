@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseStep, rejectCss, loadNativeSpec } from './spec.js';
+import { parseStep, rejectCss, loadNativeSpec, TagsSchema } from './spec.js';
 import { label } from './results.js';
 const text = z.string().trim().min(1);
 export const MobileTargetSchema = z.object({
@@ -37,13 +37,14 @@ export function parseMobileStep(raw, where = 'mobile', index = 0) {
 }
 export function mobileLabel(step) {
     if (step.kind === 'tap' || step.kind === 'longpress')
-        return `${step.kind} ${JSON.stringify(step.target)}`;
+        return `${step.origin ? `${step.origin} › ` : ''}${step.kind} ${JSON.stringify(step.target)}`;
     if (step.kind === 'swipe')
-        return `swipe ${step.direction}${step.within ? ` within ${JSON.stringify(step.within)}` : ''}`;
+        return `${step.origin ? `${step.origin} › ` : ''}swipe ${step.direction}${step.within ? ` within ${JSON.stringify(step.within)}` : ''}`;
     return label(step);
 }
-export function loadMobileSpec(file) {
+export function loadMobileSpec(file, opts) {
     return loadNativeSpec(file, MobileTargetSchema.extend({
         name: text, hooks: text.optional(), goal: text.optional(), env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
-    }), parseMobileStep);
+        tags: TagsSchema, timeout: z.number().int().positive().optional(),
+    }), parseMobileStep, opts);
 }

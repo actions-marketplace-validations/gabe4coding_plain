@@ -1,6 +1,6 @@
 # Phase 0 contract: shared suite runner
 
-Status: APPROVED (decisions in §8). Nothing here is implemented yet.
+Status: APPROVED (decisions in §8). Phase 0 is built; **§9 lists where the code differs from or adds to §1–§6, and §9 wins.**
 
 Goal of Phase 0: a refactor with **no behavior change** that creates every seam the Phase 1 lanes
 need. After Phase 0 merges, each lane fills in the body of files it owns and does not edit any
@@ -24,14 +24,14 @@ Acceptance test for Phase 0:
   | Guard for | Lives in | Lane |
   |---|---|---|
   | `--reporter` other than text/jsonl | `src/reporters/index.ts` | A |
-  | `--artifacts`, `--screenshot`, `--trace` | `src/artifacts.ts` | B |
+  | `--artifacts` (with any `--screenshot` / `--trace` mode) | `src/artifacts.ts` (`artifactsObserver`) | B |
   | `--retries`, `--bail`, `--max-tokens`, `--last-failed` | `src/schedule.ts` | C |
   | `--grep`, `--grep-invert`, `--tag`, `--list` | `src/select.ts` | D |
   | `--config`, a config file present | `src/config.ts` | D |
   | `validate` | `src/validate.ts` (stub: load errors only, no guard needed) | D |
   | `include` step | `src/include.ts` | E |
-  | `browser:` block | `src/context-options.ts` | E |
-  | spec `timeout`, `--spec-timeout` | `src/runner.ts` / `runNativeSpec` | E |
+  | spec `timeout`, non-empty `browser:` block (at load, so `validate` reports them) | `src/spec-features.ts` (`checkSpecFeatures`) | E |
+  | `--spec-timeout` | `src/spec-features.ts` (`checkSpecTimeoutFlag`) | E |
 
   The suite calls `select`, `createReporters`, `artifactsObserver` and `schedule` before any spec
   starts, so their flag guards exit 2 before a browser opens.
@@ -401,3 +401,53 @@ browser:
    in the cwd.
 5. `include` files hold only `steps:`; no `env:` of their own.
 6. No video in v1 (§3).
+
+## 9. Phase 0 as built (wins over §1–§6)
+
+Ownership additions:
+
+| File | Owner |
+|---|---|
+| `src/observe.ts` (`observerCalls`: per-spec observer calls, errors printed once) | frozen |
+| `src/spec-features.ts` (`checkSpecFeatures`, `checkSpecTimeoutFlag`) | E |
+
+Signatures that differ from §3/§4:
+
+- `runSuite(engine, opts, services?)`: `services = { provider, warmUp, observers? }` is for key-free tests.
+- `runSpec(spec, opts, observer?, info?)`; `RunOptions.specTimeout` carries `--spec-timeout`.
+- `runNativeSpec(spec, session, open, observer?, info?, specTimeout?)`; `specTimeout` is unused until E.
+- `nativeCli(bin, usage, engine, { serve, load, meta, run(spec, timeout, values, observer?, info?, specTimeout?) })`.
+- `parseSuiteArgs(argv, engine, env?, cwd?, readConfig = loadConfig)`; throws `UsageError` when no spec paths
+  are given (each CLI prints its own usage line). `mcp` never reads the config file.
+- `Attempt.error?: string`: `${error}` when `engine.run` threw before any step (no steps). The text reporter prints
+  it like a load error (`✘ <file>` / `  error: <message>`); `jsonl` prints `<file>: <error>` on stderr, no stdout line.
+  `SpecReport.loadError` is stored the same way (`${error}`).
+- `RunObserver.sessionOpen` fires when the target can be captured, before the first step. Browser: right after
+  the context opens, before setup hooks. Desktop/mobile: after setup hooks and `open()`. `stepEnd` fires only after
+  it, `sessionClose` only when it fired.
+- `runEnd` fires after `engine.close()` (so `ms run` prints after the browser closes, as before).
+
+Lane helpers that frozen files call — a lane keeps exporting them with the same signature:
+
+- C: `checkSchedule(opts)`, called by `runSuite` before any spec starts (exit 2 for a bad flag).
+- D: `listSelected(specs, opts): boolean`; when it returns `true` (it printed the list), `runSuite` stops and
+  returns an empty pass report without running anything or asking for a key.
+- A: `createReporters(opts)` returns exactly one observer per `opts.reporters` entry, in the same order (the suite
+  names each one after its `ReporterSpec` in warnings).
+
+Options (`src/options.ts`, frozen) already do:
+
+- CLI > existing `PLAINWRIGHT_*` env (`PROFILE`, `CHANNEL`, `CDP`, `APPIUM_URL`) > config > default for every config
+  key, including `files:` (used when no paths are given), `artifacts.{dir,screenshot,trace}`, `tags`, `timing`,
+  `headless`, `server`. Lane D's `loadConfig` only has to return a validated object with paths resolved.
+- `--screenshot` / `--trace` are validated (`off | on-failure | always`) and passed through in `opts.artifacts`
+  only when a dir is set; without a dir they print one warning. The desktop/mobile `--trace` rule (anything but
+  `off` is an error) belongs to lane B, in `artifactsObserver`.
+- `--timeout`: browser accepts `0` (Playwright's "no timeout"), desktop/mobile need a positive number.
+
+Spec loading (`src/spec.ts`, frozen):
+
+- `tags` accepts one string or a list (always a list after loading), for all engines.
+- `origin` is attached by `withOrigin()` after parsing, only on the load path; `parseStep` (used by MCP) rejects
+  an `origin` key as one key too many, as before Phase 0.
+
