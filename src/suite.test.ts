@@ -42,13 +42,8 @@ test('suite observer lifecycle is ordered and errors never change status', async
   assert.equal(warnings.filter((s) => s.includes('again')).length, 0);
 });
 
-test('list guard and validate do not call provider', async () => {
-  let calls = 0;
-  await assert.rejects(runSuite(engine, { ...opts, list: true }, {
-    provider: () => { calls++; throw new Error('key required'); }, warmUp: () => {},
-  }), /--list: not implemented yet/);
+test('validate only loads: load errors, no run', () => {
   assert.deepEqual(validate(engine, ['one', 'bad']), [
     { file: 'one', warnings: [] }, { file: 'bad', error: 'invalid', warnings: [] },
   ]);
-  assert.equal(calls, 0);
 });

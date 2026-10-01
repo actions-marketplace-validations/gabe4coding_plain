@@ -49,6 +49,9 @@ Remove the `--reporter` "not implemented yet" guard Phase 0 put in `src/reporter
 
 ## Tests
 
+Your guards are asserted only in `src/guards-a.test.ts`. Delete it (or rewrite it as real tests of
+the new behavior) when you remove the guards. Do not edit any other existing test file.
+
 New files only, using fixed `RunReport` objects (no browser, no key, no network): XML escaping,
 every status mapping, flaky and rerun failures, attachments, properties, two stdout reporters error,
 text reporter flaky/skipped/summary lines. Validate the XML is well-formed (a small hand parser check
