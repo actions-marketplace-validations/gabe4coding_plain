@@ -35,10 +35,10 @@ export class ComputerSession extends NativeSession {
         return { step: name, status: 'pass' };
     }
 }
-export function runComputerSpec(spec, session) {
+export function runComputerSpec(spec, session, observer, info, specTimeout) {
     return runNativeSpec(spec, session, async (vars) => {
         const resolved = interpolate({ app: spec.app, steps: spec.steps }, vars, spec.name);
         await session.adapter.open({ app: resolved.app }, true);
         return resolved.steps;
-    });
+    }, observer, info, specTimeout);
 }

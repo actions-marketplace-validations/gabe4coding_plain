@@ -1,9 +1,15 @@
-import { parseArgs } from 'node:util';
 import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError } from './automation.js';
-import { decide, loadEnvFiles, provider, warmUp } from './jev.js';
+import { decide, loadEnvFiles, warmUp } from './jev.js';
 import { timedInto, dumpDebug } from './results.js';
 import { readAnswer } from './read.js';
 import { startHooks } from './hooks.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { observerCalls } from './observe.js';
+import { parseSuiteArgs, UsageError } from './options.js';
+import { checkSpecTimeoutFlag } from './spec-features.js';
+import { runSuite } from './suite.js';
+import { validate } from './validate.js';
 const EARLY_WINDOW_MS = 1000;
 const APPEAR_MS = 2000;
 export class NativeSession {
@@ -184,8 +190,20 @@ function sameFrame(a, b) {
         JSON.stringify([...a.elements]) === JSON.stringify([...b.elements]);
 }
 /** hooks setup → `open` (interpolates, attaches, returns the resolved steps) → steps → teardown → close. */
-export async function runNativeSpec(spec, session, open) {
+export async function runNativeSpec(spec, session, open, observer, info, specTimeout) {
     const steps = [];
+    const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
+    const target = { engine: 'platform' in spec ? 'mobile' : 'desktop', screenshot: async (file) => {
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            fs.writeFileSync(file, await session.adapter.screenshot());
+        } };
+    // The target exists only once `open` has attached it: no observer call sees a native session before that.
+    let opened = false;
+    const record = async (result) => {
+        const index = steps.push(result) - 1;
+        if (opened)
+            await observe('stepEnd', { index, result, target });
+    };
     let status = 'pass';
     let hooks;
     let data = {};
@@ -198,9 +216,12 @@ export async function runNativeSpec(spec, session, open) {
                 data = await hooks.setup(spec);
         }
         setupDone = true;
-        for (const step of await open({ env: spec.env, hooks: data })) {
+        const runSteps = await open({ env: spec.env, hooks: data });
+        opened = true;
+        await observe('sessionOpen', { target });
+        for (const step of runSteps) {
             const result = await session.run(step);
-            steps.push(result);
+            await record(result);
             if (result.status !== 'pass' && result.status !== 'skipped') {
                 status = result.status;
                 break;
@@ -209,7 +230,7 @@ export async function runNativeSpec(spec, session, open) {
     }
     catch (error) {
         status = 'error';
-        steps.push({ step: setupDone ? 'open/interpolate' : 'setup', status, detail: String(error) });
+        await record({ step: setupDone ? 'open/interpolate' : 'setup', status, detail: String(error) });
     }
     finally {
         try {
@@ -218,10 +239,12 @@ export async function runNativeSpec(spec, session, open) {
         }
         catch (error) {
             status = 'error';
-            steps.push({ step: 'teardown', status, detail: String(error) });
+            await record({ step: 'teardown', status, detail: String(error) });
         }
         finally {
             hooks?.close();
+            if (opened)
+                await observe('sessionClose', { status, target });
             try {
                 await session.adapter.close();
             }
@@ -234,40 +257,37 @@ export async function runNativeSpec(spec, session, open) {
     return { name: spec.name, status, steps, jevCalls: session.calls, totalTokens: session.tokens };
 }
 /** The desktop and mobile CLI: `mcp`, or spec files run one after another (one input stream: never concurrently). */
-export async function nativeCli(bin, usage, options, main) {
+export async function nativeCli(bin, usage, engineName, main) {
     loadEnvFiles();
     try {
-        const { values, positionals } = parseArgs({ options: { timeout: { type: 'string', default: '15000' }, ...options }, allowPositionals: true });
-        const args = values;
-        const timeout = Number(values.timeout);
-        if (!Number.isFinite(timeout) || timeout <= 0)
-            throw new Error('--timeout must be a positive number of milliseconds');
-        if (!positionals.length)
-            throw new Error(`usage: ${bin} [--timeout 15000] ${usage}mcp | <spec.yaml> [more.yaml ...]`);
-        warmUp(); // connect to Jev while the session starts
-        if (positionals[0] === 'mcp') {
-            if (positionals.length !== 1)
-                throw new Error('mcp takes no positional arguments');
+        const { command, opts, flags } = parseSuiteArgs(process.argv.slice(2), engineName);
+        checkSpecTimeoutFlag(opts.specTimeout);
+        const args = { server: flags.server };
+        const timeout = Number(flags.timeout);
+        if (command === 'mcp') {
+            warmUp();
             return await main.serve(timeout, args);
         }
-        provider();
-        let passed = true;
-        for (const file of positionals) {
-            try {
-                const result = await main.run(file, timeout, args);
-                console.log(JSON.stringify(result));
-                if (result.status !== 'pass')
-                    passed = false;
+        const engine = { engine: engineName, load: main.load, meta: main.meta,
+            run: (spec, observer, info) => main.run(spec, timeout, args, observer, info, opts.specTimeout), maxWorkers: 1 };
+        if (command === 'validate') {
+            const results = validate(engine, opts.files);
+            for (const result of results) {
+                for (const warning of result.warnings)
+                    console.error(`${result.file}: ${warning}`);
+                if (result.error)
+                    console.error(`${result.file}: ${result.error}`);
             }
-            catch (error) {
-                console.error(`${file}: ${error}`);
-                passed = false;
-            }
+            process.exitCode = results.some((result) => result.error) ? 1 : 0;
         }
-        process.exitCode = passed ? 0 : 1;
+        else {
+            process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;
+        }
     }
     catch (error) {
-        console.error(`${bin}: ${error instanceof Error ? error.message : error}`);
+        const message = error instanceof UsageError ? `usage: ${bin} [--timeout 15000] ${usage}[suite options] mcp | validate <files...> | <spec.yaml|dir|glob> [more ...]`
+            : error instanceof Error ? error.message : error;
+        console.error(`${bin}: ${message}`);
         process.exitCode = 2;
     }
 }
