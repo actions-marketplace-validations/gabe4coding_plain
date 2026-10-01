@@ -179,14 +179,13 @@ export async function settledAsk(ctx, o) {
 // How long a step waits for a page with no candidates yet to show some.
 const APPEAR_MS = 2000;
 export async function resolveLocators(ctx, kind, targets) {
-    const page = ctx.page;
     const results = new Array(targets.length);
     const jevIndices = [];
     const jevTargets = [];
     for (const [i, target] of targets.entries()) {
         if (target.startsWith('css=')) {
             const selector = target.slice(4);
-            const element = page.locator(selector);
+            const element = ctx.page.locator(selector);
             // No match yet is left to Playwright's auto-wait; several matches would end in its raw strict-mode dump.
             const count = await element.count();
             results[i] = count > 1
@@ -206,14 +205,21 @@ export async function resolveLocators(ctx, kind, targets) {
         const deadline = Date.now() + Math.min(APPEAR_MS, ctx.timeout);
         let look;
         for (;;) {
+            // Read the active page on each look. settledAsk relooks when a popup replaces ctx.page
+            // during settle; a page captured once here would still scan and resolve on the opener.
+            // The locator is bound to the page that was scanned, so a different page is a different state.
             look = await settledAsk(ctx, {
-                observe: async () => ({
-                    cands: await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES)),
-                    url: page.url(),
-                    title: await page.title(),
-                }),
-                same: (a, b) => a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
-                ask: ({ cands, url, title }) => resolveTargets({
+                observe: async () => {
+                    const page = ctx.page;
+                    return {
+                        page,
+                        cands: await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES)),
+                        url: page.url(),
+                        title: await page.title(),
+                    };
+                },
+                same: (a, b) => a.page === b.page && a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
+                ask: ({ page, cands, url, title }) => resolveTargets({
                     candidates: cands,
                     state: { url, title, goal: ctx.spec.goal },
                     element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
