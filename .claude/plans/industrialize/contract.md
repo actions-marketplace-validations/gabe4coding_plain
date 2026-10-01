@@ -382,7 +382,9 @@ browser:
 
 1. Work in your own worktree and branch, from the Phase 0 merge commit.
 2. Edit only the files your lane owns (table in §1), plus new files under your own names.
-3. Tests go in **new** `src/<lane-file>.test.ts` files. Use injected engines/observers; no Jev key,
+3. Your "not implemented yet" guards are asserted only in `src/guards-<lane>.test.ts` (a–e). Delete that file,
+   or turn it into real tests, when you remove the guards; never edit another lane's guard file or a shared test.
+   Tests go in **new** `src/<lane-file>.test.ts` files. Use injected engines/observers; no Jev key,
    no network, like today's suite.
 4. Do **not** commit `dist/` or `plugins/*/runtime.tgz`. The integrator rebuilds once.
 5. Docs: write only your own new page — A `docs/reporting.md`, B `docs/artifacts.md`,

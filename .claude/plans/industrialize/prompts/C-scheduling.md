@@ -43,6 +43,9 @@ like any non-pass attempt.
 
 ## Tests
 
+Your guards are asserted only in `src/guards-c.test.ts`. Delete it (or rewrite it as real tests of
+the new behavior) when you remove the guards. Do not edit any other existing test file.
+
 New files, with a fake `runOne` (no browser, no key): retry counts, flaky marking, no retry of load
 errors, bail with workers 1 and 4 (running specs finish, never-started ones skipped), max-tokens
 including retries, input-order output when attempts finish out of order, last-run file round trip,
