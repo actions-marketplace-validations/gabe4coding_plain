@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseStep, rejectCss, loadNativeSpec, type Step } from './spec.js';
+import { parseStep, rejectCss, loadNativeSpec, TagsSchema, type LoadOptions, type Step } from './spec.js';
 import { label } from './results.js';
 
 const text = z.string().trim().min(1);
@@ -14,9 +14,9 @@ export const DirectionSchema = z.enum(['up', 'down', 'left', 'right']);
 export type Direction = z.infer<typeof DirectionSchema>;
 type SharedMobileStep = Extract<Step, { kind: 'click' | 'fill' | 'dblclick' | 'check' | 'uncheck' | 'scroll' | 'press' | 'wait' | 'expect' }>;
 export type MobileStep = SharedMobileStep |
-  { kind: 'tap'; target: string; optional?: boolean } |
-  { kind: 'longpress'; target: string; optional?: boolean } |
-  { kind: 'swipe'; direction: Direction; within?: string; optional?: boolean };
+  { kind: 'tap'; target: string; optional?: boolean; origin?: string } |
+  { kind: 'longpress'; target: string; optional?: boolean; origin?: string } |
+  { kind: 'swipe'; direction: Direction; within?: string; optional?: boolean; origin?: string };
 const supported = new Set(['click', 'fill', 'dblclick', 'check', 'uncheck', 'scroll', 'press', 'wait', 'expect']);
 
 export function validateMobileStep(step: MobileStep, allowPlaceholders = false): MobileStep {
@@ -44,8 +44,8 @@ export function parseMobileStep(raw: unknown, where = 'mobile', index = 0): Mobi
 }
 
 export function mobileLabel(step: MobileStep): string {
-  if (step.kind === 'tap' || step.kind === 'longpress') return `${step.kind} ${JSON.stringify(step.target)}`;
-  if (step.kind === 'swipe') return `swipe ${step.direction}${step.within ? ` within ${JSON.stringify(step.within)}` : ''}`;
+  if (step.kind === 'tap' || step.kind === 'longpress') return `${step.origin ? `${step.origin} › ` : ''}${step.kind} ${JSON.stringify(step.target)}`;
+  if (step.kind === 'swipe') return `${step.origin ? `${step.origin} › ` : ''}swipe ${step.direction}${step.within ? ` within ${JSON.stringify(step.within)}` : ''}`;
   return label(step);
 }
 
@@ -55,10 +55,13 @@ export interface MobileSpec extends MobileTarget {
   hooks?: string;
   goal?: string;
   env: Record<string, unknown>;
+  tags?: string[];
+  timeout?: number;
   steps: MobileStep[];
 }
-export function loadMobileSpec(file: string): MobileSpec {
+export function loadMobileSpec(file: string, opts?: LoadOptions): MobileSpec {
   return loadNativeSpec(file, MobileTargetSchema.extend({
     name: text, hooks: text.optional(), goal: text.optional(), env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
-  }), parseMobileStep);
+    tags: TagsSchema, timeout: z.number().int().positive().optional(),
+  }), parseMobileStep, opts);
 }

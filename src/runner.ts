@@ -1,11 +1,14 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { chromium, type Browser, type BrowserContextOptions, type Page } from 'playwright';
+import { chromium, type Browser, type Page } from 'playwright';
 import { interpolate, type Spec } from './spec.js';
 import { runStepSafely, holdActivity, type StepContext, type StepResult, type Status } from './steps.js';
 import { installSettleObserver } from './page.js';
 import { startHooks, type HooksRunner } from './hooks.js';
+import { browserContextOptions } from './context-options.js';
+import { observerCalls } from './observe.js';
+import type { CaptureTarget, RunObserver, SpecInfo } from './suite-types.js';
 
 export interface TestResult { name: string; status: Status; steps: StepResult[]; jevCalls: number; totalTokens: number; }
 
@@ -73,6 +76,7 @@ export interface RunOptions {
   channel?: string;
   /** Internal: MCP owns shutdown so Playwright must not race its cleanup on process signals. */
   handleSignals?: boolean;
+  specTimeout?: number;
 }
 
 // One Chromium per launch profile for the whole process; each spec gets its own context (isolation
@@ -119,12 +123,7 @@ export function mapLimitSettled<T, R>(items: T[], limit: number, fn: (item: T) =
 // reuse the shared throwaway browser (the default). Returns the page plus how to release it: attaching must
 // disconnect (never close the user's Chrome) and only close the tab it opened.
 async function openPage(spec: Spec, opts: RunOptions): Promise<{ page: Page; close: () => Promise<void> }> {
-  const contextOptions: BrowserContextOptions = {};
-  if (spec.auth) contextOptions.httpCredentials = { username: spec.auth.user, password: spec.auth.pass };
-  if (spec.geolocation) {
-    contextOptions.geolocation = { latitude: spec.geolocation.lat, longitude: spec.geolocation.lon };
-    contextOptions.permissions = ['geolocation'];
-  }
+  const contextOptions = browserContextOptions(spec, opts);
 
   if (opts.cdp) {
     if (spec.auth || spec.geolocation) {
@@ -228,7 +227,7 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
   };
 }
 
-export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult> {
+export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserver, info?: SpecInfo): Promise<TestResult> {
   const steps: StepResult[] = [];
   let jevCalls = 0;
   let totalTokens = 0;
@@ -242,20 +241,32 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
   let hooksRunner: HooksRunner | null = null;
   if (spec.hooks) hooksRunner = await startHooks(spec.hooks);
 
-  const session = await openSession(spec, opts, track);
+  let session: Session;
+  try { session = await openSession(spec, opts, track); }
+  catch (error) { hooksRunner?.close(); throw error; }
+  const target: CaptureTarget = { engine: 'browser', page: () => session.ctx.page,
+    screenshot: async (file) => { fs.mkdirSync(path.dirname(file), { recursive: true }); await session.ctx.page.screenshot({ path: file }); } };
+  const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
+  const record = async (result: StepResult): Promise<void> => {
+    const index = steps.push(result) - 1;
+    await observe('stepEnd', { index, result, target });
+  };
+  await observe('sessionOpen', { target });
 
   // What setup returns, exposed to steps/teardown as `${hooks.*}`/`data` — `{}` when there's no hooks.
   let data: Record<string, unknown> = {};
   if (hooksRunner?.has.setup) {
     try {
       data = await hooksRunner.setup(spec);
-      steps.push({ step: 'setup', status: 'pass' });
+      await record({ step: 'setup', status: 'pass' });
     } catch (err) {
       // Nothing ran yet, so there's nothing for teardown to release — just close the browser and the hooks child.
+      const detail = err instanceof Error ? err.message : String(err);
+      await record({ step: 'setup', status: 'error', detail });
+      await observe('sessionClose', { status: 'error', target });
       await session.close();
       hooksRunner.close();
-      const detail = err instanceof Error ? err.message : String(err);
-      return { name: spec.name, status: 'error', steps: [{ step: 'setup', status: 'error', detail }], jevCalls, totalTokens };
+      return { name: spec.name, status: 'error', steps, jevCalls, totalTokens };
     }
   }
 
@@ -267,7 +278,7 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
       runSteps = interpolated.steps;
     } catch (err) {
       overall = 'error';
-      steps.push({ step: 'interpolate', status: 'error', detail: err instanceof Error ? err.message : String(err) });
+      await record({ step: 'interpolate', status: 'error', detail: err instanceof Error ? err.message : String(err) });
       runSteps = [];
     }
 
@@ -277,7 +288,7 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
       let result = await runStepSafely(session.ctx, step);
       const notes = session.drainNotes();
       if (notes.length) result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };
-      steps.push(result);
+      await record(result);
       if (result.status !== 'pass' && result.status !== 'skipped') {
         overall = result.status;
         break;
@@ -289,15 +300,16 @@ export async function runSpec(spec: Spec, opts: RunOptions): Promise<TestResult>
       try {
         if (hooksRunner.has.teardown) {
           await hooksRunner.teardown({ spec, data, result: { status: overall, steps } });
-          steps.push({ step: 'teardown', status: 'pass' });
+          await record({ step: 'teardown', status: 'pass' });
         }
       } catch (err) {
         overall = 'error';
-        steps.push({ step: 'teardown', status: 'error', detail: err instanceof Error ? err.message : String(err) });
+        await record({ step: 'teardown', status: 'error', detail: err instanceof Error ? err.message : String(err) });
       } finally {
         hooksRunner.close(); // the child never lingers past its one spec run
       }
     }
+    await observe('sessionClose', { status: overall, target });
     await session.close();
   }
 

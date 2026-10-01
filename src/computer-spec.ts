@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseStep, rejectCss, loadNativeSpec, type Step } from './spec.js';
+import { parseStep, rejectCss, loadNativeSpec, TagsSchema, type LoadOptions, type Step } from './spec.js';
 
 export const ComputerTargetSchema = z.object({ app: z.string().trim().min(1).optional(), pid: z.number().int().positive().optional() })
   .refine((v) => (v.app !== undefined) !== (v.pid !== undefined), 'provide exactly one of app or pid');
@@ -18,11 +18,14 @@ export interface ComputerSpec {
   hooks?: string;
   goal?: string;
   env: Record<string, unknown>;
+  tags?: string[];
+  timeout?: number;
   steps: Step[];
 }
-export function loadComputerSpec(file: string): ComputerSpec {
+export function loadComputerSpec(file: string, opts?: LoadOptions): ComputerSpec {
   return loadNativeSpec(file, z.object({
     name: z.string().min(1), app: z.string().min(1), hooks: z.string().min(1).optional(), goal: z.string().min(1).optional(),
     env: z.record(z.string(), z.unknown()).default({}), steps: z.array(z.unknown()).min(1),
-  }).strict(), parseComputerStep);
+    tags: TagsSchema, timeout: z.number().int().positive().optional(),
+  }).strict(), parseComputerStep, opts);
 }

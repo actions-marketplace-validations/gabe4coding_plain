@@ -3,28 +3,33 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
+import { expandIncludes } from './include.js';
+import { checkSpecFeatures } from './spec-features.js';
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
+const origin = z.string().optional();
 const target = nonEmptyString;
+/** `tags: smoke` or `tags: [smoke, checkout]`; always a list after loading. */
+export const TagsSchema = z.union([nonEmptyString.transform((tag) => [tag]), z.array(nonEmptyString)]).optional();
 // Schemas are the source of truth for normalized data and its TypeScript types.
 export const StepSchema = z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal(StepKind.goto), url: nonEmptyString, optional }),
-    z.object({ kind: z.literal(StepKind.fill), target, value: z.string(), optional }),
-    z.object({ kind: z.literal(StepKind.click), target, optional }),
-    z.object({ kind: z.literal(StepKind.hover), target, optional }),
-    z.object({ kind: z.literal(StepKind.dblclick), target, optional }),
-    z.object({ kind: z.literal(StepKind.rightclick), target, optional }),
-    z.object({ kind: z.literal(StepKind.select), target, value: nonEmptyString, optional }),
-    z.object({ kind: z.literal(StepKind.check), target, optional }),
-    z.object({ kind: z.literal(StepKind.uncheck), target, optional }),
-    z.object({ kind: z.literal(StepKind.upload), target, files: z.array(nonEmptyString).min(1), optional }),
-    z.object({ kind: z.literal(StepKind.scroll), target, optional }),
-    z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, within: nonEmptyString.optional(), optional }),
-    z.object({ kind: z.literal(StepKind.press), key: nonEmptyString, optional }),
-    z.object({ kind: z.literal(StepKind.drag), source: nonEmptyString, target, optional }),
+    z.object({ kind: z.literal(StepKind.goto), url: nonEmptyString, optional, origin }),
+    z.object({ kind: z.literal(StepKind.fill), target, value: z.string(), optional, origin }),
+    z.object({ kind: z.literal(StepKind.click), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.hover), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.dblclick), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.rightclick), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.select), target, value: nonEmptyString, optional, origin }),
+    z.object({ kind: z.literal(StepKind.check), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.uncheck), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.upload), target, files: z.array(nonEmptyString).min(1), optional, origin }),
+    z.object({ kind: z.literal(StepKind.scroll), target, optional, origin }),
+    z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, within: nonEmptyString.optional(), optional, origin }),
+    z.object({ kind: z.literal(StepKind.press), key: nonEmptyString, optional, origin }),
+    z.object({ kind: z.literal(StepKind.drag), source: nonEmptyString, target, optional, origin }),
     // Negative y is the escape hatch for exit-intent triggers above the viewport.
-    z.object({ kind: z.literal(StepKind.mouse), x: z.number(), y: z.number(), optional }),
-    z.object({ kind: z.literal(StepKind.expect), expectations: z.array(nonEmptyString).min(1), within: nonEmptyString.optional(), optional }),
+    z.object({ kind: z.literal(StepKind.mouse), x: z.number(), y: z.number(), optional, origin }),
+    z.object({ kind: z.literal(StepKind.expect), expectations: z.array(nonEmptyString).min(1), within: nonEmptyString.optional(), optional, origin }),
 ]);
 export const SpecSchema = z.object({
     name: nonEmptyString,
@@ -35,6 +40,13 @@ export const SpecSchema = z.object({
     goal: nonEmptyString.optional(),
     auth: z.object({ user: nonEmptyString, pass: nonEmptyString }).optional(),
     geolocation: z.object({ lat: z.number(), lon: z.number() }).optional(),
+    tags: TagsSchema,
+    timeout: z.number().int().positive().optional(),
+    browser: z.object({
+        viewport: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
+        device: nonEmptyString.optional(), locale: nonEmptyString.optional(), timezone: nonEmptyString.optional(),
+        colorScheme: z.enum(['light', 'dark']).optional(), storageState: nonEmptyString.optional(), saveState: nonEmptyString.optional(),
+    }).strict().optional(),
     // MCP-built specs have no env block; loadSpec supplies {} for file-based specs.
     env: z.record(z.string(), z.unknown()).optional(),
     hooks: nonEmptyString.optional(), // absolute path after loading
@@ -56,27 +68,31 @@ function parseData(schema, raw, where) {
 function fail(msg) {
     throw new Error(`invalid spec: ${msg}`);
 }
-// `$VAR` in an auth value means "read process.env.VAR" so a credential never sits in the spec file
-// itself. A plain string (e.g. the-internet's public demo creds) passes through unchanged.
-function resolveEnvRef(path, field, value) {
+function resolveEnvRef(path, field, value, opts) {
     if (!value.startsWith('$'))
         return value;
     const name = value.slice(1);
     const resolved = process.env[name];
-    if (!resolved)
-        fail(`${path}: "${field}" references $${name} but that env var is not set`);
+    if (!resolved) {
+        const message = `${path}: "${field}" references $${name} but that env var is not set`;
+        if (opts?.onMissingEnv) {
+            opts.onMissingEnv(message);
+            return value;
+        }
+        fail(message);
+    }
     return resolved;
 }
 // `env` mirrors auth/geolocation's `$VAR` convention but at arbitrary depth, since setup data
 // (dataset lookups, feature flags, ...) is naturally nested (`env.user.name`, not `env["user.name"]`).
-export function resolveEnvBlock(path, field, raw) {
+export function resolveEnvBlock(path, field, raw, opts) {
     const out = {};
     for (const [key, value] of Object.entries(raw)) {
         const childField = `${field}.${key}`;
         if (typeof value === 'string')
-            out[key] = resolveEnvRef(path, childField, value);
+            out[key] = resolveEnvRef(path, childField, value, opts);
         else if (value !== null && typeof value === 'object' && !Array.isArray(value))
-            out[key] = resolveEnvBlock(path, childField, value);
+            out[key] = resolveEnvBlock(path, childField, value, opts);
         else
             out[key] = value;
     }
@@ -119,16 +135,28 @@ export function parseStep(path, i, raw) {
     // Preserve the existing flag convention: only literal true enables optional execution.
     return parseData(StepSchema, { ...fields, kind, optional: obj.optional === true }, where);
 }
-export function loadSpec(path) {
+/** `origin` is set only by include expansion, never by a spec author or an MCP step: it is taken off before the
+ *  step is parsed (so `parseStep` keeps rejecting it) and put back on the parsed step for its label. */
+export function withOrigin(raw, parse) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw) || !('origin' in raw))
+        return parse(raw);
+    const { origin, ...rest } = raw;
+    if (typeof origin !== 'string' || !origin)
+        fail('origin must be a non-empty string');
+    return { ...parse(rest), origin };
+}
+export function loadSpec(path, opts) {
     const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
-    return {
+    const spec = {
         ...raw,
         dir: dirname(path),
-        auth: raw.auth && resolveEnvBlock(path, 'auth', raw.auth),
-        env: resolveEnvBlock(path, 'env', raw.env ?? {}),
+        auth: raw.auth && resolveEnvBlock(path, 'auth', raw.auth, opts),
+        env: resolveEnvBlock(path, 'env', raw.env ?? {}, opts),
         hooks: raw.hooks === undefined ? undefined : resolve(dirname(path), raw.hooks),
-        steps: raw.steps.map((step, i) => parseStep(path, i, step)),
+        steps: expandIncludes(raw.steps, path).map((step, i) => withOrigin(step, (s) => parseStep(path, i, s))),
     };
+    checkSpecFeatures(spec, path);
+    return spec;
 }
 // Deep-walks `value`, replacing every `${a.b.c}` in any string with the leaf it names under
 // `vars.env`/`vars.hooks` (the spec's env block, and whatever the hooks module's setup returned).
@@ -165,9 +193,11 @@ export function rejectCss(step, what) {
         throw new Error(`css= is browser-only; describe a ${what} accessibility element`);
 }
 /** Loads a desktop/mobile spec file: hooks resolved next to it, `$VAR` env leaves resolved, steps parsed. */
-export function loadNativeSpec(file, schema, parseOne) {
+export function loadNativeSpec(file, schema, parseOne, opts) {
     const raw = schema.parse(parse(readFileSync(file, 'utf8')));
     const dir = dirname(resolve(file));
+    const env = resolveEnvBlock(file, 'env', raw.env, opts);
+    checkSpecFeatures(raw, file);
     return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
-        env: resolveEnvBlock(file, 'env', raw.env), steps: raw.steps.map((s, i) => parseOne(s, file, i)) };
+        env, steps: expandIncludes(raw.steps, file).map((s, i) => withOrigin(s, (step) => parseOne(step, file, i))) };
 }

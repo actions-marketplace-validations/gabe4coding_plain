@@ -8,7 +8,7 @@ Branch: create and work on `industrialize/e-spec-features`, starting from `main`
 
 ## Files you own (edit only these, plus new files you create)
 
-`src/include.ts`, `src/context-options.ts`, `src/runner.ts` (`runSpec`, `openSession`, `openPage`),
+`src/include.ts`, `src/spec-features.ts`, `src/context-options.ts`, `src/runner.ts` (`runSpec`, `openSession`, `openPage`),
 `runNativeSpec` in `src/native.ts` (only that function), `docs/drafts/spec-features.md` (new), new
 tests `src/include*.test.ts`, `src/context-options*.test.ts`, `src/spec-timeout*.test.ts`.
 Keep every observer call in `runSpec` / `runNativeSpec` exactly where Phase 0 put it.
@@ -39,9 +39,11 @@ Keep every observer call in `runSpec` / `runNativeSpec` exactly where Phase 0 pu
    races the remaining time. When it runs out: push a result `{ step: <label>, status: 'error',
    detail: 'spec timeout after <ms> ms' }`, start no further step, run teardown as today, then close
    the session (this also stops the cut step). Setup hooks count toward the time.
-5. Remove the "not implemented yet" guards for `include`, `browser:`, spec `timeout` and
-   `--spec-timeout`. Phase 0 put them in your own files (`include.ts`, `context-options.ts`,
-   `runner.ts` / `runNativeSpec`). If you find one in a frozen file, do not edit it: report it.
+5. Remove the "not implemented yet" guards for `include` (`src/include.ts`) and for spec `timeout`,
+   `browser:` and `--spec-timeout` (`src/spec-features.ts`, contract §9; they run at load time so
+   `validate` reports them). Keep `checkSpecFeatures` / `checkSpecTimeoutFlag` exported (frozen files
+   call them); they may become no-ops or keep real validation. `runNativeSpec` already receives
+   `specTimeout`; `RunOptions.specTimeout` carries the flag for the browser.
 6. `docs/drafts/spec-features.md`: the new keys as rows ready to paste into
    `docs/spec-reference.md`, plus a short "Reusable flows" and "Logged-in state" section.
 

@@ -13,7 +13,11 @@ Branch: create and work on `industrialize/d-selection`, starting from `main`.
 
 ## Your task
 
-Remove the "not implemented yet" guards Phase 0 put in `src/select.ts` and `src/config.ts`.
+Remove the "not implemented yet" guards Phase 0 put in `src/select.ts` and `src/config.ts`. Read contract §9:
+`options.ts` already merges every config key (including `files:`) with the right precedence, so `loadConfig`
+only validates and resolves paths; `listSelected(specs, opts)` must print the list and return `true` for
+`--list` (then `runSuite` stops); and `validate.ts` stays generic — the `timeout:`/`browser:` checks are lane E's
+load-time guards, not yours.
 
 1. `select(specs, opts)`, applied in this order, keeping input order:
    - `--grep RE`: keep a spec when RE matches its `name` OR its file path (relative to cwd).
