@@ -83,3 +83,11 @@ test('browser timing golden output is unchanged on and off', async () => {
     'ms run total=20 settle=3 jev=2',
   ]);
 });
+
+test('a spec whose run threw prints file + error, as the pre-refactor cli.ts did', async () => {
+  const engine: SuiteEngine<string> = { engine: 'browser', maxWorkers: 4, load: (file) => file,
+    meta: (name) => ({ name: `spec ${name}`, tags: [] }),
+    run: async () => { throw new Error("Cannot find module '/x/hooks.mjs'"); } };
+  const lines = await capture(() => runSuite(engine, options(['a.yaml']), services));
+  assert.deepEqual(lines, ['✘ a.yaml', "  error: Cannot find module '/x/hooks.mjs'"]);
+});

@@ -5,7 +5,7 @@ import { loadMobileSpec } from './mobile-spec.js';
 import { nativeCli } from './native.js';
 
 const appium = (values: Record<string, string | undefined>) => values.server ?? process.env.PLAINWRIGHT_APPIUM_URL ?? 'http://127.0.0.1:4723';
-await nativeCli('plainwright-mobile', '[--server http://127.0.0.1:4723] ', { server: { type: 'string' } }, 'mobile', {
+await nativeCli('plainwright-mobile', '[--server http://127.0.0.1:4723] ', 'mobile', {
   serve: async (timeout, values) => (await import('./mobile-mcp.js')).serveMobileMcp(timeout, appium(values)), // MCP SDK only when serving
   load: loadMobileSpec,
   meta: (spec) => ({ name: spec.name, tags: spec.tags ?? [], timeoutMs: spec.timeout }),

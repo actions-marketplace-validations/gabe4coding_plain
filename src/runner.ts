@@ -228,9 +228,6 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
 }
 
 export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserver, info?: SpecInfo): Promise<TestResult> {
-  if (spec.timeout !== undefined) throw new Error('timeout: not implemented yet');
-  checkSpecTimeout(opts.specTimeout);
-  browserContextOptions(spec, opts);
   const steps: StepResult[] = [];
   let jevCalls = 0;
   let totalTokens = 0;
@@ -317,8 +314,4 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
   }
 
   return { name: spec.name, status: overall, steps, jevCalls, totalTokens };
-}
-
-export function checkSpecTimeout(value?: number): void {
-  if (value !== undefined) throw new Error('--spec-timeout: not implemented yet');
 }

@@ -8,7 +8,7 @@ import { loadEnvFiles } from './jev.js';
 
 const [mode] = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 if (mode === 'plan' || mode === 'do') await planOrDo(mode);
-else await nativeCli('plainwright-computer', 'plan|do "<sentence>" | ', {}, 'desktop', {
+else await nativeCli('plainwright-computer', 'plan|do "<sentence>" | ', 'desktop', {
   serve: async (timeout) => (await import('./computer-mcp.js')).serveComputerMcp(timeout), // MCP SDK only when serving
   load: loadComputerSpec,
   meta: (spec) => ({ name: spec.name, tags: spec.tags ?? [], timeoutMs: spec.timeout }),

@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 import { loadSpec } from './spec.js';
-import { runSpec, closeSharedBrowser, checkSpecTimeout, type RunOptions } from './runner.js';
+import { runSpec, closeSharedBrowser, type RunOptions } from './runner.js';
 import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev.js';
-import { parseSuiteArgs } from './options.js';
+import { parseSuiteArgs, UsageError } from './options.js';
 import { runSuite } from './suite.js';
 import { validate } from './validate.js';
+import { checkSpecTimeoutFlag } from './spec-features.js';
 import type { SuiteEngine } from './suite-types.js';
 
 loadEnvFiles();
 try {
   const { command, opts, flags } = parseSuiteArgs(process.argv.slice(2), 'browser');
-  checkSpecTimeout(opts.specTimeout);
+  checkSpecTimeoutFlag(opts.specTimeout);
   const runOpts: RunOptions = { headed: !flags.headless, timeout: Number(flags.timeout),
     profile: flags.profile as string | undefined, cdp: flags.cdp as string | undefined,
     channel: flags.channel as string | undefined, specTimeout: opts.specTimeout };
@@ -36,6 +37,8 @@ try {
     } else process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;
   }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
+  console.error(error instanceof UsageError
+    ? 'usage: plainwright [--headless] [--timeout <ms>] [--profile <dir>] [--cdp <url>] [--channel chrome] [--timing] [--workers N] [suite options] <spec.yaml|dir|glob> [more ...] | validate <files...> | mcp'
+    : error instanceof Error ? error.message : String(error));
   process.exitCode = 2;
 }

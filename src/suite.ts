@@ -22,7 +22,9 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
     }
   });
   const selected = select(entries.flatMap((entry) => 'loaded' in entry ? [entry.loaded] : []), opts);
-  listSelected(selected, opts);
+  if (listSelected(selected, opts)) return { engine: engine.engine, provider: '', model: '', startedAt,
+    durationMs: Date.now() - start, specs: [], status: 'pass',
+    totals: { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0 } };
   if (opts.workers > engine.maxWorkers) throw new Error(`--workers > ${engine.maxWorkers} is not supported for ${engine.engine}`);
   checkSchedule(opts);
   const observers: { name: string; value: RunObserver }[] = [];
@@ -80,9 +82,8 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
         const result = await engine.run(loaded.spec, observer, info);
         return { ...result, attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
       } catch (error) {
-        const detail = error instanceof Error ? error.message : String(error);
-        return { name: loaded.name, status: 'error', steps: [{ step: 'run', status: 'error', detail }], jevCalls: 0,
-          totalTokens: 0, attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
+        return { name: loaded.name, status: 'error', steps: [], jevCalls: 0, totalTokens: 0, error: `${error}`,
+          attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
       }
     })[Symbol.asyncIterator]();
     for (const entry of entries) {

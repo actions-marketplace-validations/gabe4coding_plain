@@ -18,9 +18,10 @@ export function textReporter(timing: boolean): RunObserver {
   return {
     async specEnd({ report }: { report: SpecReport }) {
       const result = report.attempts.at(-1);
-      if (!result) {
+      // A spec that failed to load or threw before its first step prints as the old cli.ts did: file + error.
+      if (!result || result.error !== undefined) {
         console.log(`✘ ${report.file}`);
-        console.log(`  error: ${shownLoadError(report.loadError)}`);
+        console.log(`  error: ${shownLoadError(result ? result.error : report.loadError)}`);
         return;
       }
       console.log(`${icon(result.status)} ${report.name}  (${result.jevCalls} Jev calls, ${result.totalTokens} tokens)`);
