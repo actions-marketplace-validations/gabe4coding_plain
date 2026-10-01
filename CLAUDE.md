@@ -35,6 +35,7 @@ node scripts/benchmark-planner.mjs --runs 3          # sentence → steps planne
 node scripts/benchmark-picks.mjs --runs 3            # picks with/without goal on saved pages (scripts/pick-states/)
 node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, changed on vs off (costs Claude usage); --read both: read on vs off
 node scripts/benchmark-read.mjs --runs 2 --smart     # read vs smart snapshot on saved pages (scripts/read-states/, read-cases.json)
+node scripts/eval-browser-steps.mjs --variant v1     # step-time eval: examples + MCP session, overhead and same step statuses (.claude/hillclimb/, gitignored)
 ```
 
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
