@@ -61,7 +61,9 @@ the Wikipedia and Open Library pages):
 The pages it did not change get the same input in both arms, so their movement (±2 right, the Einstein count
 at 0.67 → 0.78) is run-to-run noise. On the changed pages every case is now right: "the text field is enabled
 and the checkbox is checked" (it is not) went from 0.51–0.63 to 0.02–0.03, "checkbox 1 is checked" from
-0.12–0.26 to 0.02, and "checkbox 2 is checked" (true) from 0.92–0.93 to 0.98. The table below is the baseline,
+0.12–0.26 to 0.02, and "checkbox 2 is checked" (true) from 0.92–0.93 to 0.98. The read benchmark (`benchmark-read.mjs`, which
+now passes its saved pages through `markUnchecked` too) is unchanged: 38/38 right before and after, 2 runs each,
+Jev tokens on the two pages with radios (Wikipedia, Open Library) within 0.1%. The table below is the baseline,
 before the mark.
 
 ## Result (2026-10-01, jev-1.13.0, one claim per call, 3 runs, 417 judgments)
