@@ -5,3 +5,6 @@ dist/**/*.test.js
 
 # Runtime caches created by plugin launchers; source dependencies live at the root.
 plugins/*/.runtime/
+
+# Eval flows (scripts/eval-browser-steps.mjs): state, expected statuses, results and reports stay local.
+.claude/hillclimb/

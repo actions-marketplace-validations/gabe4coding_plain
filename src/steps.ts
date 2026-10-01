@@ -63,7 +63,7 @@ export function holdActivity(page: Page): () => void {
 
 // The DOM must be quiet this long before a step observes it. Requests are waited for separately
 // (settlePage), so this only has to outlast rendering bursts, not a slow response.
-const SETTLE_QUIET_MS = 300;
+const SETTLE_QUIET_MS = 150;
 const SETTLE_MAX_MS = 3000;
 // A request older than this is a long poll, a stream or a stuck beacon, not a response the page is about
 // to render: it stops holding the settle, or every step on such a site would wait out SETTLE_MAX_MS.
@@ -104,12 +104,14 @@ export async function waitHold(page: Page): Promise<void> {
  * shows up instead of a flat timeout. A navigation always wins and is awaited to `load`. Otherwise: give
  * the page `graceMs` after the action to start an xhr/fetch, then once none are pending wait another
  * `graceMs` of quiet before returning. `graceMs` is per-action (clicks settle fast; a debounced input
- * needs longer). 1500 ms is the hard cap either way.
+ * needs longer). 1500 ms is the hard cap either way. A click's grace is short and its 200 ms watch is a
+ * hold instead: a request the click starts a little later (a handler's setTimeout) is still waited
+ * for, by the next step's settle, while that step's Jev call runs.
  * `holdMs` (> graceMs): the page is not settled before this long after the action, e.g. a debounced
  * input's request may start only after ~300-400 ms. The rest of it is not waited here but by the next
  * step's settle (settlePage, or waitHold in runStep), so the next step's Jev call runs meanwhile.
  */
-export async function mayNavigate(ctx: StepContext, action: () => Promise<void>, graceMs = 200, holdMs = 0): Promise<void> {
+export async function mayNavigate(ctx: StepContext, action: () => Promise<void>, graceMs = 50, holdMs = 200): Promise<void> {
   const page = ctx.page;
   const requests = trackRequests(page); // before the action, so requests it starts are counted
   let navStarted = false;
@@ -178,7 +180,8 @@ export async function settledAsk<S, R>(
   const settled = await timed(ctx, 'settle', () => settlePage(page));
   let state = first;
   // Iframes have their own documents, which the main-document mark does not cover: always look again.
-  if (!unchangedSince(before, settled) || page.frames().length > 1) {
+  // So does a popup that became the active page while this one settled.
+  if (ctx.page !== page || !unchangedSince(before, settled) || page.frames().length > 1) {
     const again = await o.observe();
     if (!o.same(first, again)) state = again;
   }
@@ -201,7 +204,6 @@ export async function settledAsk<S, R>(
 const APPEAR_MS = 2000;
 
 export async function resolveLocators(ctx: StepContext, kind: CandidateKind, targets: string[]): Promise<ResolvedTarget<Locator>[]> {
-  const page = ctx.page;
   const results: ResolvedTarget<Locator>[] = new Array(targets.length);
   const jevIndices: number[] = [];
   const jevTargets: string[] = [];
@@ -209,7 +211,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   for (const [i, target] of targets.entries()) {
     if (target.startsWith('css=')) {
       const selector = target.slice(4);
-      const element = page.locator(selector);
+      const element = ctx.page.locator(selector);
       // No match yet is left to Playwright's auto-wait; several matches would end in its raw strict-mode dump.
       const count = await element.count();
       results[i] = count > 1
@@ -229,14 +231,21 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
     const deadline = Date.now() + Math.min(APPEAR_MS, ctx.timeout);
     let look;
     for (;;) {
+      // Read the active page on each look. settledAsk relooks when a popup replaces ctx.page
+      // during settle; a page captured once here would still scan and resolve on the opener.
+      // The locator is bound to the page that was scanned, so a different page is a different state.
       look = await settledAsk(ctx, {
-        observe: async () => ({
-          cands: await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES)),
-          url: page.url(),
-          title: await page.title(),
-        }),
-        same: (a, b) => a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
-        ask: ({ cands, url, title }) => resolveTargets({
+        observe: async () => {
+          const page = ctx.page;
+          return {
+            page,
+            cands: await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES)),
+            url: page.url(),
+            title: await page.title(),
+          };
+        },
+        same: (a, b) => a.page === b.page && a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
+        ask: ({ page, cands, url, title }) => resolveTargets({
           candidates: cands,
           state: { url, title, goal: ctx.spec.goal },
           element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
