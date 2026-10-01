@@ -1,8 +1,9 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
+import { intelligence } from './automation.js';
 import { candidates, elementById, installSettleObserver, mark, settle, unchangedSince, waitForMutation } from './page.js';
-import { mayNavigate, settledAsk, settlePage, waitHold, type StepContext } from './steps.js';
+import { holdActivity, mayNavigate, resolveLocators, settledAsk, settlePage, waitHold, type StepContext } from './steps.js';
 
 let browser: Browser;
 let page: Page;
@@ -250,6 +251,52 @@ test('settlePage: waits for a young in-flight fetch even while the DOM is quiet'
   assert.ok(elapsed < 1500, `should not wait for the cap, took ${elapsed}ms`);
   await page.unroute('**/slow');
   await page.unroute('https://example.test/');
+});
+
+test('resolveLocators: a page swap during settle resolves against the new active page', async () => {
+  const context = await browser.newContext();
+  const opener = await context.newPage();
+  const popup = await context.newPage();
+  const originalPick = intelligence.pick;
+  const release = holdActivity(opener);
+  let current: Page = opener;
+  try {
+    await opener.setContent('<body><button>Stay here</button></body>');
+    await popup.setContent('<body><button>Popup only</button></body>');
+    let signalFirst = () => {};
+    const firstPick = new Promise<void>((resolve) => { signalFirst = resolve; });
+    const seen: string[] = [];
+    intelligence.pick = async (cands) => {
+      seen.push(cands.map((c) => c.desc).join('|'));
+      if (seen.length === 1) signalFirst();
+      return [{ id: 0, probability: 0.99, probabilities: { '0': 0.99 }, tokens: 1 }];
+    };
+    const ctx: StepContext = {
+      get page() { return current; },
+      spec: { name: 't', url: '', dir: process.cwd(), dialogs: 'accept', steps: [] },
+      timeout: 5000,
+      events: [],
+      track: () => {},
+      ms: {},
+    };
+    const pending = resolveLocators(ctx, 'click', ['the button']);
+    await firstPick;
+    // settlePage is held on the opener until the popup is the active page.
+    await new Promise((r) => setTimeout(r, 200));
+    current = popup;
+    release();
+    const [result] = await pending;
+    assert.deepEqual(seen.map((desc) => /Popup only/.test(desc)), [false, true]);
+    assert.match(seen[0], /Stay here/);
+    assert.match(result.detail, /Popup only/);
+    assert.equal(result.element!.page(), popup);
+    assert.equal(await result.element!.innerText(), 'Popup only');
+    assert.equal(ctx.ms.reasked, 1);
+  } finally {
+    intelligence.pick = originalPick;
+    release();
+    await context.close();
+  }
 });
 
 test('mayNavigate holdMs: returns after the grace, the rest of the hold is waited by the next step', async () => {
