@@ -292,6 +292,8 @@ export interface SuiteOptions {
 }
 ```
 
+Capture stays off until `artifacts.dir` is set (with `--artifacts` or config). `--screenshot` and `--trace` alone don't turn it on, and their `on-failure` defaults in the flag table only apply once the dir is set.
+
 ### Flags (all three CLIs unless noted)
 
 | Flag | Type | Default | Lane | Config key |
@@ -379,8 +381,8 @@ browser:
    C `docs/scheduling.md`, D `docs/selection-and-config.md`, E `docs/drafts/spec-features.md`,
    F `docs/ci.md`. Do not edit README, `spec-reference.md`, `computer-use.md`, `mobile-use.md`,
    `CLAUDE.md` or any SKILL.md: one docs agent (G) does those at the end.
-7. `.gitignore` already has `plainwright-results/` and `.plainwright/` (added in Phase 0); do not edit it.
-6. Do not push, open PRs or merge. Report the branch name and test output.
+6. `.gitignore` already has `plainwright-results/` and `.plainwright/` (added in Phase 0); do not edit it.
+7. Do not push, open PRs or merge. Report the branch name and test output.
 
 ## 8. Decisions (approved)
 
