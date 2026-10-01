@@ -1,0 +1,74 @@
+---
+name: Plainwright
+description: >-
+  Run Plainwright YAML specs with JUnit reporting and failure artifacts
+inputs:
+  specs:
+    description: Space-separated spec files, directories, or globs
+    required: true
+  args:
+    description: Extra Plainwright CLI flags
+    required: false
+    default: ''
+  junit:
+    description: JUnit XML output path
+    required: false
+    default: plainwright-results/junit.xml
+  artifacts:
+    description: Directory for screenshots and traces
+    required: false
+    default: plainwright-results
+  artifact-name:
+    description: >-
+      Name of the uploaded artifact; must be unique in the workflow run
+      (in a matrix, give each job its own name)
+    required: false
+    default: plainwright-results
+  node-version:
+    description: Node.js version
+    required: false
+    default: '22'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Install Plainwright dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci --omit=dev
+    - name: Install Chromium and system dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npx playwright install --with-deps chromium
+    - name: Run specs
+      shell: bash
+      env:
+        PLAINWRIGHT_ACTION_ARGS: ${{ inputs.args }}
+        PLAINWRIGHT_ACTION_SPECS: ${{ inputs.specs }}
+        PLAINWRIGHT_ACTION_JUNIT: ${{ inputs.junit }}
+        PLAINWRIGHT_ACTION_ARTIFACTS: ${{ inputs.artifacts }}
+      run: |
+        python3 - <<'PY'
+        import os
+        import shlex
+        import subprocess
+        import sys
+
+        command = [
+            'node', f"{os.environ['GITHUB_ACTION_PATH']}/dist/cli.js",
+            '--headless', '--reporter', 'text',
+            '--reporter', f"junit:{os.environ['PLAINWRIGHT_ACTION_JUNIT']}",
+            '--artifacts', os.environ['PLAINWRIGHT_ACTION_ARTIFACTS'],
+        ]
+        command += shlex.split(os.environ['PLAINWRIGHT_ACTION_ARGS'])
+        command += shlex.split(os.environ['PLAINWRIGHT_ACTION_SPECS'])
+        sys.exit(subprocess.call(command))
+        PY
+    - name: Upload failure artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.artifacts }}
