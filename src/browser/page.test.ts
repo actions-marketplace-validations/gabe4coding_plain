@@ -405,17 +405,20 @@ test('shortenUrls: a link target over 200 characters keeps its part before ? or 
   assert.equal(shortenUrls(shortenUrls(aria)), shortenUrls(aria));
 });
 
-test('snapshot: an iframe with an empty tree gets no section; a claim cuts long link targets; snapshotRegion marks a region', async () => {
-  await page.goto(html('<p>outside</p><iframe name="empty" srcdoc="<body></body>"></iframe>' +
+test('snapshot: an iframe with an empty tree gets no section; long link targets are cut; snapshotRegion marks a region', async () => {
+  await page.goto(html(`<p>outside</p><nav><a href="https://ads.example/aclk?sa=l&ai=${'y'.repeat(250)}">Sale</a></nav>` +
+    '<iframe name="empty" srcdoc="<body></body>"></iframe>' +
     `<iframe name="filled" srcdoc="<button>Inside</button><a href='https://ads.example/aclk?sa=l&ai=${'x'.repeat(250)}'>Ad</a>"></iframe>`));
   await page.frameLocator('iframe[name=filled]').getByRole('button').waitFor();
   const snap = await snapshot(page);
   assert.doesNotMatch(snap.aria, /--- iframe empty ---/);
   assert.match(snap.aria, /--- iframe filled ---\n- button "Inside"/);
   assert.equal(snap.region, undefined);
-  assert.match(snap.aria, /aclk\?sa=l/);
-  assert.match((await snapshot(page, { claim: true })).aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
+  assert.match(snap.aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
+  assert.doesNotMatch(snap.aria, /aclk\?sa=l/);
   const region = await snapshotRegion(page, page.locator('p'));
   assert.equal(region.region, true);
   assert.equal(region.aria, '- paragraph: outside');
+  const links = await snapshotRegion(page, page.locator('nav'));
+  assert.match(links.aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
 });

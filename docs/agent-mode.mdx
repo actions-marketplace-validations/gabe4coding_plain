@@ -172,7 +172,8 @@ characters, the result has a `note`: a `no` can then come from content that plai
 ### `snapshot`, `evaluate` and `find`
 
 - `snapshot` returns the accessibility tree. With `within` (`the results list`, `css=main`), it returns one region.
-  `mode` selects a raw tree, a compact view or a smart view. See [snapshot views](snapshots.mdx).
+  `mode` selects a raw tree, a compact view or a smart view. See [snapshot views](snapshots.mdx). A link target
+  that ends in `…` is cut (see [long link targets](snapshots.mdx#long-link-targets)).
 - `evaluate` runs a JavaScript expression and returns `value` and `url`. Use it to get data in a shape that you
   choose. plainwright waits for a promise to resolve. An `undefined` value becomes `null`.
 - `find` shows what Jev picks for a target. `kind` is `click`, `hover`, `fill`, `select`, `check`, `upload` or
