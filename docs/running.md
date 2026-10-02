@@ -167,9 +167,10 @@ and always in sharded CI: two processes writing the same sidecar in `on` mode me
 An entry is keyed by the step's index in its file, the step kind, the interpolated target, the spec's
 `goal` and the page (origin and path), so a data-driven spec gets one entry per distinct target and a
 flow used on two pages gets one per page. When the step as written holds a placeholder (`${env.*}`,
-`${hooks.*}`), the key stores a SHA-256 of the target instead of its text, so no test data or secret
-lands in the file. The entry stores the chosen element's description, its frame, the page, and a hash of
-the page's whole candidate list.
+`${hooks.*}`), the file stores only SHA-256 hashes of the target, the page path and the chosen
+element's description and frame, so no test data or secret lands in it. Otherwise the entry stores the
+chosen element's description, its frame and the page in plain text (they are reviewable, and may show
+page text), plus a hash of the page's whole candidate list.
 
 **When a stored pick is reused.** Only on the first attempt of a spec, on the same page (query and
 hash ignored), when the page's **whole candidate list is unchanged** (values typed into text fields are
