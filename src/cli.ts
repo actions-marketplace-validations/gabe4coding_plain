@@ -4,7 +4,7 @@ import { runSpec, closeSharedBrowser, type RunOptions } from './runner.js';
 import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev.js';
 import { parseSuiteArgs, UsageError } from './options.js';
 import { runSuite } from './suite.js';
-import { validate } from './validate.js';
+import { validate, formatValidation } from './validate.js';
 import { checkSpecTimeoutFlag } from './spec-features.js';
 import type { SuiteEngine } from './suite-types.js';
 
@@ -29,10 +29,8 @@ try {
       maxWorkers: Infinity, close: closeSharedBrowser };
     if (command === 'validate') {
       const results = validate(engine, opts.files);
-      for (const result of results) {
-        for (const warning of result.warnings) console.error(`${result.file}: ${warning}`);
-        if (result.error) console.error(`${result.file}: ${result.error}`);
-      }
+      const output = formatValidation(results); // ✔ / ✘ / ! lines on stdout
+      if (output) console.log(output);
       process.exitCode = results.some((result) => result.error) ? 1 : 0;
     } else process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;
   }
