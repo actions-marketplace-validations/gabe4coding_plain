@@ -83,17 +83,7 @@ plainwright --headless --last-failed tests/
 The record is shared by all three engines in the working directory. Selection owns the
 filtering and fallback notes; the scheduler does not filter specs itself.
 
-## Integration requirements
+## Load errors
 
-Lane C implements the scheduler and last-run reader/writer. On the Phase 0 base, lane D
-still needs to connect `--last-failed` selection to `readLastFailed()`.
-Two changes also need to land in the frozen `src/suite.ts` during integration:
-
-- Populate `RunReport.stopped` from the scheduler's `SpecReport.skipReason` values before
-  calling `runEnd` (currently Phase 0 leaves it unset).
-- Count load errors toward `--bail` by including them in scheduling's failure count
-  without running or retrying them. Phase 0 reports them outside `schedule()`, whose
-  `Loaded<S>[]` input only contains successfully loaded specs.
-
-The scheduling limits described above currently apply to the loaded specs passed to
-`schedule()`; load errors still report `error` with no attempts.
+A spec that fails to load is reported as `error` but never runs, so it is not retried and does not count
+toward `--bail`.

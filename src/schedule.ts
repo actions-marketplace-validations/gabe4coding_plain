@@ -18,6 +18,7 @@ export async function* schedule<S>(specs: Loaded<S>[], opts: SuiteOptions,
   let failures = 0;
   let tokens = 0;
   let stopped: SpecReport['skipReason'];
+  let aborted = false; // a runOne rejected: the iterator throws, so start nothing more
   const waiting: (() => void)[] = [];
   const outcomes = specs.map(async (spec) => {
     if (active >= opts.workers) await new Promise<void>((resolve) => waiting.push(resolve));
@@ -29,17 +30,19 @@ export async function* schedule<S>(specs: Loaded<S>[], opts: SuiteOptions,
       if (!stopped && opts.bail && failures >= opts.bail) stopped = 'bail';
       if (!stopped && opts.maxTokens !== undefined && tokens >= opts.maxTokens) stopped = 'max-tokens';
       if (stopped) return { ...report, skipReason: stopped };
+      if (aborted) return report;
 
       // A worker keeps this spec for all retries. Bail only prevents new specs;
-      // the token budget also prevents retries of specs already started.
+      // the token budget also prevents retries of specs already started. A spec whose
+      // retries were cut keeps its last attempt's status: it ran, so it is not skipped.
       for (let number = 0; number <= opts.retries; number++) {
         if (opts.maxTokens !== undefined && tokens >= opts.maxTokens) {
           stopped ??= 'max-tokens';
-          report.status = 'skipped';
-          report.skipReason = 'max-tokens';
           break;
         }
-        const attempt = await runOne(spec, number);
+        if (aborted) break;
+        let attempt: Attempt;
+        try { attempt = await runOne(spec, number); } catch (error) { aborted = true; throw error; }
         report.attempts.push(attempt);
         tokens += attempt.totalTokens;
         report.status = attempt.status;
@@ -48,6 +51,7 @@ export async function* schedule<S>(specs: Loaded<S>[], opts: SuiteOptions,
           break;
         }
       }
+      // Counts toward --bail. Specs never started return above, so a budget skip never counts.
       if (report.status !== 'pass') failures++;
       return report;
     } finally { active--; waiting.shift()?.(); }

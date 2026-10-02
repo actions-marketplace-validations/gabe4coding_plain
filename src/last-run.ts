@@ -22,7 +22,7 @@ export function readLastFailed(cwd: string): Set<string> | undefined {
     return new Set(run.specs.filter((spec) => spec.status !== 'pass').map((spec) => spec.file));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
-      console.error(`plainwright: could not read ${file}; ignoring previous run`);
+      console.error(`plainwright: could not read ${file} (${error instanceof Error ? error.message : error}); ignoring previous run`);
     return undefined;
   }
 }
