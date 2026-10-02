@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Check docs
+        run: npm run check:docs
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - name: Check generated files
@@ -43,7 +45,7 @@ jobs:
         run: |
           version="$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")"
           image="mcr.microsoft.com/playwright:v${version}-noble"
-          for file in Dockerfile docs/ci.md; do
+          for file in Dockerfile docs/ci.mdx; do
             if ! grep -qF "$image" "$file"; then
               echo "$file must use $image (playwright $version in package-lock.json)." >&2
               exit 1
