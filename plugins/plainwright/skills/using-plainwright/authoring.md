@@ -12,7 +12,7 @@
    with hook placeholders preserved. End a batch before a decision that requires new page information.
 3. `save` when the flow is complete.
 4. Edit the YAML: `optional: true` where the page is nondeterministic (a cookie banner, a promo), a `#` comment
-   where a phrasing is non-obvious, a `wait` before anything that appears after a delay. Credentials become
+   where a phrasing is non-obvious, a `wait` step before anything that appears after a delay. Credentials become
    `$VAR` references in the `env` block, used as `${env.*}` in steps.
 5. Add `tags: [smoke]` for selection. Move shared steps into a YAML file containing only `steps:`
    and use `include: ./flows/login.yaml`; placeholders use the root spec’s env/hooks. Keep flow files
