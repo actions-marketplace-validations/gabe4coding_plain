@@ -196,9 +196,9 @@ quoted globs are accepted; keep steps-only flow files outside spec input paths.
 | `--spec-timeout MS`, spec `timeout:` | Positive whole-attempt budget; spec field wins, unset by default. Setup/open consume it; step expiration is `error` and cleanup can finish after it. See [timeouts](spec-reference.md#timeouts). |
 | Spec `tags:` | String or list, e.g. `[smoke, desktop]`. |
 | Step `include: ./flows/login.yaml` | Expand a steps-only flow at load time; nesting allowed. Paths resolve relative to the including file, placeholders use the root spec’s env/hooks. See [reusable flows](spec-reference.md#reusable-flows). |
-| `--trace`, spec `browser:` | Browser traces/context settings are unavailable. Trace defaults to `off`; other modes error when artifact capture is enabled. `browser:` is rejected by the native schema. |
-| `--headless`, `--profile`, `--channel`, `--cdp`, `--timing`, `--server` | Not desktop options: each is an invocation error (exit 2). `--server` is mobile-only. |
-| `--workers N` | Only `1` is supported; greater values are invocation errors. |
+| `--trace`, spec `browser:` | Browser traces/context settings are unavailable. Trace is `off`; `--trace` with another mode errors when artifact capture is enabled, and config `artifacts.trace` is ignored with a note. `browser:` is rejected by the native schema. |
+| `--headless`, `--profile`, `--channel`, `--cdp`, `--timing`, `--server` | Not desktop options: each is an invocation error (exit 2). `--server` is mobile-only. The same keys in a shared config file are ignored with one note; see [shared config](running.md#desktop-and-mobile-in-the-same-folder). |
+| `--workers N` | Only `1` is supported; greater values are invocation errors. Config `workers` above `1` is ignored with a note. |
 
 ```sh
 plainwright-computer validate tests/desktop/

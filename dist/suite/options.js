@@ -78,7 +78,7 @@ export function parseSuiteArgs(argv, engine, env = process.env, cwd = process.cw
     const { values, positionals } = parseArgs({ args, allowPositionals: true, options: ARG_OPTIONS });
     const command = positionals[0] === 'mcp' ? 'mcp' : positionals[0] === 'validate' ? 'validate' : 'run';
     // The MCP server reads no config file and takes no suite options.
-    const config = command === 'mcp' ? {} : readConfig(cwd, values.config);
+    const { config, ignored } = engineConfig(command === 'mcp' ? {} : readConfig(cwd, values.config), engine);
     const setting = (key, cli, fallback) => cli ?? (ENV_FALLBACKS[key] ? env[ENV_FALLBACKS[key]] : undefined) ?? config[key] ?? fallback;
     const inputs = command === 'run' ? positionals : positionals.slice(1);
     if (command === 'mcp' && positionals.length !== 1)
@@ -135,7 +135,39 @@ export function parseSuiteArgs(argv, engine, env = process.env, cwd = process.cw
         throw new Error(`--${browserOnly} is browser-only`);
     if (engine !== 'mobile' && values.server)
         throw new Error('--server is mobile-only');
+    if (ignored.length)
+        console.error(`plainwright: ${engine} ignores these config values: ${ignored.join(', ')}`);
     return { command, opts, flags };
+}
+/**
+ * One config file can serve all three CLIs, so a config value the running engine cannot use is dropped and named in
+ * `ignored` (the caller prints one note). The same value as a CLI flag stays an invocation error. Environment
+ * fallbacks are not config and are not reported.
+ */
+export function engineConfig(config, engine) {
+    const kept = { ...config };
+    const ignored = [];
+    const drop = (key, shown = key) => {
+        delete kept[key];
+        ignored.push(shown);
+    };
+    if (engine !== 'browser') {
+        for (const key of BROWSER_ONLY_FLAGS)
+            if (kept[key] !== undefined)
+                drop(key);
+        if (Number(kept.workers) > 1)
+            drop('workers', `workers: ${kept.workers}`);
+        if (kept.timeout !== undefined && Number(kept.timeout) === 0)
+            drop('timeout', 'timeout: 0');
+        const { trace, ...artifacts } = kept.artifacts ?? {};
+        if (trace !== undefined && trace !== 'off') {
+            kept.artifacts = artifacts;
+            ignored.push(`artifacts.trace: ${trace}`);
+        }
+    }
+    if (engine !== 'mobile' && kept.server !== undefined)
+        drop('server');
+    return { config: kept, ignored };
 }
 /** `junit:out/junit.xml` → `{ name: 'junit', output: 'out/junit.xml' }`. */
 function reporterSpec(value) {

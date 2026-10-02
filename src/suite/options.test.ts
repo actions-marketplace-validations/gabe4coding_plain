@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { expandFiles, parseSuiteArgs, UsageError } from './options.js';
+import { engineConfig, expandFiles, parseSuiteArgs, UsageError } from './options.js';
 
 const parsed = (args: string[], engine: 'browser' | 'desktop' | 'mobile' = 'browser', env: NodeJS.ProcessEnv = {}) =>
   parseSuiteArgs([...args, 'case.yaml'], engine, env, '/tmp/plainwright-options-absent');
@@ -89,6 +89,57 @@ test('config file values apply to every key, below CLI and existing env; mcp nev
   let reads = 0;
   parseSuiteArgs(['mcp'], 'browser', {}, '/tmp/plainwright-options-absent', () => { reads++; return {}; });
   assert.equal(reads, 0);
+});
+
+test('one shared config: values an engine cannot use are ignored with one note, the same CLI flags stay errors', (t) => {
+  const config = { workers: 4, timing: true, headless: true, profile: '/p', channel: 'chrome', cdp: 'http://cdp', timeout: 0,
+    server: 'http://appium', retries: 2, artifacts: { dir: 'out', trace: 'on-failure' } };
+  const read = () => structuredClone(config) as never;
+  const notes = t.mock.method(console, 'error', () => {});
+  const run = (engine: 'browser' | 'desktop' | 'mobile', args = ['case.yaml'], env: NodeJS.ProcessEnv = {}) =>
+    parseSuiteArgs(args, engine, env, '/tmp/plainwright-options-absent', read);
+
+  const desktop = run('desktop');
+  assert.equal(desktop.opts.workers, 1); assert.equal(desktop.opts.timing, false); assert.equal(desktop.opts.retries, 2);
+  assert.deepEqual(desktop.opts.artifacts, { dir: 'out', screenshot: 'on-failure', trace: 'off' });
+  assert.deepEqual(desktop.flags, { timeout: '15000', headless: false, profile: undefined, cdp: undefined,
+    channel: undefined, server: undefined });
+  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plainwright: desktop ignores these config values: ' +
+    'headless, profile, channel, cdp, timing, workers: 4, timeout: 0, artifacts.trace: on-failure, server']);
+
+  notes.mock.resetCalls();
+  assert.equal(run('mobile').flags.server, 'http://appium');
+  assert.match(notes.mock.calls[0].arguments[0], /^plainwright: mobile ignores .*artifacts\.trace: on-failure$/);
+  notes.mock.resetCalls();
+  const browser = run('browser', ['--workers', '1', 'case.yaml']);
+  assert.equal(browser.flags.headless, true); assert.equal(browser.flags.timeout, '0');
+  assert.equal(browser.opts.artifacts?.trace, 'on-failure');
+  assert.equal(browser.flags.server, undefined);
+  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plainwright: browser ignores these config values: server']);
+
+  // validate and --list read the same config and no longer stop on browser values.
+  assert.equal(run('desktop', ['validate', 'case.yaml']).command, 'validate');
+  assert.equal(run('mobile', ['--list', 'case.yaml']).opts.list, true);
+  // Explicit flags are still invocation errors, with or without the config, and print no note first.
+  notes.mock.resetCalls();
+  assert.throws(() => run('desktop', ['--workers', '4', 'case.yaml']), /--workers > 1/);
+  assert.throws(() => run('mobile', ['--headless', 'case.yaml']), /--headless is browser-only/);
+  assert.throws(() => run('desktop', ['--timeout', '0', 'case.yaml']), /--timeout must be a positive/);
+  assert.throws(() => run('browser', ['--workers', '1', '--server', 'http://x', 'case.yaml']), /--server is mobile-only/);
+  assert.equal(notes.mock.callCount(), 0);
+});
+
+test('engineConfig keeps shared values, does not change its input and does not report environment fallbacks', (t) => {
+  const shared = { workers: 1, timeout: 9000, retries: 1, artifacts: { dir: 'out', trace: 'off' as const } };
+  assert.deepEqual(engineConfig(shared as never, 'desktop'), { config: shared, ignored: [] });
+  const input = { headless: true, artifacts: { dir: 'out', trace: 'always' as const } };
+  assert.deepEqual(engineConfig(input as never, 'mobile'), { config: { artifacts: { dir: 'out' } },
+    ignored: ['headless', 'artifacts.trace: always'] });
+  assert.deepEqual(input, { headless: true, artifacts: { dir: 'out', trace: 'always' } });
+  const notes = t.mock.method(console, 'error', () => {});
+  const { flags } = parsed([], 'desktop', { PLAINWRIGHT_CHANNEL: 'chrome', PLAINWRIGHT_APPIUM_URL: 'http://appium' });
+  assert.equal(flags.channel, 'chrome'); // ignored by the desktop session, as before
+  assert.equal(notes.mock.callCount(), 0);
 });
 
 test('usage, timeout and engine-only flag errors', () => {

@@ -228,7 +228,7 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | Key | Type | Default / meaning |
 | --- | --- | --- |
 | `files` | list of strings | Files, directories, or globs used when no run paths are given |
-| `workers` | positive integer | `1`; desktop/mobile require `1`; browser profile/CDP also require `1` |
+| `workers` | positive integer | `1`; browser profile/CDP require `1`; desktop/mobile ignore values above `1` |
 | `retries` | nonnegative integer | `0`; additional attempts |
 | `bail` | nonnegative integer | `0`; stop after this many final non-passes; `0` disables |
 | `maxTokens` | positive integer | Unset; stop starting specs/retries at this completed-attempt token total |
@@ -236,23 +236,47 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | `grepInvert` | string | Unset; exclude names or paths matching this regex |
 | `tags` | nonempty string, or list of nonempty strings | `[]`; require all tags |
 | `reporters` | nonempty list of strings or mappings | Browser: `[text]`; native: `[jsonl]`; mappings use `name` and optional `output`; strings use `NAME[:FILE]` |
-| `timing` | boolean | `false`; browser text timing |
+| `timing` | boolean | `false`; browser text timing; desktop/mobile ignore it |
 | `artifacts.dir` | nonempty string | Unset; setting it (here or with `--artifacts`) enables capture |
 | `artifacts.screenshot` | `off`, `on-failure`, or `always` | `on-failure` once a dir is set |
-| `artifacts.trace` | `off`, `on-failure`, or `always` | `on-failure` on browser, `off` on desktop/mobile; native runs reject other modes once a dir is set |
+| `artifacts.trace` | `off`, `on-failure`, or `always` | `on-failure` on browser; desktop/mobile always use `off` and ignore other modes |
 | `specTimeout` | positive integer | Unset; whole-spec milliseconds; spec `timeout` wins |
-| `timeout` | nonnegative number | `15000`; per-action milliseconds; `0` disables browser timeout; native requires greater than `0` |
+| `timeout` | nonnegative number | `15000`; per-action milliseconds; `0` disables browser timeout; desktop/mobile ignore `0` and use `15000` |
 | `headless` | boolean | `false`; browser only |
-| `profile` | nonempty string | Unset; persistent browser profile folder |
-| `channel` | nonempty string | Unset; installed browser channel, e.g. `chrome` |
-| `cdp` | nonempty string | Unset; attach to a browser CDP endpoint |
-| `server` | nonempty string | Mobile Appium URL; `--server` and `PLAINWRIGHT_APPIUM_URL` override it; default `http://127.0.0.1:4723` |
+| `profile` | nonempty string | Unset; persistent browser profile folder; browser only |
+| `channel` | nonempty string | Unset; installed browser channel, e.g. `chrome`; browser only |
+| `cdp` | nonempty string | Unset; attach to a browser CDP endpoint; browser only |
+| `server` | nonempty string | Mobile only: Appium URL; `--server` and `PLAINWRIGHT_APPIUM_URL` override it; default `http://127.0.0.1:4723` |
 | `picks` | `on`, `read`, or `off` | `on`; [pick cache](#pick-cache) mode |
 
 `--list`, `--last-failed`, and `--config` are invocation controls and have no
 config keys. Each `artifacts` key may be set alone: a mode in the config can pair
 with `--artifacts <dir>` on the command line. An empty config file is an empty
 config. A `profile` starting with `~` is expanded to your home folder.
+
+### Desktop and mobile in the same folder
+
+`plainwright`, `plainwright-computer` and `plainwright-mobile` all read the same
+config file. A value that the running CLI cannot use is ignored, and the CLI
+prints one note on stderr that names each ignored value:
+
+```text
+plainwright: desktop ignores these config values: headless, workers: 4, artifacts.trace: on-failure
+```
+
+| CLI | Ignored config values |
+| --- | --- |
+| `plainwright` | `server` |
+| `plainwright-computer` | `headless`, `timing`, `profile`, `channel`, `cdp`, `server`, `workers` above `1`, `timeout: 0`, `artifacts.trace` other than `off` |
+| `plainwright-mobile` | `headless`, `timing`, `profile`, `channel`, `cdp`, `workers` above `1`, `timeout: 0`, `artifacts.trace` other than `off` |
+
+The same value given as a CLI flag is an invocation error (exit `2`), for
+example `plainwright-computer --headless` or `plainwright-mobile --workers 4`:
+a flag is a request for this run, so the CLI does not drop it. Environment
+fallbacks such as `PLAINWRIGHT_CHANNEL` are not config values; a CLI that does
+not use them ignores them without a note. To give desktop or mobile runs other
+shared values (for example other `files`), keep a second file and select it
+with `--config`.
 
 An example:
 
