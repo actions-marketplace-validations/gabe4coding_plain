@@ -173,7 +173,7 @@ test('attempt > 0 never reads; read mode never writes; off neither reads nor sto
 });
 
 test('`at` comes only from the loader: YAML and MCP steps cannot set it, interpolation leaves it alone', (t) => {
-  assert.throws(() => parseStep('mcp', 0, { click: 'Go', at: { file: 'x', index: 3 } }), /exactly one key/);
+  assert.throws(() => parseStep('mcp', 0, { click: 'Go', at: { file: 'x', index: 3 } }), /"at" is reserved for the loader/);
   const dir = workspace(t);
   const odd = path.join(dir, '${env.x} folder');
   fs.mkdirSync(odd);
