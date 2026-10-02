@@ -20,7 +20,7 @@ import { parseArgs } from 'node:util';
 import { loadEnvFiles } from '../dist/jev/provider.js';
 import { decide } from '../dist/jev/decide.js';
 import { judgeState } from '../dist/core/automation.js';
-import { markUnchecked } from '../dist/browser/page.js';
+import { markUnchecked, shortenUrls } from '../dist/browser/page.js';
 
 const { values } = parseArgs({ options: { gate: { type: 'boolean', default: false }, runs: { type: 'string', default: '1' }, group: { type: 'string', default: 'single' }, only: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' } } });
 if (!['single', 'page'].includes(values.group)) throw new Error('--group must be single or page');
@@ -33,9 +33,10 @@ function page(name) {
   if (pages[name]) return pages[name];
   const file = ['claim-states', 'read-states'].map((dir) => new URL(`./${dir}/${name}.json`, import.meta.url)).find((u) => existsSync(u));
   if (!file) throw new Error(`no saved state for page "${name}" in scripts/claim-states/ or scripts/read-states/`);
-  // The same tree a live snapshot() gives now, also for pages saved before a change to it (it is idempotent).
+  // The same tree a live claim gets now, also for pages saved before a change to it (both are idempotent).
+  // A region state (`region: true`) is judged as a `within` region.
   const state = JSON.parse(readFileSync(file));
-  return (pages[name] = { ...state, aria: markUnchecked(state.aria) });
+  return (pages[name] = { ...state, aria: shortenUrls(markUnchecked(state.aria)) });
 }
 
 async function mapLimit(items, limit, fn) {
