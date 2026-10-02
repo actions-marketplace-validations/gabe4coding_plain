@@ -279,9 +279,9 @@ iframe, and the page URL and title. With `within`, Jev gets only the tree of tha
 without the URL. plainwright cuts the snapshot at 60,000 characters, and the step detail then shows
 `(aria truncated at 60k chars)`.
 
-A link target longer than 200 characters keeps only its part before `?` or `#`, followed by `…`. These long
-targets are usually ad and tracking links. Thus a claim about a long query string cannot pass. Claim the link
-text instead.
+A link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200 characters,
+followed by `…`. These long targets are usually ad and tracking links. Thus a claim about a long query string
+cannot pass. Claim the link text instead.
 
 Jev also gets the last 30 page events, which the tree does not show:
 

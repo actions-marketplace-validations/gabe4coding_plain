@@ -95,9 +95,9 @@ export function markUnchecked(aria) {
 const MAX_URL_CHARS = 200;
 const URL_LINE = /^(\s*- \/url: )(.*)$/gm;
 /**
- * Cuts each link target over MAX_URL_CHARS to its part before `?` or `#`, marked with `…`. An ad link's target
- * can be 2,000 characters of query, and the URLs of a few ads were 90% of a whole-page claim's tokens
- * (docs/benchmarks/claims.md). A claim names what a link says, not its tracking parameters.
+ * Cuts each link target over MAX_URL_CHARS to its part before `?` or `#`, and that to MAX_URL_CHARS, marked with
+ * `…`. An ad link's target can be 2,000 characters of query, and the URLs of a few ads were 90% of a whole-page
+ * claim's tokens (docs/benchmarks/claims.md). A claim names what a link says, not its tracking parameters.
  */
 export function shortenUrls(aria) {
     return aria.replace(URL_LINE, (line, head, value) => {

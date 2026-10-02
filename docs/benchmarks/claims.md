@@ -66,7 +66,7 @@ title and 0.80 without both. On the 29 region cases (6 of them on that feed, 3 r
 **Ad links filled whole-page claims.** On the same site, a whole-page `expect` cost 15k to 26k Jev tokens. The
 login-success state was 41,447 characters: 39,461 in ad iframes, and 38,133 in `/url:` lines. One ad link target
 is up to 1,900 characters of tracking query. Link targets on the saved content pages stay under 250 characters.
-A claim now gets each link target over 200 characters cut to its part before `?` or `#` (`shortenUrls`,
+A claim now gets each link target over 200 characters cut to its part before `?` or `#`, and to 200 characters (`shortenUrls`,
 before the 60k cap), and a snapshot leaves out iframes with an empty tree. The empty iframes also caused a second Jev call:
 an empty reCAPTCHA frame header appeared between the early and the settled look, so `settledAsk` asked again.
 Cross-origin iframes are not dropped: a payment form or an embedded widget is real content, and ad text
