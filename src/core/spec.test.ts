@@ -288,10 +288,8 @@ test('interpolate returns a value without placeholders unchanged', () => {
 });
 
 
-test('step normalization preserves empty fill values and ignores nested metadata', () => {
-  assert.deepEqual(parseStep('mcp', 0, {
-    fill: { target: 'the input', value: '', kind: 'click', optional: true, extra: 'ignored' },
-  }), { kind: 'fill', target: 'the input', value: '', optional: false });
+test('step normalization preserves empty fill values', () => {
+  assert.deepEqual(parseStep('mcp', 0, { fill: { target: 'the input', value: '' } }), { kind: 'fill', target: 'the input', value: '', optional: false });
   assert.deepEqual(parseStep('mcp', 1, { goto: '/login', optional: 'true' }), {
     kind: 'goto', url: '/login', optional: false,
   });
@@ -314,12 +312,11 @@ test('spec validation rejects arrays for mappings and non-finite coordinates', (
   }
 });
 
-test('file specs require steps while unknown metadata is ignored', () => {
+test('file specs require steps; dialogs and env have defaults', () => {
   assert.throws(() => loadSpec(specFile('name: x\nurl: /\nsteps: []\n')), /"steps"/);
-  const spec = loadSpec(specFile('name: x\nurl: /\ndialogs: null\nmetadata: ignored\nsteps:\n  - goto: /\n'));
+  const spec = loadSpec(specFile('name: x\nurl: /\ndialogs: null\nsteps:\n  - goto: /\n'));
   assert.equal(spec.dialogs, 'accept');
   assert.deepEqual(spec.env, {});
-  assert.equal('metadata' in spec, false);
 });
 
 test('a spec may name the goal of its flow', () => {
@@ -332,4 +329,60 @@ test('wait takes a claim, or {that, within} to poll one region', () => {
   assert.deepEqual(parseStep('t', 0, { wait: { that: 'a price is shown', within: 'the results list' } }),
     { kind: 'wait', condition: 'a price is shown', within: 'the results list', optional: false });
   assert.throws(() => parseStep('t', 0, { wait: { within: 'the results list' } }), /invalid spec/);
+});
+
+test('unknown keys inside a step are errors that name the key and the closest known one', () => {
+  const cases: [unknown, RegExp][] = [
+    [{ expect: { that: 'a', whithin: 'b' } }, /step 2 "expect": unknown key "whithin"; did you mean "within"\?/],
+    [{ wait: { that: 'a', withn: 'b' } }, /step 2 "wait": unknown key "withn"; did you mean "within"\?/],
+    [{ fill: { target: 'a', valeu: 'b' } }, /step 2 "fill": unknown key "valeu"; did you mean "value"\?/],
+    [{ select: { target: 'a', value: 'b', extra: 1 } }, /step 2 "select": unknown key "extra" \(expected one of target, value\)/],
+    [{ upload: { target: 'a', file: ['x'] } }, /unknown key "file"; did you mean "files"\?/],
+    [{ drag: { sourse: 'a', target: 'b' } }, /unknown key "sourse"; did you mean "source"\?/],
+    [{ mouse: { x: 1, y: 2, z: 3 } }, /step 2 "mouse": unknown key "z"; did you mean "x"\?/],
+    [{ click: 'a', optinal: true }, /step 2: unknown key "optinal"; did you mean "optional"\?/],
+    [{ clik: 'a' }, /step 2: unknown key "clik"; did you mean "click"\?/],
+    [{ click: 'a', within: 'b' }, /step 2: unknown key "within"/],
+    [{ click: 'a', hover: 'b' }, /step 2 must have exactly one action key/],
+  ];
+  for (const [raw, message] of cases) assert.throws(() => parseStep('mcp', 2, raw), message, JSON.stringify(raw));
+});
+
+test('every documented step form and optional still parse', () => {
+  const steps = [
+    { goto: '/' }, { fill: { target: 'a', value: 'b' } }, { click: 'a', optional: true }, { hover: 'a' }, { dblclick: 'a' },
+    { rightclick: 'a' }, { select: { target: 'a', value: 'b' } }, { check: 'a' }, { uncheck: 'a' },
+    { upload: { target: 'a', files: ['x'] } }, { scroll: 'down' }, { wait: 'a' }, { wait: { that: 'a', within: 'b' } },
+    { press: 'Enter' }, { drag: { source: 'a', target: 'b' } }, { mouse: { x: 0, y: -1 } }, { expect: 'a' }, { expect: ['a', 'b'] },
+    { expect: { that: ['a'], within: 'b' } },
+  ];
+  for (const step of steps) assert.doesNotThrow(() => parseStep('mcp', 0, step), JSON.stringify(step));
+});
+
+test('unknown top-level and nested spec keys are errors that name the key', () => {
+  const spec = (extra: string) => specFile(`name: x\nurl: https://example.com\n${extra}steps:\n  - goto: /\n`);
+  const cases: [string, RegExp][] = [
+    ['timout: 5\n', /spec\.yaml: unknown key "timout"; did you mean "timeout"\?/],
+    ['tag: smoke\n', /unknown key "tag"; did you mean "tags"\?/],
+    ['metadata: x\n', /unknown key "metadata" \(expected one of name, url, /],
+    ['dir: /tmp\n', /unknown key "dir"/],
+    ['auth: {user: a, pass: b, realm: c}\n', /"auth": unknown key "realm" \(expected one of user, pass\)/],
+    ['geolocation: {lat: 1, lon: 2, lng: 3}\n', /"geolocation": unknown key "lng" \(expected one of lat, lon\)/],
+    ['browser: {viewprt: {width: 1, height: 1}}\n', /"browser": unknown key "viewprt"; did you mean "viewport"\?/],
+    ['browser: {viewport: {width: 1, heigth: 1}}\n', /"browser.viewport": unknown key "heigth"; did you mean "height"\?/],
+  ];
+  for (const [extra, message] of cases) assert.throws(() => loadSpec(spec(extra)), message, extra);
+});
+
+test('a strict spec still loads with every top-level key, an include and the loader fields', () => {
+  const file = specFile([
+    'name: x', 'url: https://example.com', 'goal: g', 'dialogs: dismiss', 'auth: {user: u, pass: p}',
+    'geolocation: {lat: 1, lon: 2}', 'tags: [a]', 'timeout: 1000', 'env: {anything: {nested: 1}}', 'hooks: ./hooks.mjs',
+    'browser: {viewport: {width: 800, height: 600}, locale: it-IT}', 'steps:', '  - include: flow.yaml', '  - click: Go',
+    '    optional: true', '',
+  ].join('\n'));
+  writeFileSync(join(dirname(file), 'flow.yaml'), 'steps:\n  - expect: {that: a, within: b}\n');
+  const spec = loadSpec(file);
+  assert.deepEqual(spec.steps.map((step) => [step.kind, step.origin, step.at?.index]), [['expect', 'flow.yaml', 0], ['click', undefined, 1]]);
+  assert.equal(spec.steps[1].optional, true);
 });

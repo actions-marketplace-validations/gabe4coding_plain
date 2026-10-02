@@ -204,7 +204,8 @@ flow on both. Run the spec on each platform.
 | `capabilities` | no | Extra Appium capabilities. Read [Capabilities](#capabilities). |
 
 The optional `env`, `hooks`, `goal`, `tags` and `timeout` keys work as in the [spec reference](spec-reference.mdx).
-A mobile spec has no `url` and no `browser` key. An unknown key is an error.
+A mobile spec has no `url` and no `browser` key. An unknown key is an error, at the top level and in a step.
+Only `env` and `capabilities` accept all keys.
 `${env.*}` and `${hooks.*}` work in `device`, `app`, `capabilities` and the steps.
 A hook `setup` runs before the session opens. `teardown` also runs when the open fails.
 
