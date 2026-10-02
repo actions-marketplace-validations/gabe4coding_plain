@@ -1,0 +1,107 @@
+---
+title: Phrasing guide
+description: Write targets and claims that Jev resolves with confidence, and fix a step that comes back inconclusive.
+---
+
+# Phrasing guide
+
+Jev does not see the page as you do. It gets your sentence and a description of the page, and it returns a
+probability. To get a better result, change the words. You cannot change the thresholds.
+
+## How Jev decides
+
+**A pick** is the choice of one element for a target. All action steps pick, and `expect` and `wait` pick
+their `within` region. plainwright gives Jev a numbered list of candidate elements and asks which one the
+target means, or `none`. [What Jev can see](spec-reference.mdx#what-jev-can-see) tells what each candidate
+contains and the order of the list.
+
+- plainwright accepts the pick when the score is 0.5 or more and the answer is not `none`.
+- The score is the confidence on the TypeSafe backend, and the probability on the gateway backend.
+- The step detail shows `p=` (probability) and, on TypeSafe, `c=` (confidence).
+- If plainwright does not accept the pick, the step is `inconclusive`. The detail lists the top guesses.
+
+**A judgment** is the verdict on a claim in `expect` or `wait`. Jev answers one yes or no question for each
+claim, against the accessibility snapshot of the page.
+
+| Probability that the claim holds | Result |
+|---|---|
+| 0.9 or more | `pass` |
+| more than 0.1 and less than 0.9 | `inconclusive` |
+| 0.1 or less | `fail` (`expect`) |
+
+A `wait` asks again until the claim passes. If it never passes, it ends `inconclusive`, never `fail`. See
+[checks](spec-reference.mdx#checks).
+
+When a pick or a claim does not pass, plainwright writes the exact state that Jev saw to a JSON file under
+`$TMPDIR/plainwright/`. The step detail gives the path.
+
+## Write a target
+
+A target names one element, with one correct answer.
+
+- Use the visible text of the element and its kind: `the Login button`, `the username textbox`.
+- Say what makes it different from similar elements: `the edit link in the 5th table row`.
+- Name the element that you do not mean: `the cuisine search input (not the location field)`.
+- Use the text around it when the element has no text of its own: `the Edit button for Account 32`.
+  Jev sees the row, card or group around each candidate.
+- Make the answer unique. Write `the earliest available day`, not `an available day`. With five correct
+  answers, each gets a low probability, and Jev picks none.
+- Jev knows the date of today, so `the first available day after today` has one answer.
+
+The candidate list does not contain disabled or invisible elements. If the step says `no matching element`
+for a correct target, make sure that the element is visible and enabled at that time. Add a `wait` before
+the step if the element appears later.
+
+If the step says `no candidates`, the page has no element of that kind:
+
+- For `check`, the control is a plain button or chip. Use `click`.
+- For `select`, the dropdown is not a native `select`. Click the control, then click the option.
+- For `upload`, a button opens the file picker. Use `css=` on the hidden file input.
+
+A spec `goal` helps Jev with a vague target, such as `the comments link`. The words of the target win when
+they do not agree with the goal. See [top-level keys](spec-reference.mdx#top-level-keys).
+
+## Write a claim
+
+A claim is one fact about something that is visible when the condition is true.
+
+- **One fact for each string.** `the secure area is shown with a success message` is two facts. Use the list
+  form, which uses one snapshot and one Jev call:
+  `expect: [a heading with the text "Secure Area" is shown, a success message is shown]`.
+- **Claim what is there, not what is gone.** Write `the message "It's gone!" is shown`, not `the checkbox is
+  no longer visible`. It is hard to prove from a snapshot that something is not there.
+- **Use the names of the accessibility tree.** Write `a heading with the text "name: user1"`, not `a caption`.
+  The tree shows roles such as heading, button, textbox and link.
+- **Prove a state with an action.** To check that an input is enabled, `fill` it. Then claim that the page
+  shows the typed value. Use a test value that has no words in common with the page, such as `hello`.
+- **Claim what is stable.** On a page with random text, claim the part that does not change: `a notification
+  bar is shown at the top`.
+- **Use `wait` for what appears later**, after a delay or an animation. Use `expect` for a settled page.
+- **Do not use vague words.** Jev also sees console errors, dialogs and downloads. If a console error contains
+  the words "error message", then `an error message is shown` can match it. Write `the form shows a message
+  saying the username is invalid`.
+- **Check that something is not there with a positive claim.** With the `ask` tool, ask
+  `the Password textbox contains any text` and read a clear no. Do not ask `the Password textbox is empty`. An
+  empty field has no value in the tree that Jev can point to.
+
+## Fix an inconclusive step
+
+A step that comes back `?` is `inconclusive`. Read its `detail` first. The top guesses show what Jev thought
+that you meant.
+
+1. First miss: use the words of the top guess, and name the element that you do not mean.
+2. Second miss on the same fact: the fact is the problem, not the words. Claim a different visible effect,
+   use a different test value, prove the state with an action, or use `within`.
+3. Third miss: open the JSON file from the detail, or call the `snapshot` MCP tool, to see what Jev saw. Then
+   use `css=` as the last choice. Add a comment that tells why.
+
+Do not rephrase the same fact a third time.
+
+For a `wait`, `inconclusive` means that the claim did not pass in time. Make sure that the claim is true when
+the page is ready. If the page is slow, increase `--timeout`.
+
+`examples/google-flights.yaml` shows this on a dense page. Each phrasing that is not obvious has a comment,
+and the one `css=` target has its reason next to it.
+
+Run a spec two times before you call it done. A flaky step shows on the second run. Use `optional: true` only
+when the page really changes from run to run. In all other cases, add a `wait`.
