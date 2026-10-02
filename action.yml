@@ -10,17 +10,28 @@ inputs:
     description: Extra Plainwright CLI flags
     required: false
     default: ''
+  picks:
+    description: >-
+      Pick cache mode (on, read or off); read reuses committed *.picks.json
+      sidecars without writing them. Empty passes no --picks flag
+    required: false
+    default: read
   junit:
-    description: JUnit XML output path
+    description: >-
+      JUnit XML output path, uploaded on every run; empty disables the
+      JUnit reporter and its upload
     required: false
     default: plainwright-results/junit.xml
   artifacts:
-    description: Directory for screenshots and traces
+    description: >-
+      Directory for screenshots and traces, uploaded when the run fails;
+      empty disables capture and the upload
     required: false
     default: plainwright-results
   artifact-name:
     description: >-
-      Name of the uploaded artifact; must be unique in the workflow run
+      Name of the uploaded failure artifact; the JUnit report is uploaded as
+      <artifact-name>-junit. Both must be unique in the workflow run
       (in a matrix, give each job its own name)
     required: false
     default: plainwright-results
@@ -47,6 +58,7 @@ runs:
       env:
         PLAINWRIGHT_ACTION_ARGS: ${{ inputs.args }}
         PLAINWRIGHT_ACTION_SPECS: ${{ inputs.specs }}
+        PLAINWRIGHT_ACTION_PICKS: ${{ inputs.picks }}
         PLAINWRIGHT_ACTION_JUNIT: ${{ inputs.junit }}
         PLAINWRIGHT_ACTION_ARTIFACTS: ${{ inputs.artifacts }}
       run: |
@@ -56,18 +68,33 @@ runs:
         import subprocess
         import sys
 
+        picks = os.environ['PLAINWRIGHT_ACTION_PICKS'].strip()
+        junit = os.environ['PLAINWRIGHT_ACTION_JUNIT'].strip()
+        artifacts = os.environ['PLAINWRIGHT_ACTION_ARTIFACTS'].strip()
         command = [
             'node', f"{os.environ['GITHUB_ACTION_PATH']}/dist/cli.js",
             '--headless', '--reporter', 'text',
-            '--reporter', f"junit:{os.environ['PLAINWRIGHT_ACTION_JUNIT']}",
-            '--artifacts', os.environ['PLAINWRIGHT_ACTION_ARTIFACTS'],
         ]
+        if picks:
+            command += ['--picks', picks]
+        if junit:
+            command += ['--reporter', f'junit:{junit}']
+        if artifacts:
+            command += ['--artifacts', artifacts]
+        # Extra args come after the action's flags, so a --picks in args wins.
         command += shlex.split(os.environ['PLAINWRIGHT_ACTION_ARGS'])
         command += shlex.split(os.environ['PLAINWRIGHT_ACTION_SPECS'])
         sys.exit(subprocess.call(command))
         PY
+    - name: Upload JUnit report
+      if: always() && inputs.junit != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}-junit
+        path: ${{ inputs.junit }}
+        if-no-files-found: warn
     - name: Upload failure artifacts
-      if: failure()
+      if: failure() && inputs.artifacts != ''
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
