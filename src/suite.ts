@@ -25,7 +25,7 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
   if (listSelected(selected, opts)) {
     // --list never runs anything, but a spec that does not load is still reported (and fails the command).
     const broken = entries.flatMap((entry) => 'report' in entry ? [entry.report] : []);
-    for (const spec of broken) console.error(`✘ ${spec.file}: ${spec.loadError}`);
+    for (const spec of broken) console.error(`✘ ${spec.file}: ${spec.loadError?.replace(/^\w*Error: /, '')}`);
     return { engine: engine.engine, provider: '', model: '', startedAt, durationMs: Date.now() - start, specs: broken,
       status: broken.length ? 'fail' : 'pass', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0 } };
   }
