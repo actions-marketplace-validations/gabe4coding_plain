@@ -109,6 +109,9 @@ async function agentSession(saved) {
     const read = await call('read', { question: 'What does the status message say?' });
     if (!/logged into a secure area/i.test(JSON.stringify(read))) return `read did not return the status message: ${JSON.stringify(read)}`;
     await call('save', { path: saved, name: 'recorded login' });
+    await call('open', { url: `${site.url}/boxes` }); // after save: not part of the replayed spec
+    const { aria } = await call('snapshot', {});
+    if (!aria.includes('- /url: https://ads.example/aclk…') || aria.includes('Xy7Xy7')) return `snapshot did not cut the long ad link: ${aria}`;
   } finally {
     await client.close();
   }

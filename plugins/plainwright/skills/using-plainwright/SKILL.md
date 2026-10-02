@@ -60,6 +60,10 @@ question, copied verbatim, never written by the model. Use it before `snapshot` 
 `changed` first after a step: it often holds the answer already. `evaluate` is for many rows as JSON; a
 `snapshot` is for seeing structure while debugging, not for reading values.
 
+A link target that ends in `…` was over 200 characters (ad and tracking links) and is cut in every tree you
+get: `snapshot`, `read`, `changed`. To follow it, click the link by its text; for the full URL, `evaluate`
+its `href`.
+
 ## Writing a target (click, fill, hover, select, check, scroll)
 
 One element, one true answer, named the way the accessibility tree names it: role, visible text, and what
