@@ -52,8 +52,8 @@ A trace has the action screenshots and the page snapshots. plainwright does not 
 With `--cdp`, plainwright does not record traces, because a trace also records your other tabs. It prints
 one note for the run. Screenshots and debug files still work.
 
-On desktop and mobile, the trace mode must be `off` when an artifacts folder is set. Another mode stops the run
-(exit `2`).
+On desktop and mobile, `--trace` must be `off` when an artifacts folder is set. Another mode stops the run
+(exit `2`). These CLIs ignore an `artifacts.trace` mode in the config file. Read the [shared config file](running.mdx#desktop-and-mobile-in-the-same-folder).
 
 ### Jev debug files
 
