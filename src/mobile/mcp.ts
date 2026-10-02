@@ -44,7 +44,7 @@ export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000
   discovery: MobileDiscovery = new LocalMobileDiscovery()) {
   return createNativeServer<MobileSpec>({
     name: 'plainwright-mobile',
-    version: '0.1.20',
+    version: '0.1.21',
     placeholderSource: 'mobile MCP',
     ai,
     spec: { name: 'mobile session', platform: 'android', device: '', app: '', dir: process.cwd(), env: {}, steps: [] },

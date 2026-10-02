@@ -284,6 +284,7 @@ Read [Running suites](running.mdx) for all flags, the config file and the exit c
 | `--server` | The Appium URL. Mobile only. |
 | `--trace` | Not available. With `--artifacts`, any value other than `off` is an error. |
 | `--headless`, `--profile`, `--channel`, `--cdp`, `--timing` | Browser only. The command exits with code `2`. |
+| Config file | The mobile CLI ignores the browser-only keys, `workers` more than `1`, `timeout: 0` and a trace mode. It prints one note. Read the [shared config file](running.mdx#desktop-and-mobile-in-the-same-folder). |
 | `--retries` | A retry opens a new session and runs the hooks again. It does not reset the app. |
 
 The [pick cache](running.mdx#pick-cache) works as in the browser.
