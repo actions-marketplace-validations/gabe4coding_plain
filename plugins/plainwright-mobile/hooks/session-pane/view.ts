@@ -14,6 +14,9 @@ export type Controls = {
 const ICON: Record<Status, string> = { pass: '✓', fail: '✗', inconclusive: '?', error: '!', skipped: '–' };
 const COLOR: Partial<Record<Status, string>> = { pass: 'green', fail: 'red', inconclusive: 'yellow', error: 'red' };
 
+/** Columns left free at the right: a docked terminal pane (2.1.287) clips about two columns inside `bodyColumns`. */
+export const EDGE = 2;
+
 /** `text` cut to `width` characters, with an ellipsis when cut. */
 export function fit(text: string, width: number): string {
   return text.length <= width ? text : text.slice(0, Math.max(0, width - 1)) + '…';
@@ -29,7 +32,7 @@ export function spread(left: string, right: string, width: number): string {
 /** The pane: target and goal, one line per row (detail under a non-pass step), totals, then the controls. */
 export function render(state: State, el: Elements, controls: Controls): unknown {
   const { Box, Text, Button, Input } = el;
-  const width = Math.max(20, controls.columns);
+  const width = Math.max(20, controls.columns - EDGE);
   const line = (text: string, style: Record<string, unknown> = {}) => Text({ ...style, children: [text] });
 
   const children: unknown[] = [line(fit(state.target ?? 'No page open yet', width), { bold: true })];
