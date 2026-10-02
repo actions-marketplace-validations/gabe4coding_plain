@@ -20,10 +20,11 @@ explicit `override`, no implicit returns):
 npm run build
 ```
 
-Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`):
+Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`; tests of
+`scripts/` are `scripts/*.test.mjs`, run as they are):
 
 ```
-npm test                                                    # build + node --test 'dist/**/*.test.js'
+npm test                                                    # build + node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'
 npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
 npm run check:examples                                      # validate examples/, e2e/ and the doc YAML, per engine
 npm run test:plugins                                        # install each plugin archive in isolation, list MCP tools
