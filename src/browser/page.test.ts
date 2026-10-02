@@ -47,7 +47,25 @@ test('candidates: check lists a label standing in for its sizeless checkbox, ari
     )
   );
   const descs = (await candidates(page, 'check', 254)).map((c) => c.desc);
-  assert.deepEqual(descs, ['label "Hotels"', 'button "4 Stars"', 'input[type=checkbox] value="on" id="v"']);
+  assert.deepEqual(descs, ['label "Hotels"', 'button "4 Stars"', 'input[type=checkbox] value="on" label="Visible" id="v"']);
+});
+
+test('candidates: a control carries its wrapping or for= label once, without its own options', async () => {
+  await page.goto(
+    html(
+      `<label><input type="checkbox"> Cheese</label><label><input type="checkbox" checked> Olives</label>` +
+        `<label for="n">Nickname</label><input id="n" placeholder="Nickname">` +
+        `<label>Size <select name="size"><option>Small</option><option>Large</option></select></label>` +
+        `<label><input type="checkbox" aria-label="Pickles"> Pickles</label>`
+    )
+  );
+  assert.deepEqual((await candidates(page, 'check', 254)).map((c) => c.desc), [
+    'input[type=checkbox] value="on" label="Cheese"',
+    'input[type=checkbox] value="on" label="Olives"',
+    'input[type=checkbox] value="on" aria-label="Pickles"',
+  ]);
+  assert.deepEqual((await candidates(page, 'fill', 254)).map((c) => c.desc), ['input placeholder="Nickname" id="n"']);
+  assert.match((await candidates(page, 'select', 254))[0].desc, /^select "Small Large" label="Size" name="size"/);
 });
 
 test('candidates: a row labelled by its own heading names it once', async () => {
