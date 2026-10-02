@@ -162,6 +162,6 @@ the snapshot views and the `changed` lines all see this mark.
 ### Iframes
 
 A snapshot of the whole page adds the tree of each readable iframe after the page tree, under a line
-`--- iframe <label> ---`. The label is the name of the frame. If the frame has no name, the label is the path of
+`--- iframe <label> ---`. An iframe with an empty tree gets no line. The label is the name of the frame. If the frame has no name, the label is the path of
 its URL, or else the full URL. A snapshot with `within` has no iframe lines. Targets inside an iframe use the same
 label (see [what Jev sees for a pick](spec-reference.mdx#for-a-pick)).

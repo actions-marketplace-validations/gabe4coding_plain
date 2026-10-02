@@ -116,25 +116,45 @@ export function markUnchecked(aria: string): string {
     attributes.includes('[checked') ? line : `${head}${attributes} [checked=false]`);
 }
 
-function toSnapshot(page: Page, title: string, aria: string): Snapshot {
-  const marked = markUnchecked(aria);
+/** Longer link targets are ad and tracking links, by measure: real ones on the saved content pages stay under 250. */
+const MAX_URL_CHARS = 200;
+const URL_LINE = /^(\s*- \/url: )(.*)$/gm;
+
+/**
+ * Cuts each link target over MAX_URL_CHARS to its part before `?` or `#`, marked with `…`. An ad link's target
+ * can be 2,000 characters of query, and the URLs of a few ads were 90% of a whole-page claim's tokens
+ * (docs/benchmarks/claims.md). A claim names what a link says, not its tracking parameters.
+ */
+export function shortenUrls(aria: string): string {
+  return aria.replace(URL_LINE, (line, head: string, value: string) => {
+    if (value.length <= MAX_URL_CHARS) return line;
+    const url = value.replace(/^(["'])(.*)\1$/, '$2');
+    return `${head}${url.split(/[?#]/, 1)[0].slice(0, MAX_URL_CHARS)}…`;
+  });
+}
+
+/** `claim`: the snapshot is for a judgment, so long link targets are cut (shortenUrls) before the 60k cap. */
+export interface SnapshotOptions { claim?: boolean }
+
+function toSnapshot(page: Page, title: string, aria: string, { claim = false }: SnapshotOptions): Snapshot {
+  const marked = markUnchecked(claim ? shortenUrls(aria) : aria);
   return { url: page.url(), title, aria: marked.slice(0, ARIA_MAX_CHARS), truncated: marked.length > ARIA_MAX_CHARS };
 }
 
-/** The page's accessibility tree, each iframe's tree appended under its own header. */
-export async function snapshot(page: Page): Promise<Snapshot> {
+/** The page's accessibility tree, each iframe's tree appended under its own header. An empty iframe has none. */
+export async function snapshot(page: Page, options: SnapshotOptions = {}): Promise<Snapshot> {
   const iframes = page.frames().slice(1);
   const [title, bodyAria, iframeArias] = await Promise.all([
     page.title(),
     page.locator('body').ariaSnapshot(),
     Promise.all(iframes.map((frame) => frame.locator('body').ariaSnapshot().catch(() => null))), // detached or cross-origin
   ]);
-  const iframeSections = iframes.map((frame, i) => iframeArias[i] === null ? '' : `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}`);
-  return toSnapshot(page, title, bodyAria + iframeSections.join(''));
+  const iframeSections = iframes.map((frame, i) => iframeArias[i] ? `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}` : '');
+  return toSnapshot(page, title, bodyAria + iframeSections.join(''), options);
 }
 
 /** snapshot() of one region, for `within`. */
-export async function snapshotRegion(page: Page, region: Locator): Promise<Snapshot> {
+export async function snapshotRegion(page: Page, region: Locator, options: SnapshotOptions = {}): Promise<Snapshot> {
   const [title, aria] = await Promise.all([page.title(), region.ariaSnapshot()]);
-  return toSnapshot(page, title, aria);
+  return { ...toSnapshot(page, title, aria, options), region: true };
 }

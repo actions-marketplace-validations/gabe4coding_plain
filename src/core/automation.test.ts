@@ -33,6 +33,14 @@ test('shared judge halves oversized state and preserves all claims/events', asyn
   assert.deepEqual(lengths, [9000, 4500]); assert.equal(result.tokens, 9);
 });
 
+test('a region is judged without the page URL; a whole page with it', async () => {
+  const states: unknown[] = [];
+  const spy: Intelligence = { ...ai, judge: async (state) => { states.push(state); return { probabilities: [.95], tokens: 1 }; } };
+  await judgeState({ ...adapter.state, aria: '- text: B', truncated: false, region: true }, ['B is shown'], ['downloaded'], spy);
+  await judgeState({ ...adapter.state, aria: '- text: B', truncated: false }, ['B is shown'], [], spy);
+  assert.deepEqual(states, [{ title: 'Test', aria: '- text: B', events: ['downloaded'] }, { url: 'desktop://test', title: 'Test', aria: '- text: B', events: [] }]);
+});
+
 test('askSettled keeps the early answer when the settled look is the same, and asks again when it is not', async () => {
   const run = async (early: string | null, settled: string, skip?: (f: string) => boolean) => {
     const asked: string[] = []; const discarded: string[] = [];

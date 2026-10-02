@@ -46,6 +46,9 @@ The rules below apply to both.
   - Scope with `within` to cut noise; `css=` regions never miss, but must
     match exactly one element (several matches return `found: false` with the count). Ask "The browser console reported an
     error" on its own when console errors matter.
+  - Plain boxes have no role: the tree shows only their text in page order (`B A`), so "the first box shows B"
+    stays unsure. Ask each box with its own `within`; use `css=` when position is the only way to name it
+    (a pick has no layout, so "the first box" can pick the wrong one).
   - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plainwright/*.json`; the path
   is in `detail`.

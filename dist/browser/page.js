@@ -91,23 +91,39 @@ const CHECKABLE_LINE = /^(\s*- '?(?:checkbox|radio|switch|menuitemcheckbox|menui
 export function markUnchecked(aria) {
     return aria.replace(CHECKABLE_LINE, (line, head, attributes) => attributes.includes('[checked') ? line : `${head}${attributes} [checked=false]`);
 }
-function toSnapshot(page, title, aria) {
-    const marked = markUnchecked(aria);
+/** Longer link targets are ad and tracking links, by measure: real ones on the saved content pages stay under 250. */
+const MAX_URL_CHARS = 200;
+const URL_LINE = /^(\s*- \/url: )(.*)$/gm;
+/**
+ * Cuts each link target over MAX_URL_CHARS to its part before `?` or `#`, marked with `…`. An ad link's target
+ * can be 2,000 characters of query, and the URLs of a few ads were 90% of a whole-page claim's tokens
+ * (docs/benchmarks/claims.md). A claim names what a link says, not its tracking parameters.
+ */
+export function shortenUrls(aria) {
+    return aria.replace(URL_LINE, (line, head, value) => {
+        if (value.length <= MAX_URL_CHARS)
+            return line;
+        const url = value.replace(/^(["'])(.*)\1$/, '$2');
+        return `${head}${url.split(/[?#]/, 1)[0].slice(0, MAX_URL_CHARS)}…`;
+    });
+}
+function toSnapshot(page, title, aria, { claim = false }) {
+    const marked = markUnchecked(claim ? shortenUrls(aria) : aria);
     return { url: page.url(), title, aria: marked.slice(0, ARIA_MAX_CHARS), truncated: marked.length > ARIA_MAX_CHARS };
 }
-/** The page's accessibility tree, each iframe's tree appended under its own header. */
-export async function snapshot(page) {
+/** The page's accessibility tree, each iframe's tree appended under its own header. An empty iframe has none. */
+export async function snapshot(page, options = {}) {
     const iframes = page.frames().slice(1);
     const [title, bodyAria, iframeArias] = await Promise.all([
         page.title(),
         page.locator('body').ariaSnapshot(),
         Promise.all(iframes.map((frame) => frame.locator('body').ariaSnapshot().catch(() => null))), // detached or cross-origin
     ]);
-    const iframeSections = iframes.map((frame, i) => iframeArias[i] === null ? '' : `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}`);
-    return toSnapshot(page, title, bodyAria + iframeSections.join(''));
+    const iframeSections = iframes.map((frame, i) => iframeArias[i] ? `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}` : '');
+    return toSnapshot(page, title, bodyAria + iframeSections.join(''), options);
 }
 /** snapshot() of one region, for `within`. */
-export async function snapshotRegion(page, region) {
+export async function snapshotRegion(page, region, options = {}) {
     const [title, aria] = await Promise.all([page.title(), region.ariaSnapshot()]);
-    return toSnapshot(page, title, aria);
+    return { ...toSnapshot(page, title, aria, options), region: true };
 }

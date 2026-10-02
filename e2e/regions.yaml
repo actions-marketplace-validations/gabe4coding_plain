@@ -1,0 +1,11 @@
+name: claims on boxes with no role, and a page with a long ad link
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /boxes
+  - drag: { source: the box with the letter A, target: the box with the letter B }
+  # The tree shows only `B A`: each box is claimed through its own region.
+  - expect: { that: the letter "B" is shown, within: "css=#box-a" }
+  - expect: { that: the letter "A" is shown, within: "css=#box-b" }
+  - expect: a link says that garden tools are on sale
