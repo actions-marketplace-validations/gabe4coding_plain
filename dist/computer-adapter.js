@@ -146,6 +146,7 @@ export class Xa11yAdapter {
         return sdk.inputSim();
     }
     async act(kind, element, value) {
+        this.current(); // closed (e.g. a step cut by the spec timeout): never touch the user's app again
         if (kind === 'click' && !this.web.has(element) && element.actions.includes('press'))
             return element.press();
         if (kind === 'fill')

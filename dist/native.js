@@ -9,7 +9,7 @@ import { observerCalls } from './observe.js';
 import { parseSuiteArgs, UsageError } from './options.js';
 import { checkSpecTimeoutFlag } from './spec-features.js';
 import { runSuite } from './suite.js';
-import { validate } from './validate.js';
+import { validate, formatValidation } from './validate.js';
 const EARLY_WINDOW_MS = 1000;
 const APPEAR_MS = 2000;
 export class NativeSession {
@@ -191,6 +191,11 @@ function sameFrame(a, b) {
 }
 /** hooks setup → `open` (interpolates, attaches, returns the resolved steps) → steps → teardown → close. */
 export async function runNativeSpec(spec, session, open, observer, info, specTimeout) {
+    const started = performance.now();
+    const { specDeadline } = await import('./spec-timeout.js');
+    const { label } = await import('./results.js');
+    const { mobileLabel } = await import('./mobile-spec.js');
+    const deadline = specDeadline(spec.timeout ?? specTimeout, started);
     const steps = [];
     const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
     const target = { engine: 'platform' in spec ? 'mobile' : 'desktop', screenshot: async (file) => {
@@ -220,7 +225,9 @@ export async function runNativeSpec(spec, session, open, observer, info, specTim
         opened = true;
         await observe('sessionOpen', { target });
         for (const step of runSteps) {
-            const result = await session.run(step);
+            const result = await deadline.step(() => session.run(step), () => 'platform' in spec
+                ? mobileLabel(step)
+                : label(step));
             await record(result);
             if (result.status !== 'pass' && result.status !== 'skipped') {
                 status = result.status;
@@ -272,12 +279,9 @@ export async function nativeCli(bin, usage, engineName, main) {
             run: (spec, observer, info) => main.run(spec, timeout, args, observer, info, opts.specTimeout), maxWorkers: 1 };
         if (command === 'validate') {
             const results = validate(engine, opts.files);
-            for (const result of results) {
-                for (const warning of result.warnings)
-                    console.error(`${result.file}: ${warning}`);
-                if (result.error)
-                    console.error(`${result.file}: ${result.error}`);
-            }
+            const output = formatValidation(results); // ✔ / ✘ / ! lines on stdout
+            if (output)
+                console.log(output);
             process.exitCode = results.some((result) => result.error) ? 1 : 0;
         }
         else {
