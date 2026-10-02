@@ -172,10 +172,12 @@ Source layout (tests sit next to their module):
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
   nav/footer, so a cookie banner appended at the end of the body is never cut.
 - `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
-  checkable control gets `[checked=false]`, `markUnchecked`; empty iframes get no section; a region snapshot is
-  `region: true`, which `judgeState` sends without the page URL (title kept); every snapshot (claims, MCP `snapshot`, `read`,
-  `changed`) cuts link targets over 200 chars to their part before `?`/`#`, at most 200 chars, before the cap,
-  `shortenUrls`) and DOM-quiet waiting
+  checkable control gets `[checked=false]`, `markUnchecked`; empty iframes get no section; a parsed iframe document
+  with no body (an ad sync frame) is skipped at once, since a `body` locator would wait out the action timeout, and
+  one still loading gets its body waited for; an iframe's tree is capped at 2 s; a region snapshot is
+  `region: true`, which `judgeState` sends without the page URL (title kept); every snapshot (claims, MCP
+  `snapshot`, `read`, `changed`) cuts link targets over 200 chars to their part before `?`/`#`, at most 200 chars,
+  before the cap, `shortenUrls`) and DOM-quiet waiting
   (`settle()`, `mark()`, `unchangedSince()`). `page.ts` (snapshot sections) and `candidates.ts` (candidate prefixes)
   both label iframes with `frameLabel()` (`src/browser/frames.ts`).
 - `src/jev/` — provider selection (`provider.ts`) and the `ask()` call to either backend (`ask.ts`); `pickElements()` (`pick.ts`) (one Choice per
