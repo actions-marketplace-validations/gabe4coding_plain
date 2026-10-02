@@ -31,6 +31,7 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=true], summary, label, [draggable=true]';
     const LAYER = { dialog: 0, page: 1, chrome: 2 };
     const MAX_TEXT = 60;
+    const LABELABLE = new Set(['INPUT', 'SELECT', 'TEXTAREA', 'METER', 'PROGRESS', 'OUTPUT']);
     // One style read per element per scan: the walk, the visibility filter and the context all ask.
     const styles = new Map();
     function styleOf(el) {
@@ -51,6 +52,19 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
         const flat = text.trim().replace(/\s+/g, ' ');
         return flat.length > max ? flat.slice(0, max) + '…' : flat;
     }
+    /** The text of a labelable control's labels, without the control's own text (a select's options). */
+    function labelText(el) {
+        if (!LABELABLE.has(el.tagName))
+            return '';
+        const texts = [];
+        for (const label of el.labels ?? []) {
+            const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+            for (let node = walker.nextNode(); node; node = walker.nextNode())
+                if (!el.contains(node))
+                    texts.push(node.textContent ?? '');
+        }
+        return truncate(texts.join(' '), MAX_TEXT);
+    }
     function describe(el) {
         const type = el.getAttribute('type');
         const role = el.getAttribute('role');
@@ -61,6 +75,12 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
             parts.push(`"${truncate(text, MAX_TEXT)}"`);
         else if (value)
             parts.push(`value="${truncate(value, MAX_TEXT)}"`);
+        // An input's own text is empty: its <label> (wrapping or for=) is often the only name it has.
+        const label = labelText(el);
+        const shown = [text, value, el.getAttribute('aria-label'), el.getAttribute('placeholder'), el.getAttribute('title')]
+            .map((s) => truncate(s ?? '', MAX_TEXT));
+        if (label && !shown.includes(label))
+            parts.push(`label="${label}"`);
         for (const attribute of ['aria-label', 'placeholder', 'alt', 'title', 'name', 'id']) {
             const attributeValue = el.getAttribute(attribute);
             const neverCut = attribute === 'name' || attribute === 'id';
