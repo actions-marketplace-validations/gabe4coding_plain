@@ -4,27 +4,32 @@ import path from 'node:path';
 import { dumpDebug } from './results.js';
 /**
  * Pick cache (docs/running.md "Pick cache"): a target Jev picked in a passing run is replayed without a Jev
- * call while the page still has exactly one candidate with the same description. Jev decided once; code
- * only reuses that decision on a strict match. One sidecar per source file (`login.yaml` → `login.picks.json`),
- * committed next to the specs. Attempt > 0 never reads; a failed attempt evicts the entries it used.
+ * call while the page's whole candidate list is unchanged (values typed into text fields aside) and exactly
+ * one candidate has the stored description. Jev decided once; code only reuses that decision on a strict
+ * match. One sidecar per source file (`login.yaml` → `login.picks.json`), committed next to the specs.
+ * Attempt > 0 never reads; a failed attempt evicts the entries it used.
  */
 export const PICK_FILE_VERSION = 1;
-/** Bump whenever describe() / candidates() (src/candidates.ts) or a native adapter's candidate desc changes. */
-export const DESC_FORMAT = 1;
+/** Bump whenever describe() / candidates() (src/candidates.ts) or a native adapter's candidate desc changes.
+ *  2: `value=` is ignored only on editable (text-entry) candidates; every entry carries the list hash. */
+export const DESC_FORMAT = 2;
 export const PICKS_MODES = ['on', 'read', 'off'];
 export const sidecarPath = (file) => {
     const { dir, name } = path.parse(file);
     return path.join(dir, `${name}.picks.json`);
 };
-export const entryKey = (ref) => `${ref.at.index}|${ref.kind}|${ref.target}|${ref.goal ?? ''}`;
-/** The desc without `value="…"`: a fill changes it, the element stays the same. Browser values are raw, native ones JSON. */
-export const normalizeDesc = (desc) => desc.replace(/ value="(?:[^"\\]|\\.)*"/g, '');
+const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+/** `[index, kind, target, goal, page]` as JSON; a templated step's target is replaced by its sha256. */
+export const entryKey = (ref, page) => JSON.stringify([ref.at.index, ref.kind, ref.at.templated ? `sha256:${sha256(ref.target)}` : ref.target, ref.goal ?? '', page]);
+const VALUE = / value="(?:[^"\\]|\\.)*"/g;
+/** The desc an entry compares: without `value="…"` on a text-entry field (a fill changes it, the element is
+ *  the same). Every other value stays: a submit button or a native element is identified by it. */
+export const normalizeDesc = (c) => (c.editable ? c.desc.replace(VALUE, '') : c.desc);
 /** The iframe label candidates.ts prefixes, or '' for the main frame. */
 export const frameOf = (desc) => /^\[iframe ([^\]]*)\] /.exec(desc)?.[1] ?? '';
 /** ` #n`: one of several identical descs, by DOM order; a list that changes makes it name another row. */
 export const hasOrdinal = (desc) => / #\d+(?= context: |$)/.test(desc);
-export const hasContext = (desc) => desc.includes(' context: ');
-export const listHash = (candidates) => createHash('sha1').update(candidates.map((c) => normalizeDesc(c.desc)).join('\n')).digest('hex');
+export const listHash = (candidates) => createHash('sha1').update(candidates.map(normalizeDesc).join('\n')).digest('hex');
 /** origin + path; query and hash ignored. A desktop url carries the process id, which changes every launch: the app name stands in. */
 export function pageOf(state) {
     try {
@@ -41,29 +46,25 @@ export function pageOf(state) {
 export function makeEntry(candidate, candidates, state) {
     if (hasOrdinal(candidate.desc))
         return null;
-    const desc = normalizeDesc(candidate.desc);
-    // Unique on this page, or the same page would already miss (two inputs that differ only by value).
-    if (candidates.filter((c) => normalizeDesc(c.desc) === desc).length !== 1)
+    const desc = normalizeDesc(candidate);
+    // Unique on this page, or the same page would already miss (two text fields that differ only by value).
+    if (candidates.filter((c) => normalizeDesc(c) === desc).length !== 1)
         return null;
-    const entry = { desc, frame: frameOf(candidate.desc), page: pageOf(state) };
-    if (!hasContext(candidate.desc))
-        entry.list = listHash(candidates);
-    return entry;
+    return { desc, frame: frameOf(candidate.desc), page: pageOf(state), list: listHash(candidates) };
 }
-/** The one candidate a stored entry matches on this page, or undefined: same page, (same list,) exactly one equal desc. */
+/** The one candidate a stored entry matches on this page, or undefined: same page, the same whole candidate
+ *  list (a new row that fits the target better is a change), and exactly one equal desc in the same frame. */
 export function match(entry, candidates, state) {
-    if (pageOf(state) !== entry.page)
+    if (pageOf(state) !== entry.page || listHash(candidates) !== entry.list)
         return undefined;
-    if (entry.list !== undefined && listHash(candidates) !== entry.list)
-        return undefined;
-    const found = candidates.filter((c) => normalizeDesc(c.desc) === entry.desc && frameOf(c.desc) === entry.frame);
+    const found = candidates.filter((c) => normalizeDesc(c) === entry.desc && frameOf(c.desc) === entry.frame);
     return found.length === 1 ? found[0] : undefined;
 }
 const isEntry = (v) => {
     if (v === null || typeof v !== 'object' || Array.isArray(v))
         return false;
     const e = v;
-    return typeof e.desc === 'string' && typeof e.frame === 'string' && typeof e.page === 'string' && (e.list === undefined || typeof e.list === 'string');
+    return typeof e.desc === 'string' && typeof e.frame === 'string' && typeof e.page === 'string' && typeof e.list === 'string';
 };
 /** The entries of a sidecar's text, or null when it is unreadable or was written for another model or desc format. */
 export function parseFile(text, model) {
@@ -88,8 +89,17 @@ export function parseFile(text, model) {
     return out;
 }
 // Step index first (numerically), then the rest: the file reads in step order.
+const indexIn = (key) => {
+    try {
+        const v = JSON.parse(key);
+        return Array.isArray(v) && typeof v[0] === 'number' ? v[0] : -1;
+    }
+    catch {
+        return -1;
+    }
+};
 const byKey = (a, b) => {
-    const [ia, ib] = [parseInt(a, 10), parseInt(b, 10)];
+    const [ia, ib] = [indexIn(a), indexIn(b)];
     return ia !== ib ? ia - ib : a < b ? -1 : a > b ? 1 : 0;
 };
 /** Deterministic sidecar text: keys sorted, 2-space JSON, trailing newline, no timestamps. */
@@ -97,7 +107,7 @@ export function formatFile(model, entries) {
     const sorted = {};
     for (const key of [...entries.keys()].sort(byKey)) {
         const e = entries.get(key);
-        sorted[key] = { desc: e.desc, frame: e.frame, page: e.page, ...(e.list === undefined ? {} : { list: e.list }) };
+        sorted[key] = { desc: e.desc, frame: e.frame, page: e.page, list: e.list };
     }
     return JSON.stringify({ version: PICK_FILE_VERSION, model, desc: DESC_FORMAT, entries: sorted }, null, 2) + '\n';
 }
@@ -132,9 +142,9 @@ export class PickStore {
         }
         return car;
     }
-    get(ref) { return this.sidecar(ref.at.file).entries.get(entryKey(ref)); }
-    set(ref, entry) {
-        const car = this.sidecar(ref.at.file), key = entryKey(ref), old = car.entries.get(key);
+    get(ref, page) { return this.sidecar(ref.at.file).entries.get(entryKey(ref, page)); }
+    set(ref, page, entry) {
+        const car = this.sidecar(ref.at.file), key = entryKey(ref, page), old = car.entries.get(key);
         if (entry === null) {
             if (old) {
                 car.entries.delete(key);
@@ -149,7 +159,8 @@ export class PickStore {
     }
     /** A handle for one attempt of one spec. */
     attempt(attempt) { return new PickAttempt(this, this.mode !== 'off' && attempt === 0, this.mode !== 'off'); }
-    /** Writes every changed sidecar (`on` only); a sidecar left with no entries is deleted. Returns the files written or deleted. */
+    /** Writes every changed sidecar (`on` only); a sidecar left with no entries is deleted. Returns the files
+     *  written or deleted. Two processes writing the same sidecar: the last writer wins (sharded CI: `read`). */
     write() {
         if (this.mode !== 'on')
             return [];
@@ -196,20 +207,21 @@ export class PickAttempt {
     lookup(ref, candidates, state) {
         if (!this.reads || this.closed || !this.store)
             return undefined;
-        const entry = this.store.get(ref);
+        const entry = this.store.get(ref, pageOf(state));
         return entry && match(entry, candidates, state);
     }
     /** The step acted on a cached pick. */
-    hit(ref) {
-        const entry = this.store?.get(ref);
+    hit(ref, state) {
+        const page = pageOf(state), entry = this.store?.get(ref, page);
         if (entry && !this.closed)
-            this.stepHits.set(entryKey(ref) + '\0' + ref.at.file, { ref, entry });
+            this.stepHits.set(`${entryKey(ref, page)}\0${ref.at.file}`, { ref, page, entry });
     }
     /** Jev's accepted pick, stored if this step and this attempt pass (and the desc can be matched strictly). */
     accept(ref, candidate, candidates, state) {
         if (!this.writes || this.closed)
             return;
-        this.stepPending.set(entryKey(ref) + '\0' + ref.at.file, { ref, entry: makeEntry(candidate, candidates, state) });
+        const page = pageOf(state);
+        this.stepPending.set(`${entryKey(ref, page)}\0${ref.at.file}`, { ref, page, entry: makeEntry(candidate, candidates, state) });
     }
     /** Ends a step; returns a dump of the cached picks this attempt used when the step did not pass. */
     endStep(status) {
@@ -228,7 +240,7 @@ export class PickAttempt {
         const used = [...this.hits.values(), ...this.evict.values()];
         if (!used.length)
             return undefined;
-        return dumpDebug('pick-cache', used.map(({ ref, entry }) => ({ sidecar: sidecarPath(ref.at.file), key: entryKey(ref), ...entry })));
+        return dumpDebug('pick-cache', used.map(({ ref, page, entry }) => ({ sidecar: sidecarPath(ref.at.file), key: entryKey(ref, page), ...entry })));
     }
     /** Commits (passed) or evicts (failed); later calls on this handle do nothing. */
     finish(passed) {
@@ -238,11 +250,11 @@ export class PickAttempt {
         if (!this.store || !this.writes)
             return;
         const evicted = passed ? this.evict : new Map([...this.hits, ...this.evict, ...this.stepHits]);
-        for (const { ref } of evicted.values())
-            this.store.set(ref, null);
+        for (const { ref, page } of evicted.values())
+            this.store.set(ref, page, null);
         if (passed)
-            for (const { ref, entry } of this.pending.values())
-                this.store.set(ref, entry);
+            for (const { ref, page, entry } of this.pending.values())
+                this.store.set(ref, page, entry);
     }
     /** Picks this attempt replayed from the cache so far. */
     get cachedPicks() { return this.hits.size + this.evict.size + this.stepHits.size; }

@@ -245,7 +245,7 @@ export async function resolveLocators(ctx, kind, targets) {
             for (const [j, r] of result.entries()) {
                 const ref = refs.get(jevTargets[j]);
                 if (r.cached) {
-                    ctx.picks.hit(ref);
+                    ctx.picks.hit(ref, { url, title });
                     ctx.ms.cached = (ctx.ms.cached ?? 0) + 1;
                 }
                 else if (r.candidate)

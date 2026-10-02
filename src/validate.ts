@@ -26,7 +26,8 @@ function checkPlaceholders(spec: unknown): void {
           throw new Error(`\${${expr}} is not defined (use \${env.*} from the spec's env block)`);
       }
     } else if (Array.isArray(value)) value.forEach(visit);
-    else if (value !== null && typeof value === 'object') Object.values(value).forEach(visit);
+    // A step's `at` is the loader's source path (pick cache), never interpolated.
+    else if (value !== null && typeof value === 'object') Object.entries(value).forEach(([k, v]) => { if (!(k === 'at' && 'kind' in value)) visit(v); });
   };
   for (const field of [url, app, platform, device, capabilities, steps]) visit(field);
 }

@@ -40,7 +40,7 @@ node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, c
 node scripts/benchmark-read.mjs --runs 2 --smart     # read vs smart snapshot on saved pages (scripts/read-states/, read-cases.json)
 node scripts/eval-browser-steps.mjs --variant v1     # step-time eval: examples + MCP session, overhead and same step statuses (.claude/hillclimb/, gitignored)
 node scripts/benchmark-claims.mjs --runs 3           # expect judging on saved pages (scripts/claim-cases.json); false passes must stay 0
-node scripts/benchmark-pick-cache.mjs --skip turing-click   # pick cache on stale saved pages; wrong hits must stay 0
+node scripts/benchmark-pick-cache.mjs --skip turing-click   # pick cache on stale saved pages; wrong/unconfirmed hits must stay 0
 node scripts/benchmark-steps.mjs --picks on --dir <scratch copy of examples>   # warm pick cache; never --dir examples
 ```
 
@@ -89,16 +89,18 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 - `src/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
   JSON schema version 1, Surefire retry failure/error elements, all-attempt usage and artifact paths.
 - `src/pick-cache.ts` — pick cache (`--picks on|read|off`, config `picks`; MCP never): a sidecar per source file
-  (`x.yaml` → `x.picks.json`, committed), key `<index in file>|<step kind>|<interpolated target>|<goal>`, value the
-  accepted candidate's desc without `value=`, frame label, page (origin+path) and, for a desc with no `context:`,
-  a sha1 of the whole normalized list. `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when exactly
-  one candidate matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks.
-  Loaders put `at: {file, index}` on each parsed step (never from YAML/MCP). One `PickStore` per suite run; a
-  `PickAttempt` per attempt (`SpecInfo.picks`): attempt > 0 never reads, a step that does not pass stores nothing,
-  a passing attempt commits, a failing one evicts the hits it used; sidecars written once after the last spec,
-  deterministic, empty ones deleted. Another model pin or `DESC_FORMAT` ignores the file: bump `DESC_FORMAT`
-  when `describe()`/`candidates()` or a native candidate desc changes. `scripts/benchmark-pick-cache.mjs`
-  (stale pages: wrong hits must stay 0); results in `docs/benchmarks/pick-cache.md`.
+  (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target (sha256 when the
+  raw step had `${`), goal, page]`, value the accepted candidate's desc (`value=` dropped only on `editable`
+  text-entry candidates, browser only), frame label, page (origin+path) and a sha1 of the whole normalized list.
+  `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when the list hash is equal and exactly one candidate
+  matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks. Loaders put
+  `at: {file, index, templated?}` on each parsed step (never from YAML/MCP; `interpolate` and `validate` skip it).
+  One `PickStore` per suite run, model id `MODEL_BY_PROVIDER.typesafe` for both providers; a `PickAttempt` per
+  attempt (`SpecInfo.picks`): attempt > 0 never reads, a step that does not pass stores nothing, a passing attempt
+  commits, a failing one evicts the hits it used; sidecars written once after the last spec, deterministic, empty
+  ones deleted. Another model or `DESC_FORMAT` ignores the file: bump `DESC_FORMAT` when `describe()`/`candidates()`
+  or a native candidate desc changes. `scripts/benchmark-pick-cache.mjs` (stale pages: wrong and unconfirmed hits
+  must stay 0); results in `docs/benchmarks/pick-cache.md`.
 - `src/include.ts` — nested steps-only YAML flows expanded before validation; paths relative to each includer,
   cycle/source-index diagnostics, origin labels; included placeholders use root env/hooks, not flow-local data.
 - `src/context-options.ts` — device/context overrides, auth/geolocation and storage state; CDP rejects context

@@ -96,7 +96,7 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
       for (const r of result!) if (r.usedJev) this.track(r.tokens);
       // Only the answer kept is recorded: an early capture's answer may have been discarded.
       if (refs) for (const [i, r] of result!.entries()) {
-        if (r.cached) { picks!.hit(refs[i]); this.ms.cached = (this.ms.cached ?? 0) + 1; }
+        if (r.cached) { picks!.hit(refs[i], frame.snapshot); this.ms.cached = (this.ms.cached ?? 0) + 1; }
         else if (r.candidate) picks!.accept(refs[i], r.candidate, frame.candidates, frame.snapshot);
       }
       return frame.approximate ? result!.map((r) => ({ ...r, approximate: true })) : result!;

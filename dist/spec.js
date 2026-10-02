@@ -9,7 +9,7 @@ const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
 const origin = z.string().optional();
 // Where the step was written (absolute file, index in it): the pick cache key. Set by the loaders, never by YAML or MCP.
-const at = z.object({ file: z.string(), index: z.number().int() }).optional();
+const at = z.object({ file: z.string(), index: z.number().int(), templated: z.boolean().optional() }).optional();
 const target = nonEmptyString;
 /** `tags: smoke` or `tags: [smoke, checkout]`; always a list after loading. */
 export const TagsSchema = z.union([nonEmptyString.transform((tag) => [tag]), z.array(nonEmptyString)]).optional();
@@ -147,10 +147,12 @@ export function withOrigin(raw, parse) {
         fail('origin must be a non-empty string');
     return { ...parse(rest), origin };
 }
-/** Puts the step's source (absolute file, index in it) on the parsed step, for the pick cache key (src/pick-cache.ts). */
-function withSource(step, root, source, i) {
+/** Puts the step's source (absolute file, index in it) on the parsed step, for the pick cache key (src/pick-cache.ts).
+ *  `templated` when the step as written holds a placeholder: its key then hashes the interpolated target. */
+function withSource(parsed, raw, root, source, i) {
     const file = source?.file === undefined ? resolve(root) : resolve(dirname(resolve(root)), source.file);
-    return { ...step, at: { file, index: source?.index ?? i } };
+    const templated = JSON.stringify(raw).includes('${');
+    return { ...parsed, at: { file, index: source?.index ?? i, ...(templated ? { templated } : {}) } };
 }
 export function loadSpec(path, opts) {
     const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
@@ -163,7 +165,7 @@ export function loadSpec(path, opts) {
         steps: expandIncludes(raw.steps, path).map((expanded, i) => {
             // Errors name the file and index the step was written at, also for included steps.
             const { step, source } = splitSource(expanded);
-            return withSource(withOrigin(step, (s) => parseStep(source?.file ?? path, source?.index ?? i, s)), path, source, i);
+            return withSource(withOrigin(step, (s) => parseStep(source?.file ?? path, source?.index ?? i, s)), step, path, source, i);
         }),
     };
     checkSpecFeatures(spec, path);
@@ -193,6 +195,11 @@ export function interpolate(value, vars, where) {
     }
     if (Array.isArray(value))
         return value.map((v) => interpolate(v, vars, where));
+    // A parsed step's source (`at`, set by the loader) is a path, not spec text: a `${` in a folder name stays as it is.
+    if (value !== null && typeof value === 'object' && 'kind' in value && 'at' in value) {
+        const { at: source, ...rest } = value;
+        return { ...interpolate(rest, vars, where), at: source };
+    }
     if (value !== null && typeof value === 'object')
         return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, interpolate(v, vars, where)]));
     return value;
@@ -212,6 +219,6 @@ export function loadNativeSpec(file, schema, parseOne, opts) {
     return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
         env, steps: expandIncludes(raw.steps, file).map((expanded, i) => {
             const { step, source } = splitSource(expanded);
-            return withSource(withOrigin(step, (s) => parseOne(s, source?.file ?? file, source?.index ?? i)), file, source, i);
+            return withSource(withOrigin(step, (s) => parseOne(s, source?.file ?? file, source?.index ?? i)), step, file, source, i);
         }) };
 }

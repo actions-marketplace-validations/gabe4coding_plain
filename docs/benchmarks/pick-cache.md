@@ -1,95 +1,99 @@
 # Pick cache
 
 The pick cache (`src/pick-cache.ts`, [running suites](../running.md#pick-cache)) replays a pick Jev made in
-the last passing run when the fresh page has exactly one candidate with the stored description. Two
-questions: is a replayed pick ever the wrong element (safety), and how much does it save on a real suite
-(cost).
+the last passing run when the fresh page has the same whole candidate list (values typed into text fields
+aside) and exactly one candidate with the stored description. Two questions: is a replayed pick ever the
+wrong element (safety), and how much does it save on a real suite (cost).
 
-## Safety on stale pages (2026-10-02)
+## Safety on stale pages (2026-10-02, `DESC_FORMAT` 2)
 
 `scripts/benchmark-pick-cache.mjs` takes each saved page in `scripts/pick-states/` as the "before" state and
 changes it the way a site changes between runs. For each target of `scripts/pick-cases.json` that has a
 right answer, Jev picks on "before" with the flow's goal (the run that wrote the cache); the accepted pick
 becomes the entry (`makeEntry`); the lookup runs on "after" (`match`). Every hit is checked against a fresh
 Jev pick on "after": **wrong** = the fresh pick accepts another element or `none`, or the hit is not the
-element the entry was made from. Misses need no check: Jev picks then.
+element the entry was made from; **unconfirmed** = the fresh pick accepts nothing (the cache acted where
+Jev would have been inconclusive). Misses need no check: Jev picks then. Pass bar: 0 wrong, 0 unconfirmed,
+every unsafe change a miss.
 
-Changes: **row-added** (a new row at the top: every id moves), **row-removed** (one other element gone),
-**moved** (the targets moved to the end of the list), **value-changed** (a field's value, fill page only),
-and the unsafe ones that must always miss: **renamed** (the target's text), **duplicate** (a second
-identical element: both get ` #n`), **context** (the target's row text changed).
+Changes on the saved pages: **unchanged** (the same page again), **row-added** (a new row at the top),
+**row-removed**, **moved** (the targets moved to the end), **value-changed** (a text field's value, fill page
+only), and the unsafe **renamed** (the target's text), **duplicate** (a second identical element: both get
+` #n`) and **context** (the target's row text). Three built-in pages add unsafe changes the saved pages
+lack: **value-label** (`input[type=submit] value="Subscribe"` becomes `Unsubscribe`), **better-row** (a newer
+order row above the one picked for "the newest order's View link") and **dialog** (a cookie dialog over the
+page).
 
 ```
 node scripts/benchmark-pick-cache.mjs --runs 1 --skip turing-click
-node scripts/benchmark-pick-cache.mjs --runs 1 --only login-fill      # value-changed (the only fill page)
 ```
 
-34 targets on 10 pages (`turing-click`, 1,016 candidates at the cap, skipped for cost); 27 were stored,
-7 were not: 4 picks Jev did not accept on "before", 3 picks of one of several identical elements (` #n`).
+37 targets (34 on 10 saved pages; `turing-click`, 1,016 candidates at the cap, skipped for cost; 3 built-in);
+31 stored, 3 rejected by Jev on "before", 3 not stored (one of several identical elements, ` #n`).
 
 | Change | Safe | Targets | Hit, right | Wrong | Unconfirmed | Miss |
 |---|---|---:|---:|---:|---:|---:|
-| row-added | yes | 27 | 12 | **0** | 1 | 14 |
-| row-removed | yes | 27 | 13 | **0** | 0 | 14 |
-| moved | yes | 26 | 13 | **0** | 0 | 13 |
-| value-changed | yes | 1 | 1 | **0** | 0 | 0 |
-| renamed | no | 27 | 0 | **0** | 0 | 27 |
-| duplicate | no | 27 | 0 | **0** | 0 | 27 |
-| context | no | 13 | 0 | **0** | 0 | 13 |
+| unchanged | yes | 28 | 28 | **0** | **0** | 0 |
+| row-added | yes | 28 | 0 | 0 | 0 | 28 |
+| row-removed | yes | 28 | 0 | 0 | 0 | 28 |
+| moved | yes | 27 | 0 | 0 | 0 | 27 |
+| value-changed | yes | 1 | 1 | **0** | **0** | 0 |
+| renamed | no | 28 | 0 | 0 | 0 | 28 |
+| duplicate | no | 28 | 0 | 0 | 0 | 28 |
+| context | no | 14 | 0 | 0 | 0 | 14 |
+| value-label | no | 1 | 0 | 0 | 0 | 1 |
+| better-row | no | 1 | 0 | 0 | 0 | 1 |
+| dialog | no | 1 | 0 | 0 | 0 | 1 |
 
-Pass bar met: **0 wrong hits**, and every unsafe change missed. All 39 right hits are also in the case's
-expected ids. The one unconfirmed hit is GitHub's repository "website link" after a row was added: the
-fresh pick chose the same element but below the 0.5 acceptance score (0.37), so a fresh run would have
-been inconclusive where the cache acted.
+Pass bar met: 0 wrong, 0 unconfirmed, every unsafe change missed; all 29 hits are in the case's expected ids.
+Since every entry now carries the list hash, any change to a page's candidate list is a miss, safe changes
+included: the cache pays off on pages that stay the same between runs (test environments), and Jev picks
+on everything else. Cost: 59 Jev requests, 1,370,851 tokens.
 
-The misses on safe changes are all entries whose desc has no `context:` part (14 of the 27): they need the
-whole candidate list to be unchanged, so any change on the page misses. Entries with context survive rows
-added, removed or moved.
-
-Cost: 65 + 2 Jev requests, 1,744,528 tokens.
-
-A first run without the goal (`--goal off`, 38 requests, 1,516,780 tokens) reported 5 wrong hits. 4 were
-"the comments link" on Hacker News, a vague target the goal is needed for: without it Jev's own choice moves
-between comment links from one request to the next (as `docs/benchmarks/picks.md` measured: 21 wrong picks
-without the goal, 0 with it). The fifth came from the inserted row itself (`href=/new`), which the fresh pick
-took for "the new link in the top bar"; the inserted row is now a neutral sponsored link. A spec's goal is
-part of the cache key and of the pick state, so the goal-on run is the one that matches how specs use the
-cache.
+Earlier runs, before the review fixes (`DESC_FORMAT` 1: `value=` dropped on every candidate, list hash only
+on entries without `context:`): with the goal, 0 wrong and 1 unconfirmed hit (GitHub's "website link" after a
+row was added, fresh score 0.37); 65 + 2 requests, 1,744,528 tokens. Without the goal, 5 wrong hits (4 the
+vague "the comments link", which needs the goal; 1 caused by the inserted row itself); 38 requests, 1,516,780
+tokens. The unconfirmed hit and the review's cases (a value-labelled button, a newer better row) are why
+every entry now needs the whole list unchanged.
 
 ## Warm cache on the examples (2026-10-02, incomplete: the demo site was failing)
 
-`scripts/benchmark-steps.mjs` now passes `--picks` to the CLI, runs specs from `--dir` (a scratch copy of
+`scripts/benchmark-steps.mjs` passes `--picks` to the CLI, runs specs from `--dir` (a scratch copy of
 `examples/`, so no sidecar lands in the repository), and reports per run the pick and claim calls and tokens
-(`scripts/count-jev.mjs`, a `--import` preload that wraps the build's `intelligence`), `cachedPicks` and
-every step's status (from a JSON report).
+(`scripts/count-jev.mjs`, a `--import` preload that wraps the build's `intelligence`), `cachedPicks`,
+`hitRate` = cached / (cached + Jev-picked targets), and every step's status (from a JSON report).
 
-```
-cp -R examples "$SCRATCH/examples"
-node scripts/benchmark-steps.mjs --runs 3 --picks off --dir "$SCRATCH/examples" --out "$SCRATCH/off.json"
-node scripts/benchmark-steps.mjs --runs 1 --picks on  --dir "$SCRATCH/examples" --out "$SCRATCH/cold.json"
-node scripts/benchmark-steps.mjs --runs 2 --picks on  --dir "$SCRATCH/examples" --out "$SCRATCH/warm.json" --compare "$SCRATCH/cold.json"
-```
+the-internet.herokuapp.com, which 16 of the 17 benchmarked examples use, mostly did not reach the `load`
+event in a browser during these runs (its scripts and stylesheets stayed pending). The specs that failed
+at their first `goto` changed from run to run, so the pass bars (≥80% hits, pick tokens −≥80%, same step
+statuses) **could not be measured** on the whole set.
 
-During these runs the-internet.herokuapp.com, which 16 of the 17 benchmarked examples use, mostly did not
-reach the `load` event in a browser (its scripts and stylesheets stayed pending; `curl` got each file in
-under a second). 13 or 14 of 17 specs failed at their first `goto` in every run, and not the same ones from
-run to run, so the pass bars (≥80% hits, pick tokens −≥80%, same step statuses) **could not be measured**
-on the whole set.
+Second attempt, after the review fixes (fresh scratch copy):
 
-| Run | Specs that passed | Jev pick targets | Pick tokens | Cached picks |
-|---|---|---:|---:|---:|
-| off 1 / 2 / 3 | 3 / 3 / 4 (a different set each run) | 3 / 4 / 1 | 1,735 / 2,321 / 479 | 0 |
-| cold (on) | JS error, infinite scroll + dynamic loading, todo | 2 | 1,034 | 0 |
-| warm 1 (on) | the same three | **0** | **0** | 2 |
-| warm 2 (on) | JS error, todo, dialogs dismiss, dropdown | 7 | 4,132 | 1 |
+| Command | Specs passed | Pick calls | Pick tokens | Claim calls / tokens | Cached |
+|---|---|---:|---:|---:|---:|
+| `--runs 2 --picks off` run 1 / 2 | 6 / 3 of 17 | 13 / 6 | 35,991 / 3,361 | 11 / 8,415, 5 / 2,281 | 0 |
+| `--runs 1 --picks on` (cold) | 1 of 17 (todo) | 1 | 485 | 1 / 602 | 0 |
 
-On the specs that passed in both the cold run and a warm run, every pick was replayed: 3 of 3 (`fill the new
-todo input` on TodoMVC twice, `click the Start button` on dynamic loading once), no pick call, the same step
-statuses. Warm run 2's 7 pick calls are all from specs that never passed before (dialogs, dropdown), so
-they had no entry yet. This shows the mechanism end to end on live pages; it is too small a sample for
-the pass bars.
+The cold run left one sidecar (`todo.picks.json`). The full warm run was not done: with 16 of 17 specs
+failing at `goto` it would have measured the site, not the cache. On the one example the site outage did not
+touch (`todo.yaml`, demo.playwright.dev), warm against off, 2 runs each:
 
-Cost: 48 Jev calls, 49,959 tokens over the 6 runs.
+| `todo.yaml`, median of 2 | off | warm (on) | Change |
+|---|---:|---:|---:|
+| pick calls / tokens | 1 / 485 | 0 / 0 | −100% |
+| hit rate | 0% | 100% | |
+| step time (`total`, ms) | 1,677 | 1,071 | −36% |
+| Jev wait (`jev`, ms) | 759 | 105 | −86% |
+| claim tokens | 602 | 602 | 0 |
+| step statuses | | identical to off | |
+
+First attempt (before the review fixes): off ×3, cold ×1, warm ×2; on the specs that passed in both the
+cold and a warm run, 3 of 3 picks were replayed with no pick call and the same statuses.
+
+Cost of the step benchmarks: first attempt 48 Jev calls, 49,959 tokens; second attempt 37 calls, 51,135
+tokens, plus the todo runs (2 pick calls and 4 claim calls, 3,378 tokens).
 
 To finish the measurement when the site is healthy again (each run ~3.5 min):
 
@@ -99,6 +103,3 @@ node scripts/benchmark-steps.mjs --runs 2 --picks off --dir "$SCRATCH/examples" 
 node scripts/benchmark-steps.mjs --runs 1 --picks on  --dir "$SCRATCH/examples" --out "$SCRATCH/cold.json"
 node scripts/benchmark-steps.mjs --runs 2 --picks on  --dir "$SCRATCH/examples" --out "$SCRATCH/warm.json" --compare "$SCRATCH/off.json"
 ```
-
-Hit rate = `cachedPicks / (cachedPicks + pick targets)` per run (printed as `hitRate`); pick tokens and step
-statuses are compared against the off run (`--compare`).

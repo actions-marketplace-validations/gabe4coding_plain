@@ -30,7 +30,9 @@ test('browser: a warm run acts on the same element without a pick call', async (
     const go = candidates.find((c) => c.desc.startsWith('button "Go"'));
     return targets.map((_, i) => ({ id: go?.id ?? null, probability: 0.97, probabilities: {}, tokens: i === 0 ? 50 : 0 }));
   };
+  let failNext = 0; // the next N judgments fail, whatever the page shows
   intelligence.judge = async (state, claims) => {
+    if (failNext > 0) { failNext--; return { probabilities: claims.map(() => 0.02), tokens: 3 }; }
     const { aria } = state as { aria: string };
     return { probabilities: claims.map(() => (/Clicked Go/.test(aria) && !/Clicked Stop/.test(aria) ? 0.97 : 0.02)), tokens: 3 };
   };
@@ -46,9 +48,12 @@ test('browser: a warm run acts on the same element without a pick call', async (
     const cold = await runSuite(engine, opts, services);
     assert.equal(cold.status, 'pass', JSON.stringify(cold.specs[0].attempts[0].steps));
     assert.equal(picks, 1);
-    const sidecar = JSON.parse(fs.readFileSync(path.join(dir, 'go.picks.json'), 'utf8'));
-    assert.match(sidecar.entries['1|click|the Go button|'].desc, /^button "Go" context: section heading="Actions"/);
-    assert.equal(sidecar.entries['1|click|the Go button|'].list, undefined, 'a desc with context needs no list hash');
+    const sidecarFile = path.join(dir, 'go.picks.json');
+    const sidecar = JSON.parse(fs.readFileSync(sidecarFile, 'utf8'));
+    const [key] = Object.keys(sidecar.entries);
+    assert.deepEqual(JSON.parse(key).slice(0, 4), [1, 'click', 'the Go button', '']);
+    assert.match(sidecar.entries[key].desc, /^button "Go" context: section heading="Actions"/);
+    assert.match(sidecar.entries[key].list, /^[0-9a-f]{40}$/, 'every entry carries the list hash');
 
     const warm = await runSuite(engine, opts, services);
     assert.equal(warm.status, 'pass', JSON.stringify(warm.specs[0].attempts[0].steps));
@@ -57,5 +62,21 @@ test('browser: a warm run acts on the same element without a pick call', async (
     assert.equal(click.cached, true);
     assert.match(click.detail!, /^→ button "Go".*\(cached pick\)$/);
     assert.equal(warm.totals.cachedPicks, 1);
+
+    // Attempt 1 replays the pick and fails: its hit is evicted, attempt 2 never reads the cache and asks Jev.
+    failNext = 1;
+    const retried = await runSuite(engine, { ...opts, retries: 1 }, services);
+    assert.equal(retried.specs[0].status, 'pass');
+    assert.equal(retried.specs[0].flaky, true);
+    assert.equal(retried.specs[0].attempts[0].steps[1].cached, true);
+    assert.equal(retried.specs[0].attempts[1].steps[1].cached, undefined);
+    assert.equal(picks, 2, 'the retry picked with Jev');
+    assert.ok(JSON.parse(fs.readFileSync(sidecarFile, 'utf8')).entries[key], 'the passing retry stored its pick again');
+
+    // A failed attempt with no retry: the entry it used is gone, and the sidecar with it.
+    failNext = 1;
+    const failed = await runSuite(engine, opts, services);
+    assert.equal(failed.status, 'fail');
+    assert.equal(fs.existsSync(sidecarFile), false);
   } finally { process.chdir(cwd); console.error = error; }
 });
