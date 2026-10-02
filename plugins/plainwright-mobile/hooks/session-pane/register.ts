@@ -93,7 +93,14 @@ export function register(on: any): void {
       onSavePath: (path) => {
         typedPath = path;
       },
-      onSave: (path) => save($, path?.trim() || specPath()),
+      onSave: (path) => {
+        // Enter in the field submits its text: keep it as the typed path, as typing does.
+        if (path?.trim()) {
+          typedPath = path;
+          $.ui.invalidate('ui.render');
+        }
+        return save($, specPath());
+      },
       onCopy: () => copy($),
     });
   });
