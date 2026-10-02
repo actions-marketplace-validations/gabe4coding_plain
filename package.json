@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc && node scripts/build-plugins.mjs",
-    "test": "npm run build && node --test 'dist/**/*.test.js'",
+    "test": "npm run build && node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'",
     "check:docs": "node scripts/check-docs.mjs",
     "check:examples": "node scripts/check-examples.mjs",
     "test:plugins": "node scripts/smoke-plugins.mjs",
