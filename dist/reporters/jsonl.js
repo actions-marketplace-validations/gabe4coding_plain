@@ -7,7 +7,9 @@ export function jsonlReporter() {
                 const { name, status, steps, jevCalls, totalTokens } = attempt;
                 console.log(JSON.stringify({ name, status, steps, jevCalls, totalTokens }));
             }
-            else
+            else if (report.loadError !== undefined)
                 console.error(`${report.file}: ${report.loadError}`);
+            else
+                console.error(`${report.file}: skipped${report.skipReason ? ` (${report.skipReason})` : ''}`);
         } };
 }
