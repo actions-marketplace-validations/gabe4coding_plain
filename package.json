@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc && node scripts/build-plugins.mjs",
     "test": "npm run build && node --test 'dist/**/*.test.js'",
+    "test:mods": "claude plugin test mods/session-pane",
     "example": "npm run build && node dist/cli.js examples/*.yaml",
     "test:computer:mac": "npm run build && node scripts/smoke-computer-macos.mjs",
     "test:mobile": "npm run build && node scripts/smoke-mobile.mjs",
