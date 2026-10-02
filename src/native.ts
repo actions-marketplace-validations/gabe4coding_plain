@@ -12,7 +12,7 @@ import type { Engine, SuiteEngine } from './suite-types.js';
 import { parseSuiteArgs, UsageError } from './options.js';
 import { checkSpecTimeoutFlag } from './spec-features.js';
 import { runSuite } from './suite.js';
-import { validate } from './validate.js';
+import { validate, formatValidation } from './validate.js';
 
 // Shared by the desktop (computer.ts) and mobile (mobile.ts) paths: Jev targeting, expect/wait polling,
 // phase timing, spec runs and the CLI. Subclasses only perform their platform's actions.
@@ -187,6 +187,11 @@ type NativeSpec<S> = HookSpec & { env: Record<string, unknown>; hooks?: string; 
 export async function runNativeSpec<S extends { kind: string; optional?: boolean }, P extends NativeSpec<S>>(spec: P,
   session: NativeSession<unknown, string, S, NativeAdapter<unknown, string>>, open: (vars: { env: Record<string, unknown>; hooks: Record<string, unknown> }) => Promise<S[]>,
   observer?: RunObserver, info?: SpecInfo, specTimeout?: number) {
+  const started = performance.now();
+  const { specDeadline } = await import('./spec-timeout.js');
+  const { label } = await import('./results.js');
+  const { mobileLabel } = await import('./mobile-spec.js');
+  const deadline = specDeadline(spec.timeout ?? specTimeout, started);
   const steps: StepResult[] = [];
   const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
   const target: CaptureTarget = { engine: 'platform' in spec ? 'mobile' : 'desktop', screenshot: async (file) => {
@@ -214,7 +219,10 @@ export async function runNativeSpec<S extends { kind: string; optional?: boolean
     opened = true;
     await observe('sessionOpen', { target });
     for (const step of runSteps) {
-      const result = await session.run(step); await record(result);
+      const result = await deadline.step(() => session.run(step), () => 'platform' in spec
+        ? mobileLabel(step as unknown as import('./mobile-spec.js').MobileStep)
+        : label(step as unknown as Step));
+      await record(result);
       if (result.status !== 'pass' && result.status !== 'skipped') { status = result.status; break; }
     }
   } catch (error) {
@@ -254,10 +262,8 @@ export async function nativeCli<S>(bin: string, usage: string, engineName: Extra
       run: (spec, observer, info) => main.run(spec, timeout, args, observer, info, opts.specTimeout), maxWorkers: 1 };
     if (command === 'validate') {
       const results = validate(engine, opts.files);
-      for (const result of results) {
-        for (const warning of result.warnings) console.error(`${result.file}: ${warning}`);
-        if (result.error) console.error(`${result.file}: ${result.error}`);
-      }
+      const output = formatValidation(results); // ✔ / ✘ / ! lines on stdout
+      if (output) console.log(output);
       process.exitCode = results.some((result) => result.error) ? 1 : 0;
     } else {
       process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;

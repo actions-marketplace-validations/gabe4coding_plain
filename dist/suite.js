@@ -20,10 +20,14 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
         }
     });
     const selected = select(entries.flatMap((entry) => 'loaded' in entry ? [entry.loaded] : []), opts);
-    if (listSelected(selected, opts))
-        return { engine: engine.engine, provider: '', model: '', startedAt,
-            durationMs: Date.now() - start, specs: [], status: 'pass',
-            totals: { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0 } };
+    if (listSelected(selected, opts)) {
+        // --list never runs anything, but a spec that does not load is still reported (and fails the command).
+        const broken = entries.flatMap((entry) => 'report' in entry ? [entry.report] : []);
+        for (const spec of broken)
+            console.error(`✘ ${spec.file}: ${spec.loadError?.replace(/^\w*Error: /, '')}`);
+        return { engine: engine.engine, provider: '', model: '', startedAt, durationMs: Date.now() - start, specs: broken,
+            status: broken.length ? 'fail' : 'pass', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0 } };
+    }
     if (opts.workers > engine.maxWorkers)
         throw new Error(`--workers > ${engine.maxWorkers} is not supported for ${engine.engine}`);
     checkSchedule(opts);
@@ -132,8 +136,10 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
         if (spec.flaky)
             totals.flaky++;
     }
+    // Lane C marks every spec it did not start; the first reason (in input order) names the stop.
+    const stopped = reports.find((spec) => spec.skipReason)?.skipReason;
     const report = { engine: engine.engine, provider: chosenProvider, model, startedAt,
-        durationMs: Date.now() - start, specs: reports, totals,
+        durationMs: Date.now() - start, specs: reports, totals, ...(stopped ? { stopped } : {}),
         status: reports.every((spec) => spec.status === 'pass') ? 'pass' : 'fail' };
     await emit('runEnd', { report });
     writeLastRun(process.cwd(), report);

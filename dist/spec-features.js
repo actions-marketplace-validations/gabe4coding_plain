@@ -1,11 +1,9 @@
-// Lane E's guards, checked when a spec loads (so `validate` reports them too) and when the CLI starts.
+// Schema validation handles the fields; keep these seams for the frozen loaders and CLIs.
 export function checkSpecFeatures(spec, file) {
-    if (spec.timeout !== undefined)
-        throw new Error(`invalid spec: ${file}: timeout: not implemented yet`);
-    if (spec.browser && Object.keys(spec.browser).length)
-        throw new Error(`invalid spec: ${file}: browser: not implemented yet`);
+    if (spec.timeout !== undefined && (!Number.isSafeInteger(spec.timeout) || spec.timeout <= 0))
+        throw new Error(`invalid spec: ${file}: timeout must be a positive safe integer`);
 }
 export function checkSpecTimeoutFlag(value) {
-    if (value !== undefined)
-        throw new Error('--spec-timeout: not implemented yet');
+    if (value !== undefined && (!Number.isSafeInteger(value) || value <= 0))
+        throw new Error('--spec-timeout must be a positive safe integer');
 }
