@@ -156,7 +156,7 @@ steps-only flows; included steps use the root spec’s env/hooks. Run
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
 `step`/`batch` cannot execute an `include`. Spec runs write a pick cache
 (`*.picks.json` next to each spec and flow): commit it with the specs, and run CI
-with `--picks read` (docs/running.md, "Pick cache").
+with `--picks read` (docs/running.mdx, "Pick cache").
 
 ## Safety
 

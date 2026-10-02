@@ -1,0 +1,232 @@
+---
+title: Getting started
+description: Configure the Jev API key, install the plugins for Claude Code or Codex, and run your first browser, desktop or mobile spec.
+---
+
+# Getting started
+
+## Requirements
+
+- Node 22 or newer, and npm.
+- A [TypeSafe](https://typesafe.ai) API key or a Vercel AI Gateway key. Jev uses this key for each pick and each judgment.
+- For desktop specs: a desktop session and accessibility permission. Refer to [desktop platform setup](computer-use.mdx#platform-setup).
+- For mobile specs: an Appium server, a test device or simulator, and your app installed on it. Refer to [mobile setup](mobile-use.mdx#setup).
+
+## The API key
+
+Put the key in the user env file. All plugins and CLIs read this file:
+
+```dotenv
+# ~/.config/plainwright/.env
+TYPESAFE_API_KEY=<your key>
+```
+
+Each key selects a provider:
+
+| Variable | Provider | Jev model |
+|---|---|---|
+| `TYPESAFE_API_KEY` | TypeSafe | `jev-1.13.0` (pinned) |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway | `typesafe-ai/jev` (no pinned version) |
+
+If both keys are set, plainwright uses TypeSafe. To force a provider, set `JEV_PROVIDER` to `typesafe` or `gateway`.
+If `JEV_PROVIDER` names a provider without its key, the run stops with an error.
+
+The thresholds and the phrasing advice were tuned against `jev-1.13.0`. Only the TypeSafe provider pins this
+version.
+
+### Where plainwright reads the key
+
+plainwright reads variables from these sources, in this order:
+
+1. The environment of the process (your shell, or the plugin host).
+2. The `.env` file in the current directory.
+3. The user env file: `$XDG_CONFIG_HOME/plainwright/.env` if `XDG_CONFIG_HOME` is set, else `~/.config/plainwright/.env`.
+
+A file never replaces a variable that is already set. Thus the first source that sets a variable wins.
+The user env file is the one place that works for the CLIs and for both plugin hosts. Codex does not give plugin
+MCP servers your shell environment.
+
+The `$VAR` references in a spec `env` block read the same environment. Thus your test credentials can also go in
+these files. Refer to the [spec reference](spec-reference.mdx).
+
+Do not commit a `.env` file. It contains your API key. The repository has an [example file](../.env.example).
+
+### When plainwright needs the key
+
+- A spec run checks for the key before the first spec starts.
+- `validate` and `--list` do not need a key.
+- An MCP server starts without a key. A tool call that needs Jev then returns the missing-key message to the agent.
+
+The browser CLI and the browser MCP server write the selected provider and model to stderr, for example
+`plainwright: Jev via typesafe (jev-1.13.0)`.
+
+## Install the plugins
+
+Each plugin contains an MCP server and a skill. The skill tells the agent how to write steps, examine results and
+save a flow. Install only the plugins that you need.
+
+### Claude Code
+
+```sh
+/plugin marketplace add gabe4coding/plainwright
+/plugin install plainwright@plainwright-marketplace
+/plugin install plainwright-computer@plainwright-marketplace
+/plugin install plainwright-mobile@plainwright-marketplace
+```
+
+You can use a local clone path in place of `gabe4coding/plainwright`.
+
+On the first start, each plugin installs its runtime dependencies. The browser plugin also installs Chromium.
+The first connection can take one or two minutes. If it times out, run `/mcp` to connect again when the
+installation is complete.
+
+Claude Code gives the plugin servers its environment. Thus you can also export the key in your shell profile, or
+put it in the `env` block of `~/.claude/settings.json`.
+
+Do not register a server with `claude mcp add plainwright ...` when the plugin is installed. A server with the same
+name replaces the plugin server without a warning.
+
+To use the browser server without the plugin, register it directly:
+
+```sh
+claude mcp add plainwright -- node /path/to/plainwright/bin/plainwright.mjs --headless mcp
+```
+
+### Codex
+
+```sh
+codex plugin marketplace add gabe4coding/plainwright
+codex plugin add plainwright@plainwright-marketplace
+codex plugin add plainwright-computer@plainwright-marketplace
+codex plugin add plainwright-mobile@plainwright-marketplace
+```
+
+You can use a local clone path in place of `gabe4coding/plainwright`. Then put the key in the user env file and
+start a new Codex session.
+
+- Codex gives plugin MCP servers no shell environment. Use the user env file for the key.
+- Codex asks for approval of each plugin tool. In a non-interactive run (`codex exec`), add `--approve-for-me`.
+  Without it, each tool call fails with "approval policy is never".
+
+To remove the browser plugin and the marketplace:
+
+```sh
+codex plugin remove plainwright@plainwright-marketplace
+codex plugin marketplace remove plainwright-marketplace
+```
+
+## Run from a checkout
+
+```sh
+git clone https://github.com/gabe4coding/plainwright.git
+cd plainwright
+node bin/plainwright.mjs examples/todo.yaml
+```
+
+The repository contains the compiled output, so you do not have to build it. On the first run, the browser launcher
+`bin/plainwright.mjs` installs the npm dependencies and Chromium. Then it opens a visible browser. Add `--headless`
+to hide the browser.
+
+The desktop and mobile launchers do not install dependencies. Run `npm ci` once before you use them:
+
+```sh
+npm ci
+node bin/plainwright-computer.mjs path/to/desktop.yaml
+node bin/plainwright-mobile.mjs path/to/mobile.yaml
+```
+
+To connect an MCP client directly, start a server over stdio:
+
+```sh
+node bin/plainwright.mjs --headless mcp
+node bin/plainwright-computer.mjs mcp
+node bin/plainwright-mobile.mjs mcp
+```
+
+The CLIs have no `--help` flag. To see the usage line, run a CLI without arguments.
+
+Before a live run, check your specs without a key or a session:
+
+```sh
+node bin/plainwright.mjs validate tests/
+```
+
+A spec run writes a pick cache file next to each spec file, for example `login.picks.json` for `login.yaml`.
+Refer to the [pick cache](running.mdx#pick-cache). For all flags, refer to [running suites](running.mdx).
+
+## Your first spec
+
+### Browser
+
+```yaml
+name: add a todo
+url: https://demo.playwright.dev/todomvc
+steps:
+  - goto: /
+  - fill: { target: "the new todo input", value: "buy milk" }
+  - press: Enter
+  - expect: "a todo item named 'buy milk' is listed"
+```
+
+Start a browser spec with a `goto` step. plainwright does not open `url` by itself: `url` is only the base for
+`goto`. The [spec reference](spec-reference.mdx) gives all steps and fields.
+
+### Desktop
+
+Start the application before you run the spec. The CLI attaches to the running application. This example uses a
+test application with the name `Desktop Test Fixture`. Change the name and the targets to agree with your
+application.
+
+```yaml
+name: preview a message
+app: Desktop Test Fixture
+steps:
+  - fill: { target: "the Message text field", value: "hello" }
+  - check: "the Enable preview checkbox"
+  - click: "the Preview button"
+  - expect: "the preview says hello"
+```
+
+A desktop spec uses `app` in place of `url`. Browser-only steps, for example `goto`, `select` and `upload`, cause a
+validation error. Refer to [desktop specs](computer-use.mdx#desktop-specs).
+
+### Mobile
+
+A mobile spec names the platform, the device ID and the installed app ID. This example uses an Android emulator:
+
+```yaml
+name: preview a mobile message
+platform: android
+device: emulator-5554
+app: com.example.fixture
+steps:
+  - fill: { target: "the Message text field", value: "hello" }
+  - tap: "the Preview button"
+  - expect: "the preview says hello"
+```
+
+For iOS, use `platform: ios`, the simulator or device UDID and the app bundle ID. Mobile adds the `tap`,
+`longpress` and `swipe` steps. Refer to [mobile specs](mobile-use.mdx#mobile-specs). The
+[mobile examples](../examples/mobile/README.md) install their own test app and run as they are.
+
+## Environment variables
+
+| Variable | Engine | Meaning |
+|---|---|---|
+| `TYPESAFE_API_KEY` | All | Key for the TypeSafe provider. Wins if both keys are set. |
+| `AI_GATEWAY_API_KEY` | All | Key for the Vercel AI Gateway provider. |
+| `JEV_PROVIDER` | All | `typesafe` or `gateway`. Forces the provider. |
+| `XDG_CONFIG_HOME` | All | Moves the user env file to `$XDG_CONFIG_HOME/plainwright/.env`. |
+| `PLAINWRIGHT_CHANGES` | MCP servers | `0` removes `changed` from `step` and `batch` results. On by default. |
+| `PLAINWRIGHT_READ` | MCP servers | `0` hides the `read` tool. On by default. |
+| `PLAINWRIGHT_PROFILE` | Browser | Same as `--profile`. |
+| `PLAINWRIGHT_CHANNEL` | Browser | Same as `--channel`. |
+| `PLAINWRIGHT_CDP` | Browser | Same as `--cdp`. |
+| `PLAINWRIGHT_APPIUM_URL` | Mobile | Same as `--server`. Default `http://127.0.0.1:4723`. |
+| `ANDROID_HOME`, `ANDROID_SDK_ROOT` | Mobile | Device discovery finds `adb` in this SDK. |
+
+A command-line flag wins over its variable. The variable wins over the config file. MCP servers do not read the
+config file, but they use these variables. Refer to [configuration](running.mdx#configuration) and
+[your real browser](agent-mode.mdx#your-real-browser).
+
+The native smoke tests have their own variables. Refer to [development](development.mdx#verification).
