@@ -9,6 +9,8 @@ import { startHooks, type HooksRunner } from './hooks.js';
 import { browserContextOptions } from './context-options.js';
 import { observerCalls } from './observe.js';
 import type { CaptureTarget, RunObserver, SpecInfo } from './suite-types.js';
+import { label } from './results.js';
+import { specDeadline } from './spec-timeout.js';
 
 export interface TestResult { name: string; status: Status; steps: StepResult[]; jevCalls: number; totalTokens: number; }
 
@@ -126,9 +128,6 @@ async function openPage(spec: Spec, opts: RunOptions): Promise<{ page: Page; clo
   const contextOptions = browserContextOptions(spec, opts);
 
   if (opts.cdp) {
-    if (spec.auth || spec.geolocation) {
-      throw new Error('--cdp attaches to an existing browser context: `auth` and `geolocation` in the spec are not supported there');
-    }
     const browser = await chromium.connectOverCDP(opts.cdp);
     const context = browser.contexts()[0] ?? (await browser.newContext());
     const tab = await context.newPage(); // our own tab, so the user's current one is left alone
@@ -228,6 +227,7 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
 }
 
 export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserver, info?: SpecInfo): Promise<TestResult> {
+  const deadline = specDeadline(spec.timeout ?? opts.specTimeout);
   const steps: StepResult[] = [];
   let jevCalls = 0;
   let totalTokens = 0;
@@ -285,7 +285,7 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
     for (const step of runSteps) {
       // ponytail: `optional: true` steps tolerate inconclusive/error (e.g. an intermittent cookie banner):
       // reported as skipped, and the run keeps going instead of failing the whole spec.
-      let result = await runStepSafely(session.ctx, step);
+      let result = await deadline.step(() => runStepSafely(session.ctx, step), () => label(step));
       const notes = session.drainNotes();
       if (notes.length) result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };
       await record(result);
@@ -307,6 +307,16 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
         await record({ step: 'teardown', status: 'error', detail: err instanceof Error ? err.message : String(err) });
       } finally {
         hooksRunner.close(); // the child never lingers past its one spec run
+      }
+    }
+    if (overall === 'pass' && spec.browser?.saveState !== undefined) {
+      try {
+        const file = path.resolve(spec.dir, spec.browser.saveState);
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        await session.ctx.page.context().storageState({ path: file });
+      } catch (err) {
+        overall = 'error';
+        await record({ step: 'saveState', status: 'error', detail: err instanceof Error ? err.message : String(err) });
       }
     }
     await observe('sessionClose', { status: overall, target });

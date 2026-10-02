@@ -8,6 +8,8 @@ import { installSettleObserver } from './page.js';
 import { startHooks } from './hooks.js';
 import { browserContextOptions } from './context-options.js';
 import { observerCalls } from './observe.js';
+import { label } from './results.js';
+import { specDeadline } from './spec-timeout.js';
 const MAX_EVENTS = 30; // ponytail: cap what's sent to Jev as `events` — a long spec shouldn't grow this unbounded
 // Ad-heavy sites log CSP violations that list every allowed domain (~4,500 chars each): sent to Jev with
 // every judgment, they cost more tokens than the page. The head says what the error is.
@@ -107,9 +109,6 @@ export function mapLimitSettled(items, limit, fn) {
 async function openPage(spec, opts) {
     const contextOptions = browserContextOptions(spec, opts);
     if (opts.cdp) {
-        if (spec.auth || spec.geolocation) {
-            throw new Error('--cdp attaches to an existing browser context: `auth` and `geolocation` in the spec are not supported there');
-        }
         const browser = await chromium.connectOverCDP(opts.cdp);
         const context = browser.contexts()[0] ?? (await browser.newContext());
         const tab = await context.newPage(); // our own tab, so the user's current one is left alone
@@ -213,6 +212,7 @@ export async function openSession(spec, opts, track) {
     };
 }
 export async function runSpec(spec, opts, observer, info) {
+    const deadline = specDeadline(spec.timeout ?? opts.specTimeout);
     const steps = [];
     let jevCalls = 0;
     let totalTokens = 0;
@@ -272,7 +272,7 @@ export async function runSpec(spec, opts, observer, info) {
         for (const step of runSteps) {
             // ponytail: `optional: true` steps tolerate inconclusive/error (e.g. an intermittent cookie banner):
             // reported as skipped, and the run keeps going instead of failing the whole spec.
-            let result = await runStepSafely(session.ctx, step);
+            let result = await deadline.step(() => runStepSafely(session.ctx, step), () => label(step));
             const notes = session.drainNotes();
             if (notes.length)
                 result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };
@@ -298,6 +298,17 @@ export async function runSpec(spec, opts, observer, info) {
             }
             finally {
                 hooksRunner.close(); // the child never lingers past its one spec run
+            }
+        }
+        if (overall === 'pass' && spec.browser?.saveState !== undefined) {
+            try {
+                const file = path.resolve(spec.dir, spec.browser.saveState);
+                fs.mkdirSync(path.dirname(file), { recursive: true });
+                await session.ctx.page.context().storageState({ path: file });
+            }
+            catch (err) {
+                overall = 'error';
+                await record({ step: 'saveState', status: 'error', detail: err instanceof Error ? err.message : String(err) });
             }
         }
         await observe('sessionClose', { status: overall, target });
