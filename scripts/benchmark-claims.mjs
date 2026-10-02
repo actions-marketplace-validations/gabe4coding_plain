@@ -9,8 +9,9 @@
 // show how close the worst cases came to the thresholds (pass >= 0.9, fail <= 0.1), which moves before the
 // counts do. Flips are cases whose decision changed between runs.
 //
-//   node scripts/benchmark-claims.mjs [--runs 1] [--group single|page] [--only <substring>] [--out result.json] [--compare base.json]
+//   node scripts/benchmark-claims.mjs [--runs 1] [--group single|page] [--only <substring>] [--out result.json] [--compare base.json] [--gate]
 //
+// --gate: exit 1 on any false pass, or on a Jev error (a claim that was not judged proves nothing). CI runs it.
 // --group single: one claim per Jev call, like an `expect` with one claim (default).
 // --group page:   all claims of one page (and the same events) in one call, like an `expect` with a list.
 // Needs a Jev key. Build first (npm run build).
@@ -21,7 +22,7 @@ import { decide } from '../dist/jev/decide.js';
 import { judgeState } from '../dist/core/automation.js';
 import { markUnchecked } from '../dist/browser/page.js';
 
-const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, group: { type: 'string', default: 'single' }, only: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' } } });
+const { values } = parseArgs({ options: { gate: { type: 'boolean', default: false }, runs: { type: 'string', default: '1' }, group: { type: 'string', default: 'single' }, only: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' } } });
 if (!['single', 'page'].includes(values.group)) throw new Error('--group must be single or page');
 loadEnvFiles();
 const cases = JSON.parse(readFileSync(new URL('./claim-cases.json', import.meta.url))).cases
@@ -136,3 +137,7 @@ if (values.compare) {
   }
 }
 if (values.out) writeFileSync(values.out, JSON.stringify({ group: values.group, runs: Number(values.runs), summary: total, results }, null, 1));
+if (values.gate && (total.falsePass || total.error)) {
+  console.error(`\nGATE FAILED: ${total.falsePass} false pass(es), ${total.error} error(s). False passes must stay 0.`);
+  process.exit(1);
+}

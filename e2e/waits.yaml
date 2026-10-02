@@ -1,0 +1,11 @@
+name: wait for late content and for content that a scroll loads
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /waits
+  - click: the Build report button
+  - wait: a heading that says "Report ready" is shown
+  - scroll: bottom
+  - scroll: bottom
+  - wait: { that: the feed shows Post 3 or a later post, within: the Feed region }

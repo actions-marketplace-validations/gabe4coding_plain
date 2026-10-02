@@ -1,0 +1,17 @@
+name: select, check, uncheck, hover and a key press
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /forms
+  - select: { target: the Size list, value: Large }
+  # Position, not label: candidates do not carry a wrapping <label>'s text yet.
+  - check: the first checkbox, not the second
+  - uncheck: the second checkbox, not the first
+  - expect: { that: Cheese is checked and Olives is not checked, within: the Toppings form }
+  - expect: the Size list shows Large
+  - hover: the avatar image of user one
+  - expect: 'a heading with the text "name: user1" is shown'
+  - fill: { target: the Search field, value: pizza }
+  - press: Enter
+  - expect: the page says "Results for pizza"
