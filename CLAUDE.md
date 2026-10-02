@@ -111,9 +111,11 @@ Source layout (tests sit next to their module):
 - `src/suite/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
   JSON schema version 1, Surefire retry failure/error elements, all-attempt usage and artifact paths.
 - `src/core/pick-cache.ts` — pick cache (`--picks on|read|off`, config `picks`; MCP never): a sidecar per source file
-  (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target (sha256 when the
-  raw step had `${`), goal, page]`, value the accepted candidate's desc (`value=` dropped only on `editable`
-  text-entry candidates, browser only), frame label, page (origin+path) and a sha1 of the whole normalized list.
+  (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target, goal, page]`,
+  value the accepted candidate's desc (`value=` dropped only on `editable` text-entry candidates, browser only),
+  frame label, page (origin+path) and a sha1 of the whole normalized list plus each element's UI state
+  (checked, selected, pressed, expanded, disabled). When the raw step had `${`, the key's target and page and the
+  stored desc, frame and page are sha256 hashes, so no interpolated data reaches the committed sidecar.
   `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when the list hash is equal and exactly one candidate
   matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks. Loaders put
   `at: {file, index, templated?}` on each parsed step (never from YAML/MCP; `interpolate` and `validate` skip it).
@@ -129,7 +131,7 @@ Source layout (tests sit next to their module):
   settings, profiles cannot load storage state. `runSpec` saves state only after passing steps and teardown.
 - `src/suite/last-run.ts` — atomic cwd `.plainwright/last-run.json`, absolute spec paths and final status/flaky;
   `readLastFailed` returns `undefined` (no or invalid record) or the set of non-pass files; list/validate never replace it.
-- `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
+- `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `goal`, `auth`,
   `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
   `auth`/`env` resolve from `process.env` at load time. `interpolate()` (`src/core/interpolate.ts`) replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
   leaf, is an error. Every schema is strict: an unknown key at the top level, in `auth`/`geolocation`/`browser`, in
@@ -183,7 +185,8 @@ Source layout (tests sit next to their module):
   process (`src/core/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks
   between specs and `--workers` can't make hooks interfere. Only JSON crosses the IPC channel. Dataset shape is
   not imposed. See `examples/login-dataset.yaml` + `examples/hooks/login-dataset.mjs`.
-- `src/browser/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `find`,
+- `src/browser/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `batch` (1–16 known steps
+  in order, stops on the first non-pass), `find`,
   `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/browser/judge-page.ts`), `read` (a question answered with
   the page's own lines: Jev picks the first and last line, `src/core/read.ts`; `PLAINWRIGHT_READ=0` hides it), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask`, `read` and
   `evaluate` read without acting and are not recorded. `step`/`batch` results carry `changed` (title/url if changed,
@@ -193,7 +196,6 @@ Source layout (tests sit next to their module):
   so all logging goes to `console.error`.
 - Console noise (`isConsoleNoise` in `src/browser/notes.ts`): CSP/blocked/failed-resource errors and errors from another
   site's script never reach `events` (Jev) and are counted in one note per drain; the page's own errors stay listed.
-- `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop), and
   `plugins/plainwright-mobile/` (mobile), each
   with portable `plugin.json`/`mcp.json`, `.claude-plugin/plugin.json`/`.mcp.json`, a Codex compatibility
@@ -321,7 +323,7 @@ and read the code for those.
 - `src/mobile/discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
 - The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.mdx` and its skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.
-- Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. `npm run test:mobile` is an opt-in device tree/PNG smoke using PLAINWRIGHT_MOBILE_PLATFORM/DEVICE/APP and optional PLAINWRIGHT_APPIUM_URL/CAPABILITIES. Native actions and record/replay need validation on both real platforms before claiming parity.
+- Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. `npm run test:mobile` is an opt-in device tree/PNG smoke using PLAINWRIGHT_MOBILE_PLATFORM/DEVICE/APP and optional PLAINWRIGHT_APPIUM_URL and PLAINWRIGHT_MOBILE_CAPABILITIES. Native actions and record/replay need validation on both real platforms before claiming parity.
 - `npm run test:mobile:android` builds a disposable offline Java fixture with SDK Platform 36 and Build-Tools 36.0.0, installs it on PLAINWRIGHT_MOBILE_DEVICE, validates actions/MCP authoring/saved replay and uninstalls it. Requires ANDROID_HOME, JAVA_HOME and Appium. `-- --live-jev` uses the configured model; default targeting is deterministic. Artifacts stay in a temporary results directory, not the repository.
 - `npm run test:mobile:ios` builds a disposable UIKit fixture with Xcode's simulator SDK, installs it on the booted simulator identified by PLAINWRIGHT_MOBILE_DEVICE, validates actions/MCP recording/replay and uninstalls it. Requires macOS, Xcode, an iOS runtime and Appium with XCUITest. Supports `-- --live-jev` and PLAINWRIGHT_APPIUM_URL; no developer account is needed for this simulator-only test.
 - Runnable mobile YAML lives in `examples/mobile/` so the top-level browser glob remains valid. Its `examples/hooks/mobile-fixture.mjs` hook and both native smoke scripts share `scripts/mobile-fixture.mjs` for fixture installation/cleanup. Example device IDs come from PLAINWRIGHT_MOBILE_DEVICE, never checked-in personal UDIDs.
