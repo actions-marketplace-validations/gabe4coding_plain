@@ -6,7 +6,7 @@ import type { StepSource } from './spec.js';
 import { dumpDebug, errorMessage, type StepResult } from './results.js';
 
 /*
- * Pick cache (docs/running.md "Pick cache"): a target Jev picked in a passing run is replayed without a Jev call
+ * Pick cache (docs/running.mdx "Pick cache"): a target Jev picked in a passing run is replayed without a Jev call
  * while the page's whole candidate list is unchanged (typed text aside) and exactly one candidate has the stored
  * description. Jev decided once; code only reuses that decision on a strict match. One sidecar per source file
  * (`login.yaml` → `login.picks.json`), committed next to the specs. A retry never reads; a failed attempt

@@ -1,0 +1,71 @@
+---
+title: Performance
+description: Measured API cost and speed of plainwright against Playwright MCP, the step time of spec runs, and links to the full benchmark reports.
+---
+
+# Performance
+
+These results are measurements on a small set of workflows. They are not a guarantee for your site. The
+[benchmark reports](#benchmark-reports) give the method, the raw data and the commands to run them again.
+
+## Agent cost and speed against Playwright MCP
+
+A main agent did six synthetic browser workflows with plainwright and with Playwright MCP 0.0.82. Each workflow
+ran three times with each of three main models: 108 trials in total.
+
+| Main model | API cost per task: plainwright / Playwright MCP | Cost change | Mean seconds: plainwright / Playwright MCP | Time change |
+|---|---:|---:|---:|---:|
+| GPT-5.6 Luna (small) | $0.001344 / $0.001262 | +7% | 17.0 / 35.4 | −52% |
+| GPT-5.6 Terra (medium) | $0.010184 / $0.013374 | −24% | 17.0 / 22.9 | −25% |
+| GPT-6 Astra (top) | $0.044577 / $0.049695 | −10% | 20.4 / 41.8 | −51% |
+
+- The costs include the main agent and Jev, with caching, recovery and verification.
+- For Luna and Astra, the 95% cost interval includes parity. Only the Terra saving is clear (0.66–0.91×).
+- Results change by task. Astra account editing cost 20% more. Terra catalog browsing was 54% slower.
+- The main agent made 19% fewer calls (333 against 412).
+- The times include provider latency and the page wait behavior of each stack.
+- Both stacks completed all 54 tasks. Three repetitions for each workflow and model are not sufficient to show
+  production reliability.
+
+Full results: [current browser comparison](benchmarks/current-browser-comparison.md) and the
+[full report and audit](benchmarks/2026-09-21-current/README.md). The
+[protocol](benchmarks/browser-workflows.md) tells how to run the comparison again.
+
+## Step time
+
+The comparison above was measured before two changes to the step time. Each change was measured on the runnable
+examples (spec runs) and on an agent-style MCP session with 5 s between calls.
+
+| Change | Spec runs | MCP session |
+|---|---:|---:|
+| [Speculative Jev calls, network-aware settle, warm connections](benchmarks/step-overhead.md) | −43% overhead | −43% tool time |
+| [Shorter settle, click holds](benchmarks/browser-step-time.md) | −10% overhead | −9% overhead |
+
+Overhead is the step time minus the time of the page action itself. After the first change, a warm `step` call
+took approximately 250–290 ms in place of 620 ms. Desktop and mobile steps also became faster, mostly because the
+Jev connections stay open between steps.
+
+What this means for your runs:
+
+- The Jev round trip is the minimum time of a step that asks Jev. Only a nearer API region makes it shorter.
+- Each spec gets a new browser context. Thus the first `goto` of each spec is slower than the next ones.
+- For a large suite, `--workers N` gives the largest gain. Refer to [running suites](running.mdx).
+- The settle wait cannot see timers. For content that comes later, use a `wait` step.
+
+## Benchmark reports
+
+| Report | What it measures |
+|---|---|
+| [Current browser comparison](benchmarks/current-browser-comparison.md) | Agent cost and time, plainwright against Playwright MCP. |
+| [Browser workflows](benchmarks/browser-workflows.md) | The protocol of the workflow comparison. |
+| [Browser batching](benchmarks/browser-batching.md) | Workflows with and without the `batch` tool. |
+| [Contextual targeting](benchmarks/contextual-targeting.md) | Context in action candidates, with a known baseline fault. |
+| [Step overhead](benchmarks/step-overhead.md) | Step time on browser, desktop and mobile. |
+| [Browser step time](benchmarks/browser-step-time.md) | Settle and click changes on the browser. |
+| [Agent changes](benchmarks/agent-changes.md) | Agent cost with `changed` in step results. |
+| [Read](benchmarks/read.md) | The `read` tool against smart snapshots. |
+| [Picks](benchmarks/picks.md) | Picks with and without the flow goal. |
+| [Claims](benchmarks/claims.md) | Judgment accuracy of `expect` claims. |
+| [Pick cache](benchmarks/pick-cache.md) | Pick cache hits on changed pages. |
+| [Planner](benchmarks/planner.md) | The desktop one-sentence planner. |
+| [Console and wait](benchmarks/console-and-wait.md) | Console noise, empty first scans, wait cost. |

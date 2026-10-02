@@ -1,0 +1,177 @@
+---
+title: Reporting
+description: Choose the output formats of a run (text, JSONL, JUnit XML, JSON) and read their fields and totals.
+---
+
+# Reporting
+
+All three CLIs accept the `--reporter NAME[:FILE]` option. Repeat it to get more than one output. The browser
+CLI writes `text` by default. The desktop and mobile CLIs write `jsonl` by default. A `--reporter` option replaces
+the default list.
+
+```sh
+plainwright --headless --reporter text --reporter junit:out/junit.xml --reporter json:out/run.json tests/
+plainwright-computer --reporter jsonl --reporter junit:out/desktop.xml tests/desktop/
+plainwright-mobile --reporter json:out/mobile.json tests/mobile/
+```
+
+| Reporter | Destination | Contents |
+|---|---|---|
+| `text` | stdout | Status icons, step labels and details. |
+| `jsonl` | stdout | One JSON line for each spec that ran. |
+| `junit:FILE` | File | JUnit XML for CI tools. |
+| `json:FILE` | File | The full run report. |
+
+Rules:
+
+- `junit` and `json` need a file path. They create missing parent folders and write the file when the run ends.
+- `text` and `jsonl` do not accept a file path.
+- A run can have one stdout reporter only. `--reporter text --reporter jsonl` is an error.
+- Two file reporters cannot write the same file.
+- An unknown reporter name or a rule above that is not obeyed stops the CLI before a session opens (exit `2`).
+- If plainwright cannot write a report file, it prints a warning on stderr. The results and the exit code do not
+  change. If your CI job needs the file, make sure that the file exists.
+
+The config key `reporters` sets the same list. See [configuration](running.mdx#configuration).
+
+## Text output
+
+Each spec gives a header line and one line for each step. The header shows the Jev calls and tokens of the last
+attempt. Each step line has an icon, the step label and the step detail. This example leaves out the details:
+
+```text
+✔ Login with a valid user  (3 Jev calls, 21000 tokens)
+  ✔ goto /login
+  ✔ fill "the Username field"
+  ✔ click "the Sign in button"
+  ✔ expect "The dashboard is shown"
+```
+
+| Icon | Status |
+|---|---|
+| `✔` | `pass` |
+| `✘` | `fail` or `error` |
+| `?` | `inconclusive` |
+| `»` | `skipped` |
+
+Other lines:
+
+- A flaky spec adds `flaky, passed on attempt N` to its header. Under the header, it prints the steps that did not
+  pass in the earlier attempts, with the prefix `attempt K:`. Attempt numbers in text output start at `1`.
+- A spec that did not pass after all its retries shows only the steps of its last attempt.
+- A spec that did not load, or that stopped before its first step, prints `✘ <file>` and then `error: <message>`.
+- A spec that never started because of `--bail` or `--max-tokens` prints `» <file>  (skipped: bail)` or
+  `(skipped: max-tokens)`.
+- `--timing` (browser only) adds the time of each phase under each step, each spec and the run.
+
+A summary line comes at the end only when both conditions are true:
+
+- The run has more than one spec. Load errors and specs that never started count.
+- One or more specs is flaky, had more than one attempt, or never started.
+
+An example summary line:
+
+```text
+1 passed, 1 failed, 1 flaky, 1 skipped  (6 Jev calls, 90 tokens, 5.25s)
+```
+
+`passed` includes the flaky specs. `failed` includes `inconclusive`, `error` and load errors. The calls and tokens
+include all attempts. The time is the total time of the run. If the [pick cache](running.mdx#pick-cache) supplied
+picks, the line also shows `N cached picks` after the tokens.
+
+## JSONL output
+
+`jsonl` prints one JSON line for each spec that ran, with the fields of its last attempt:
+
+```json
+{"name":"Login","status":"pass","steps":[{"step":"goto /login","status":"pass"}],"jevCalls":0,"totalTokens":0}
+```
+
+The fields are `name`, `status`, `steps`, `jevCalls` and `totalTokens`. Each step has the same fields as in the
+[JSON report](#json-report). JSONL does not show the attempts, the totals or the artifacts. These cases go to
+stderr as `<file>: <message>`:
+
+- A spec that did not load.
+- A spec that stopped before its first step.
+- A spec that never started (`<file>: skipped (bail)`).
+
+## JUnit XML
+
+The file has one `<testsuites name="plainwright <engine>">` element and one `<testsuite name="plainwright">`
+element. The `<testsuite>` also has a `timestamp` (the start time). There is one `<testcase>` for each spec, in
+the input order.
+
+- Both parent elements have `tests`, `failures`, `errors`, `skipped` and `time` (seconds).
+- `classname` is the spec file, relative to the current folder.
+- `name` is the spec name. For a spec that did not load, it is the file path.
+- `time` is the sum of all attempts, in seconds. A spec that did not load or never started has `0`.
+
+Jenkins cuts `classname` at its last dot. Thus it shows `tests/checkout.yaml` as package `tests/checkout` and
+class `yaml`.
+
+| Final result | JUnit element |
+|---|---|
+| `pass` | None |
+| `fail` | `<failure type="fail">` |
+| `inconclusive` | `<failure type="inconclusive">` |
+| `error` in a step | `<error type="error">` |
+| Load error, or a spec that stopped before its first step | `<error type="error">` |
+| `skipped` by `--bail` or `--max-tokens` | `<skipped message="bail">` or `<skipped message="max-tokens">` |
+
+For a step result, `message` is the step label and the element text is the step detail. For a load error,
+`message` is the file path. For a spec that stopped before its first step, `message` is the spec name. The
+element text is the error.
+
+Earlier attempts use the Maven Surefire retry elements. Each element has `message`, `type` and a `<stackTrace>`
+with the detail:
+
+| Earlier attempt | Final result | Element |
+|---|---|---|
+| `fail` or `inconclusive` | `pass` | `<flakyFailure>` |
+| `error` | `pass` | `<flakyError>` |
+| `fail` or `inconclusive` | Not `pass` | `<rerunFailure>` |
+| `error` | Not `pass` | `<rerunError>` |
+
+Only final results count in `failures` and `errors`. Thus a flaky pass stays a pass.
+
+`<properties>` on the suite and on each testcase hold `jevCalls`, `tokens`, `provider`, `model` and `attempts`.
+The suite properties also hold `cachedPicks`, the number of picks from the
+[pick cache](running.mdx#pick-cache). The testcase values include all retries.
+
+`<system-out>` holds the step lines, with the same icons and labels as `text`. When a spec has more than one
+attempt, each attempt starts with `attempt N:` (from `1`). Each artifact of each attempt adds an attachment line
+for Jenkins and GitLab:
+
+```text
+[[ATTACHMENT|/absolute/path/to/screenshot.png]]
+```
+
+A reporter does not capture artifacts. Use `--artifacts DIR` to capture them (see [artifacts](artifacts.mdx)).
+If your CI does not keep the runner's files, upload the folder.
+
+plainwright escapes XML special characters and removes characters that XML 1.0 does not permit.
+
+## JSON report
+
+The JSON file holds the full run report, with `schemaVersion: 1` at the top level:
+
+| Field | Contents |
+|---|---|
+| `schemaVersion` | `1` |
+| `engine` | `browser`, `desktop` or `mobile` |
+| `provider`, `model` | The Jev provider and model |
+| `startedAt`, `durationMs` | Start time (ISO) and run time in milliseconds |
+| `status` | `pass` or `fail`. A flaky pass counts as `pass`. |
+| `totals` | `jevCalls`, `tokens`, `passed`, `failed`, `flaky`, `skipped`, `cachedPicks` |
+| `stopped` | `bail` or `max-tokens`, only when a spec never started |
+| `specs[]` | `file`, `name`, `tags`, `status`, `flaky`, `attempts`, and `loadError` or `skipReason` when they apply |
+| `specs[].attempts[]` | `attempt` (from `0`), `name`, `status`, `steps`, `jevCalls`, `totalTokens`, `durationMs`, `artifacts`, and `error` when the spec stopped before its first step |
+| `steps[]` | `step` (label), `status`, `detail`, `ms` (time per phase), and `cached: true` for a pick from the pick cache |
+| `artifacts[]` | `kind` (`screenshot`, `trace` or `dump`), absolute `path`, and `step` (from `0`) when a step made it |
+
+A step status is `pass`, `fail`, `inconclusive`, `error` or `skipped`. `flaky` is a separate boolean. A spec that
+did not load or never started has an empty `attempts` list. The `step` index counts all entries in `steps`,
+see [artifacts](artifacts.mdx#output-layout-and-cleanup).
+
+[CI and containers](ci.mdx) shows how to publish JUnit results in GitHub Actions and GitLab.
+[Running suites](running.mdx) describes retries, `--bail` and `--max-tokens`.
