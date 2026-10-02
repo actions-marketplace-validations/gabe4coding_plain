@@ -1,3 +1,5 @@
+import os from 'node:os';
+import fs from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -47,6 +49,10 @@ test('last-failed selection keeps all on absent history, none on empty history, 
 });
 
 test('last-failed prints one note when persistence has no previous run', (t) => {
+  // Other tests' runSuite calls write .plainwright/last-run.json into the cwd: use an empty one.
+  const cwd = process.cwd();
+  process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-no-last-run-')));
+  t.after(() => process.chdir(cwd));
   const log = t.mock.method(console, 'error', () => {});
   assert.deepEqual(select(specs, { ...base, lastFailed: true, tags: ['smoke'] }), specs.slice(0, 2));
   assert.equal(log.mock.callCount(), 1);
