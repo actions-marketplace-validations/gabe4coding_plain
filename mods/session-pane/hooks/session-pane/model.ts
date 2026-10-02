@@ -39,7 +39,7 @@ export function payload(outcome: unknown): Data | null {
   const { deny, isError, result, text } = outcome as Data;
   if (deny !== undefined || isError) return null;
   if (result && typeof result === 'object' && (result as Data).isError) return null;
-  return jsonOf(result) ?? jsonOf(text);
+  return jsonOf(text) ?? jsonOf(result);
 }
 
 /** The words of a step's value: the string itself, or its target/claim field. */
@@ -69,7 +69,7 @@ export function stepLabel(step: unknown): string {
 
 type Outcome = Data & { step: unknown };
 
-/** Adds one row per step outcome; a non-pass outcome becomes the last failure. */
+/** Adds one row per step outcome; a failing outcome (neither pass nor skipped) becomes the last failure. */
 function withSteps(state: State, outcomes: Outcome[], batchChange?: unknown): State {
   let next = state;
   for (const outcome of outcomes) {
@@ -82,7 +82,7 @@ function withSteps(state: State, outcomes: Outcome[], batchChange?: unknown): St
       target: str(outcome.url) ?? next.target,
       tokens: next.tokens + tokens,
       rows: capped([...next.rows, row]),
-      lastFailure: status === 'pass' ? next.lastFailure : {
+      lastFailure: status === 'pass' || status === 'skipped' ? next.lastFailure : {
         step: outcome.step,
         status,
         detail: str(outcome.detail),
@@ -106,7 +106,7 @@ const READS: Record<string, (args: Data) => string | undefined> = {
 /** The pane state after one plainwright call: the tool's short name, its arguments and its result JSON. */
 export function apply(state: State, engine: Engine, tool: string, args: Data, data: Data): State {
   if (tool === 'open') {
-    const target = str(data.url) ?? str(args.url) ?? str(args.app) ?? str(args.device) ?? state.target;
+    const target = str(data.url) ?? str(data.name) ?? str(data.app) ?? str(args.url) ?? str(args.app) ?? str(args.device) ?? state.target;
     if (engine === 'native') return { ...emptyState(), target, goal: str(args.goal) };
     const goto: Row = { label: `goto "${str(args.url) ?? target ?? ''}"`, status: 'pass', tokens: 0 };
     return { ...state, target, goal: str(args.goal) ?? state.goal, rows: capped([...state.rows, goto]) };

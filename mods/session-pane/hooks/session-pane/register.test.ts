@@ -21,9 +21,9 @@ const ANSWERS: Record<string, object> = {
 function stubTools(on: any, seen: unknown[] = []): void {
   on('tool.call', ($: any, e: any) => {
     const name = String(e.tool).startsWith(TOOL) ? String(e.tool).slice(TOOL.length) : '';
-    const result = ANSWERS[name] ? mcp(ANSWERS[name]) : 'ok';
-    seen.push(result);
-    return { result };
+    const reply = ANSWERS[name] ? { ref: 1, result: mcp(ANSWERS[name]), text: JSON.stringify(ANSWERS[name]) } : { ref: 1, result: 'ok', text: 'ok' };
+    seen.push(reply);
+    return reply;
   });
 }
 const placed = () => ({ value: { isPlaced: true } });
@@ -35,7 +35,7 @@ test('records each step and returns the tool result unchanged', async ($, on) =>
   on('ui.open', placed);
   await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/', goal: 'Read the discussion' });
   const out = await $.tool.call({ tool: TOOL + 'step', step: { expect: 'comments are shown' } });
-  expect(out).toEqual({ result: seen[1] });
+  expect(out).toEqual(seen[1]);
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
   expect(await ui.find({ type: 'Text', text: 'goal: Read the discussion' })).toBeDefined();
   expect(await ui.find({ type: 'Text', text: /^\? expect "comments are shown" +340 tk$/ })).toBeDefined();
@@ -65,9 +65,10 @@ test('opens the pane on the first open only', async ($, on) => {
 });
 
 test('other tools leave the pane empty', async ($, on) => {
-  stubTools(on);
+  const seen: unknown[] = [];
+  stubTools(on, seen);
   const out = await $.tool.call({ tool: 'Bash', command: 'ls' });
-  expect(out).toEqual({ result: 'ok' });
+  expect(out).toEqual(seen[0]);
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
   expect(await ui.find({ type: 'Text', text: 'Waiting for the first step…' })).toBeDefined();
   await ui.unmount();
@@ -141,13 +142,46 @@ test('the pane command shows the pane', async ($, on) => {
   expect(opens).toBe(1);
 });
 
-test('a session end clears the pane', async ($, on) => {
-  stubTools(on);
+test('a failing pane still returns the tool result', async ($, on) => {
+  const seen: unknown[] = [];
+  stubTools(on, seen);
+  on('ui.open', () => ({ deny: 'no panes here' }));
+  on('ui.toast', done);
+  const first = await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/' });
+  const second = await $.tool.call({ tool: TOOL + 'step', step: { expect: 'comments are shown' } });
+  expect(first).toEqual(seen[0]);
+  expect(second).toEqual(seen[1]);
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
+  expect(await ui.find({ type: 'Text', text: /^\? expect "comments are shown"/ })).toBeDefined();
+  await ui.unmount();
+});
+
+test('an error result adds no row', async ($, on) => {
+  on('tool.call', () => ({
+    ref: 1,
+    result: { content: [{ type: 'text', text: 'call open first' }], isError: true },
+    text: 'call open first',
+    isError: true,
+  }));
   on('ui.open', placed);
-  on('session.end', () => ({ sessionId: 'abc123' }));
-  await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/' });
-  await $.session.end({ reason: 'clear' });
+  await $.tool.call({ tool: TOOL + 'step', step: { click: 'Add' } });
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
   expect(await ui.find({ type: 'Text', text: 'Waiting for the first step…' })).toBeDefined();
+  await ui.unmount();
+});
+
+test("Save reports the server's error", async ($, on) => {
+  const toasts: string[] = [];
+  stubTools(on);
+  on('ui.open', placed);
+  on('mcp.call', () => ({ value: { content: [{ type: 'text', text: 'call open first' }], isError: true } }));
+  on('ui.toast', ($: any, e: any) => {
+    toasts.push(e.text);
+    return done();
+  });
+  await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/' });
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
+  await ui.press({ key: 'save' });
+  expect(toasts).toContain('Save failed: call open first');
   await ui.unmount();
 });
