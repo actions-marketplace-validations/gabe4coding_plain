@@ -61,7 +61,7 @@ before and after this change alike: a phrasing issue in that test, not a timing 
 
 ## What changed
 
-1. **Speculative Jev calls** (`settledAsk` in `src/steps.ts`). A step used to settle, then look,
+1. **Speculative Jev calls** (`settledAsk` in `src/browser/settled-ask.ts`). A step used to settle, then look,
    then ask Jev. Now it looks and asks at once, and settles in parallel. The early answer is kept
    only if the main document did not mutate after the look (a per-document clock mark), or a second
    look gives Jev identical input; otherwise the settled page is asked again (`reasked` in
@@ -75,12 +75,12 @@ before and after this change alike: a phrasing issue in that test, not a timing 
 4. **`fill`'s 500 ms debounce hold moved to the next step**, where it overlaps that step's Jev call.
    Steps that do not settle (`press`, `goto`, `mouse`, `css=` targets) still wait it out first.
    The post-action poll went from 50 ms to 10 ms.
-5. **Warm, kept-alive Jev connections** (`src/jev.ts`). Node's `fetch` closes an idle connection
+5. **Warm, kept-alive Jev connections** (`src/jev/ask.ts`). Node's `fetch` closes an idle connection
    after 4 s, and agents think for longer than that between tool calls, so almost every agent step
    paid for a new connection. A global undici agent keeps connections for 60 s, and `warmUp()`
    sends two tiny Jev calls at startup (~100 untracked tokens per process). This covers the
    browser, desktop and mobile CLIs and MCP servers.
-6. **Android early look** (`askSettled` in `src/automation.ts`, `AppiumAdapter.captureEarly`). Right
+6. **Android early look** (`askSettled` in `src/core/automation.ts`, `AppiumAdapter.captureEarly`). Right
    after the previous step, a tree read without UiAutomator's idle wait goes to Jev while the normal
    read waits; the answer is kept only if both trees are identical. The check that the target did
    not change, right before each native action, is unchanged.

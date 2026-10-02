@@ -34,7 +34,7 @@ A Jev Choice takes at most 255 options, so up to 254 candidates go in one questi
 split into equal chunks asked in parallel: one round trip, one request's tokens per chunk. When two
 chunks are each sure of a different element, the score is split between them as a single question
 would have done, and the step stays `inconclusive` with both guesses in `detail`. Hard ceiling: 1016
-candidates (`MAX_CANDIDATES` in `src/jev.ts`). Within a frame, past that the last layers are dropped.
+candidates (`MAX_CANDIDATES` in `src/jev/pick.ts`). Within a frame, past that the last layers are dropped.
 Iframe candidates are collected after the main frame, so that ceiling cuts them first. Scope with
 `within` or use `css=` on such a page.
 

@@ -1,6 +1,6 @@
 # Planner benchmark
 
-`src/planner.ts` turns one sentence into plan items with two Jev requests (see
+`src/computer/planner.ts` turns one sentence into plan items with two Jev requests (see
 [computer use](../computer-use.md#one-sentence-plan-and-do)). `scripts/benchmark-planner.mjs` plans the 41
 sentences of `scripts/planner-cases.json` with the live model and compares each plan with the expected
 one (case-insensitive, a leading "the" and trailing punctuation ignored).

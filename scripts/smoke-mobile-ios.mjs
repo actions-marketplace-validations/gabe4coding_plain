@@ -7,12 +7,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AppiumAdapter } from '../dist/mobile-adapter.js';
-import { createMobileServer } from '../dist/mobile-mcp.js';
-import { MobileSession, runMobileSpec } from '../dist/mobile.js';
-import { loadMobileSpec } from '../dist/mobile-spec.js';
-import { intelligence } from '../dist/automation.js';
-import { USER_ENV_FILE } from '../dist/jev.js';
+import { AppiumAdapter } from '../dist/mobile/adapter.js';
+import { createMobileServer } from '../dist/mobile/mcp.js';
+import { MobileSession, runMobileSpec } from '../dist/mobile/session.js';
+import { loadMobileSpec } from '../dist/mobile/spec.js';
+import { intelligence } from '../dist/core/automation.js';
+import { USER_ENV_FILE } from '../dist/jev/provider.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 

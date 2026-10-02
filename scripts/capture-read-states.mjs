@@ -5,7 +5,7 @@
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { snapshot, installSettleObserver, settle } from '../dist/page.js';
+import { snapshot, installSettleObserver, settle } from '../dist/browser/page.js';
 
 const PAGES = {
   turing: 'https://en.wikipedia.org/wiki/Alan_Turing',

@@ -8,7 +8,7 @@ import path from 'node:path';
 const out = process.env.PLAINWRIGHT_BENCH_COUNT;
 const dist = process.env.PLAINWRIGHT_BENCH_DIST;
 if (out && dist) {
-  const { intelligence } = await import(pathToFileURL(path.resolve(dist, 'automation.js')).href);
+  const { intelligence } = await import(pathToFileURL(path.resolve(dist, 'core/automation.js')).href);
   const counts = { pickCalls: 0, pickTargets: 0, pickTokens: 0, judgeCalls: 0, judgeTokens: 0 };
   const { pick, judge } = intelligence;
   intelligence.pick = async (candidates, targets, state) => {
