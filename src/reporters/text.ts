@@ -20,8 +20,8 @@ export function textReporter(timing: boolean): RunObserver {
   const runMs: Record<string, number> = {};
   return {
     async specEnd({ report }: { report: SpecReport }) {
-      if (report.status === 'skipped' && report.skipReason) {
-        console.log(`» ${report.file}  (skipped: ${report.skipReason})`);
+      if (report.status === 'skipped' && !report.attempts.length) {
+        console.log(`» ${report.file}  (skipped${report.skipReason ? `: ${report.skipReason}` : ''})`);
         return;
       }
       const result = report.attempts.at(-1);
@@ -38,7 +38,7 @@ export function textReporter(timing: boolean): RunObserver {
           if (attempt.error !== undefined) console.log(`  attempt ${attempt.attempt + 1}: error: ${shownLoadError(attempt.error)}`);
           for (const step of attempt.steps) {
             if (step.status === 'fail' || step.status === 'inconclusive' || step.status === 'error') {
-              console.log(`  attempt ${attempt.attempt + 1}:${stepLine(step)}`);
+              console.log(`  attempt ${attempt.attempt + 1}: ${stepLine(step).trimStart()}`);
             }
           }
         }
@@ -60,7 +60,8 @@ export function textReporter(timing: boolean): RunObserver {
       if (timing && Object.keys(runMs).length) console.log(`ms run ${formatMs(runMs)}`);
       // Preserve Phase 0 golden output for ordinary runs; summarize the new retry/stop outcomes.
       const extended = report.specs.some((spec) => spec.flaky || spec.attempts.length > 1 || spec.skipReason);
-      if (extended && report.specs.filter((spec) => spec.attempts.length > 0).length > 1) {
+      // Every spec counts (skipped and load errors too): a bail run is where "1 failed, 5 skipped" matters most.
+      if (extended && report.specs.length > 1) {
         const { passed, failed, flaky, skipped, jevCalls, tokens } = report.totals;
         console.log(`${passed} passed, ${failed} failed, ${flaky} flaky, ${skipped} skipped  (${jevCalls} Jev calls, ${tokens} tokens, ${(report.durationMs / 1000).toFixed(2)}s)`);
       }

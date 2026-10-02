@@ -8,7 +8,7 @@ import { jsonReporter } from './json.js';
 import { runSuite } from '../suite.js';
 import { parseSuiteArgs } from '../options.js';
 import type { SuiteEngine } from '../suite-types.js';
-import { attempt, capture, options, run, spec } from './fixtures.js';
+import { attempt, capture, options, run, spec } from './fixtures.test.js';
 
 test('registry validates unknown names, mandatory file paths, and unsupported stdout file outputs', () => {
   for (const name of ['junit', 'json']) {
@@ -68,4 +68,21 @@ test('repeatable CLI reporters create exactly one observer each, in order, and w
     assert.match(await fs.readFile(xml, 'utf8'), /<testsuites name="plainwright browser"/);
     assert.deepEqual(JSON.parse(await fs.readFile(json, 'utf8')), { schemaVersion: 1, ...report });
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
+});
+
+test('two reporters writing the same file are rejected', () => {
+  assert.throws(() => createReporters({ ...options, reporters: [{ name: 'junit', output: 'out/a.xml' }, { name: 'json', output: './out/a.xml' }] }),
+    /two reporters write .*out\/a\.xml/);
+});
+
+test('jsonl prints skipped specs on stderr with their reason, never "undefined"', async () => {
+  const lines: string[] = [];
+  const old = console.error;
+  console.error = (line) => { lines.push(line); };
+  try {
+    const reporter = createReporters({ ...options, reporters: [{ name: 'jsonl' }] })[0];
+    await reporter.specEnd!({ report: spec('skipped', { file: 'tests/z.yaml', attempts: [], skipReason: 'bail' }) });
+    await reporter.specEnd!({ report: spec('skipped', { file: 'tests/y.yaml', attempts: [] }) });
+  } finally { console.error = old; }
+  assert.deepEqual(lines, ['tests/z.yaml: skipped (bail)', 'tests/y.yaml: skipped']);
 });

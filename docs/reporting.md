@@ -20,7 +20,8 @@ plainwright-mobile --reporter json:out/mobile.json tests/mobile/
 `jsonl` do not accept file paths. At most one stdout reporter is allowed, including duplicate names;
 unknown names and invalid combinations are usage errors (exit 2) before a session opens.
 Reporters run in flag order. File-write failures are reported on stderr using the suite's observer
-warning behavior; they do not change spec results or the exit code.
+warning behavior; they do not change spec results or the exit code, so a CI job that needs the
+file should also check that it exists.
 
 Text output preserves ordinary Phase 0 runs. A flaky result adds `flaky, passed on attempt N` to
 its header and prints the earlier attempts' failing steps underneath, prefixed `attempt K:`.
@@ -42,7 +43,8 @@ The document contains one `<testsuites name="plainwright <engine>">` and one
 elements carry `tests`, `failures`, `errors`, `skipped`, and elapsed `time` in seconds. A testcase's
 `classname` is the spec file relative to the working directory, `name` is the spec name, and
 `time` is the sum of its attempts' durations in seconds. Load errors and unexecuted skips have
-no attempts and zero duration.
+no attempts and zero duration. Jenkins splits `classname` at its last dot, so it shows
+`tests/checkout.yaml` as package `tests/checkout`, class `yaml`.
 
 | Final outcome | JUnit element |
 |---|---|
@@ -125,5 +127,4 @@ unexecuted skips have empty `attempts`; flaky is a separate boolean. JSON preser
 artifact metadata verbatim. The default JSONL format is unchanged and does not add schemaVersion,
 suite totals, attempts, or artifact metadata.
 
-Retries, stop rules, and artifact capture require their respective industrialize lanes; these
-reporters already accept those outcomes through the shared result contract.
+Retries and stop rules come from [scheduling](scheduling.md), artifacts from [artifacts](artifacts.md).

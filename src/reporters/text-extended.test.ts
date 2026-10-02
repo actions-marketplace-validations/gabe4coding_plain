@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { textReporter } from './text.js';
-import { attempt, capture, run, spec } from './fixtures.js';
+import { attempt, capture, run, spec } from './fixtures.test.js';
 
 test('flaky output shows the passing attempt and only earlier failing step lines', async () => {
   const report = spec('pass', { flaky: true, attempts: [attempt('fail', { steps: [
@@ -11,7 +11,7 @@ test('flaky output shows the passing attempt and only earlier failing step lines
   const reporter = textReporter(false);
   assert.deepEqual(await capture(() => reporter.specEnd!({ report })), [
     '✔ Checkout  (flaky, passed on attempt 3; 2 Jev calls, 30 tokens)',
-    '  attempt 1:  ✘ expect "Order complete" not found', '  attempt 1:  ? expect "Total"',
+    '  attempt 1: ✘ expect "Order complete" not found', '  attempt 1: ? expect "Total"',
     '  attempt 2: error: browser closed', '  ✔ expect "Order complete" page detail',
   ]);
 });
@@ -39,8 +39,11 @@ test('multi-spec retry/stop summary uses suite totals, including every retry', a
 
 test('single executed spec and ordinary multi-spec output retain Phase 0 behavior', async () => {
   for (const specs of [[], [spec('pass')], [spec('pass'), spec('fail')],
-    [spec('pass', { flaky: true, attempts: [attempt('fail'), attempt('pass', { attempt: 1 })] })],
-    [spec('fail'), spec('skipped', { attempts: [], skipReason: 'bail' })]]) {
+    [spec('pass', { flaky: true, attempts: [attempt('fail'), attempt('pass', { attempt: 1 })] })]]) {
     assert.deepEqual(await capture(() => textReporter(false).runEnd!({ report: run(specs) })), []);
   }
+  // One failure plus bail skips: the summary counts every spec, skipped ones included.
+  const bailed = await capture(() => textReporter(false).runEnd!({ report: run([spec('fail'), spec('skipped', { attempts: [], skipReason: 'bail' })]) }));
+  assert.equal(bailed.length, 1);
+  assert.match(bailed[0], /^\d+ passed, \d+ failed, \d+ flaky, \d+ skipped/);
 });

@@ -46,7 +46,9 @@ function testCase(spec: SpecReport, report: RunReport): string {
   for (const attempt of spec.attempts.slice(0, -1)) {
     if (!['fail', 'inconclusive', 'error'].includes(attempt.status)) continue;
     const { message, type, detail } = problem(attempt, spec);
-    const tag = spec.status === 'pass' ? 'flakyFailure' : 'rerunFailure';
+    // Surefire: an attempt that errored is flakyError/rerunError, a failed one flakyFailure/rerunFailure.
+    const kind = attempt.status === 'error' ? 'Error' : 'Failure';
+    const tag = (spec.status === 'pass' ? 'flaky' : 'rerun') + kind;
     // Surefire stores the failure body in stackTrace for retry elements.
     lines.push(`      <${tag} message="${attr(message)}" type="${attr(type)}"><stackTrace>${escapeXml(detail)}</stackTrace></${tag}>`);
   }
@@ -68,7 +70,7 @@ export function junitXml(report: RunReport): string {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<testsuites name="plainwright ${attr(report.engine)}" ${counts}>`,
-    `  <testsuite name="plainwright" ${counts}>`,
+    `  <testsuite name="plainwright" timestamp="${attr(report.startedAt)}" ${counts}>`,
     properties({ jevCalls: report.totals.jevCalls, tokens: report.totals.tokens,
       provider: report.provider, model: report.model, attempts: report.specs.reduce((sum, spec) => sum + spec.attempts.length, 0) }),
     ...report.specs.map((spec) => testCase(spec, report)),
