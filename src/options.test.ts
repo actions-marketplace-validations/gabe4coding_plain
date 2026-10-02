@@ -100,3 +100,12 @@ test('usage, timeout and engine-only flag errors', () => {
   assert.throws(() => parsed(['--headless'], 'desktop'), /--headless is browser-only/);
   assert.throws(() => parsed(['--server', 'http://x'], 'desktop'), /--server is mobile-only/);
 });
+
+test('--picks is on by default, takes read or off, and comes from config `picks`', () => {
+  assert.equal(parsed([]).opts.picks, 'on');
+  assert.equal(parsed(['--picks', 'read']).opts.picks, 'read');
+  assert.equal(parsed(['--picks', 'off'], 'desktop').opts.picks, 'off');
+  assert.throws(() => parsed(['--picks', 'write']), /--picks must be one of on, read, off/);
+  const fromConfig = parseSuiteArgs(['case.yaml'], 'browser', {}, '/tmp/plainwright-options-absent', () => ({ picks: 'read' } as never));
+  assert.equal(fromConfig.opts.picks, 'read');
+});

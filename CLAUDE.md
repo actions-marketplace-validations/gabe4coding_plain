@@ -86,6 +86,17 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   copied Jev dumps; dedicated marked directories, per-spec/attempt folders, no CDP trace or native trace.
 - `src/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
   JSON schema version 1, Surefire retry failure/error elements, all-attempt usage and artifact paths.
+- `src/pick-cache.ts` — pick cache (`--picks on|read|off`, config `picks`; MCP never): a sidecar per source file
+  (`x.yaml` → `x.picks.json`, committed), key `<index in file>|<step kind>|<interpolated target>|<goal>`, value the
+  accepted candidate's desc without `value=`, frame label, page (origin+path) and, for a desc with no `context:`,
+  a sha1 of the whole normalized list. `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when exactly
+  one candidate matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks.
+  Loaders put `at: {file, index}` on each parsed step (never from YAML/MCP). One `PickStore` per suite run; a
+  `PickAttempt` per attempt (`SpecInfo.picks`): attempt > 0 never reads, a step that does not pass stores nothing,
+  a passing attempt commits, a failing one evicts the hits it used; sidecars written once after the last spec,
+  deterministic, empty ones deleted. Another model pin or `DESC_FORMAT` ignores the file: bump `DESC_FORMAT`
+  when `describe()`/`candidates()` or a native candidate desc changes. `scripts/benchmark-pick-cache.mjs`
+  (stale pages: wrong hits must stay 0); results in `docs/benchmarks/pick-cache.md`.
 - `src/include.ts` — nested steps-only YAML flows expanded before validation; paths relative to each includer,
   cycle/source-index diagnostics, origin labels; included placeholders use root env/hooks, not flow-local data.
 - `src/context-options.ts` — device/context overrides, auth/geolocation and storage state; CDP rejects context

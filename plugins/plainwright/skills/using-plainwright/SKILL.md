@@ -154,7 +154,9 @@ steps-only flows; included steps use the root spec’s env/hooks. Run
 `node <plugin dir>/bin/launch.mjs validate spec.yaml` before replay. For CI, add
 `--reporter junit:out/junit.xml --artifacts plainwright-results` (and
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
-`step`/`batch` cannot execute an `include`.
+`step`/`batch` cannot execute an `include`. Spec runs write a pick cache
+(`*.picks.json` next to each spec and flow): commit it with the specs, and run CI
+with `--picks read` (docs/running.md, "Pick cache").
 
 ## Safety
 

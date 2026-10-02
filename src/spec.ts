@@ -9,29 +9,31 @@ import { checkSpecFeatures } from './spec-features.js';
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
 const origin = z.string().optional();
+// Where the step was written (absolute file, index in it): the pick cache key. Set by the loaders, never by YAML or MCP.
+const at = z.object({ file: z.string(), index: z.number().int() }).optional();
 const target = nonEmptyString;
 /** `tags: smoke` or `tags: [smoke, checkout]`; always a list after loading. */
 export const TagsSchema = z.union([nonEmptyString.transform((tag) => [tag]), z.array(nonEmptyString)]).optional();
 
 // Schemas are the source of truth for normalized data and its TypeScript types.
 export const StepSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal(StepKind.goto), url: nonEmptyString, optional, origin }),
-  z.object({ kind: z.literal(StepKind.fill), target, value: z.string(), optional, origin }),
-  z.object({ kind: z.literal(StepKind.click), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.hover), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.dblclick), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.rightclick), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.select), target, value: nonEmptyString, optional, origin }),
-  z.object({ kind: z.literal(StepKind.check), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.uncheck), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.upload), target, files: z.array(nonEmptyString).min(1), optional, origin }),
-  z.object({ kind: z.literal(StepKind.scroll), target, optional, origin }),
-  z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, within: nonEmptyString.optional(), optional, origin }),
-  z.object({ kind: z.literal(StepKind.press), key: nonEmptyString, optional, origin }),
-  z.object({ kind: z.literal(StepKind.drag), source: nonEmptyString, target, optional, origin }),
+  z.object({ kind: z.literal(StepKind.goto), url: nonEmptyString, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.fill), target, value: z.string(), optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.click), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.hover), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.dblclick), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.rightclick), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.select), target, value: nonEmptyString, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.check), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.uncheck), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.upload), target, files: z.array(nonEmptyString).min(1), optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.scroll), target, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, within: nonEmptyString.optional(), optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.press), key: nonEmptyString, optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.drag), source: nonEmptyString, target, optional, origin, at }),
   // Negative y is the escape hatch for exit-intent triggers above the viewport.
-  z.object({ kind: z.literal(StepKind.mouse), x: z.number(), y: z.number(), optional, origin }),
-  z.object({ kind: z.literal(StepKind.expect), expectations: z.array(nonEmptyString).min(1), within: nonEmptyString.optional(), optional, origin }),
+  z.object({ kind: z.literal(StepKind.mouse), x: z.number(), y: z.number(), optional, origin, at }),
+  z.object({ kind: z.literal(StepKind.expect), expectations: z.array(nonEmptyString).min(1), within: nonEmptyString.optional(), optional, origin, at }),
 ]);
 export type Step = z.infer<typeof StepSchema>;
 
@@ -150,6 +152,12 @@ export function withOrigin<S>(raw: unknown, parse: (raw: unknown) => S): S {
   return { ...parse(rest), origin };
 }
 
+/** Puts the step's source (absolute file, index in it) on the parsed step, for the pick cache key (src/pick-cache.ts). */
+function withSource<S>(step: S, root: string, source: { file?: string; index: number } | undefined, i: number): S {
+  const file = source?.file === undefined ? resolve(root) : resolve(dirname(resolve(root)), source.file);
+  return { ...step, at: { file, index: source?.index ?? i } };
+}
+
 export function loadSpec(path: string, opts?: LoadOptions): Spec {
   const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
   const spec: Spec = {
@@ -161,7 +169,7 @@ export function loadSpec(path: string, opts?: LoadOptions): Spec {
     steps: expandIncludes(raw.steps, path).map((expanded, i) => {
       // Errors name the file and index the step was written at, also for included steps.
       const { step, source } = splitSource(expanded);
-      return withOrigin(step, (s) => parseStep(source?.file ?? path, source?.index ?? i, s));
+      return withSource(withOrigin(step, (s) => parseStep(source?.file ?? path, source?.index ?? i, s)), path, source, i);
     }),
   };
   checkSpecFeatures(spec, path);
@@ -210,6 +218,6 @@ export function loadNativeSpec<R extends { hooks?: string; env: Record<string, u
   return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
     env, steps: expandIncludes(raw.steps, file).map((expanded, i) => {
       const { step, source } = splitSource(expanded);
-      return withOrigin(step, (s) => parseOne(s, source?.file ?? file, source?.index ?? i));
+      return withSource(withOrigin(step, (s) => parseOne(s, source?.file ?? file, source?.index ?? i)), file, source, i);
     }) };
 }

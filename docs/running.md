@@ -144,6 +144,48 @@ do not update it. A completed run with no selected specs replaces it with a reco
 A spec that fails to load is reported as `error` but never runs, so it is not retried and does not count
 toward `--bail`.
 
+## Pick cache
+
+A spec run remembers which element Jev picked for each target, and the next run reuses that choice
+without a Jev call while the page still matches it. A dense page costs about 28k tokens per pick; a
+reused pick costs none. The page is still scanned (a few milliseconds), and only the model call is
+skipped. Claims (`expect`, `wait`) are always judged by Jev.
+
+| Mode | `--picks` / config `picks` | Behavior |
+| --- | --- | --- |
+| `on` | default | Reads the cache and writes what passing attempts picked |
+| `read` | | Reads, never writes: for CI that must not change the working tree |
+| `off` | | Neither reads nor writes: every target is picked by Jev |
+
+MCP sessions never use the cache.
+
+**Files.** Each source file gets a sidecar next to it: `checkout.yaml` → `checkout.picks.json`, and an
+included flow `flows/login.yaml` → `flows/login.picks.json`, shared by every spec that includes it.
+Commit the sidecars with the specs: they are small, sorted and have no timestamps, so a diff shows
+exactly which pick changed, and every CI machine reuses the same decisions. Run `--picks read` in CI.
+An entry is keyed by the step's index in its file, the step kind, the interpolated target and the
+spec's `goal`, so a data-driven spec gets one entry per distinct target. It stores the chosen element's
+description (without `value=`), its frame and the page (origin and path).
+
+**When a stored pick is reused.** Only on the first attempt of a spec, on the same page (query and
+hash ignored), when **exactly one** element on the page has the stored description. An element
+described only by its own text, with no surrounding `context:`, is reused only when the whole list of
+elements is the same as when it was stored. Then the step acts on that element, its result has
+`cached: true`, its detail ends with `(cached pick)`, and its timing has `cached=1`. Any other case is a
+miss: Jev picks as usual.
+
+**When an entry is written or dropped.** Picks are stored only from an attempt that passed, and are
+written once at the end of the run. A pick of one of several identical elements (` #2`), or a pick Jev
+rejected, is never stored. When an attempt fails, the stored picks it used are deleted, and its retry
+(`--retries`) always asks Jev; if the retry passes, its picks replace them. A step that did not pass
+names the reused picks in its detail (`cache: <file>.json`), and [artifacts](artifacts.md) copies that
+file. A sidecar written for another model, or by a plainwright version with another element
+description format, is ignored and rewritten by the next passing run. The run summary, JUnit
+properties and the JSON report show `cachedPicks`.
+
+**Reset.** Delete the sidecar (or one entry in it), or run with `--picks off` once. A step moved to
+another index gets a new entry; the old one stays in the file until you delete it.
+
 ## Configuration
 
 The CLI discovers `plainwright.config.yaml` in the current working directory,
@@ -199,6 +241,7 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | `channel` | nonempty string | Unset; installed browser channel, e.g. `chrome` |
 | `cdp` | nonempty string | Unset; attach to a browser CDP endpoint |
 | `server` | nonempty string | Mobile Appium URL; `--server` and `PLAINWRIGHT_APPIUM_URL` override it; default `http://127.0.0.1:4723` |
+| `picks` | `on`, `read`, or `off` | `on`; [pick cache](#pick-cache) mode |
 
 `--list`, `--last-failed`, and `--config` are invocation controls and have no
 config keys. Each `artifacts` key may be set alone: a mode in the config can pair
