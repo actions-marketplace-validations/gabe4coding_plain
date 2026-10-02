@@ -31,11 +31,9 @@ Find the explicit device ID using `adb devices -l` (Android), `xcrun simctl list
 chooses an arbitrary connected device. Use dedicated test devices; screen actions also reach
 system dialogs and keyboards. Each device must have only one active automation session.
 
-From this checkout:
+From this checkout (the launcher installs the shared npm dependencies on first run; `dist/` is committed):
 
 ```sh
-npm ci
-npm run build
 node bin/plainwright-mobile.mjs mcp
 node bin/plainwright-mobile.mjs --server http://127.0.0.1:4723 --timeout 15000 path/to/mobile.yaml
 ```
