@@ -10,3 +10,6 @@ plugins/*/.runtime/
 .claude/hillclimb/
 plainwright-results/
 .plainwright/
+
+# Explainer video project (manim scenes, narration, renders): local only.
+.claude/explainer-video/

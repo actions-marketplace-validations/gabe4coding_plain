@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { generateText, tool, jsonSchema } from 'ai';
 import { chromium } from 'playwright';
-import { USER_ENV_FILE } from '../../dist/jev.js';
+import { USER_ENV_FILE } from '../../dist/jev/provider.js';
 import { startFixtures, taskNames } from './fixtures.mjs';
 import { costs } from './accounting.mjs';
 import { readArtifact } from './artifacts.mjs';

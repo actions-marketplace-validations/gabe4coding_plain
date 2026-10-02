@@ -37,7 +37,7 @@ node scripts/benchmark-claims.mjs --group page         # all claims of a page in
 ## Unchecked mark (2026-10-01)
 
 Playwright's tree marks a checked control `[checked]` and an unchecked one with nothing. `toSnapshot()`
-(`src/page.ts`, `markUnchecked`) now writes `[checked=false]` on an unchecked checkbox, radio, switch or
+(`src/browser/page.ts`, `markUnchecked`) now writes `[checked=false]` on an unchecked checkbox, radio, switch or
 checkable menu item, as the mobile tree already did. The benchmark passes saved pages through the same function.
 Baseline and change were run back to back, 3 runs each (417 judgments each).
 

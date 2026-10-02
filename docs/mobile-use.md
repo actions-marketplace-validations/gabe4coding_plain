@@ -204,7 +204,7 @@ can inherit their children's labels. Controls hidden or disabled in the native t
 from actionable candidates. A Jetpack Compose role marker is left out of those candidates too: a
 child is dropped, and its clickable parent is offered instead, when the child's clickable
 attribute is false, it is not long-clickable, it has no text or content-desc, and its bounds are
-set and match the parent's (`roleMarker()` in `mobileFrame()`). The child still appears in the
+set and match the parent's (`isRoleMarker()` in `mobileFrame()`). The child still appears in the
 snapshot; listing both split the pick (0.51/0.47 on the Button inside Google Contacts' "Add email"),
 and the pick was rejected. On iOS, a control's explicit visibility is respected even when a
 layout ancestor reports invisible; hidden layout nodes do not hide visible descendants.

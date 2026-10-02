@@ -6,16 +6,16 @@ Build (TypeScript, ESM, `src/` → `dist/`, `tsc` per `tsconfig.json`):
 npm run build
 ```
 
-Test (`node:test`; specs live in `src/*.test.ts`, compiled to `dist/*.test.js`):
+Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`):
 
 ```
 npm test                                                    # build + node --test 'dist/**/*.test.js'
-node --test dist/runner.test.js                             # one file, after a build
-node --test --test-name-pattern "<name>" dist/jev.test.js   # one test case
+node --test dist/browser/runner.test.js                     # one file, after a build
+node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
 ```
 
-No test in the regular suite needs a Jev API key: `jev.test.ts` and `spec.test.ts` exercise pure functions with injected env
-objects, and `runner.test.ts` drives real headless Chromium against `data:text/html` URLs with `goto` steps only.
+No test in the regular suite needs a Jev API key: the `jev/` and `core/spec` tests exercise pure functions with injected env
+objects, and `browser/runner.test.ts` drives real headless Chromium against `data:text/html` URLs with `goto` steps only.
 
 Run a spec, or start the MCP server (`src/cli.ts` dispatches on the first positional):
 
@@ -46,16 +46,16 @@ node scripts/benchmark-steps.mjs --picks on --dir <scratch copy of examples>   #
 
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
 persistent context; `--channel chrome` launches an installed browser instead of the bundled Chromium; `--cdp <url>` attaches
-to a running Chrome (`openPage()` in `src/runner.ts` picks one of the three; env fallbacks `PLAINWRIGHT_PROFILE`/
-`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/options.ts`). The browser plugin `.mcp.json` runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs --headless mcp`, which installs and dispatches to the shared runtime.
+to a running Chrome (`openPage()` in `src/browser/session.ts` picks one of the three; env fallbacks `PLAINWRIGHT_PROFILE`/
+`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/suite/options.ts`). The browser plugin `.mcp.json` runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs --headless mcp`, which installs and dispatches to the shared runtime.
 
 Suite flags are shared by all three CLIs; native engines require `--workers 1` and default to `jsonl`
 rather than browser `text`. Config comes from cwd `plainwright.config.yaml`/`.yml` or `--config`;
 CLI > existing `PLAINWRIGHT_*` env > config > defaults. MCP ignores suite config. See `docs/running.md`.
 
 Environment: `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` (`TYPESAFE_API_KEY` wins if both set), or force one with
-`JEV_PROVIDER=typesafe|gateway` (`src/jev.ts`, `selectProvider`). `src/cli.ts` loads `.env` from the cwd, then
-`~/.config/plainwright/.env` (`USER_ENV_FILE` in `src/jev.ts`), via Node's native `process.loadEnvFile()` (no `dotenv`);
+`JEV_PROVIDER=typesafe|gateway` (`src/jev/provider.ts`, `selectProvider`). `src/cli.ts` loads `.env` from the cwd, then
+`~/.config/plainwright/.env` (`USER_ENV_FILE` in `src/jev/provider.ts`), via Node's native `process.loadEnvFile()` (no `dotenv`);
 variables already in the environment are never overridden. The user file exists because Codex passes plugin MCP
 servers no shell environment. Spec runs check for a key just before execution; `validate` and `--list` need none.
 MCP mode keeps serving and the first Jev call returns the message as a tool error.
@@ -71,24 +71,41 @@ only decision maker. It picks the element a natural-language target describes (C
 natural-language claim holds (Noul) against the page's accessibility tree. Specs have no CSS selectors except a
 `css=` escape hatch.
 
-- `src/suite.ts` — `runSuite`: load all specs, select (load errors always kept), list without a key or build
+Source layout (tests sit next to their module):
+
+- `src/cli.ts` — the browser CLI entry (`plainwright`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
+- `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`, `step-kind.ts`),
+  the shared targeting/judging boundary (`automation.ts`), results and labels (`results.ts`), hooks (`hooks.ts`,
+  `hooks-child.ts`), the pick cache, `read`, snapshot views, `changed` diffs and MCP result helpers.
+- `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
+  `isTooLong`, `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
+- `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`), `steps.ts`
+  (step handlers), `activity.ts` (settling, request tracking, `mayNavigate`), `settled-ask.ts`, `locate.ts` (targets),
+  `judge-page.ts` (claims), `candidates.ts`, `page.ts` (snapshots, DOM clock), `notes.ts` (console noise), `mcp.ts`.
+- `src/native/` — the shared desktop/mobile core (`session.ts`, `run-spec.ts`, `cli.ts`, `mcp.ts`).
+- `src/computer/` and `src/mobile/` — each platform's `adapter.ts`, `spec.ts`, `session.ts`, `mcp.ts`, `cli.ts`
+  (plus `computer/planner.ts`, `mobile/tree.ts`, `mobile/discovery.ts`).
+- `src/suite/` — what all three CLIs share for spec suites: `run-suite.ts`, `types.ts`, `options.ts`, `config.ts`,
+  `schedule.ts`, `select.ts`, `validate.ts`, `last-run.ts`, `artifacts.ts`, `spec-timeout.ts`, `reporters/`.
+
+- `src/suite/run-suite.ts` — `runSuite`: load all specs, select (load errors always kept), list without a key or build
   observers → schedule attempts → totals/reporters → persist last run. All engines share it; output stays in
-  input order. `src/suite-types.ts` owns attempts/spec/run reports, observers and engine adapters; `flaky` is
+  input order. `src/suite/types.ts` owns attempts/spec/run reports, observers and engine adapters; `flaky` is
   a separate boolean and counts as pass.
-- `src/options.ts` — shared CLI flags, file/directory/`*`/`**` expansion and CLI/env/config/default precedence;
+- `src/suite/options.ts` — shared CLI flags, file/directory/`*`/`**` expansion and CLI/env/config/default precedence;
   `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early.
-- `src/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
+- `src/suite/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
   token budget. In-flight attempts finish; cut retries retain their last status; never-started specs are skipped.
-- `src/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection (no or invalid
+- `src/suite/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection (no or invalid
   record: run all selected specs; no failures: run none) and list output.
-- `src/config.ts` — strict YAML config discovery/validation, paths relative to its file; MCP does not read it.
-- `src/validate.ts` — load/expand schemas and check interpolated fields without sessions/hooks; absent `$VAR`
+- `src/suite/config.ts` — strict YAML config discovery/validation, paths relative to its file; MCP does not read it.
+- `src/suite/validate.ts` — load/expand schemas and check interpolated fields without sessions/hooks; absent `$VAR`
   leaves warn, `${hooks.*}` waits for runtime, unknown namespaces or unresolved `${env.*}` fail validation.
-- `src/artifacts.ts` — optional observer for failure-step screenshots, final screenshots, browser traces and
+- `src/suite/artifacts.ts` — optional observer for failure-step screenshots, final screenshots, browser traces and
   copied Jev dumps; dedicated marked directories, per-spec/attempt folders, no CDP trace or native trace.
-- `src/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
+- `src/suite/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
   JSON schema version 1, Surefire retry failure/error elements, all-attempt usage and artifact paths.
-- `src/pick-cache.ts` — pick cache (`--picks on|read|off`, config `picks`; MCP never): a sidecar per source file
+- `src/core/pick-cache.ts` — pick cache (`--picks on|read|off`, config `picks`; MCP never): a sidecar per source file
   (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target (sha256 when the
   raw step had `${`), goal, page]`, value the accepted candidate's desc (`value=` dropped only on `editable`
   text-entry candidates, browser only), frame label, page (origin+path) and a sha1 of the whole normalized list.
@@ -101,72 +118,72 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   ones deleted. Another model or `DESC_FORMAT` ignores the file: bump `DESC_FORMAT` when `describe()`/`candidates()`
   or a native candidate desc changes. `scripts/benchmark-pick-cache.mjs` (stale pages: wrong and unconfirmed hits
   must stay 0); results in `docs/benchmarks/pick-cache.md`.
-- `src/include.ts` — nested steps-only YAML flows expanded before validation; paths relative to each includer,
+- `src/core/include.ts` — nested steps-only YAML flows expanded before validation; paths relative to each includer,
   cycle/source-index diagnostics, origin labels; included placeholders use root env/hooks, not flow-local data.
-- `src/context-options.ts` — device/context overrides, auth/geolocation and storage state; CDP rejects context
+- `src/browser/context-options.ts` — device/context overrides, auth/geolocation and storage state; CDP rejects context
   settings, profiles cannot load storage state. `runSpec` saves state only after passing steps and teardown.
-- `src/last-run.ts` — atomic cwd `.plainwright/last-run.json`, absolute spec paths and final status/flaky;
+- `src/suite/last-run.ts` — atomic cwd `.plainwright/last-run.json`, absolute spec paths and final status/flaky;
   `readLastFailed` returns `undefined` (no or invalid record) or the set of non-pass files; list/validate never replace it.
-- `src/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
+- `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
   `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
-  `auth`/`env` resolve from `process.env` at load time. `interpolate()` replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
+  `auth`/`env` resolve from `process.env` at load time. `interpolate()` (`src/core/interpolate.ts`) replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
   leaf, is an error.
-- `src/candidates.ts` — candidate collection (`candidates()`, selector + shadow-DOM walk per step kind, with
+- `src/browser/candidates.ts` — candidate collection (`scanCandidatesInPage` runs inside the page, so its helpers are nested) (`candidates()`, selector + shadow-DOM walk per step kind, with
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
   nav/footer, so a cookie banner appended at the end of the body is never cut.
-- `src/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
+- `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
   checkable control gets `[checked=false]`, `markUnchecked`) and DOM-quiet waiting
-  (`settle()`). Re-exports the candidate helpers from `src/candidates.ts`. `page.ts` (snapshot sections)
-  and `candidates.ts` (candidate prefixes) both label iframes with `frameLabel()` (`src/frames.ts`).
-- `src/jev.ts` — provider selection and the `ask()` call to either backend; `pickElements()` (one Choice per
+  (`settle()`, `mark()`, `unchangedSince()`). `page.ts` (snapshot sections) and `candidates.ts` (candidate prefixes)
+  both label iframes with `frameLabel()` (`src/browser/frames.ts`).
+- `src/jev/` — provider selection (`provider.ts`) and the `ask()` call to either backend (`ask.ts`); `pickElements()` (`pick.ts`) (one Choice per
   target; ≤254 candidates per request, more are split into equal chunks asked in parallel and merged by
-  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim); `decide()`: a claim passes at p ≥ 0.9, fails at
+  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim, `judge.ts`); `decide()` (`decide.ts`): a claim passes at p ≥ 0.9, fails at
   p ≤ 0.1, else `inconclusive`; a pick is accepted when (`confidence` if TypeSafe returned one, else
   `probability`) ≥ 0.5 and the answer isn't `none`. A rejected pick or non-passing claim dumps the exact state
-  to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/steps.ts`). A pick's state carries the flow's `goal`
+  to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/core/results.ts`). A pick's state carries the flow's `goal`
   (spec `goal:` or MCP `open {goal}`, browser, desktop and mobile) when there is one, never in the question; claims never see it. The model is pinned (`MODEL_BY_PROVIDER`), not `jev-latest`:
   thresholds and phrasing advice were tuned against it. The TypeSafe SDK client handles timeouts and retries
   (429/5xx, `Retry-After`); the gateway path keeps its own retry loop because the AI SDK's backoff cannot outlast
   a rate-limit window. A global undici keep-alive dispatcher keeps API connections open between calls (Node's default
   drops them after 4 s, and the first model call on a new connection costs ~350 ms more); `warmUp()` sends two tiny
   Jev calls at CLI/MCP start so the first steps find warm connections.
-- `src/steps.ts` — one handler per step kind (`goto`, `fill`, `click`, `hover`, `dblclick`, `rightclick`,
+- `src/browser/steps.ts` — one handler per step kind (`goto`, `fill`, `click`, `hover`, `dblclick`, `rightclick`,
   `select`, `check`, `uncheck`, `upload`, `scroll`, `wait`, `press`, `drag`, `mouse`, `expect`), each accepting
   `optional: true`. An action step is snapshot candidates → Jev picks while the page settles → Playwright acts;
-  `expect`/`wait` are snapshot → Jev judges while the page settles (`settledAsk`: the early answer is kept only if
+  `expect`/`wait` are snapshot → Jev judges while the page settles (`settledAsk` in `settled-ask.ts`: the early answer is kept only if
   the main document did not mutate after the look, via `mark()`/`unchangedSince()`, or a second look is identical;
-  otherwise the settled state is asked again and `ms.reasked` counts it). `settlePage()` = DOM quiet 150 ms (mutations before the load event do not count) plus no
+  otherwise the settled state is asked again and `ms.reasked` counts it). `settlePage()` (`activity.ts`) = DOM quiet 150 ms (mutations before the load event do not count) plus no
   xhr/fetch younger than 2 s in flight, 3 s cap; observers ignore the scan's own `data-jev-id` writes. A click's 200 ms
   hold and `fill`'s 500 ms debounce hold (`mayNavigate` `holdMs`; clicks watch only 50 ms themselves), and a loading
-  popup (`holdActivity` in the runner's popup handler), are waited by the next step's settle, or by `waitHold` in `runStep` for steps
+  popup (`holdActivity` in the session's popup handler), are waited by the next step's settle, or by `waitHold` in `runStep` for steps
   that do not settle first (`settlesFirst`). Several `expect` claims share one Jev call; fail beats inconclusive beats
   pass across them. `check`/`uncheck` read the state (a control's `checked`, following a label, or
   aria-checked/aria-pressed) and click only when it must change (`setChecked`); `scroll: top|bottom` (and spoken
   forms, `scrollEdge`) scrolls `document.scrollingElement` and reports the distance. A scan with no candidates is
-  retried for up to 2 s (`APPEAR_MS`, a page still redirecting after `open`). `wait: {that, within}` picks the region
-  once and polls only its tree (`judgeRegion`).
-- `src/runner.ts` — `runSpec()`: fork the hooks child first (fails fast, before the browser opens) → open a
+  retried for up to 2 s (`APPEAR_MS` in `locate.ts`, a page still redirecting after `open`). `wait: {that, within}` picks the region
+  once and polls only its tree (`judgeRegion` in `judge-page.ts`).
+- `src/browser/runner.ts` — `runSpec()`: fork the hooks child first (fails fast, before the browser opens) → open a
   session → `setup()` → interpolate `url`/`steps` with `{env, hooks: data}` → run steps → `teardown()` in
   `finally` → close the child → close the session. `Status` is `pass | fail | inconclusive | error | skipped`.
   A setup error yields a single `setup` step and `error`, with no teardown; a teardown error always makes the
-  run `error`. `src/spec-timeout.ts` bounds steps by the remaining attempt budget; opening/setup consume it,
+  run `error`. `src/suite/spec-timeout.ts` bounds steps by the remaining attempt budget; opening/setup consume it,
   cleanup is allowed to finish afterward. Optional steps cannot skip a spec timeout. Steps go through
-  `runStepSafely` (`src/steps.ts`), shared with `src/mcp.ts`: errors become results, optional misses become `skipped`.
+  `runStepSafely` (`src/browser/steps.ts`), shared with `src/browser/mcp.ts`: errors become results, optional misses become `skipped`.
 - Hooks contract: an ES module next to the spec (`hooks:`, resolved relative to the spec file) with optional
   `setup({spec})` (its return becomes `${hooks.*}`) and `teardown({spec, data, result})`, run in its own child
-  process (`src/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks
+  process (`src/core/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks
   between specs and `--workers` can't make hooks interfere. Only JSON crosses the IPC channel. Dataset shape is
   not imposed. See `examples/login-dataset.yaml` + `examples/hooks/login-dataset.mjs`.
-- `src/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `find`,
-  `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/steps.ts`), `read` (a question answered with
-  the page's own lines: Jev picks the first and last line, `src/read.ts`; `PLAINWRIGHT_READ=0` hides it), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask`, `read` and
+- `src/browser/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `find`,
+  `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/browser/judge-page.ts`), `read` (a question answered with
+  the page's own lines: Jev picks the first and last line, `src/core/read.ts`; `PLAINWRIGHT_READ=0` hides it), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask`, `read` and
   `evaluate` read without acting and are not recorded. `step`/`batch` results carry `changed` (title/url if changed,
-  new aria lines capped at 1,500 chars, removed count; `src/aria-changes.ts`, after a settle; `PLAINWRIGHT_CHANGES=0`
+  new aria lines capped at 1,500 chars, removed count; `src/core/aria-changes.ts`, after a settle; `PLAINWRIGHT_CHANGES=0`
   turns it off). `save` writes a YAML spec with `${hooks.*}` placeholders kept and `hooks:` relative to the
   saved file. `${env.*}` is not available in an MCP session, only `${hooks.*}`. stdout is the JSON-RPC channel,
-  so all logging (here and in `src/cli.ts`/`src/steps.ts`) goes to `console.error`.
-- Console noise (`isConsoleNoise` in `src/runner.ts`): CSP/blocked/failed-resource errors and errors from another
+  so all logging goes to `console.error`.
+- Console noise (`isConsoleNoise` in `src/browser/notes.ts`): CSP/blocked/failed-resource errors and errors from another
   site's script never reach `events` (Jev) and are counted in one note per drain; the page's own errors stay listed.
 - `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop), and
@@ -197,24 +214,24 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 
 ## Computer use
 
-- `src/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Browser, desktop and mobile paths use it. `src/results.ts` shares labels/status/debug output.
-- `src/hooks.ts` owns the generic isolated hook runner (`startHooks`) and `placeholderPaths`, used by all three MCP servers.
-- `src/native.ts` is the shared desktop/mobile core: `NativeSession` (Jev targeting via `askSettled`, expect/wait polling, phase timing; subclasses implement only `act`), `runNativeSpec` (hooks → open → steps → teardown → close) and `nativeCli`. `src/native-mcp.ts` (`createNativeServer`, `serveNative`) holds the shared step/find/snapshot/ask/read/screenshot/save/close tools; each platform registers its own open and discovery tools first. As in the browser: `step` results carry `changed` (diffed against the step's own first whole-screen capture, `NativeSession.firstSnapshot`; press/swipe/mouse capture first), picks see `goal` (`open {goal}`, spec `goal:`), and `read` answers with tree lines.
-- `src/computer-adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports). `captureTree` (unit-tested with fake nodes) skips control parts (text, groups, images, table cells) inside a candidate, names unnamed candidates by their inner text, drops the single-window/application context and shortens long values; `click` inside a `web_area` is a pointer click, elsewhere the accessibility press when the element offers one (else a pointer click).
-- `src/computer-spec.ts`, `computer.ts`, `computer-mcp.ts`, `computer-cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (ten serialized MCP tools in all), and sequential batch replay, on top of `native.ts`/`native-mcp.ts`. Desktop specs have `app`, not `url`.
-- `src/planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `src/computer-cli.ts`. Change it only when `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
+- `src/core/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Browser, desktop and mobile paths use it. `src/core/results.ts` shares labels/status/debug output.
+- `src/core/hooks.ts` owns the generic isolated hook runner (`startHooks`) and `placeholderPaths`, used by all three MCP servers.
+- `src/native/` is the shared desktop/mobile core: `NativeSession` (`session.ts`; Jev targeting via `askSettled`, expect/wait polling, phase timing; subclasses implement `parse`, `label` and `act`), `runNativeSpec` (`run-spec.ts`; hooks → open → steps → teardown → close) and `nativeCli` (`cli.ts`). `src/native/mcp.ts` (`createNativeServer`, `serveNative`) holds the shared step/find/snapshot/ask/read/screenshot/save/close tools; each platform registers its own open and discovery tools first. As in the browser: `step` results carry `changed` (diffed against the step's own first whole-screen capture, `NativeSession.firstSnapshot`; press/swipe/mouse capture first), picks see `goal` (`open {goal}`, spec `goal:`), and `read` answers with tree lines.
+- `src/computer/adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports). `captureTree` (unit-tested with fake nodes) skips control parts (text, groups, images, table cells) inside a candidate, names unnamed candidates by their inner text, drops the single-window/application context and shortens long values; `click` inside a `web_area` is a pointer click, elsewhere the accessibility press when the element offers one (else a pointer click).
+- `src/computer/spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (ten serialized MCP tools in all), and sequential batch replay, on top of `src/native/`. Desktop specs have `app`, not `url`.
+- `src/computer/planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `src/computer/cli.ts`. Change it only when `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
 - `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates all plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
 - Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.md` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
 - `npm run test:computer:mac` is an opt-in native smoke against a disposable Cocoa fixture (Accessibility/Screen Recording permissions required); regular `npm test` uses injected desktop adapters and no model keys. Windows/Linux native parity requires testing on those platforms.
 
 ## Mobile use
 
-- `src/mobile-adapter.ts` provides injectable `MobileAdapter` and lazy WebdriverIO `AppiumAdapter`. Appium and platform drivers are external host prerequisites; never auto-install apps or reset app data. Explicit `platform`, `device` (UDID/ADB serial) and installed `app` are required.
-- `src/mobile-tree.ts` normalizes native XCUITest/UiAutomator2 XML into shared candidates/snapshots. `roleMarker()`, applied in `mobileFrame()`, drops a Jetpack Compose role-marker child from candidates when its clickable attribute is false, it is not long-clickable, it has no text or content-desc, and its bounds are set and match its clickable parent; the child stays in the snapshot. Native paths stay inside the adapter; Jev remains the sole target decision maker. Revalidate captured identity before native actions.
-- `mobile-spec.ts`, `mobile.ts`, `mobile-mcp.ts`, `mobile-cli.ts` provide mobile parsing, actions, the discovery/`open` tools (eleven serialized tools in all), and sequential replay, on top of `native.ts`/`native-mcp.ts`.
-- iOS tree reads are dominated by XCUITest's `visible` attribute. `AppiumAdapter` revalidates targets from the lookup response (`IOS_FOUND_ATTRIBUTES`, incl. `attribute/visible`), and with `fastTargets` (set by `mobile-cli.ts` and `mobile-mcp.ts`; MCP `find` calls `preferExact`, and `changed` never diffs against an approximate frame: `firstSnapshot` skips them, the previous step's after capture stands in) picks targets from a source without `visible` (`parseMobileTree` `boundsVisibility`, frame `approximate`); `MobileSession.act` keeps such a pick when accepted (>= 0.5, like any pick) and visible, else re-picks from an exact capture (`ms.retargeted`); fast and exact trees picked the same element in 24/24 recorded Calendar asks, with lower confidence on sheets. Claim `within` regions are also picked from the approximate tree (containers only, `NativeSession.region(within, true)`); the first exact look must show a visible node or `HiddenTargetError` re-picks. Reads exclude `accessible` except for click candidates; iOS lookups use class chains (`MobileNode.chain`). Measure with `examples/mobile/ios-calendar.yaml`.
-- `NativeSession.settled()` uses `askSettled` (`automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
-- `mobile-discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
+- `src/mobile/adapter.ts` provides injectable `MobileAdapter` and lazy WebdriverIO `AppiumAdapter`. Appium and platform drivers are external host prerequisites; never auto-install apps or reset app data. Explicit `platform`, `device` (UDID/ADB serial) and installed `app` are required.
+- `src/mobile/tree.ts` normalizes native XCUITest/UiAutomator2 XML into shared candidates/snapshots. `isRoleMarker()`, applied in `mobileFrame()`, drops a Jetpack Compose role-marker child from candidates when its clickable attribute is false, it is not long-clickable, it has no text or content-desc, and its bounds are set and match its clickable parent; the child stays in the snapshot. Native paths stay inside the adapter; Jev remains the sole target decision maker. Revalidate captured identity before native actions.
+- `src/mobile/spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide mobile parsing, actions, the discovery/`open` tools (eleven serialized tools in all), and sequential replay, on top of `src/native/`.
+- iOS tree reads are dominated by XCUITest's `visible` attribute. `AppiumAdapter` revalidates targets from the lookup response (`IOS_FOUND_ATTRIBUTES`, incl. `attribute/visible`), and with `fastTargets` (set by `mobile/cli.ts` and `mobile/mcp.ts`; MCP `find` calls `preferExact`, and `changed` never diffs against an approximate frame: `firstSnapshot` skips them, the previous step's after capture stands in) picks targets from a source without `visible` (`parseMobileTree` `boundsVisibility`, frame `approximate`); `MobileSession.act` keeps such a pick when accepted (>= 0.5, like any pick) and visible, else re-picks from an exact capture (`ms.retargeted`); fast and exact trees picked the same element in 24/24 recorded Calendar asks, with lower confidence on sheets. Claim `within` regions are also picked from the approximate tree (containers only, `NativeSession.region(within, true)`); the first exact look must show a visible node or `HiddenTargetError` re-picks. Reads exclude `accessible` except for click candidates; iOS lookups use class chains (`MobileNode.chain`). Measure with `examples/mobile/ios-calendar.yaml`.
+- `NativeSession.settled()` uses `askSettled` (`core/automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
+- `src/mobile/discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
 - The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.md` and its skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.
 - Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. `npm run test:mobile` is an opt-in device tree/PNG smoke using PLAINWRIGHT_MOBILE_PLATFORM/DEVICE/APP and optional PLAINWRIGHT_APPIUM_URL/CAPABILITIES. Native actions and record/replay need validation on both real platforms before claiming parity.

@@ -16,9 +16,10 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles, decide } from '../dist/jev.js';
-import { judgeState } from '../dist/automation.js';
-import { markUnchecked } from '../dist/page.js';
+import { loadEnvFiles } from '../dist/jev/provider.js';
+import { decide } from '../dist/jev/decide.js';
+import { judgeState } from '../dist/core/automation.js';
+import { markUnchecked } from '../dist/browser/page.js';
 
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, group: { type: 'string', default: 'single' }, only: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' } } });
 if (!['single', 'page'].includes(values.group)) throw new Error('--group must be single or page');

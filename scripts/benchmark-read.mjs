@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Offline read benchmark: the MCP `read` tool (src/read.ts) against `snapshot {mode:"smart", intent}` on saved
+// Offline read benchmark: the MCP `read` tool (src/core/read.ts) against `snapshot {mode:"smart", intent}` on saved
 // pages (scripts/read-states/, refresh with capture-read-states.mjs) and questions with known answers
 // (scripts/read-cases.json). A case is right when every expected string is in what the tool returned, or,
 // for a `none` case, when read says not found. Reports Jev tokens and the characters an agent has to read.
@@ -7,10 +7,10 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles } from '../dist/jev.js';
-import { readAnswer, readOptions } from '../dist/read.js';
-import { snapshotView } from '../dist/snapshot-view.js';
-import { markUnchecked } from '../dist/page.js';
+import { loadEnvFiles } from '../dist/jev/provider.js';
+import { readAnswer, readOptions } from '../dist/core/read.js';
+import { snapshotView } from '../dist/core/snapshot-view.js';
+import { markUnchecked } from '../dist/browser/page.js';
 
 loadEnvFiles();
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, only: { type: 'string' }, smart: { type: 'boolean', default: false }, labels: { type: 'string', default: 'short' }, dedupe: { type: 'string', default: 'on' }, out: { type: 'string' } } });

@@ -7,7 +7,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { snapshot, installSettleObserver, settle } from '../dist/page.js';
+import { snapshot, installSettleObserver, settle } from '../dist/browser/page.js';
 
 const INTERNET = 'https://the-internet.herokuapp.com';
 const login = async (page, username, password) => {
