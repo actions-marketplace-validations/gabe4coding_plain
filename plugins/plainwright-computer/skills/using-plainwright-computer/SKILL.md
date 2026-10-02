@@ -124,6 +124,14 @@ plan of one sentence as JSON items, and `launch.mjs do [--app NAME] [--yes] "<se
 in a running app. Inside an agent session, plan the steps yourself and use the tools: you see the
 results between steps.
 
+For YAML suites, add `tags: [smoke]` and share steps with
+`include: ./flows/login.yaml` (a steps-only file; placeholders use root env/hooks).
+Keep flows outside spec input globs. Run `node <plugin-root>/bin/launch.mjs validate spec.yaml`
+before replay; missing secrets are warnings and no session/model key is needed.
+For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plainwright-results`.
+Runs stay sequential; screenshots are supported, browser traces are unavailable.
+`include` is expanded by the file loader, so it cannot be sent to MCP `step`.
+
 ## Setup failures
 
 The shared API key settings are `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`, optionally

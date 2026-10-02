@@ -14,9 +14,16 @@
 4. Edit the YAML: `optional: true` where the page is nondeterministic (a cookie banner, a promo), a `#` comment
    where a phrasing is non-obvious, a `wait` before anything that appears after a delay. Credentials become
    `$VAR` references in the `env` block, used as `${env.*}` in steps.
-5. Replay headless: `node <plugin dir>/bin/launch.mjs --headless spec.yaml` (the plugin dir is
+5. Add `tags: [smoke]` for selection. Move shared steps into a YAML file containing only `steps:`
+   and use `include: ./flows/login.yaml`; placeholders use the root spec’s env/hooks. Keep flow files
+   outside spec input globs. Run `node <plugin dir>/bin/launch.mjs validate spec.yaml` before replay;
+   it expands includes and warns about absent secrets without hooks, a browser or a model key.
+6. Replay headless: `node <plugin dir>/bin/launch.mjs --headless spec.yaml` (the plugin dir is
    `${CLAUDE_PLUGIN_ROOT}`). Run it twice. Green twice is done. Anything else goes back to step 2 with the dump
    file named in `detail`.
+
+For CI replay, use `--reporter text --reporter junit:out/junit.xml --artifacts plainwright-results`.
+Use `--tag smoke` to select tags; `--retries 1` marks a retry pass as flaky and still exits successfully.
 
 ## When a saved spec fails on replay
 

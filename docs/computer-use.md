@@ -139,7 +139,8 @@ steps:
   - expect: "The preview contains the test message"
 ```
 
-Top-level keys are `name`, `app`, optional `env` and `hooks`, and a nonempty `steps` list.
+Top-level keys are `name`, `app`, optional `env`, `hooks`, `goal`, `tags` and `timeout`,
+and a nonempty `steps` list (which may include shared flows).
 Unknown top-level keys are rejected so browser settings cannot be silently ignored. Environment
 references and `${env.*}` / `${hooks.*}` interpolation are the browser engine's existing logic.
 Store credentials as `$VAR` references in `env`, or return them from hooks; never record literals.
@@ -171,11 +172,45 @@ p >= 0.9, fail at p <= 0.1, otherwise are inconclusive. Rejections dump state to
 reports caps; use a scoped snapshot for dense apps. The timeout bounds app lookup and capture/wait
 polling budgets; an individual native call or Jev request/retry can outlast the polling deadline.
 
-Batch specs run sequentially. Exit 0 means all passed, 1 means a spec failed/errored/was inconclusive,
-2 means invalid CLI usage or missing provider configuration. Hooks share the isolated child-process
+Batch specs run sequentially and default to one JSON line per executed spec.
+See [suite options](#suite-options) for reporters and exit codes. Hooks share the isolated child-process
 contract described in [hooks](hooks.md), with a desktop spec's `app` replacing the browser's `url`.
 Teardown runs after a successful setup even when attachment, interpolation, or a step fails. A
 setup failure skips teardown; a teardown failure makes the run error. Detach never quits the app.
+
+## Suite options
+
+Desktop YAML runs use the shared [suite runner](running.md). Files, directories and
+quoted globs are accepted; keep steps-only flow files outside spec input paths.
+
+| Option or field | Desktop support |
+| --- | --- |
+| `--retries N`, `--bail [N]`, `--max-tokens N` | Additional attempts, stop after final non-passes, and a budget based on completed attempts. Defaults: `0` retries, no bail or token limit. Retries reopen the session and rerun hooks; app state is not reset automatically. |
+| `--grep RE`, `--grep-invert RE`, `--tag T`, `--last-failed` | Shared selection; repeat `--tag` to require all tags. |
+| `--list` | List selected specs without sessions, hooks or a model key; required spec environment values must be set. |
+| `validate <paths...>` | Check schemas, includes and placeholders without sessions, hooks or a model key; missing environment variables are warnings. |
+| `--config FILE` | Select a config; otherwise discover cwd `plainwright.config.yaml`/`.yml`. CLI overrides existing environment settings, then config, then defaults. MCP does not load suite config. |
+| `--reporter NAME[:FILE]` | Default `jsonl`; also `text`, `junit:FILE`, `json:FILE`. Repeat for one stdout reporter plus file reports. |
+| `--artifacts DIR`, `--screenshot MODE` | Capture screenshots and debug dumps; off until a directory is set. Screenshot modes: `off`, `on-failure` (default), `always` (failure steps plus a final image). |
+| `--timeout MS` | Positive per-action/polling budget; default `15000`. Native/model calls can outlast it. |
+| `--spec-timeout MS`, spec `timeout:` | Positive whole-attempt budget; spec field wins, unset by default. Setup/open consume it; step expiration is `error` and cleanup can finish after it. See [timeouts](spec-reference.md#timeouts). |
+| Spec `tags:` | String or list, e.g. `[smoke, desktop]`. |
+| Step `include: ./flows/login.yaml` | Expand a steps-only flow at load time; nesting allowed. Paths resolve relative to the including file, placeholders use the root spec’s env/hooks. See [reusable flows](spec-reference.md#reusable-flows). |
+| `--trace`, spec `browser:` | Browser traces/context settings are unavailable. Trace defaults to `off`; other modes error when artifact capture is enabled. `browser:` is rejected by the native schema. |
+| `--headless`, `--profile`, `--channel`, `--cdp`, `--timing`, `--server` | Not desktop options: each is an invocation error (exit 2). `--server` is mobile-only. |
+| `--workers N` | Only `1` is supported; greater values are invocation errors. |
+
+```sh
+plainwright-computer validate tests/desktop/
+plainwright-computer --list --tag smoke tests/desktop/
+plainwright-computer --retries 1 --reporter jsonl --reporter junit:out/desktop.xml --artifacts plainwright-results tests/desktop/
+```
+
+A pass on a retry has `flaky: true` and counts as passing. Exit `0` means every
+reported spec passes (or selection is empty), `1` means a non-pass/load error,
+and `2` means invocation/config/provider error. Optional skips alone do not fail
+an attempt. [Reporting](reporting.md) covers retry metadata and CI formats;
+[artifacts](artifacts.md) covers evidence capture and cleanup.
 
 ## Candidates in Electron and web views
 

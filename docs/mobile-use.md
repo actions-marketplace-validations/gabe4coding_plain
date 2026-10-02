@@ -172,7 +172,9 @@ steps:
 
 For iOS, use `platform: ios`, an iOS UDID and bundle ID. Steps can be shared when both versions
 expose equivalent flows; platform-specific navigation and accessibility differences still need
-verification on each platform. Unknown top-level keys and unsupported actions fail explicitly.
+verification on each platform. Optional `goal`, `tags` (string or list), `timeout`
+(positive milliseconds), `env` and `hooks` are supported. Steps may include shared flows. Unknown top-level keys and
+unsupported actions fail explicitly.
 
 | Step | Behavior |
 |---|---|
@@ -219,6 +221,40 @@ error before retrying; text clearing or another input may already have taken eff
 retries are disabled to avoid automatically repeating side effects. Driver/native commands and
 model retries may outlast the polling deadline; `--timeout` also sets the HTTP request timeout.
 
+## Suite options
+
+Mobile YAML runs use the shared [suite runner](running.md). Files, directories and
+quoted globs are accepted; keep steps-only flow files outside spec input paths.
+
+| Option or field | Mobile support |
+| --- | --- |
+| `--retries N`, `--bail [N]`, `--max-tokens N` | Additional attempts, stop after final non-passes, and a budget based on completed attempts. Defaults: `0` retries, no bail or token limit. Retries reopen the session and rerun hooks; app state is not reset automatically. |
+| `--grep RE`, `--grep-invert RE`, `--tag T`, `--last-failed` | Shared selection; repeat `--tag` to require all tags. |
+| `--list` | List selected specs without sessions, hooks or a model key; required spec environment values must be set. |
+| `validate <paths...>` | Check schemas, includes and placeholders without sessions, hooks or a model key; missing environment variables are warnings. |
+| `--config FILE` | Select a config; otherwise discover cwd `plainwright.config.yaml`/`.yml`. CLI overrides existing environment settings, then config, then defaults. MCP does not load suite config. |
+| `--reporter NAME[:FILE]` | Default `jsonl`; also `text`, `junit:FILE`, `json:FILE`. Repeat for one stdout reporter plus file reports. |
+| `--artifacts DIR`, `--screenshot MODE` | Capture screenshots and debug dumps; off until a directory is set. Screenshot modes: `off`, `on-failure` (default), `always` (failure steps plus a final image). |
+| `--timeout MS` | Positive per-action/polling budget; default `15000`. Native/model calls can outlast it. |
+| `--spec-timeout MS`, spec `timeout:` | Positive whole-attempt budget; spec field wins, unset by default. Setup/open consume it; step expiration is `error` and cleanup can finish after it. See [timeouts](spec-reference.md#timeouts). |
+| Spec `tags:` | String or list, e.g. `[smoke, mobile]`. |
+| Step `include: ./flows/login.yaml` | Expand a steps-only flow at load time; nesting allowed. Paths resolve relative to the including file, placeholders use the root spec’s env/hooks. See [reusable flows](spec-reference.md#reusable-flows). |
+| `--trace`, spec `browser:` | Browser traces/context settings are unavailable. Trace defaults to `off`; other modes error when artifact capture is enabled. `browser:` is rejected by the native schema. |
+| `--headless`, `--profile`, `--channel`, `--cdp`, `--timing` | Browser-only: each is an invocation error (exit 2). |
+| `--workers N` | Only `1` is supported; greater values are invocation errors. |
+
+```sh
+plainwright-mobile validate tests/mobile/
+plainwright-mobile --list --tag smoke tests/mobile/
+plainwright-mobile --retries 1 --reporter jsonl --reporter junit:out/mobile.xml --artifacts plainwright-results tests/mobile/
+```
+
+A pass on a retry has `flaky: true` and counts as passing. Exit `0` means every
+reported spec passes (or selection is empty), `1` means a non-pass/load error,
+and `2` means invocation/config/provider error. Optional skips alone do not fail
+an attempt. [Reporting](reporting.md) covers retry metadata and CI formats;
+[artifacts](artifacts.md) covers evidence capture and cleanup.
+
 ## Hooks, recording and results
 
 `hooks: ./hooks/fixture.mjs` uses the existing isolated [hooks contract](hooks.md). Setup runs
@@ -232,8 +268,8 @@ MCP exposes `${hooks.*}` only. Use hook placeholders for credentials and other d
 saved file. Reads and failed/inconclusive/skipped attempts are not recorded. Never place literal
 credentials in specs or recorded tool arguments. Opening again starts a new recording.
 
-Batch replay runs files sequentially and prints one JSON result per spec. Exit 0 means all
-passed; 1 means failure/error/inconclusive; 2 means CLI usage/provider configuration errors.
+Batch replay runs files sequentially and defaults to one JSON result per executed spec.
+See [suite options](#suite-options) for reporters and exit codes.
 Results use the shared statuses, timing, debug dumps in `$TMPDIR/plainwright/` and token counts.
 Each step's `ms` splits into `capture` (reading the UI tree), `jev`, `act` and `idle` (between
 `wait` polls), plus `reasked` and `retargeted` (below).
