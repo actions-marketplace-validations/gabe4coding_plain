@@ -123,6 +123,9 @@ Targets match best when they use accessibility names rather than visual descript
 toolbar button is named by its accessibility description. An inconclusive pick lists its top
 guesses with the tree's names, so the right wording is usually one of them.
 
+In Claude Code the plugin also draws a session pane (`/plainwright-computer-pane`) with each step's status and Jev tokens; see
+[Session pane](agent-mode.md#session-pane-claude-code).
+
 ## Desktop specs
 
 ```yaml

@@ -221,12 +221,18 @@ codex plugin marketplace remove plainwright-marketplace
 In Claude Code v2.1.287 or later (terminal and the Desktop Code tab), each plainwright plugin ships a mod that
 draws the session in a pane: the page or app, the flow's goal, one line per step with its status (✓ pass, ✗ fail,
 ? inconclusive, ! error, – skipped) and Jev tokens, and the totals. The pane opens by itself on the first `open` of a
-session; `/plainwright-pane` (`/plainwright-computer-pane`, `/plainwright-mobile-pane`) shows it again.
+session when the terminal is at least 144 columns wide; otherwise a notice points to the command.
+`/plainwright-pane` (`/plainwright-computer-pane`, `/plainwright-mobile-pane`) shows it at any width. The pane follows
+the MCP server, not the conversation: `/clear` and `/resume` keep its rows, as the server keeps its steps.
 
 - **Save as spec** writes the passing steps through the server's own `save` tool, to the path in the Spec field
-  (by default a file name made from the goal, relative to the working directory).
-- **Copy last failure** copies the last non-passing step, its detail, notes, URL and `changed` as JSON.
+  (by default a file name made from the goal, relative to the working directory). The browser server saves every
+  passing step since its first `open`, not only the current goal's.
+- **Copy last failure** copies the last failed, inconclusive or error step, with its detail, notes, URL and
+  `changed`, as JSON.
 
 The mod only observes tool results; Claude reads exactly what it would without it. It draws nothing in
-`claude -p`, the VS Code chat panel or cloud sessions, and Codex never loads it. Turn it off by disabling the plugin's
-mods (`disableAllHooks`) or start Claude Code with `--safe-mode`. Its source is `mods/session-pane/`.
+`claude -p`, the VS Code chat panel or cloud sessions, and Codex never loads it. There is no switch for this mod
+alone: `"disableAllHooks": true` in `~/.claude/settings.json` turns off every installed mod and your own settings
+hooks (the plugins' MCP servers and skills keep loading), and `--safe-mode` turns off all customizations for one
+session. Its source is `mods/session-pane/`.
