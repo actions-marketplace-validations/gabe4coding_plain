@@ -1,6 +1,7 @@
 import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError } from './automation.js';
 import { decide, loadEnvFiles, warmUp } from './jev.js';
 import { timedInto, dumpDebug } from './results.js';
+import { withCacheDump } from './pick-cache.js';
 import { readAnswer } from './read.js';
 import { startHooks } from './hooks.js';
 import fs from 'node:fs';
@@ -20,6 +21,10 @@ export class NativeSession {
     tokens = 0;
     /** What the whole flow is for (spec `goal:`, MCP `open {goal}`): every pick sees it, claims never do. */
     goal;
+    /** This attempt's pick cache (spec runs only, set by runNativeSpec; MCP sessions have none). */
+    picks;
+    /** The step running now: its source and kind key the pick cache. */
+    current;
     constructor(adapter, timeout = 15000, ai = intelligence) {
         this.adapter = adapter;
         this.timeout = timeout;
@@ -61,12 +66,17 @@ export class NativeSession {
         // A key or click that opens a window returns before the window exists (TextEdit's Command-N):
         // an empty capture is looked at again for a moment instead of reported as "no candidates".
         const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
+        // Pick cache key parts: only a step loaded from a file has a source (never an MCP step).
+        const step = this.current, picks = this.picks;
+        const refs = picks && step?.at ? targets.map((target) => ({ at: step.at, kind: step.kind, target, goal: this.goal })) : undefined;
         for (;;) {
             const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
                 element: (c) => { const el = frame.elements.get(c.id); if (el === undefined)
                     throw new Error('Candidate handle missing'); return el; },
-            }, targets, this.ai), ([first]) => { if (first?.usedJev)
-                this.track(first.tokens); }, undefined, regionPick);
+                ...(refs ? { cached: (_target, i) => picks.lookup(refs[i], frame.candidates, frame.snapshot) } : {}),
+            }, targets, this.ai), (rs) => { for (const r of rs)
+                if (r.usedJev)
+                    this.track(r.tokens); }, undefined, regionPick);
             if (frame.candidates.length === 0 && Date.now() < deadline) {
                 await this.timed('idle', () => new Promise((r) => setTimeout(r, 150)));
                 continue;
@@ -74,6 +84,16 @@ export class NativeSession {
             for (const r of result)
                 if (r.usedJev)
                     this.track(r.tokens);
+            // Only the answer kept is recorded: an early capture's answer may have been discarded.
+            if (refs)
+                for (const [i, r] of result.entries()) {
+                    if (r.cached) {
+                        picks.hit(refs[i], frame.snapshot);
+                        this.ms.cached = (this.ms.cached ?? 0) + 1;
+                    }
+                    else if (r.candidate)
+                        picks.accept(refs[i], r.candidate, frame.candidates, frame.snapshot);
+                }
             return frame.approximate ? result.map((r) => ({ ...r, approximate: true })) : result;
         }
     }
@@ -130,6 +150,7 @@ export class NativeSession {
         const start = Date.now();
         this.ms = {};
         this.firstSnapshot = undefined;
+        this.current = step;
         let result;
         try {
             const valid = this.validate(step);
@@ -140,6 +161,8 @@ export class NativeSession {
         }
         if (step.optional && (result.status === 'error' || result.status === 'inconclusive'))
             result.status = 'skipped';
+        if (this.ms.cached)
+            result = { ...result, cached: true, detail: result.detail ? `${result.detail} (cached pick)` : '(cached pick)' };
         this.lastStepEnd = Date.now();
         return { ...result, ms: { total: this.lastStepEnd - start, ...this.ms } };
     }
@@ -197,7 +220,9 @@ export async function runNativeSpec(spec, session, open, observer, info, specTim
     const { mobileLabel } = await import('./mobile-spec.js');
     const deadline = specDeadline(spec.timeout ?? specTimeout, started);
     const steps = [];
-    const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
+    const { picks, ...specInfo } = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
+    session.picks = picks;
+    const observe = observerCalls(observer, specInfo);
     const target = { engine: 'platform' in spec ? 'mobile' : 'desktop', screenshot: async (file) => {
             fs.mkdirSync(path.dirname(file), { recursive: true });
             fs.writeFileSync(file, await session.adapter.screenshot());
@@ -225,9 +250,10 @@ export async function runNativeSpec(spec, session, open, observer, info, specTim
         opened = true;
         await observe('sessionOpen', { target });
         for (const step of runSteps) {
-            const result = await deadline.step(() => session.run(step), () => 'platform' in spec
+            const ran = await deadline.step(() => session.run(step), () => 'platform' in spec
                 ? mobileLabel(step)
                 : label(step));
+            const result = withCacheDump(ran, picks?.endStep(ran.status));
             await record(result);
             if (result.status !== 'pass' && result.status !== 'skipped') {
                 status = result.status;

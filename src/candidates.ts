@@ -36,7 +36,7 @@ const SELECTORS: Record<CandidateKind, string> = {
  */
 function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max, startId }: {
   selector: string; includeExtras: boolean; labelsOfToggles: boolean; listsOfThings: boolean; skipVisibility: boolean; max: number; startId: number;
-}): string[] {
+}): [desc: string, editable: boolean, state: string][] {
   // Layers decide what a dense page loses to the cap: an open dialog blocks everything else, so its controls
   // come first; nav and footer link farms (131 of trivago's first 254 candidates) come last.
   const dialogSelector = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
@@ -222,10 +222,22 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, lis
   const counts = new Map<string, number>();
   for (const d of descs) counts.set(d, (counts.get(d) ?? 0) + 1);
   const seen = new Map<string, number>();
-  return descs.map((d, i) => {
+  // A text-entry field's value is what the user typed, not its identity (the pick cache ignores it); a
+  // submit/button input's value is its label.
+  const TEXT_TYPES = new Set(['', 'text', 'email', 'password', 'search', 'tel', 'url', 'number', 'date', 'datetime-local', 'month', 'time', 'week']);
+  const editable = (el: Element) => el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable ||
+    (el instanceof HTMLInputElement && TEXT_TYPES.has((el.getAttribute('type') ?? '').toLowerCase()));
+  // UI state the desc does not show; only the pick cache reads it (a flip on an unchanged page is a change).
+  const state = (el: Element): string => [
+    (el as HTMLInputElement).checked ? 'checked' : '', (el as HTMLOptionElement).selected ? 'selected' : '',
+    (el as HTMLInputElement).disabled ? 'disabled' : '',
+    ...['aria-checked', 'aria-pressed', 'aria-selected', 'aria-expanded', 'aria-current', 'aria-disabled']
+      .map((attr) => el.hasAttribute(attr) ? `${attr}=${el.getAttribute(attr)}` : ''),
+  ].filter(Boolean).join(' ');
+  return descs.map((d, i): [string, boolean, string] => {
     const n = (seen.get(d) ?? 0) + 1;
     seen.set(d, n);
-    return `${d}${counts.get(d)! > 1 ? ` #${n}` : ''}${context(final[i])}`;
+    return [`${d}${counts.get(d)! > 1 ? ` #${n}` : ''}${context(final[i])}`, editable(final[i]), state(final[i])];
   });
 }
 
@@ -241,14 +253,14 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
   for (let frameIndex = 0; frameIndex < frames.length && out.length < max; frameIndex++) {
     const frame = frames[frameIndex];
     const startId = out.length;
-    let descs: string[];
+    let descs: [string, boolean, string][];
     try {
       descs = await frame.evaluate(collectCandidatesInPage, { selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max: max - out.length, startId });
     } catch {
       continue; // detached or cross-origin frame — skip, never fatal
     }
     const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
-    for (const desc of descs) out.push({ id: out.length, desc: prefix + desc, frameIndex });
+    for (const [desc, editable, state] of descs) out.push({ id: out.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
   }
   return out;
 }

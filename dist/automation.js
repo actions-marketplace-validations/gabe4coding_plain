@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { pickElements, judge, decide, isTooLong, describeSnapshot, ask } from './jev.js';
 import { dumpDebug, topGuesses } from './results.js';
 // Shared perception boundary. Handles stay inside adapters; only descriptions reach Jev.
-export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), frameIndex: z.number().optional() });
+// `editable`: a text-entry field (browser only), whose `value=` the pick cache ignores; native candidates never set it.
+// `state`: the element's UI state (browser only), for the pick cache's list hash; never sent to Jev.
+export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), frameIndex: z.number().optional(), editable: z.boolean().optional(),
+    state: z.string().optional() });
 export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
 /** A pick from an approximate frame is covered or off screen: the caller picks it again from an exact capture. */
 export class HiddenTargetError extends Error {
@@ -12,18 +15,26 @@ export const intelligence = { pick: pickElements, judge, describe: describeSnaps
 export async function resolveTargets(adapter, targets, ai = intelligence) {
     if (!adapter.candidates.length)
         return targets.map(() => ({ element: null, detail: 'no candidates', tokens: 0, usedJev: false }));
-    const picks = await ai.pick(adapter.candidates, targets, adapter.state);
+    // Cache hits act on the stored decision; only the misses go to Jev, in one request as before.
+    const hits = targets.map((target, i) => adapter.cached?.(target, i));
+    const asked = targets.filter((_, i) => !hits[i]);
+    const picks = asked.length ? await ai.pick(adapter.candidates, asked, adapter.state) : [];
+    let n = 0;
     return targets.map((target, i) => {
-        const pick = picks[i];
+        const hit = hits[i];
+        if (hit)
+            return { element: adapter.element(hit), detail: `→ ${hit.desc}`, tokens: 0, usedJev: false, cached: true, candidate: hit };
+        const first = n === 0;
+        const pick = picks[n++];
         if (!pick)
             throw new Error('Jev returned fewer picks than targets');
         const { id, probability, confidence, probabilities, tokens } = pick;
         const candidate = adapter.candidates.find((c) => c.id === id);
         const accepted = candidate !== undefined && decide(confidence ?? probability, 'pick') === 'pass';
         const c = confidence === undefined ? '' : ` c=${confidence.toFixed(2)}`;
-        const base = { tokens, usedJev: i === 0, confidence, score: confidence ?? probability };
+        const base = { tokens, usedJev: first, confidence, score: confidence ?? probability };
         if (accepted)
-            return { ...base, element: adapter.element(candidate), detail: `→ ${candidate.desc} (p=${probability.toFixed(2)}${c})` };
+            return { ...base, element: adapter.element(candidate), candidate, detail: `→ ${candidate.desc} (p=${probability.toFixed(2)}${c})` };
         const file = dumpDebug('pick', { instruction: target, probabilities, confidence, candidates: adapter.candidates });
         return { ...base, element: null, detail: `${id === null ? 'no matching element' : 'low confidence or invalid candidate'}${c} — top: ${topGuesses(probabilities, adapter.candidates)} — candidates: ${file}` };
     });

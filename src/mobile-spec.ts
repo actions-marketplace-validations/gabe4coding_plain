@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { parseStep, rejectCss, loadNativeSpec, TagsSchema, type LoadOptions, type Step } from './spec.js';
 import { label } from './results.js';
+import type { StepSource } from './pick-cache.js';
 
 const text = z.string().trim().min(1);
 export const MobileTargetSchema = z.object({
@@ -14,9 +15,9 @@ export const DirectionSchema = z.enum(['up', 'down', 'left', 'right']);
 export type Direction = z.infer<typeof DirectionSchema>;
 type SharedMobileStep = Extract<Step, { kind: 'click' | 'fill' | 'dblclick' | 'check' | 'uncheck' | 'scroll' | 'press' | 'wait' | 'expect' }>;
 export type MobileStep = SharedMobileStep |
-  { kind: 'tap'; target: string; optional?: boolean; origin?: string } |
-  { kind: 'longpress'; target: string; optional?: boolean; origin?: string } |
-  { kind: 'swipe'; direction: Direction; within?: string; optional?: boolean; origin?: string };
+  { kind: 'tap'; target: string; optional?: boolean; origin?: string; at?: StepSource } |
+  { kind: 'longpress'; target: string; optional?: boolean; origin?: string; at?: StepSource } |
+  { kind: 'swipe'; direction: Direction; within?: string; optional?: boolean; origin?: string; at?: StepSource };
 const supported = new Set(['click', 'fill', 'dblclick', 'check', 'uncheck', 'scroll', 'press', 'wait', 'expect']);
 
 export function validateMobileStep(step: MobileStep, allowPlaceholders = false): MobileStep {

@@ -30,6 +30,8 @@ export function expandIncludes(rawSteps, file) {
             const mapping = step;
             if ('origin' in mapping)
                 throw new Error(`invalid spec: ${display(source)}: origin: reserved for included steps`);
+            if ('at' in mapping)
+                throw new Error(`invalid spec: ${display(source)}: at: reserved for the loader (the pick cache's step source)`);
             const at = { file: source === root ? undefined : display(source), index };
             if (!('include' in mapping))
                 return [source === root ? { ...mapping, [SOURCE]: at } : { ...mapping, origin: display(source), [SOURCE]: at }];

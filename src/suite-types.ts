@@ -28,7 +28,7 @@ export interface RunReport {
   startedAt: string;
   durationMs: number;
   specs: SpecReport[];
-  totals: { jevCalls: number; tokens: number; passed: number; failed: number; flaky: number; skipped: number };
+  totals: { jevCalls: number; tokens: number; passed: number; failed: number; flaky: number; skipped: number; cachedPicks: number };
   stopped?: 'bail' | 'max-tokens';
   status: 'pass' | 'fail';
 }
@@ -39,7 +39,9 @@ export interface CaptureTarget {
   screenshot(file: string): Promise<void>;
   page?(): import('playwright').Page;
 }
-export interface SpecInfo { file: string; name: string; tags: string[]; attempt: number }
+export interface SpecInfo { file: string; name: string; tags: string[]; attempt: number;
+  /** This attempt's pick cache handle (src/pick-cache.ts), from the suite; engines take it off before observers see the info. */
+  picks?: import('./pick-cache.js').PickAttempt }
 export interface RunObserver {
   runStart?(e: { engine: Engine; specs: { file: string; name: string; tags: string[] }[] }): Promise<void>;
   /** The target can be captured; fires before the first step. Browser: right after the context opens, before setup
@@ -76,5 +78,7 @@ export interface SuiteOptions {
   timing: boolean;
   artifacts?: { dir: string; screenshot: 'off' | 'on-failure' | 'always'; trace: 'off' | 'on-failure' | 'always' };
   specTimeout?: number;
+  /** Pick cache mode (src/pick-cache.ts): `on` (default) reads and writes, `read` never writes, `off` neither. */
+  picks?: import('./pick-cache.js').PicksMode;
 }
 export type EngineFlags = Record<string, string | boolean | undefined>;

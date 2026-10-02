@@ -4,6 +4,7 @@ import { createReporters } from './reporters/index.js';
 import { select, listSelected } from './select.js';
 import { schedule, checkSchedule } from './schedule.js';
 import { writeLastRun } from './last-run.js';
+import { PickStore } from './pick-cache.js';
 export async function runSuite(engine, opts, services = { provider, warmUp }) {
     const start = Date.now();
     const startedAt = new Date(start).toISOString();
@@ -26,7 +27,7 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
         for (const spec of broken)
             console.error(`✘ ${spec.file}: ${spec.loadError?.replace(/^\w*Error: /, '')}`);
         return { engine: engine.engine, provider: '', model: '', startedAt, durationMs: Date.now() - start, specs: broken,
-            status: broken.length ? 'fail' : 'pass', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0 } };
+            status: broken.length ? 'fail' : 'pass', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0, cachedPicks: 0 } };
     }
     if (opts.workers > engine.maxWorkers)
         throw new Error(`--workers > ${engine.maxWorkers} is not supported for ${engine.engine}`);
@@ -58,6 +59,9 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
         }
     };
     const reports = [];
+    // One pick cache per run (src/pick-cache.ts); its sidecars are written once, after the last spec.
+    let picks;
+    let cachedPicks = 0;
     try {
         await emit('runStart', { engine: engine.engine, specs: selected.map(({ file, name, tags }) => ({ file, name, tags })) });
         if (selected.length) {
@@ -67,10 +71,13 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
             if (engine.engine === 'browser')
                 console.error(`plainwright: Jev via ${p} (${model})`);
             services.warmUp();
+            // One versioned id for both providers: switching provider keeps the sidecars, a model upgrade drops them.
+            picks = new PickStore(opts.picks ?? 'on', MODEL_BY_PROVIDER.typesafe);
         }
         const scheduled = schedule(selected, opts, async (loaded, attemptNumber) => {
             const began = Date.now();
-            const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber };
+            const handle = picks?.attempt(attemptNumber);
+            const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber, ...(handle ? { picks: handle } : {}) };
             const captured = [];
             const observer = {
                 async sessionOpen(event) {
@@ -93,13 +100,22 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
                     return captured;
                 },
             };
+            let status = 'error';
             try {
                 const result = await engine.run(loaded.spec, observer, info);
+                status = result.status;
                 return { ...result, attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
             }
             catch (error) {
                 return { name: loaded.name, status: 'error', steps: [], jevCalls: 0, totalTokens: 0, error: `${error}`,
                     attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
+            }
+            finally {
+                // A passing attempt stores its new picks; a failing one drops the cached picks it used (Jev judges the retry).
+                if (handle) {
+                    cachedPicks += handle.cachedPicks;
+                    handle.finish(status === 'pass');
+                }
             }
         })[Symbol.asyncIterator]();
         for (const entry of entries) {
@@ -121,7 +137,8 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
     finally {
         await engine.close?.();
     }
-    const totals = { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0 };
+    picks?.write();
+    const totals = { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, cachedPicks };
     for (const spec of reports) {
         for (const attempt of spec.attempts) {
             totals.jevCalls += attempt.jevCalls;
