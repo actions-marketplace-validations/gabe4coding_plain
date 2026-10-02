@@ -62,7 +62,9 @@ test('checks the input cwd, not the process cwd', () => {
   assert.match(stderr, /no passing validation for this worktree/);
 });
 
-test('follows a leading cd and a Codex workdir to the worktree', () => {
+test('follows each cd before the command, and a workdir, to the worktree', () => {
+  assert.equal(gate({ cwd: main, tool_input: { command: 'git status && cd .claude/worktrees/feature && gh pr create' } })
+    .code, 0);
   assert.equal(gate({ cwd: main, tool_input: { command: 'cd .claude/worktrees/feature && gh pr create' } }).code, 0);
   assert.equal(gate({ cwd: main, tool_input: { command: `cd "${worktree}"; gh pr create` } }).code, 0);
   assert.equal(gate({ cwd: main, tool_input: { ...create, workdir: worktree } }).code, 0);

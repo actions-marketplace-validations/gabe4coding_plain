@@ -5,7 +5,7 @@
 //
 // The hook checks the checkout the command runs in, not its own working directory: in a git worktree, Claude Code
 // runs the hook from the main checkout. That checkout is the hook input's `cwd` (sent by Claude Code and Codex),
-// then a Codex `workdir` argument, then each leading `cd <dir> &&` of the command.
+// then a `workdir` in the tool input when there is one, then each `cd <dir> &&` before `gh pr create`.
 import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -17,7 +17,8 @@ for await (const chunk of process.stdin) input += chunk;
 let hook;
 try { hook = JSON.parse(input); } catch { process.exit(0); }
 const command = String(hook?.tool_input?.command ?? '');
-if (!/\bgh\s+pr\s+create\b/.test(command)) process.exit(0);
+const create = command.search(/\bgh\s+pr\s+create\b/);
+if (create < 0) process.exit(0);
 
 const dir = targetDir();
 const repo = (path) => realpathSync(commonDir(path));
@@ -42,8 +43,8 @@ process.exit(2);
 
 function targetDir() {
   let at = resolve(String(hook.cwd ?? process.cwd()), String(hook.tool_input?.workdir ?? '.'));
-  const cd = /^\s*cd\s+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))\s*(?:&&|;)/;
-  for (let rest = command, m; (m = cd.exec(rest)); rest = rest.slice(m[0].length)) {
+  const cd = /(?:^|&&|;)\s*cd\s+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))\s*(?=&&|;)/g;
+  for (const m of command.slice(0, create).matchAll(cd)) {
     at = resolve(at, (m[1] ?? m[2] ?? m[3]).replace(/^~(?=\/|$)/, homedir()));
   }
   return at;
