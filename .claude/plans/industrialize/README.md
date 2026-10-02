@@ -26,6 +26,7 @@ Phase 0 (contract) ──► A  B  C  D  E (parallel) ──────┼─�
 | [E-spec-features.md](prompts/E-spec-features.md) | include, browser context, storage state, spec timeout | `industrialize/e-spec-features` | Phase 0 merged | A B C D F |
 | [G-docs.md](prompts/G-docs.md) | Docs pass | `industrialize/g-docs` | all lanes merged | — |
 | [P2-pick-cache-research.md](prompts/P2-pick-cache-research.md) | Pick cache: research and options only | none (read-only) | after integration | — |
+| [P2-pick-cache-implement.md](prompts/P2-pick-cache-implement.md) | Pick cache: implement [pick-cache.md](pick-cache.md) | `industrialize/pick-cache` | `main` | — |
 
 Every lane runs in its own git worktree (`claude --worktree`, or the Agent tool with
 `isolation: worktree`). Agents commit on their local branch only; they never push, open PRs or merge.
