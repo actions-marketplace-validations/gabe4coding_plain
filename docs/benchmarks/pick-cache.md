@@ -103,3 +103,44 @@ node scripts/benchmark-steps.mjs --runs 2 --picks off --dir "$SCRATCH/examples" 
 node scripts/benchmark-steps.mjs --runs 1 --picks on  --dir "$SCRATCH/examples" --out "$SCRATCH/cold.json"
 node scripts/benchmark-steps.mjs --runs 2 --picks on  --dir "$SCRATCH/examples" --out "$SCRATCH/warm.json" --compare "$SCRATCH/off.json"
 ```
+
+## Live browser and mobile runs (f691a92, 2026-10-02)
+
+The demo site loaded in no browser, so two specs that do not depend on it were measured instead.
+
+**A cache is written only after a passing run.** `google-flights.yaml` ended `inconclusive` on its last
+`wait` in the first cold run and both warm runs, so nothing was stored and nothing hit; the second cold
+run passed and wrote 7 entries.
+
+`examples/google-flights.yaml` (live google.com; headless; `benchmark-steps.mjs --runs 1|2`):
+
+| Run | Pick calls | Pick tokens | Cached picks | Result |
+|---|--:|--:|--:|---|
+| cold (writes) | 12 | 100,858 | 0 | pass |
+| warm 1 | 7 | 89,474 | 3 (30%) | pass, same statuses |
+| warm 2 | 6 | 81,154 | 3 (33%) | `wait` inconclusive, as in uncached runs |
+
+The cheap picks on stable parts of the page hit; the expensive ones (suggestion lists, the calendar
+dialog) change between runs and miss under the whole-list rule, so pick calls fall 40–50% but pick
+tokens only 11–20%.
+
+`examples/mobile/ios-calendar.yaml` (iPhone 18 Pro simulator, Appium 3.7 XCUITest; scratch copy with
+the "Return key" step optional because the simulator showed no software keyboard; Calendar reopened on
+its day view before each run):
+
+| Run | Jev calls | Jev tokens (picks + claims) | Cached picks | Result |
+|---|--:|--:|--:|---|
+| cold | 20 | 183,054 | 0 | pass |
+| warm 1 | 16 | 177,349 | 4 | pass, same statuses |
+| warm 2 | 16 | 175,248 | 4 | pass, same statuses |
+
+The four fixed targets hit (Add button, title field, Search button, Search field), each ~0.3–0.5 s
+faster. Every target with `${hooks.title}` or a date changes per run and misses, and claims carry most
+of the tokens, so Jev calls fall 20% and tokens ~4%.
+
+Cost of these runs: Google Flights 7 runs ≈ 0.95M tokens; Calendar 3 passing runs 536k tokens (plus
+the earlier failed attempts, ~130k).
+
+**Reading:** on these live, dynamic specs the strict rule is safe (no status changed) and saves calls
+more than tokens. The large token savings need pages that stay the same between runs (internal test
+environments, the saved-page `unchanged` control: 28/28 hits).
