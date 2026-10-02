@@ -15,13 +15,17 @@ const DESCRIPTIONS = {
     'as skipped. css=, goto, select and upload are browser-only. Jev picks at >=0.5 confidence (probability fallback); claims pass ' +
     '>=0.9, fail <=0.1. Rephrase inconclusive targets. Coordinates are logical desktop coordinates. Only passing steps are recorded; ' +
     '${hooks.*} remain placeholders in saved YAML.',
-  find: 'Ask Jev which desktop control matches a target without acting. No selector escape hatch.',
+  find: 'Ask Jev which desktop control matches `target`, without acting or recording. `kind` is the step kind the ' +
+    'target is for (click, fill, check, hover, scroll), or `region` for a `within` scope; it decides which controls are ' +
+    'candidates. Returns `found`, `confidence`, `detail` (the picked control, or the top guesses when the pick is ' +
+    'rejected) and `jevTokens`. Use it when a target is unclear; a known target needs no `find` first. No selector escape hatch.',
   snapshot: 'Read the attached app accessibility tree, optionally within a natural-language region. To read a value, use `read` instead. ' +
     'This reading is not recorded.',
   screenshot: 'Capture an attached application window as a PNG for inspection. May require screen-recording permission. ' +
     'Screenshot pixels do not feed Jev targeting.',
   save: 'Write successful recorded steps as a replayable desktop YAML spec. Uses the app name instead of its ephemeral pid. ' +
-    'Preserves hook placeholders and makes hooks path relative to the saved file.',
+    'Preserves hook placeholders and makes hooks path relative to the saved file. `path` is relative to the server\'s ' +
+    'working directory; an existing file is overwritten without warning. Errors when no step has passed yet.',
   close: 'Detach and run teardown. Leaves the desktop application running.',
 };
 
@@ -37,7 +41,7 @@ const blankSpec = (): ComputerSpec => ({ name: 'computer session', app: '', dir:
 export function createComputerServer<T>(adapter: ComputerAdapter<T>, timeout = 15000, ai: Intelligence = intelligence) {
   return createNativeServer<ComputerSpec>({
     name: 'plainwright-computer',
-    version: '0.1.19',
+    version: '0.1.20',
     placeholderSource: 'computer MCP',
     spec: blankSpec(),
     ai,
