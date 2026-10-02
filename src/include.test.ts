@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { stringify } from 'yaml';
-import { expandIncludes } from './include.js';
+import { expandIncludes, splitSource } from './include.js';
 import { loadSpec, interpolate } from './spec.js';
 import { loadComputerSpec } from './computer-spec.js';
 import { loadMobileSpec, mobileLabel } from './mobile-spec.js';
@@ -41,8 +41,8 @@ test('the same flow can be included twice and paths can leave the root folder', 
   const { write } = fixture(t);
   write('shared.yaml', { steps: [{ press: 'Enter' }] });
   const file = write('tests/root.yaml', { steps: [] });
-  assert.deepEqual(expandIncludes([{ include: '../shared.yaml' }, { include: '../shared.yaml', optional: false }], file),
-    [{ press: 'Enter', origin: path.join('..', 'shared.yaml') }, { press: 'Enter', origin: path.join('..', 'shared.yaml') }]);
+  assert.deepEqual(expandIncludes([{ include: '../shared.yaml' }, { include: '../shared.yaml', optional: false }], file).map((step) => splitSource(step).step),
+    [{ press: 'Enter', origin: '../shared.yaml' }, { press: 'Enter', origin: '../shared.yaml' }]);
 });
 
 test('include cycles name the complete chain, including a cycle through a symlink', (t) => {
