@@ -127,7 +127,10 @@ Source layout (tests sit next to their module):
 - `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
   `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
   `auth`/`env` resolve from `process.env` at load time. `interpolate()` (`src/core/interpolate.ts`) replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
-  leaf, is an error.
+  leaf, is an error. Every schema is strict: an unknown key at the top level, in `auth`/`geolocation`/`browser`, in
+  a step or in a step's mapping (`expect: {that, whithin}`) is an error naming the key and the closest known one
+  (`src/core/unknown-key.ts`). Browser, desktop and mobile steps (files and MCP `step`/`batch`) share `stepKind`;
+  `at`/`origin` are reserved for the loader at both levels; `env` and mobile `capabilities` take any keys.
 - `src/browser/candidates.ts` — candidate collection (`scanCandidatesInPage` runs inside the page, so its helpers are nested) (`candidates()`, selector + shadow-DOM walk per step kind, with
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then

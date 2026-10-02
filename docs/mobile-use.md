@@ -173,8 +173,8 @@ steps:
 For iOS, use `platform: ios`, an iOS UDID and bundle ID. Steps can be shared when both versions
 expose equivalent flows; platform-specific navigation and accessibility differences still need
 verification on each platform. Optional `goal`, `tags` (string or list), `timeout`
-(positive milliseconds), `env` and `hooks` are supported. Steps may include shared flows. Unknown top-level keys and
-unsupported actions fail explicitly.
+(positive milliseconds), `env` and `hooks` are supported. Steps may include shared flows. Unknown top-level and step keys
+(with the closest known key when one is near) and unsupported actions fail explicitly.
 
 | Step | Behavior |
 |---|---|

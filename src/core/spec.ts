@@ -4,6 +4,7 @@ import { parse } from 'yaml';
 import { z } from 'zod';
 import { StepKind } from './step-kind.js';
 import { expandIncludes, splitSource } from './include.js';
+import { unknownKey } from './unknown-key.js';
 
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
@@ -53,12 +54,12 @@ export const SpecSchema = z.object({
   dialogs: z.enum(['accept', 'dismiss']),
   /** What the whole flow is for: picks see it, claims never do. */
   goal: nonEmptyString.optional(),
-  auth: z.object({ user: nonEmptyString, pass: nonEmptyString }).optional(),
-  geolocation: z.object({ lat: z.number(), lon: z.number() }).optional(),
+  auth: z.object({ user: nonEmptyString, pass: nonEmptyString }).strict().optional(),
+  geolocation: z.object({ lat: z.number(), lon: z.number() }).strict().optional(),
   tags: TagsSchema,
   timeout: z.number().int().positive().optional(),
   browser: z.object({
-    viewport: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
+    viewport: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).strict().optional(),
     device: nonEmptyString.optional(),
     locale: nonEmptyString.optional(),
     timezone: nonEmptyString.optional(),
@@ -77,7 +78,7 @@ export type Spec = z.infer<typeof SpecSchema>;
 const FileSpecSchema = SpecSchema.omit({ dir: true, steps: true }).extend({
   dialogs: SpecSchema.shape.dialogs.nullish().transform((value) => value ?? 'accept'),
   steps: z.array(z.unknown()).min(1),
-});
+}).strict();
 
 export interface LoadOptions { onMissingEnv?: (message: string) => void }
 
@@ -98,7 +99,7 @@ export function loadSpec(path: string, opts?: LoadOptions): Spec {
 /** Loads a desktop or mobile spec file: hooks resolved next to it, `$VAR` env leaves resolved, steps parsed. */
 export function loadNativeSpec<R extends { hooks?: string; env: Record<string, unknown>; steps: unknown[] }, S>(file: string,
   schema: z.ZodType<R>, parseOne: (raw: unknown, where: string, index: number) => S, opts?: LoadOptions) {
-  const raw = schema.parse(parse(readFileSync(file, 'utf8')));
+  const raw = parseData(schema, parse(readFileSync(file, 'utf8')), file);
   const dir = dirname(resolve(file));
   const env = resolveEnvBlock(file, 'env', raw.env, opts);
   checkSpecTimeout(raw as { timeout?: number }, file);
@@ -121,27 +122,50 @@ function loadSteps<S>(rawSteps: unknown[], file: string, parseOne: (raw: unknown
 }
 
 const MappingSchema = z.record(z.string(), z.unknown());
-const STEP_KINDS = StepSchema.options.map((schema) => schema.shape.kind.value);
+export const STEP_KINDS = StepSchema.options.map((schema) => schema.shape.kind.value);
 /** Step kinds written as `kind: <value>`, and the field the value fills. */
 const SINGLE_VALUE_FIELD: Record<string, string> = {
   goto: 'url', press: 'key', click: 'target', hover: 'target', dblclick: 'target',
   rightclick: 'target', check: 'target', uncheck: 'target', scroll: 'target',
 };
+const LOADER_FIELDS = ['kind', 'optional', 'origin', 'at'];
+/** The keys of `kind: {...}` for the kinds written as a mapping; `wait` and `expect` take `that` and `within`. */
+const MAPPING_FIELDS: Record<string, string[]> = Object.fromEntries(StepSchema.options.map((schema) =>
+  [schema.shape.kind.value, Object.keys(schema.shape).filter((key) => !LOADER_FIELDS.includes(key))]));
+const CLAIM_FIELDS = ['that', 'within'];
 
 /** Parses one step as YAML and MCP write it: one action key, plus an optional `optional`. */
 export function parseStep(path: string, i: number, raw: unknown): Step {
   const where = `${path}: step ${i}`;
   const mapping = parseData(MappingSchema, raw, where);
-  const keys = Object.keys(mapping).filter((key) => key !== 'optional');
-  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional"), got [${keys.join(', ')}]`);
-  const [kind] = keys;
-  if (!STEP_KINDS.some((key) => key === kind)) fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);
-
-  const fields = stepFields(kind, mapping[kind], where);
-  for (const reserved of ['at', 'origin']) {
-    if (reserved in fields) fail(`${where} "${kind}": "${reserved}" is reserved for the loader`);
-  }
+  const kind = stepKind(mapping, where, STEP_KINDS);
+  const fields = stepFields(kind, mapping[kind], `${where} "${kind}"`);
   return parseData(StepSchema, { ...fields, kind, optional: mapping.optional === true }, where);
+}
+
+/**
+ * The step's one action key. Any other key than `optional` is an error that names it, with the closest of
+ * `suggest` when one is near; `at` and `origin` only come from the loader.
+ */
+export function stepKind(mapping: Record<string, unknown>, where: string, kinds: readonly string[], suggest = kinds): string {
+  rejectReserved(mapping, where);
+  rejectUnknownKeys(mapping, [...kinds, 'optional'], where, [...suggest, 'optional']);
+  const actions = Object.keys(mapping).filter((key) => key !== 'optional');
+  if (actions.length !== 1) fail(`${where} must have exactly one action key (plus optional "optional"), got [${actions.join(', ')}]`);
+  return actions[0];
+}
+
+function rejectReserved(mapping: Record<string, unknown>, where: string): void {
+  for (const reserved of ['at', 'origin']) {
+    if (reserved in mapping) fail(`${where}: "${reserved}" is reserved for the loader`);
+  }
+}
+
+/** Throws on the first key of a mapping that is not in `allowed`. Not a mapping: left to the schema. */
+export function rejectUnknownKeys(value: unknown, allowed: readonly string[], where: string, suggest = allowed): void {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+  const key = Object.keys(value).find((name) => !allowed.includes(name));
+  if (key !== undefined) fail(`${where}: ${unknownKey(key, suggest)}`);
 }
 
 function stepFields(kind: string, value: unknown, where: string): Record<string, unknown> {
@@ -149,18 +173,25 @@ function stepFields(kind: string, value: unknown, where: string): Record<string,
   if (field) return { [field]: value };
   if (kind === StepKind.wait) {
     // `wait: <claim>`, or `wait: {that, within}` to poll one region.
-    const wait = typeof value === 'string' ? { that: value } : parseData(MappingSchema, value, `${where} "wait"`);
+    const wait = typeof value === 'string' ? { that: value } : parseData(MappingSchema, value, where);
+    rejectReserved(wait, where);
+    rejectUnknownKeys(wait, CLAIM_FIELDS, where);
     return { condition: wait.that, ...(wait.within === undefined ? {} : { within: wait.within }) };
   }
   if (kind === StepKind.expect) {
     const scoped = typeof value !== 'string' && !Array.isArray(value);
-    const expect = scoped ? parseData(MappingSchema, value, `${where} "expect"`) : { that: value };
+    const expect = scoped ? parseData(MappingSchema, value, where) : { that: value };
+    rejectReserved(expect, where);
+    rejectUnknownKeys(expect, CLAIM_FIELDS, where);
     return {
       expectations: typeof expect.that === 'string' ? [expect.that] : expect.that,
       ...(expect.within === undefined ? {} : { within: expect.within }),
     };
   }
-  return parseData(MappingSchema, value, `${where} "${kind}"`);
+  const fields = parseData(MappingSchema, value, where);
+  rejectReserved(fields, where);
+  rejectUnknownKeys(fields, MAPPING_FIELDS[kind], where);
+  return fields;
 }
 
 /**
@@ -227,11 +258,29 @@ export function rejectCss(step: object, what: string): void {
 function parseData<T extends z.ZodType>(schema: T, raw: unknown, where: string): z.output<T> {
   const result = schema.safeParse(raw);
   if (!result.success) {
-    const issue = result.error.issues[0];
+    // A typo in a key also leaves the real key missing: the typo is the better message.
+    const issue = result.error.issues.find((one) => one.code === 'unrecognized_keys') ?? result.error.issues[0];
     const field = issue.path.length ? ` "${issue.path.join('.')}"` : '';
+    if (issue.code === 'unrecognized_keys') fail(`${where}${field}: ${unknownKey(issue.keys[0], keysAt(schema, issue.path))}`);
     fail(`${where}:${field} ${issue.message}`);
   }
   return result.data;
+}
+
+/** The keys of the object schema at `path`, through optional, nullable, default and array wrappers. */
+function keysAt(schema: z.ZodType, path: PropertyKey[]): string[] {
+  const objectOf = (node: unknown): z.ZodObject | undefined => {
+    while (node && !(node instanceof z.ZodObject)) {
+      const unwrap = (node as { unwrap?: () => unknown }).unwrap;
+      node = typeof unwrap === 'function' ? unwrap.call(node) : undefined;
+    }
+    return node as z.ZodObject | undefined;
+  };
+  let object = objectOf(schema);
+  for (const key of path) {
+    if (typeof key !== 'number') object = objectOf(object?.shape[String(key)]);
+  }
+  return object ? Object.keys(object.shape) : [];
 }
 
 function fail(message: string): never {
