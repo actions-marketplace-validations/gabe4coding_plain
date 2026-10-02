@@ -18,11 +18,10 @@ draws its controls on a canvas with no accessible names, Jev cannot target them.
 `plainwright-computer` plugin for Claude Code or Codex. The plugin installs its runtime on the first run
 and writes the install progress to stderr.
 
-To run the desktop CLI from a checkout, install the dependencies first:
+To run the desktop CLI from a checkout, use the launcher. On the first run, it installs the npm dependencies,
+xa11y included, and writes the install progress to stderr:
 
 ```sh
-npm ci
-npm run build
 node bin/plainwright-computer.mjs mcp
 node bin/plainwright-computer.mjs --timeout 15000 path/to/desktop.yaml
 ```
@@ -81,7 +80,8 @@ steps:
 The format is the browser format of the [spec reference](spec-reference.mdx), with these differences:
 
 - The top-level keys are `name`, `app`, `steps` and the optional `env`, `hooks`, `goal`, `tags` and
-  `timeout`. plainwright rejects every other key, for example `url` or `browser`.
+  `timeout`. plainwright rejects every other key, for example `url` or `browser`. An unknown key in a step is
+  also an error. The error gives the closest known key, if one is near.
 - `app` is the exact name of a running app. plainwright does not start the app. Start it yourself or in a
   [setup hook](hooks.mdx).
 - A spec run brings the app to the front before the first step. If the app has no window, the run stops
@@ -171,6 +171,8 @@ Desktop runs use the shared suite options of [running suites](running.mdx) and t
   is an error.
 - `--headless`, `--profile`, `--channel`, `--cdp` and `--timing` are browser-only. `--server` is
   mobile-only. Each one is an invocation error (exit 2).
+- In the config file, the desktop CLI ignores these keys, `workers` more than `1`, `timeout: 0` and a trace mode.
+  It prints one note. Read the [shared config file](running.mdx#desktop-and-mobile-in-the-same-folder).
 - A retry attaches to the app again and runs the hooks again. plainwright does not reset the app state.
 - The [pick cache](running.mdx#pick-cache) works for desktop specs and is on by default.
 

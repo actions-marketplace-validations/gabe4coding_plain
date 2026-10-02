@@ -50,42 +50,43 @@ jobs:
 |---|---|---|---|
 | `specs` | Yes | None | Spec files, folders or globs, separated by spaces |
 | `args` | No | Empty | More CLI options, for example `--workers 2 --retries 1` |
-| `junit` | No | `plainwright-results/junit.xml` | Path of the JUnit XML file |
-| `artifacts` | No | `plainwright-results` | Output folder for screenshots, traces and debug files |
-| `artifact-name` | No | `plainwright-results` | Name of the uploaded artifact |
+| `picks` | No | `read` | [Pick cache](running.mdx#pick-cache) mode: `on`, `read` or `off`. Empty gives no `--picks` option |
+| `junit` | No | `plainwright-results/junit.xml` | Path of the JUnit XML file. Empty disables the JUnit report and its upload |
+| `artifacts` | No | `plainwright-results` | Output folder for screenshots, traces and debug files. Empty disables capture and its upload |
+| `artifact-name` | No | `plainwright-results` | Name of the uploaded artifacts folder. The JUnit file has the name `<artifact-name>-junit` |
 | `node-version` | No | `'22'` | Node.js version |
 
 The action parses `specs` and `args` with shell quoting rules, so you can put quotes around a value with spaces.
 It does not run them as a shell script.
 
-Do not set `junit` or `artifacts` to an empty value. An empty `junit` stops the run (exit `2`). An empty
-`artifacts` disables capture.
-
 ### What the action does
 
 1. It installs Node.js, the locked dependencies of plainwright and Chromium with its system packages.
-2. It runs `plainwright --headless --reporter text --reporter junit:<junit> --artifacts <artifacts>`, then the
-   `args` and then the `specs`.
-3. If the run fails, it uploads the `artifacts` folder with the name `artifact-name`.
+2. It runs `plainwright --headless --reporter text`. It adds `--picks <picks>`, `--reporter junit:<junit>` and
+   `--artifacts <artifacts>` for each of these inputs that is not empty. Then it adds the `args` and the `specs`.
+3. If `junit` is not empty, it uploads the JUnit file with the name `<artifact-name>-junit`. It does this after
+   each run, also when the run passes. If the run stops before it writes the file, the upload gives a warning.
+4. If the run fails and `artifacts` is not empty, it uploads the `artifacts` folder with the name
+   `artifact-name`. With the defaults, the JUnit file is in this folder too.
 
-Thus the action always writes JUnit XML and always captures artifacts. With the defaults, the JUnit file is in
-the artifacts folder. Thus the action uploads the JUnit file only when the run fails. The action does not publish
-the JUnit results as a check. To publish them, add a step after the action (see below).
+The action does not publish the JUnit results as a check. To publish them, add a step after the action (see
+below).
 
 The action runs in the folder of your checkout. Thus it reads `plainwright.config.yaml` from there. The action's
-`--reporter` options replace the config `reporters`, and `specs` replaces the config `files`. The other config
-keys apply.
+`--reporter` options replace the config `reporters`, and `specs` replaces the config `files`. The `picks` input
+replaces the config `picks`. To use the config `picks`, set the `picks` input to an empty value. The other
+config keys apply.
 
-The action does not set the [pick cache](running.mdx#pick-cache) mode, so the mode is `on`. The run then writes
-pick files in the runner's checkout. To use the committed pick files and write nothing, add `--picks read` to
-`args`.
+With the default `picks: read`, the run uses the committed pick files and does not write pick files. To update
+the pick files, run with `--picks on` on your computer and commit the files. A `--picks` option in `args`
+replaces the `picks` input, because `args` comes after it.
 
 `args` can add a file reporter, for example `--reporter json:plainwright-results/run.json`. `args` cannot add a
 stdout reporter, because the action already uses `text`.
 
 ### A full workflow
 
-This workflow uses the committed pick files and publishes the JUnit results as a check:
+This workflow publishes the JUnit results as a check:
 
 ```yaml
 name: Browser specs
@@ -101,7 +102,7 @@ jobs:
       - uses: gabe4coding/plainwright@main
         with:
           specs: 'tests/smoke/ tests/checkout/*.yaml'
-          args: '--workers 2 --retries 1 --picks read'
+          args: '--workers 2 --retries 1'
         env:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           # Or: AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}

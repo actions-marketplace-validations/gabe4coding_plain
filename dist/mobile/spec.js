@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { parseStep, rejectCss, loadNativeSpec, TagsSchema } from '../core/spec.js';
+import { parseStep, rejectCss, rejectUnknownKeys, loadNativeSpec, stepKind, STEP_KINDS, TagsSchema, } from '../core/spec.js';
 import { label } from '../core/results.js';
 const nonEmptyText = z.string().trim().min(1);
 export const MobileTargetSchema = z.object({
@@ -12,6 +12,7 @@ export const MobileTargetSchema = z.object({
 }).strict();
 const DirectionSchema = z.enum(['up', 'down', 'left', 'right']);
 const SHARED_KINDS = new Set(['click', 'fill', 'dblclick', 'check', 'uncheck', 'scroll', 'press', 'wait', 'expect']);
+const MOBILE_KINDS = ['tap', 'longpress', 'swipe', ...SHARED_KINDS];
 const KEYS = ['Back', 'Home', 'Enter', 'HideKeyboard'];
 const MobileSpecSchema = MobileTargetSchema.extend({
     name: nonEmptyText,
@@ -21,7 +22,7 @@ const MobileSpecSchema = MobileTargetSchema.extend({
     steps: z.array(z.unknown()).min(1),
     tags: TagsSchema,
     timeout: z.number().int().positive().optional(),
-});
+}).strict();
 export function loadMobileSpec(file, opts) {
     return loadNativeSpec(file, MobileSpecSchema, parseMobileStep, opts);
 }
@@ -39,15 +40,14 @@ export function validateMobileStep(step, allowPlaceholders = false) {
 }
 export function parseMobileStep(raw, where = 'mobile', index = 0) {
     const mapping = z.record(z.string(), z.unknown()).parse(raw);
-    const keys = Object.keys(mapping).filter((key) => key !== 'optional');
-    if (keys.length !== 1)
-        throw new Error(`${where}: step ${index} must have exactly one action key`);
-    const kind = keys[0];
+    // Browser-only kinds are known keys too, so they get the "not supported on mobile" error below.
+    const kind = stepKind(mapping, `${where}: step ${index}`, [...new Set([...MOBILE_KINDS, ...STEP_KINDS])], MOBILE_KINDS);
     const optional = mapping.optional === true;
     if (kind === 'tap' || kind === 'longpress')
         return validateMobileStep({ kind, target: nonEmptyText.parse(mapping[kind]), optional });
     if (kind === 'swipe') {
         const value = typeof mapping.swipe === 'string' ? { direction: mapping.swipe } : mapping.swipe;
+        rejectUnknownKeys(value, ['direction', 'within'], `${where}: step ${index} "swipe"`);
         const swipe = z.object({ direction: DirectionSchema, within: nonEmptyText.optional() }).strict().parse(value);
         return validateMobileStep({ kind, ...swipe, optional });
     }

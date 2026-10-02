@@ -53,8 +53,15 @@ Start every spec with a `goto` step. Without it, the first step acts on an empty
 A `goal` helps Jev with a vague target, such as `the comments link`. If the `goal` and the target do not
 agree, the target wins.
 
-A browser spec ignores unknown keys, at the top level and inside a step. Thus a typo such as `whithin:` has
-no effect and gives no error. Desktop and mobile specs reject unknown top-level keys.
+An unknown key is an error. This applies at the top level, in `auth`, `geolocation` and `browser`, in a step,
+and in the keys of a step such as `expect: {that, within}`. Only `env` accepts all keys. The error gives the
+name of the key. If a known key is near, the error also gives that key:
+
+```
+invalid spec: checkout.yaml: step 2 "expect": unknown key "whithin"; did you mean "within"?
+```
+
+Step numbers start at 0. Desktop and mobile specs use the same rule.
 
 ### Values from the environment
 
