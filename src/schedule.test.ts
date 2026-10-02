@@ -113,15 +113,15 @@ test('token limit is checked before new specs; completed attempts may overshoot'
   }
 });
 
-test('retries consume tokens; a blocked retry retains earlier attempts', async () => {
+test('retries consume tokens; a spec whose retry is blocked keeps its real status', async () => {
   const calls: number[] = [];
   const reports = await collect(schedule(specs(2), { ...base, retries: 3, maxTokens: 10 }, async (_, number) => {
     calls.push(number);
     return attempt('fail', number, 5);
   }));
   assert.deepEqual(calls, [0, 1]);
-  assert.equal(reports[0].status, 'skipped');
-  assert.equal(reports[0].skipReason, 'max-tokens');
+  assert.equal(reports[0].status, 'fail');
+  assert.equal(reports[0].skipReason, undefined);
   assert.equal(reports[0].flaky, false);
   assert.equal(reports[0].attempts.reduce((sum, a) => sum + a.totalTokens, 0), 10);
   assert.equal(reports[1].attempts.length, 0);
@@ -142,9 +142,11 @@ test('concurrent token limit stops new specs and retries, but running attempts f
   gates[3].resolve(attempt('pass', 0, 5));
   const reports = await pending;
   assert.deepEqual(calls, [[0, 0], [1, 0], [2, 0], [3, 0]]);
-  assert.deepEqual(reports.map((r) => r.status), ['skipped', 'pass', 'pass', 'pass', 'skipped', 'skipped']);
+  // Spec 0 ran and failed; only its retry was cut by the budget, so it stays `fail`.
+  assert.deepEqual(reports.map((r) => r.status), ['fail', 'pass', 'pass', 'pass', 'skipped', 'skipped']);
   assert.equal(reports[0].attempts.length, 1);
-  assert.equal(reports[0].skipReason, 'max-tokens');
+  assert.equal(reports[0].skipReason, undefined);
+  assert.deepEqual(reports.slice(4).map((r) => r.skipReason), ['max-tokens', 'max-tokens']);
   assert.equal(reports.flatMap((r) => r.attempts).reduce((sum, a) => sum + a.totalTokens, 0), 25);
 });
 
@@ -229,4 +231,15 @@ test('suite keeps load errors out of retries and retries thrown runs as error at
     console.log = oldLog; console.error = oldError;
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('after runOne rejects, no new spec or retry starts', async () => {
+  const started: number[] = [];
+  await assert.rejects(collect(schedule(specs(4), { ...base, workers: 1, retries: 1 }, async ({ spec }) => {
+    started.push(spec);
+    if (spec === 0) throw new Error('boom');
+    return attempt('pass', 0, 1);
+  })), /boom/);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(started, [0]);
 });
