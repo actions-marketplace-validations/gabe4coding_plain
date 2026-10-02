@@ -62,7 +62,9 @@ servers no shell environment. Spec runs check for a key just before execution; `
 MCP mode keeps serving and the first Jev call returns the message as a tool error.
 
 `dist/` is committed on purpose — this repo is also a Claude Code plugin and ships its built output
-(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium).
+(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium;
+`bin/plainwright-computer.mjs` and `bin/plainwright-mobile.mjs` lazy-install the same npm deps, no Chromium, via
+`bin/install-deps.mjs`).
 `dist/**/*.test.js` is gitignored. Rebuild before committing a `src/` change so `dist/` matches it.
 
 ## Architecture
