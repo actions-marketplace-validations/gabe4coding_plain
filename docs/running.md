@@ -154,7 +154,7 @@ Claims (`expect`, `wait`) are always judged by Jev.
 | Mode | `--picks` / config `picks` | Behavior |
 | --- | --- | --- |
 | `on` | default | Reads the cache and writes what passing attempts picked |
-| `read` | | Reads, never writes: for CI that must not change the working tree |
+| `read` | | Reads, never adds entries or writes files: for CI that must not change the working tree. A cached pick that failed is still not reused later in the same run. |
 | `off` | | Neither reads nor writes: every target is picked by Jev |
 
 MCP sessions never use the cache.
@@ -173,8 +173,9 @@ chosen element's description, its frame and the page in plain text (they are rev
 page text), plus a hash of the page's whole candidate list.
 
 **When a stored pick is reused.** Only on the first attempt of a spec, on the same page (query and
-hash ignored), when the page's **whole candidate list is unchanged** (values typed into text fields are
-ignored) and **exactly one** element has the stored description. A new row, a dialog over the page, a
+hash ignored), when the page's **whole candidate list is unchanged**, including each element's state
+(checked, selected, pressed, expanded, disabled) but not values typed into text fields, and **exactly
+one** element has the stored description. A new row, a dialog over the page, a
 renamed button or a button whose value changed (`Subscribe` → `Unsubscribe`) is a miss. Then the step acts
 on that element, its result has `cached: true`, its detail ends with `(cached pick)`, and its timing has
 `cached=1`. Any other case is a miss: Jev picks as usual.

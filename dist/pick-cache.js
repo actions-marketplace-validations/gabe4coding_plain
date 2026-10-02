@@ -11,8 +11,9 @@ import { dumpDebug } from './results.js';
  */
 export const PICK_FILE_VERSION = 1;
 /** Bump whenever describe() / candidates() (src/candidates.ts) or a native adapter's candidate desc changes.
- *  2: `value=` is ignored only on editable (text-entry) candidates; every entry carries the list hash. */
-export const DESC_FORMAT = 2;
+ *  2: `value=` is ignored only on editable (text-entry) candidates; every entry carries the list hash.
+ *  3: the list hash also covers each element's UI state (checked, selected, pressed, expanded, disabled). */
+export const DESC_FORMAT = 3;
 export const PICKS_MODES = ['on', 'read', 'off'];
 export const sidecarPath = (file) => {
     const { dir, name } = path.parse(file);
@@ -32,7 +33,9 @@ export const normalizeDesc = (c) => (c.editable ? c.desc.replace(VALUE, '') : c.
 export const frameOf = (desc) => /^\[iframe ([^\]]*)\] /.exec(desc)?.[1] ?? '';
 /** ` #n`: one of several identical descs, by DOM order; a list that changes makes it name another row. */
 export const hasOrdinal = (desc) => / #\d+(?= context: |$)/.test(desc);
-export const listHash = (candidates) => createHash('sha1').update(candidates.map(normalizeDesc).join('\n')).digest('hex');
+/** The whole candidate list: descs (text-field values ignored) plus each element's state, which the desc does
+ *  not show (checked, selected, pressed, expanded, disabled): a state flip on an unchanged page is a change. */
+export const listHash = (candidates) => createHash('sha1').update(candidates.map((c) => `${normalizeDesc(c)}${c.state ? `\u0000${c.state}` : ''}`).join('\n')).digest('hex');
 /** origin + path; query and hash ignored. A desktop url carries the process id, which changes every launch: the app name stands in. */
 export function pageOf(state) {
     try {
@@ -162,7 +165,11 @@ export class PickStore {
         car.dirty = true;
     }
     /** A handle for one attempt of one spec. */
-    attempt(attempt) { return new PickAttempt(this, this.mode !== 'off' && attempt === 0, this.mode !== 'off'); }
+    /** `on` reads, adds and evicts; `read` only reads, but a pick that failed this run is still not reused later
+     *  in the run (evicted in memory; never written to disk); `off` does nothing. */
+    attempt(attempt) {
+        return new PickAttempt(this, this.mode !== 'off' && attempt === 0, this.mode === 'on', this.mode !== 'off');
+    }
     /** Writes every changed sidecar (`on` only); a sidecar left with no entries is deleted. Returns the files
      *  written or deleted. Two processes writing the same sidecar: the last writer wins (sharded CI: `read`). */
     write() {
@@ -196,16 +203,18 @@ export class PickAttempt {
     store;
     reads;
     writes;
+    evicts;
     hits = new Map();
     evict = new Map();
     pending = new Map();
     stepHits = new Map();
     stepPending = new Map();
     closed = false;
-    constructor(store, reads, writes) {
+    constructor(store, reads, writes, evicts = writes) {
         this.store = store;
         this.reads = reads;
         this.writes = writes;
+        this.evicts = evicts;
     }
     /** The candidate a stored pick matches on this page, or undefined (a miss: Jev picks). */
     lookup(ref, candidates, state) {
@@ -251,12 +260,13 @@ export class PickAttempt {
         if (this.closed)
             return;
         this.closed = true;
-        if (!this.store || !this.writes)
+        if (!this.store)
             return;
         const evicted = passed ? this.evict : new Map([...this.hits, ...this.evict, ...this.stepHits]);
-        for (const { ref, page } of evicted.values())
-            this.store.set(ref, page, null);
-        if (passed)
+        if (this.evicts)
+            for (const { ref, page } of evicted.values())
+                this.store.set(ref, page, null);
+        if (this.writes && passed)
             for (const { ref, page, entry } of this.pending.values())
                 this.store.set(ref, page, entry);
     }

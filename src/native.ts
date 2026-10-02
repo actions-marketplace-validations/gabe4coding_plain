@@ -90,7 +90,7 @@ export abstract class NativeSession<T, K extends string, S extends { kind: strin
     for (;;) {
       const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
         element: (c) => { const el = frame.elements.get(c.id); if (el === undefined) throw new Error('Candidate handle missing'); return el; },
-        ...(refs ? { cached: (target: string) => picks!.lookup(refs[targets.indexOf(target)], frame.candidates, frame.snapshot) } : {}),
+        ...(refs ? { cached: (_target: string, i: number) => picks!.lookup(refs[i], frame.candidates, frame.snapshot) } : {}),
       }, targets, this.ai), (rs) => { for (const r of rs) if (r.usedJev) this.track(r.tokens); }, undefined, regionPick);
       if (frame.candidates.length === 0 && Date.now() < deadline) { await this.timed('idle', () => new Promise((r) => setTimeout(r, 150))); continue; }
       for (const r of result!) if (r.usedJev) this.track(r.tokens);
