@@ -14,6 +14,8 @@ plainwright-results/
 # Explainer video project (manim scenes, narration, renders): local only.
 .claude/explainer-video/
 
-# Mod type declarations Claude Code writes when it loads a mod with --plugin-dir.
+# Mod type declarations and the tsconfig.json pointing at them, written when Claude Code loads a mod with --plugin-dir.
 mods/*/.claude-plugin/types/
+mods/*/tsconfig.json
 plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
