@@ -7,10 +7,8 @@ description: Use when driving a website through the plainwright MCP tools (open,
 
 ## Overview
 
-JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
-also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
-MCP tool errors use `isError: true` and a text message; action outcomes (including
-`status: "error"`) remain structured results.
+A tool error (`isError: true` with a text message) means the call itself failed. A step that ran and
+failed is a normal result with `status: "error"`.
 
 Playwright acts, the Jev model decides: it picks the element your words describe and judges whether your
 claim holds against the page's accessibility tree. You never see the page. You write words Jev can answer
@@ -156,7 +154,7 @@ steps-only flows; included steps use the root spec’s env/hooks. Run
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
 `step`/`batch` cannot execute an `include`. Spec runs write a pick cache
 (`*.picks.json` next to each spec and flow): commit it with the specs, and run CI
-with `--picks read` (docs/running.mdx, "Pick cache").
+with `--picks read` (`docs/running.mdx`, "Pick cache", in the plainwright repository).
 
 ## Safety
 
