@@ -32,7 +32,7 @@ export async function runSuite(engine, opts, services = { provider, warmUp }) {
         throw new Error(`--workers > ${engine.maxWorkers} is not supported for ${engine.engine}`);
     checkSchedule(opts);
     const observers = [];
-    const artifacts = artifactsObserver(opts);
+    const artifacts = artifactsObserver(opts, engine.engine);
     if (artifacts)
         observers.push({ name: 'artifacts', value: artifacts });
     observers.push(...(services.observers ?? []).map((value) => ({ name: 'observer', value })));

@@ -34,6 +34,8 @@ export interface RunReport {
 }
 export interface CaptureTarget {
   engine: Engine;
+  /** Attached browser context: tracing would also record the user's other tabs. */
+  cdp?: boolean;
   screenshot(file: string): Promise<void>;
   page?(): import('playwright').Page;
 }
