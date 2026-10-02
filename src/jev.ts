@@ -221,7 +221,9 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
   // `goal` is state only, never named in the question: a vague target ("the comments link") then picks the
   // element the flow is about, and words still beat the goal when they disagree (scripts/benchmark-picks.mjs,
   // docs/benchmarks/picks.md). Without a goal the request is byte-for-byte what it was.
-  const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), ...(page.goal ? { goal: page.goal } : {}), instructions, elements: candidates };
+  const state = { url: page.url, title: page.title, today: new Date().toISOString().slice(0, 10), ...(page.goal ? { goal: page.goal } : {}), instructions,
+    // Jev sees what it saw before the pick cache: the cache's `editable`/`state` fields stay local.
+    elements: candidates.map(({ id, desc, frameIndex }) => (frameIndex === undefined ? { id, desc } : { id, desc, frameIndex })) };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',
     instructions: `Which element does \`instructions[${i}]\` refer to? Pick \`none\` if no listed element matches.`,

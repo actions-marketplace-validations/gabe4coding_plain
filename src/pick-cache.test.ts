@@ -65,7 +65,7 @@ test('value= is ignored only on text-entry fields: a submit or native value iden
   const after: Candidate[] = [{ id: 0, desc: 'input value="books" name="q"', editable: true }, { id: 1, desc: 'button "Go"' }];
   assert.equal(match(makeEntry(before[1], before, state)!, after, state)?.id, 1);
   assert.equal(match(makeEntry(before[0], before, state)!, after, state)?.id, 0);
-  assert.equal(DESC_FORMAT, 2);
+  assert.equal(DESC_FORMAT, 3);
 });
 
 test('ordinal and rejected picks are never stored; every entry carries the list hash', () => {
@@ -156,8 +156,17 @@ test('attempt > 0 never reads; read mode never writes; off neither reads nor sto
   const r = read.attempt(0);
   assert.equal(r.lookup(ref(1), list, state), undefined);
   r.accept(ref(1), list[0], list, state); r.endStep('pass'); r.finish(true);
+  assert.equal(read.get(ref(1), PAGE), undefined, 'read mode adds nothing, not even in memory');
   assert.deepEqual(read.write(), []);
   assert.deepEqual(Object.keys(readIO.files), ['/specs/a.picks.json']);
+  // A failed hit is not reused later in the same run, but the file on disk stays as it was.
+  const before = readIO.files['/specs/a.picks.json'];
+  const failed = read.attempt(0);
+  assert.equal(failed.lookup(ref(), list, state)?.id, 0);
+  failed.hit(ref(), state); failed.endStep('fail'); failed.finish(false);
+  assert.equal(read.attempt(0).lookup(ref(), list, state), undefined);
+  assert.deepEqual(read.write(), []);
+  assert.equal(readIO.files['/specs/a.picks.json'], before);
   const off = new PickStore('off', MODEL, seeded());
   assert.equal(off.attempt(0).lookup(ref(), list, state), undefined);
 });
@@ -348,4 +357,12 @@ test('a templated step keeps no page path or element text in the sidecar, and st
   assert.ok(!JSON.stringify(entry).includes('alice'));
   assert.equal(match(entry, list, state, true)?.id, 0);
   assert.equal(match(entry, list, { ...state, url: 'https://shop.test/u/bob@example.com' }, true), undefined);
+});
+
+test('a UI state flip on an otherwise unchanged page is a miss', () => {
+  const tabs = (selected: number): Candidate[] => [0, 1].map((id) => ({ id, desc: `[role=tab] "Tab ${id}"`,
+    ...(id === selected ? { state: 'aria-selected=true' } : { state: 'aria-selected=false' }) }));
+  const entry = makeEntry(tabs(0)[1], tabs(0), state)!;
+  assert.equal(match(entry, tabs(0), state)?.id, 1);
+  assert.equal(match(entry, tabs(1), state), undefined);
 });

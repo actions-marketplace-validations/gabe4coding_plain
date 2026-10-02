@@ -227,8 +227,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   if (jevTargets.length > 0) {
     // Pick cache key parts: only a step loaded from a file has a source (never an MCP step).
     const step = ctx.step;
-    const refs = ctx.picks && step?.at ? new Map(jevTargets.map((target): [string, PickRef] =>
-      [target, { at: step.at!, kind: step.kind, target, goal: ctx.spec.goal }])) : undefined;
+    const refs = ctx.picks && step?.at ? jevTargets.map((target): PickRef => ({ at: step.at!, kind: step.kind, target, goal: ctx.spec.goal })) : undefined;
     // Let debounced autocompletes, modals etc. finish rendering before we act (networkidle fires too early:
     // it sees the quiet gap *before* a debounced request starts); Jev already works on the early look.
     // A page still redirecting or rendering after `open` has no candidates yet (Booking answered "no
@@ -254,7 +253,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
           candidates: cands,
           state: { url, title, goal: ctx.spec.goal },
           element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
-          ...(refs ? { cached: (target: string) => ctx.picks!.lookup(refs.get(target)!, cands, { url, title }) } : {}),
+          ...(refs ? { cached: (_target: string, i: number) => ctx.picks!.lookup(refs[i], cands, { url, title }) } : {}),
         }, jevTargets),
         discard: (rs) => { for (const r of rs) if (r.usedJev) ctx.track(r.tokens); },
       }).catch((err) => { if (Date.now() < deadline && /context was destroyed|navigat/i.test(String(err))) return null; throw err; });
@@ -265,7 +264,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
     const { state: { cands, url, title }, result } = look;
     // Only the answer kept is recorded: an early look's answer may have been discarded above.
     if (refs) for (const [j, r] of result!.entries()) {
-      const ref = refs.get(jevTargets[j])!;
+      const ref = refs[j];
       if (r.cached) { ctx.picks!.hit(ref, { url, title }); ctx.ms.cached = (ctx.ms.cached ?? 0) + 1; }
       else if (r.candidate) ctx.picks!.accept(ref, r.candidate, cands, { url, title });
     }
