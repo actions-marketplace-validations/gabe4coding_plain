@@ -1,5 +1,6 @@
 name: a field inside an iframe and a button inside a shadow root
 url: ${env.site}
+timeout: 25000 # a look that waited for the body-less ad sync frame took 15 s
 env:
   site: $PLAINWRIGHT_E2E_SITE
 steps:
