@@ -32,7 +32,7 @@ const blankSpec = () => ({ name: 'computer session', app: '', dir: process.cwd()
 export function createComputerServer(adapter, timeout = 15000, ai = intelligence) {
     return createNativeServer({
         name: 'plainwright-computer',
-        version: '0.1.19',
+        version: '0.2.0',
         placeholderSource: 'computer MCP',
         spec: blankSpec(),
         ai,

@@ -70,6 +70,8 @@ snapshot. Known actions need no snapshot first. Unscoped raw/compact reads need 
   `open` it again only when the user's task calls for activation. Opening starts a new recording.
 - `close` detaches and runs teardown; it leaves the app running.
 
+In Claude Code the plugin also draws a session pane (`/plainwright-computer-pane`) with each step's status and Jev tokens; it does not change any tool result.
+
 ```yaml
 fill: {target: "the Message text field", value: "hello"}
 # Other individual step objects:
