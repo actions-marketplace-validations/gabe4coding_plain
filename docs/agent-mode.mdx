@@ -1,0 +1,279 @@
+---
+title: Agent mode
+description: Let a coding agent drive a browser through the plainwright MCP tools, read page data, and save the flow as a spec.
+---
+
+# Agent mode
+
+In agent mode, a coding agent drives a browser through the plainwright MCP server. The agent sends one target or
+one claim per call, and Jev makes every pick and every judgment. When the flow works, the agent saves it as a spec,
+and the CLI replays that spec.
+
+This page is about the browser server. For the other engines, see [desktop](computer-use.mdx#agent-tools) and
+[mobile](mobile-use.mdx#agent-tools). To install the plugins, see [getting started](getting-started.mdx).
+
+## Start the server
+
+The browser plugin starts the server with `--headless`. To start it from a checkout:
+
+```sh
+node bin/plainwright.mjs [--headless] [--timeout <ms>] mcp
+```
+
+The server keeps one browser session open, serves it over stdio and runs tool calls one at a time. It reads no
+config file.
+
+Without an API key, only the calls that do not ask Jev work: `open`, `evaluate`, `save`, a `goto` step, a `css=`
+target, and a raw or compact `snapshot` of the whole page. For a call that needs Jev, `step` and `batch` return
+`status: "error"` with the missing-key message. The other tools return a tool error.
+
+## Tools
+
+| Tool | Arguments | What it does |
+|---|---|---|
+| `open` | `url`, optional `goal`, `headed`, `hooks` | Starts the browser or goes to a new URL. |
+| `step` | `step` | Runs one step. |
+| `batch` | `steps` (1 to 16) | Runs known steps in order. |
+| `find` | `kind`, `target` | Shows what Jev picks for a target. |
+| `snapshot` | optional `within`, `mode`, `maxChars`, `intent` | Returns the accessibility tree. |
+| `ask` | `claims` (1 to 16), optional `within` | Answers yes/no claims. |
+| `read` | `question`, optional `within` | Answers a question with page lines. |
+| `evaluate` | `js` | Returns the JSON value of a JavaScript expression. |
+| `save` | `path`, optional `name` | Writes the passed steps as a spec. |
+
+A result that does not pass is a normal result with a `status`. A tool error (`isError: true`) means that the call
+itself failed, for example "call open first". Only `step`, `batch` and `open` change what `save` writes.
+
+## Open a page
+
+`open` starts the browser on the first call. Every later call goes to the new URL in the same session.
+
+- `goal`: what the flow is for, for example `read the discussion about F-Droid 2.0`. Picks see the goal, so a vague
+  target such as `the comments link` picks the element that the flow is about. The target words win over the goal.
+  Claims never see the goal. The goal stays until an `open` call sends a new one.
+- `headed`: `true` shows the browser window. The default comes from the `--headless` flag. A change restarts the
+  browser, and without `--profile` the cookies and logins are lost. With `--cdp`, plainwright ignores `headed`.
+- `hooks`: the path of a hooks module, relative to the working directory of the server. Setup runs before the
+  navigation, and steps get its data as `${hooks.*}`. The result lists the placeholder paths in `placeholders`,
+  never the values. See [hooks](hooks.mdx).
+
+Teardown runs when the session ends, or when a later `open` call sends `hooks`. Then setup runs again.
+
+The `open` result has `url`, `title` and `notes`. If the navigation fails, `open` returns a tool error.
+
+## Run steps
+
+`step` takes one step object, in the same shape as a step in a spec:
+
+```json
+{"step": {"click": "the Login button"}}
+{"step": {"expect": ["A welcome message is visible"]}}
+```
+
+All step kinds from the [spec reference](spec-reference.mdx) work. A `goto` URL resolves against the URL of the
+`open` call that started the browser.
+
+| Result field | Content |
+|---|---|
+| `status` | `pass`, `fail`, `inconclusive`, `error` or `skipped`. |
+| `detail` | What happened, or why the step did not pass. |
+| `notes` | Page events since the last call: dialogs, new tabs, downloads, page errors. |
+| `url` | The page URL after the step. |
+| `jevTokens` | The Jev tokens that the step used. |
+| `changed` | What the step did to the page. See [The `changed` field](#the-changed-field). |
+
+If Jev rejects a pick, the step is `inconclusive` and `detail` lists the top guesses. Make the target more specific
+and send the step again. See [phrasing](phrasing.mdx).
+
+`optional: true` changes an `inconclusive` or `error` result to `skipped`, but not a `fail`. `save` does not write a
+skipped step.
+
+A step can contain `${hooks.*}` placeholders when `open` loaded hooks. `${env.*}` is not available in a session.
+
+## Batching known actions
+
+Use `batch` for actions that you know, for example to fill a form and submit it. Each entry has the shape of a
+`step`:
+
+```json
+{"steps":[
+  {"fill":{"target":"the Email field","value":"alex@example.test"}},
+  {"click":"the Save contact button"}
+]}
+```
+
+`batch` decreases the number of agent calls, not the number of Jev picks. If the next action depends on the result,
+end the batch there.
+
+Before the first action, plainwright checks the shape and the placeholders of all entries. If one entry is not
+valid, the call returns a tool error and no action runs. Then the entries run in order. The first entry that does
+not pass (`fail`, `inconclusive`, `error` or `skipped`) stops the batch. plainwright does not undo the entries that
+passed.
+
+| Batch result field | Content |
+|---|---|
+| `status` | The status of the last entry that ran. |
+| `results` | One result per entry that ran, with its zero-based `index`. |
+| `completed` | The number of entries that passed. |
+| `remaining` | The number of entries that did not start. |
+| `stoppedAt` | The zero-based index of the entry that stopped the batch, or `null`. |
+| `url`, `jevTokens`, `changed` | For the whole batch. |
+
+`save` writes each passed entry as a normal step. If the agent cancels a batch, the later entries do not start.
+
+## Read the page without acting
+
+These tools only look at the page, and `save` does not record them.
+
+### The `changed` field
+
+`changed` tells the agent what a `step` or `batch` did, without a `snapshot` or an `ask`:
+
+- `title` and `url`: only when they changed.
+- `added`: the new accessibility-tree lines, in page order, up to 1,500 characters.
+- `addedOmitted`: the number of new lines after that limit.
+- `removed`: the number of lines that are gone.
+
+After a navigation, `added` shows the top of the new page. `changed` uses no Jev call. See the
+[agent benchmark](benchmarks/agent-changes.md).
+
+### `read`
+
+`read` answers a question with the exact lines of the accessibility tree that hold the answer:
+
+```
+read { question: 'the titles and prices of the first three books' }
+→ { found: true, answer: '- heading "A Light in the ..." ...', context: [...], confidence: 0.97 }
+```
+
+Jev selects the first and the last line of the answer, and plainwright copies the lines between them.
+
+- `answer`: the lines, up to 6,000 characters.
+- `context`: up to 4 ancestor lines of the answer, outermost first.
+- `found`: `true` only at a `confidence` of 0.5 or more.
+- `guesses`: when `found` is `false`, the 3 likeliest first lines with their probabilities.
+- `region`: the region that `within` found.
+
+A large page costs many Jev tokens. To read one region, use `within` (`the results table`, `css=main`). See the
+[read benchmark](benchmarks/read.md).
+
+### `ask`
+
+`ask` judges 1 to 16 claims in one Jev call. Each claim gets its own probability `p` and an answer:
+
+- `yes`: `p` is 0.9 or more.
+- `no`: `p` is 0.1 or less.
+- `unsure`: `p` is between these values.
+
+`ask` never changes the status of the session. For a test check, use an `expect` step. Use `ask` to find why a step
+did not pass, for example `A dialog covers the form`. If the page tree is longer than 60,000
+characters, the result has a `note`: a `no` can then come from content that plainwright cut.
+
+### `snapshot`, `evaluate` and `find`
+
+- `snapshot` returns the accessibility tree. With `within` (`the results list`, `css=main`), it returns one region.
+  `mode` selects a raw tree, a compact view or a smart view. See [snapshot views](snapshots.mdx).
+- `evaluate` runs a JavaScript expression and returns `value` and `url`. Use it to get data in a shape that you
+  choose. plainwright waits for a promise to resolve. An `undefined` value becomes `null`.
+- `find` shows what Jev picks for a target. `kind` is `click`, `hover`, `fill`, `select`, `check`, `upload` or
+  `region`. The result has `found`, `detail`, `confidence` and `jevTokens`.
+
+If Jev finds no `within` region, `snapshot`, `read` and `ask` return `found: false`, not a tool error.
+
+## Save the flow as a spec
+
+`save` writes the session as a spec that the CLI can replay, for example
+`{"path": "specs/first-book.yaml", "name": "Open a book"}`:
+
+- A relative `path` resolves against the working directory of the server.
+- `save` replaces a file that already exists, with no warning.
+- The default `name` is `plainwright session`.
+- `url` is the URL of the first `open` call. Each `open` call becomes a `goto` step.
+- `goal` is the last goal that `open` received.
+- Only the steps that passed are in the file, as the agent wrote them.
+- `${hooks.*}` placeholders stay as written. `hooks` is a path relative to the saved file.
+
+A saved spec looks like this:
+
+```yaml
+name: Open a book
+url: https://books.toscrape.com
+goal: read the details of the first book
+steps:
+  - goto: https://books.toscrape.com
+  - click: the title link of the first book
+  - expect:
+      - The page shows the book's price
+```
+
+To use environment values, add an `env` block to the saved file. Do not write credentials in the file. See
+[spec reference](spec-reference.mdx). To replay the spec, see [running suites](running.mdx).
+
+## End the session
+
+The browser server has no `close` tool. The session ends when the input of the server closes, or on
+`SIGINT`, `SIGTERM` or `SIGHUP`. plainwright then runs the hooks teardown and closes the browser. If teardown fails,
+the server writes the error to stderr and exits with code 1.
+
+## Disable `changed` or `read`
+
+These variables work in the browser, desktop and mobile MCP servers:
+
+| Variable | Effect |
+|---|---|
+| `PLAINWRIGHT_CHANGES=0` | `step` and `batch` results have no `changed` field. |
+| `PLAINWRIGHT_READ=0` | The server does not offer the `read` tool. |
+
+The desktop and mobile servers read the env files too late for `PLAINWRIGHT_READ`. For them, set it in the
+environment of the process.
+
+## Your real browser
+
+By default, each session is a new Chromium with no cookies and no logins. Three options change that:
+
+| Flag | Environment variable | Effect |
+|---|---|---|
+| `--profile <dir>` | `PLAINWRIGHT_PROFILE` | Launches a browser with a persistent profile directory. |
+| `--channel <name>` | `PLAINWRIGHT_CHANNEL` | Launches an installed browser, for example `chrome`. |
+| `--cdp <url>` | `PLAINWRIGHT_CDP` | Attaches to a Chrome that is already open. |
+
+The flags work for spec runs and for `mcp`. With a plugin install, put the variables in
+`~/.config/plainwright/.env`. For spec runs, the [config file](running.mdx#configuration) can also set `profile`,
+`channel` and `cdp`. A leading `~` in the profile path is your home directory.
+
+### `--profile`
+
+The browser keeps its user-data directory, so a login stays for the next session. Use a directory that only
+plainwright uses, for example `~/.plainwright`. Do not copy your Chrome profile into it: its cookies do not work
+there. A spec cannot then set `browser.storageState`. Run the specs with `--workers 1`.
+
+### `--channel chrome`
+
+plainwright launches your installed Chrome instead of the bundled Chromium (`chrome-beta` and `msedge` also work).
+Use it with `--profile` to get a signed-in browser:
+
+```sh
+node bin/plainwright.mjs --profile ~/.plainwright-chrome --channel chrome mcp
+```
+
+The first time, sign in to Google in that window, turn on sync, and log in to the sites that you need.
+
+### `--cdp`
+
+plainwright attaches to a running Chrome through the DevTools protocol. Start Chrome with a debugging port first:
+
+```sh
+# macOS. On Linux, the binary is google-chrome.
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --remote-debugging-port=9222 --user-data-dir="$HOME/.plainwright-chrome"
+node bin/plainwright.mjs --cdp http://127.0.0.1:9222 mcp
+```
+
+Chrome 136 and later do not allow remote debugging on the default profile, so the command sets a separate
+`--user-data-dir`. Sign in to that profile one time, and it keeps the logins.
+
+- plainwright works in its own tab and closes it when the session ends. It never closes your Chrome.
+- A spec with `auth`, `geolocation` or a `browser` block fails.
+- plainwright ignores `--profile` and `--channel`.
+- Run the specs with `--workers 1`.
+- The agent acts in your real accounts. Read the [usage rules](../README.md#usage-rules) again.

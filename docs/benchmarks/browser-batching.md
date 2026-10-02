@@ -56,7 +56,7 @@ See the [full tables and traces](2026-09-21-batch/README.md),
 placeholders before acting, then resolves and executes each action sequentially against the current
 page. The first non-pass stops the batch; later entries are not attempted. Passing entries are
 recorded individually for replay. The browser tool queue prevents interleaved reads or actions.
-The [agent-mode reference](../agent-mode.md#batching-known-actions) describes the full contract.
+The [agent-mode reference](../agent-mode.mdx#batching-known-actions) describes the full contract.
 
 Batching reduces main-agent round trips. It does not combine Jev decisions or reuse stale target
 IDs. Every action still pays for normal fresh target resolution. Its tool description, request

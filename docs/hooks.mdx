@@ -1,0 +1,105 @@
+---
+title: Setup and teardown hooks
+description: Lease test data before a spec runs, use it in steps as hooks placeholders, and release it after the spec, whatever the result.
+---
+
+# Setup and teardown hooks
+
+A hooks module gets test data before the first step and releases it after the last step, whatever the
+result. Steps use the data as `${hooks.*}`. Hooks work on all engines: browser, desktop and mobile.
+
+For static data, such as a path or a user name, use the `env` block. See
+[values from the environment](spec-reference.mdx#values-from-the-environment).
+
+```yaml
+name: Login with a user from the dataset
+url: https://the-internet.herokuapp.com
+env:
+  path: /login
+hooks: ./hooks/login-dataset.mjs
+steps:
+  - goto: "${env.path}"
+  - fill: { target: the username textbox, value: "${hooks.user.name}" }
+  - fill: { target: the password textbox, value: "${hooks.user.pass}" }
+  - click: the Login button
+  - expect: a heading with the text "Secure Area" is shown
+```
+
+`hooks` is a path relative to the spec file. It points to an ES module with two optional exports:
+
+```js
+export async function setup({ spec }) {
+  const user = await leaseUser();     // your test-data service, a database pool, a JSON file
+  return { user };                    // becomes ${hooks.user.*}
+}
+
+export async function teardown({ spec, data, result }) {
+  await releaseUser(data.user);       // data is what setup returned
+  console.error(`released ${data.user.name} (run ${result.status})`);
+}
+```
+
+The source of the data is your choice. plainwright only calls the two functions and gives the data to the
+steps and to `teardown`.
+
+A full example is in `examples/login-dataset.yaml`, `examples/hooks/login-dataset.mjs` and
+`examples/fixtures/users.json`.
+
+## When hooks run
+
+1. `setup({ spec })` runs once, before the first step. In the browser, it runs after the browser opens. On
+   desktop and mobile, it runs before plainwright opens the app.
+2. plainwright replaces the `${hooks.*}` placeholders in every step string with the data from `setup`. In the
+   browser, it also replaces them in `url`.
+3. The steps run.
+4. `teardown({ spec, data, result })` runs after the steps, whether they passed, failed or ended in an error.
+   `data` is what `setup` returned. `result` is `{ status, steps }` for the attempt so far.
+
+- `setup` must return an object, or nothing. Any other value is an error: `setup must return an object`.
+- Both exports are optional. An export that is not a function is an error.
+- `teardown` also runs when the module has no `setup`. Its `data` is then `{}`.
+- `spec` is the loaded spec. Its `env` and `auth` contain the values from the environment, so they can contain
+  secrets. Do not log `spec`.
+- Each attempt runs the hooks again. A [retry](running.mdx) calls `setup` and `teardown` again, in a new
+  process, and so leases new data.
+
+## Data rules
+
+Hooks run in their own Node.js process, one process for each attempt. They have no Playwright `page`. The
+arguments and the data from `setup` go between the processes as JSON. Return plain data only:
+
+| Value | What the steps and `teardown` get |
+|---|---|
+| A function | Nothing. plainwright drops it. |
+| A class instance | A plain object with its fields. The methods are lost. |
+| A `Date` | An ISO date string. |
+| A `Map` or a `Set` | An empty object `{}`. |
+| `undefined` | Nothing. plainwright drops the key. |
+
+A `${hooks.*}` placeholder must name a text, number or boolean value. See
+[placeholders](spec-reference.mdx#placeholders).
+
+Write logs with `console.error`, not `console.log`. The hooks process shares the stdout of plainwright.
+stdout carries the `jsonl` report, and in agent mode the MCP messages.
+
+## Failure rules
+
+- If the module cannot load, the attempt ends `error` before the browser or the app opens. A wrong path, a
+  syntax error and an export that is not a function have this result.
+- If `setup` throws an error, the attempt ends `error` with one `setup` step. No step runs, and `teardown`
+  does not run, because nothing was leased.
+- If a placeholder has no value, the attempt ends `error` before the first step. `teardown` still runs and
+  releases the lease.
+- If `teardown` throws an error, the attempt ends `error`, also when all steps passed.
+
+## Isolation
+
+Each attempt has its own hooks process. Thus a variable, a counter or a cache at module level never goes from
+one spec to another. Specs that run at the same time with `--workers` never share a module instance.
+
+Isolation does not give a spec exclusive access to an external resource. Examples are a fixed file path, a single
+database connection or a shared test account. You must control access to them, as in all parallel tests.
+
+## Hooks in agent mode
+
+To use hooks in agent mode, give `hooks` to the `open` tool. See [agent mode](agent-mode.mdx).
