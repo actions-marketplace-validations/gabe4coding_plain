@@ -127,10 +127,9 @@ The repository contains the compiled output, so you do not have to build it. On 
 `bin/plainwright.mjs` installs the npm dependencies and Chromium. Then it opens a visible browser. Add `--headless`
 to hide the browser.
 
-The desktop and mobile launchers do not install dependencies. Run `npm ci` once before you use them:
+The desktop and mobile launchers also install the npm dependencies on the first run. They do not install Chromium:
 
 ```sh
-npm ci
 node bin/plainwright-computer.mjs path/to/desktop.yaml
 node bin/plainwright-mobile.mjs path/to/mobile.yaml
 ```

@@ -18,11 +18,10 @@ draws its controls on a canvas with no accessible names, Jev cannot target them.
 `plainwright-computer` plugin for Claude Code or Codex. The plugin installs its runtime on the first run
 and writes the install progress to stderr.
 
-To run the desktop CLI from a checkout, install the dependencies first:
+To run the desktop CLI from a checkout, use the launcher. On the first run, it installs the npm dependencies,
+xa11y included, and writes the install progress to stderr:
 
 ```sh
-npm ci
-npm run build
 node bin/plainwright-computer.mjs mcp
 node bin/plainwright-computer.mjs --timeout 15000 path/to/desktop.yaml
 ```
