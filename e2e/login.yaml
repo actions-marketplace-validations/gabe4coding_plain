@@ -1,0 +1,11 @@
+name: login with the user from a hook
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+hooks: ./hooks/user.mjs
+steps:
+  - goto: /login
+  - fill: { target: the Username field, value: "${hooks.user.name}" }
+  - fill: { target: the Password field, value: "${hooks.user.pass}" }
+  - click: the Login button
+  - expect: the Secure Area heading is shown with a message that the user logged in

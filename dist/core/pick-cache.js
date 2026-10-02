@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { dumpDebug, errorMessage } from './results.js';
 /*
- * Pick cache (docs/running.md "Pick cache"): a target Jev picked in a passing run is replayed without a Jev call
+ * Pick cache (docs/running.mdx "Pick cache"): a target Jev picked in a passing run is replayed without a Jev call
  * while the page's whole candidate list is unchanged (typed text aside) and exactly one candidate has the stored
  * description. Jev decided once; code only reuses that decision on a strict match. One sidecar per source file
  * (`login.yaml` → `login.picks.json`), committed next to the specs. A retry never reads; a failed attempt
@@ -14,8 +14,9 @@ export const PICK_FILE_VERSION = 1;
  * Bump whenever a candidate description changes (src/browser/candidates.ts or a native adapter).
  * 2: `value=` is ignored only on editable candidates; every entry has the list hash.
  * 3: the list hash also covers each element's UI state (checked, selected, pressed, expanded, disabled).
+ * 4: a labelable control's description carries its `<label>` text (`label="…"`).
  */
-export const DESC_FORMAT = 3;
+export const DESC_FORMAT = 4;
 export const PICKS_MODES = ['on', 'read', 'off'];
 export const sidecarPath = (file) => {
     const { dir, name } = path.parse(file);

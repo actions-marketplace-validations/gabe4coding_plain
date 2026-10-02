@@ -1,0 +1,304 @@
+---
+title: Desktop apps
+description: Drive native desktop apps with plainwright-computer, write desktop specs, use the desktop agent tools and run one spoken sentence.
+---
+
+# Desktop apps
+
+`plainwright-computer` drives native desktop apps through their accessibility tree, with
+[xa11y](https://github.com/xa11y/xa11y). Jev picks the elements and judges the claims, as in the browser
+engine. The desktop engine is a separate plugin and a separate CLI.
+
+Jev sees the accessibility text of the app, not screenshots. plainwright is not a vision agent. If an app
+draws its controls on a canvas with no accessible names, Jev cannot target them.
+
+## Install
+
+[Getting started](getting-started.mdx) tells how to set the API key and install the
+`plainwright-computer` plugin for Claude Code or Codex. The plugin installs its runtime on the first run
+and writes the install progress to stderr.
+
+To run the desktop CLI from a checkout, use the launcher. On the first run, it installs the npm dependencies,
+xa11y included, and writes the install progress to stderr:
+
+```sh
+node bin/plainwright-computer.mjs mcp
+node bin/plainwright-computer.mjs --timeout 15000 path/to/desktop.yaml
+```
+
+xa11y is an optional dependency with native platform packages. Do not install with `--omit=optional`. Without xa11y, every desktop operation stops with an error that
+tells you to install `@crowecawcaw/xa11y@0.15.0`.
+
+The MCP server starts without an API key. These calls make no Jev request and work without a key:
+
+- `apps`, `open`, `screenshot` and `close`.
+- `snapshot` in raw or compact mode, without `within`.
+- `step` with a `press` or `mouse` step.
+
+A smart snapshot uses Jev. If Jev is not available, the snapshot returns the compact view and says so.
+
+## Platform setup
+
+- **macOS:** give Accessibility permission to the app that runs Node (your terminal or agent host).
+  Some macOS versions show this permission as "Device Control and Data Access". Window contents and
+  screenshots can also need Screen Recording permission. If macOS tells you to restart the host app, restart it. The
+  plugin does not change privacy settings. xa11y reports a missing permission as an error.
+- **Windows:** use an interactive desktop with UI Automation. An app at a different integrity or
+  elevation level can hide its controls or ignore input.
+- **Linux:** use a desktop with AT-SPI2 enabled. Pointer, keyboard and screenshot support depend on the
+  display server. Wayland can block input even when accessibility works.
+
+For native prerequisites, read the xa11y [installation guide](https://xa11y.dev/how-to/install/) and
+[platform reference](https://xa11y.dev/reference/platforms/).
+
+plainwright tests the desktop engine on macOS only. Windows and Linux use the same API, but this repository
+does not verify them on a real desktop. [Development](development.mdx) describes the macOS native smoke test.
+
+## Desktop specs
+
+A desktop spec names a running app instead of a URL:
+
+```yaml
+name: Preview a message
+app: Desktop Test Fixture
+goal: Preview a message before you send it
+tags: [smoke, desktop]
+env:
+  message: $TEST_MESSAGE
+hooks: ./hooks/fixture.mjs
+steps:
+  - fill: {target: "the Message text field", value: "${env.message}"}
+  - check: "the Enable preview checkbox"
+  - click: "the Preview button"
+  - wait: {that: "The preview contains the test message", within: "the preview panel"}
+  - scroll: "down: the preview panel"
+  - press: "Meta+s"
+    optional: true
+  - expect: ["The preview contains the test message", "The Enable preview checkbox is checked"]
+```
+
+The format is the browser format of the [spec reference](spec-reference.mdx), with these differences:
+
+- The top-level keys are `name`, `app`, `steps` and the optional `env`, `hooks`, `goal`, `tags` and
+  `timeout`. plainwright rejects every other key, for example `url` or `browser`. An unknown key in a step is
+  also an error. The error gives the closest known key, if one is near.
+- `app` is the exact name of a running app. plainwright does not start the app. Start it yourself or in a
+  [setup hook](hooks.mdx).
+- A spec run brings the app to the front before the first step. If the app has no window, the run stops
+  with an `error`.
+- `${env.*}` and `${hooks.*}` placeholders, `$VAR` values in `env`, and `include` flows work as in the
+  browser. Put credentials in `env` as `$VAR` references, or return them from a hook.
+
+### Desktop steps
+
+| Step | What it does on the desktop |
+|---|---|
+| `click` | Uses the accessibility press of the control. |
+| `click` (no press, or web content) | Sends a pointer click. The app must be in front. |
+| `fill` | Sets the text value. It sends no key events and works when the app is not in front. |
+| `check`, `uncheck` | Toggles only when the state must change. A mixed state is an `error`. |
+| `hover`, `dblclick`, `rightclick` | Sends a pointer action to the control. |
+| `scroll: "down: the list"` | Sends one wheel movement of 3 lines to a scrollable element. |
+| `scroll: "up: the list"` | The same, upward. |
+| `press: "Control+a"` | Sends a key or a chord. The last part is the key, the other parts are modifiers. |
+| `mouse: {x, y}` | Moves the pointer to logical desktop coordinates. |
+| `drag: {source, target}` | Picks both elements in one Jev request, then drags. |
+| `expect` | Judges one or more claims once. `{that, within}` limits it to a region. |
+| `wait` | Looks again until the claim is true, with up to 8 Jev calls. |
+| `wait: {that, within}` | Picks the region once, then looks only at that region. |
+
+On macOS, use `Meta` for the Command key. Key names depend on the platform. A `scroll` step does not go to
+the end of a list. Repeat the step to scroll more.
+
+These browser steps and forms stop validation with an error: `goto`, `select`, `upload`, `css=` targets
+and `scroll: top` or `scroll: bottom`. To open a file or a menu, use the accessible controls of the native
+dialog or menu.
+
+Steps that send keys or pointer input need the app in front: `press`, `mouse`, `drag`, `hover`,
+`dblclick`, `rightclick`, `scroll` and a pointer `click`. If another app is in front, the step is an
+`error` ("Desktop focus changed"). plainwright does not bring the app forward again by itself.
+
+A desktop step does not wait for the UI to settle. It reads the accessibility tree, asks Jev, then acts.
+If a step opens a window, add a `wait` for that window before you act in it. The step `ms` field shows the
+time in `capture`, `jev`, `act` and `idle` (the pauses between captures).
+
+If a capture has no candidates for the step, plainwright captures again for up to 2 s. This helps when a
+key or a click opens a new window. If an older window of the app is still open, the capture is not empty and
+the step can act on the old window. Add a `wait` for the new window first, for example
+`wait: "a window named Untitled 2 is shown"`.
+
+### Results and limits
+
+The thresholds are the same as in the browser ([phrasing guide](phrasing.mdx)):
+
+- A pick is accepted at confidence 0.5 or more (probability when there is no confidence).
+- A claim passes at p 0.9 or more and fails at p 0.1 or less. Between the two it is `inconclusive`.
+- A `wait` that does not pass before the timeout ends `inconclusive`, never `fail`.
+
+`optional: true` changes an `error` or `inconclusive` result to `skipped`. A failed `expect` still fails the
+spec. A `wait` never fails, so an optional `wait` that times out is always `skipped`.
+
+`--timeout` (default 15000 ms) limits the app lookup, each capture and the `wait` polling. A native call or a
+Jev request that is in progress can go past the timeout. A `wait` does not ask Jev again when the UI did not
+change after a clear "no".
+
+A capture keeps at most 60,000 characters, 5,000 nodes and 32 levels. Modal windows and dialogs come first.
+A pick request holds at most 1,016 candidates. The result says `truncated` when a capture reached a limit. For
+a dense app, scope the step or snapshot with `within`.
+
+A pick that plainwright rejects, or a claim that does not pass, writes its state to `$TMPDIR/plainwright/`, as
+in the browser ([failure artifacts](artifacts.mdx)).
+
+### Hooks
+
+Desktop hooks use the same isolated child process and exports as browser hooks ([hooks](hooks.mdx)).
+`setup` runs before plainwright attaches to the app. These rules apply:
+
+- If `setup` succeeds, `teardown` runs, also when the attach, a placeholder or a step fails.
+- If `setup` fails, `teardown` does not run.
+- If `teardown` fails, the spec result is `error`.
+- plainwright never quits the app. It only detaches.
+
+## Run desktop specs
+
+Desktop runs use the shared suite options of [running suites](running.mdx) and the reports of
+[reporting](reporting.mdx). These rules are different on the desktop:
+
+- Specs run one at a time. `--workers` must be `1`, because all specs share one physical desktop.
+- The default reporter is `jsonl` (one JSON line per spec), not `text`.
+- `--timeout` must be a positive number. `0` is an invocation error.
+- `--artifacts` saves screenshots and debug dumps. There are no traces: a `--trace` mode other than `off`
+  is an error.
+- `--headless`, `--profile`, `--channel`, `--cdp` and `--timing` are browser-only. `--server` is
+  mobile-only. Each one is an invocation error (exit 2).
+- In the config file, the desktop CLI ignores these keys, `workers` more than `1`, `timeout: 0` and a trace mode.
+  It prints one note. Read the [shared config file](running.mdx#desktop-and-mobile-in-the-same-folder).
+- A retry attaches to the app again and runs the hooks again. plainwright does not reset the app state.
+- The [pick cache](running.mdx#pick-cache) works for desktop specs and is on by default.
+
+```sh
+plainwright-computer validate tests/desktop/
+plainwright-computer --list --tag smoke tests/desktop/
+plainwright-computer --retries 1 --reporter jsonl --reporter junit:out/desktop.xml --artifacts plainwright-results tests/desktop/
+```
+
+The CLI has no `--help` flag. Run `plainwright-computer` with no arguments to see the usage line.
+
+## Agent tools
+
+The desktop MCP server has 10 tools:
+
+| Tool | What it does |
+|---|---|
+| `apps {}` | Lists the running accessible apps with their names and pids. It does not change the focus. |
+| `open {app}` or `open {pid}` | Attaches to one running app. See the rules below the table. |
+| `step {step}` | Runs one action or check step. Returns the status, detail, timings, tokens and `changed`. |
+| `find {kind, target}` | Tests a target with Jev and does not act. Kinds: `click`, `fill`, `check`, `hover`, `region`, `scroll`. |
+| `snapshot {within?, maxChars?, mode?, intent?}` | Returns the app tree as text. See [snapshot views](snapshots.mdx). |
+| `ask {claims, within?}` | Answers 1 to 16 yes/no claims in one Jev call. Not recorded. |
+| `read {question, within?}` | Returns the exact tree lines that answer a question. Not recorded. |
+| `screenshot {}` | Returns a PNG of the app window. Jev does not see it. |
+| `save {path, name?}` | Writes the passing steps as a desktop spec. |
+| `close {}` | Runs teardown and detaches. The app stays open. |
+
+The tools work as in the browser ([agent mode](agent-mode.mdx)). The desktop differences are:
+
+- `snapshot` returns raw text by default, at most 20,000 characters. The `compact` and `smart` modes
+  default to 6,000. The maximum is 60,000.
+- `ask` answers each claim `yes` (p 0.9 or more), `no` (p 0.1 or less) or `unsure`, with its `p`. It does
+  not change the session status. Use it to test why a step failed ("The Save button is disabled").
+- `step` results carry `changed`: the title if it changed, the tree lines the step added (at most 1,500
+  characters) and the number of lines it removed. Read `changed` before you call `snapshot` or `ask`.
+- `PLAINWRIGHT_CHANGES=0` disables `changed`. `PLAINWRIGHT_READ=0` hides `read`.
+
+`open` follows these rules:
+
+- Give exactly one of `app` or `pid`. `app` is the exact app name, as `apps` shows it.
+- `open` attaches to a running app. It never starts an app.
+- `activate` (default `true`) brings a window of the app to the front. If the app has no window, `open`
+  fails. Use `activate: false` to read the app and leave the focus as it is.
+- `hooks` runs a setup hook before the attach. A relative path starts from the working directory of the MCP server.
+- `goal` is one sentence that tells what the whole flow is for. Every pick sees it, so a vague target picks
+  the control of the flow. The words of the target win. Claims never see the goal.
+- Each `open` starts a new recording and ends the hooks of the previous `open`.
+
+`save` writes the app name, not the pid, because the pid changes at each launch. It also writes `goal` and a
+`hooks` path relative to the saved file. It keeps `${hooks.*}` placeholders. MCP has no `${env.*}`. Add an
+`env` block to the saved spec before you run it as a suite. `save` rejects a recording with no passing steps.
+
+The server runs one request at a time, reads included. Do not run two desktop sessions at the same time: they
+share one keyboard, one pointer and one focus. Use a dedicated test desktop for unattended runs, because the
+focus can change between the focus check and the input.
+
+If a step returns an `error`, look at the app state before you send the step again. A native action can take
+effect before its error comes back.
+
+Write targets with the accessibility names of the controls, not with their look. An icon-only toolbar button
+has the name of its accessibility description. An `inconclusive` pick lists its top guesses with the names
+from the tree. The correct words are often one of them.
+
+In Claude Code, the plugin shows a session pane (`/plainwright-computer-pane`). Read
+[Session pane in Claude Code](agent-mode.mdx#session-pane-in-claude-code).
+
+## Electron apps and web views
+
+Electron apps (Slack, Notion) and web views ignore the accessibility press on many elements. A `click` on an
+element inside web content is therefore a pointer click, and the app must be in front. A native control that
+offers no press, for example a row in a list, also gets a pointer click.
+
+If a `click` passes but the view does not change, use the keyboard route of the app. For example, in Slack
+press `Meta+k`, type the name with single-key `press` steps, then press `Enter`. `fill` does not help here,
+because it sends no key events.
+
+Jev sees each control once:
+
+- Text, groups, images and table cells inside a control are part of that control. A real control inside
+  it, such as a button in a row, is still a separate candidate.
+- A control with no name gets the text inside it as its description. A table row gets the text of its cells.
+- A candidate shows only the first 100 characters of a long value. The snapshot keeps the full value.
+
+A pick over a busy web view can go over the Jev token limit (error 400 `max_tokens_exceeded`, or 422).
+plainwright then splits the candidates in two requests and merges the answers.
+
+## One sentence: plan and do
+
+`plan` and `do` turn one spoken or typed sentence into desktop steps. Use them outside an agent session,
+for example from a voice front end or a script.
+
+```sh
+plainwright-computer plan "open TextEdit, then type salt and pepper in the text area and press command S"
+plainwright-computer do "open TextEdit, then type salt and pepper in the text area. Does it contain salt and pepper?"
+```
+
+Both commands accept `--timeout MS` (default 15000). `do` also accepts `--app NAME` and `--yes`.
+
+`plan` prints `{items, tokens}` as JSON and runs nothing. Each item is one of these kinds:
+
+- `open`: the app to attach to.
+- `step`: a `click`, `dblclick`, `rightclick`, `fill`, `press` or `scroll` step, with `risky: true` when the
+  step is hard to undo.
+- `ask`: a yes/no question.
+- `stop`: the end of the session ("stop", "goodbye").
+- `unknown`: a part that Jev did not understand, with a `reason`.
+
+`do` plans the sentence, then runs it as a desktop spec. It follows these rules:
+
+1. If one part is `unknown`, `do` runs nothing.
+2. If a step is `risky` and you did not give `--yes`, `do` runs nothing.
+3. `do` keeps only the items before the first `stop`.
+4. If the sentence names an app, that `open` must come first, and `do` ignores `--app`. One run uses one app.
+5. If the sentence names no app, `do` uses `--app`. With no app at all, `do` runs nothing.
+6. Each question becomes an `expect` step. The run stops at the first step that does not pass.
+
+Like `open`, `do` attaches to a running app and never starts one. `do` prints the spec result as JSON, with
+`planTokens`. The exit codes are:
+
+- `0`: all steps pass.
+- `1`: a step does not pass.
+- `2`: `do` cannot plan or start the run.
+
+Jev never writes the step text. The words of each target, value, app and key come from the sentence without
+change. A new instruction always starts at a sentence end (`.`, `;`, `!`, `?`) and at "then", "after that"
+and "finally". At "and" and commas, Jev selects where the sentence splits, so "type salt and pepper" keeps its
+text. A plan uses two Jev requests, and a third when a part continues a part that failed. The
+[planner benchmark](benchmarks/planner.md) has the measured results.

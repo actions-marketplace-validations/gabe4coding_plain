@@ -15,12 +15,17 @@ const DESCRIPTIONS = {
         'both platforms. Scroll direction is content navigation; swipe direction is finger movement. Browser/desktop-only steps and css= ' +
         'are rejected. optional:true skips errors/inconclusive, never a definite failed assertion. Picks need confidence >=0.5 (probability ' +
         'fallback); claims pass >=0.9, fail <=0.1. Only passing steps are recorded; ${hooks.*} remain placeholders.',
-    find: 'Ask Jev which mobile control matches a target without acting. No selector escape hatch.',
+    find: 'Ask Jev which mobile control matches `target`, without acting or recording. `kind` is the step kind the ' +
+        'target is for (click, also for tap and longpress; fill, check, scroll), or `region` for a `within` scope; it decides ' +
+        'which controls are candidates. Returns `found`, `confidence`, `detail` (the picked control, or the top guesses when ' +
+        'the pick is rejected) and `jevTokens`. Use it when a target is unclear; a known target needs no `find` first. ' +
+        'No selector escape hatch.',
     snapshot: 'Read the device native UI tree, optionally within a natural-language region. To read a value, use `read` instead. ' +
         'This reading is not recorded.',
     screenshot: 'Capture the device screen as a PNG for inspection. Screenshot pixels do not feed Jev targeting.',
     save: 'Write successful recorded steps as a replayable mobile YAML spec with platform, device and app. Preserves hook placeholders ' +
-        'and makes hooks path relative to the saved file.',
+        'and makes hooks path relative to the saved file. `path` is relative to the server\'s working directory; an existing ' +
+        'file is overwritten without warning. Errors when no step has passed yet.',
     close: 'Run teardown and delete the Appium session. Preserves app data; does not uninstall the app.',
 };
 const LIST_DEVICES_DESCRIPTION = 'Discover devices on this MCP host: connected Android devices/emulators via ADB and available iOS ' +
