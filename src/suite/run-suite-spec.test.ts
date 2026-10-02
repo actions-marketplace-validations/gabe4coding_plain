@@ -31,8 +31,8 @@ test('native schemas accept tags and reject browser fields', () => {
 test('step origin prefixes labels; user-written and MCP origin is rejected', () => {
   assert.equal(label(withOrigin({ click: 'Login', origin: 'flows/login.yaml' }, (raw) => parseStep('x', 0, raw))), 'flows/login.yaml › click "Login"');
   assert.throws(() => loadSpec(write('name: x\nurl: https://example.com\nsteps:\n  - click: Login\n    origin: fake\n')), /origin: reserved/);
-  // MCP `step`/`batch` parse with parseStep: an origin key is one key too many, as before Phase 0.
-  assert.throws(() => parseStep('x', 0, { click: 'Login', origin: 'o' }), /exactly one key \(plus optional "optional"\), got \[click, origin\]/);
+  // MCP `step`/`batch` parse with parseStep: only the loader sets origin.
+  assert.throws(() => parseStep('x', 0, { click: 'Login', origin: 'o' }), /step 0: "origin" is reserved for the loader/);
 });
 
 test('onMissingEnv collects missing values while preserving the literal reference', () => {
@@ -48,4 +48,21 @@ test('onMissingEnv collects missing values while preserving the literal referenc
 test('at and origin are rejected inside a step mapping too (YAML and MCP)', () => {
   assert.throws(() => parseStep('mcp', 0, { fill: { target: 'x', value: 'y', at: { file: '/evil', index: 9 } } }), /"at" is reserved for the loader/);
   assert.throws(() => parseStep('mcp', 0, { fill: { target: 'x', value: 'y', origin: 'flows/x.yaml' } }), /"origin" is reserved for the loader/);
+});
+
+test('native specs name an unknown top-level or step key and suggest the closest one', () => {
+  const mobile = 'name: x\nplatform: ios\ndevice: simulator\napp: app\n';
+  assert.throws(() => loadComputerSpec(write('name: x\napp: Notes\nstep: []\n')), /unknown key "step"; did you mean "steps"\?/);
+  assert.throws(() => loadComputerSpec(write('name: x\napp: Notes\nsteps:\n  - expect: {that: a, whithin: b}\n')),
+    /step 0 "expect": unknown key "whithin"; did you mean "within"\?/);
+  assert.throws(() => loadComputerSpec(write('name: x\napp: Notes\nsteps:\n  - goto: /\n')), /goto is browser-only/);
+  assert.throws(() => loadMobileSpec(write(`${mobile}devise: x\nsteps:\n  - tap: Save\n`)), /unknown key "devise"; did you mean "device"\?/);
+  assert.throws(() => loadMobileSpec(write(`${mobile}steps:\n  - tapp: Save\n`)), /step 0: unknown key "tapp"; did you mean "tap"\?/);
+  assert.throws(() => loadMobileSpec(write(`${mobile}steps:\n  - tap: Save\n    optinal: true\n`)), /unknown key "optinal"; did you mean "optional"\?/);
+  assert.throws(() => loadMobileSpec(write(`${mobile}steps:\n  - swipe: {direction: up, whithin: list}\n`)),
+    /step 0 "swipe": unknown key "whithin"; did you mean "within"\?/);
+  assert.throws(() => loadMobileSpec(write(`${mobile}steps:\n  - wait: {that: a, whithin: b}\n`)), /"wait": unknown key "whithin"/);
+  assert.throws(() => loadMobileSpec(write(`${mobile}steps:\n  - hover: Save\n`)), /hover is not supported on mobile/);
+  const ok = loadMobileSpec(write(`${mobile}capabilities: {anyKey: 1}\nsteps:\n  - tap: Save\n    optional: true\n  - swipe: {direction: up, within: list}\n`));
+  assert.deepEqual(ok.steps.map((step) => step.kind), ['tap', 'swipe']);
 });

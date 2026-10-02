@@ -17,10 +17,10 @@ const write = (name: string, body: string): string => {
 test('a bad step inside an included file is reported at that file and its own index', () => {
   write('flows/f.yaml', 'steps:\n  - click: A\n  - clik: B\n');
   const root = write('r.yaml', 'name: r\nurl: https://example.com\nsteps:\n  - goto: /\n  - include: flows/f.yaml\n');
-  assert.throws(() => loadSpec(root), /flows\/f\.yaml: step 1 has unknown key "clik"/);
+  assert.throws(() => loadSpec(root), /flows\/f\.yaml: step 1: unknown key "clik"; did you mean "click"\?/);
   const after = write('r2.yaml', 'name: r\nurl: https://example.com\nsteps:\n  - include: flows/ok.yaml\n  - clik: C\n');
   write('flows/ok.yaml', 'steps:\n  - click: A\n  - click: B\n');
-  assert.throws(() => loadSpec(after), new RegExp(`${after.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: step 1 has unknown key "clik"`));
+  assert.throws(() => loadSpec(after), new RegExp(`${after.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: step 1: unknown key "clik"`));
   const desktop = write('d.yaml', 'name: d\napp: Notes\nsteps:\n  - include: flows/f.yaml\n');
   assert.throws(() => loadComputerSpec(desktop), /flows\/f\.yaml.*1/);
 });
