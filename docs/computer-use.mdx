@@ -171,6 +171,8 @@ Desktop runs use the shared suite options of [running suites](running.mdx) and t
   is an error.
 - `--headless`, `--profile`, `--channel`, `--cdp` and `--timing` are browser-only. `--server` is
   mobile-only. Each one is an invocation error (exit 2).
+- In the config file, the desktop CLI ignores these keys, `workers` more than `1`, `timeout: 0` and a trace mode.
+  It prints one note. Read the [shared config file](running.mdx#desktop-and-mobile-in-the-same-folder).
 - A retry attaches to the app again and runs the hooks again. plainwright does not reset the app state.
 - The [pick cache](running.mdx#pick-cache) works for desktop specs and is on by default.
 

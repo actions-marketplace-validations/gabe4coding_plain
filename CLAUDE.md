@@ -94,7 +94,9 @@ Source layout (tests sit next to their module):
   input order. `src/suite/types.ts` owns attempts/spec/run reports, observers and engine adapters; `flaky` is
   a separate boolean and counts as pass.
 - `src/suite/options.ts` — shared CLI flags, file/directory/`*`/`**` expansion and CLI/env/config/default precedence;
-  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early.
+  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early. One config file
+  serves all three CLIs: `engineConfig` drops values the engine cannot use (browser-only keys, `workers` > 1,
+  `timeout: 0` and a trace mode on native; `server` off mobile) with one stderr note; the same CLI flags are errors.
 - `src/suite/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
   token budget. In-flight attempts finish; cut retries retain their last status; never-started specs are skipped.
 - `src/suite/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection (no or invalid
