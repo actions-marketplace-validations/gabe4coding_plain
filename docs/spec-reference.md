@@ -183,6 +183,10 @@ the page counts as settled only 500 ms after typing, for a debounced autocomplet
 The next step waits out the rest of that time, overlapped with its own Jev call. A new tab the action
 opens keeps the next step waiting until it has loaded and become the active page.
 
+A spec run reuses the element Jev picked in the last passing run while the page's elements are unchanged
+and exactly one of them matches it, without a Jev call (`(cached pick)` in the step detail). The choices live in
+`*.picks.json` next to each spec and flow file: see the [pick cache](running.md#pick-cache).
+
 ### `optional: true`
 
 Turns an `inconclusive` or `error` result into `skipped` and the run continues. Use it for things that

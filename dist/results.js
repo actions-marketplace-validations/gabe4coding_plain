@@ -9,6 +9,8 @@ export const StepResultSchema = z.object({
     status: StatusSchema,
     detail: z.string().optional(),
     ms: z.record(z.string(), z.number()).optional(),
+    /** A target came from the pick cache (src/pick-cache.ts): no Jev pick for it. */
+    cached: z.boolean().optional(),
 });
 /** Adds the elapsed ms of `fn` into ms[phase]; phases accumulate across calls within one step. */
 export async function timedInto(ms, phase, fn) {

@@ -61,8 +61,9 @@ export function textReporter(timing) {
             const extended = report.specs.some((spec) => spec.flaky || spec.attempts.length > 1 || spec.skipReason);
             // Every spec counts (skipped and load errors too): a bail run is where "1 failed, 5 skipped" matters most.
             if (extended && report.specs.length > 1) {
-                const { passed, failed, flaky, skipped, jevCalls, tokens } = report.totals;
-                console.log(`${passed} passed, ${failed} failed, ${flaky} flaky, ${skipped} skipped  (${jevCalls} Jev calls, ${tokens} tokens, ${(report.durationMs / 1000).toFixed(2)}s)`);
+                const { passed, failed, flaky, skipped, jevCalls, tokens, cachedPicks } = report.totals;
+                const cached = cachedPicks ? `, ${cachedPicks} cached pick${cachedPicks === 1 ? '' : 's'}` : '';
+                console.log(`${passed} passed, ${failed} failed, ${flaky} flaky, ${skipped} skipped  (${jevCalls} Jev calls, ${tokens} tokens${cached}, ${(report.durationMs / 1000).toFixed(2)}s)`);
             }
         },
     };

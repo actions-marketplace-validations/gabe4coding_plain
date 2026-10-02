@@ -256,6 +256,7 @@ node bin/plainwright.mjs --headless --tag smoke --retries 1 tests/
 | Running | `--channel chrome` | Browser only: use installed Chrome; works with `--profile`. |
 | Running | `--cdp URL` | Browser only: attach to an existing Chrome debugging session. |
 | Running | `--server URL` | Mobile only: Appium URL; default `http://127.0.0.1:4723`. |
+| Running | `--picks MODE` | Pick cache: `on` (default) reuses and stores Jev's picks in `*.picks.json` next to the specs, `read` never writes, `off` always asks Jev. |
 | Selection | `--grep RE`, `--grep-invert RE` | Include/exclude a case-sensitive regex on the name or cwd-relative path. |
 | Selection | `--tag T` | Repeatable; require all tags. No tag filter by default. |
 | Selection | `--last-failed` | Intersect selection with the previous run’s non-pass files. |

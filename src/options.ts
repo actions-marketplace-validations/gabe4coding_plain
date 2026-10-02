@@ -3,6 +3,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { homedir } from 'node:os';
 import { loadConfig } from './config.js';
+import { PICKS_MODES, type PicksMode } from './pick-cache.js';
 import type { Engine, EngineFlags, ReporterSpec, SuiteOptions } from './suite-types.js';
 
 export interface ParsedSuiteArgs { command: 'run' | 'mcp' | 'validate'; opts: SuiteOptions; flags: EngineFlags }
@@ -55,7 +56,7 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
     artifacts: { type: 'string' }, screenshot: { type: 'string' }, trace: { type: 'string' },
     'spec-timeout': { type: 'string' }, timing: { type: 'boolean' }, timeout: { type: 'string' },
     headless: { type: 'boolean' }, profile: { type: 'string' }, channel: { type: 'string' }, cdp: { type: 'string' },
-    server: { type: 'string' },
+    server: { type: 'string' }, picks: { type: 'string' },
   } });
   const command = positionals[0] === 'mcp' ? 'mcp' : positionals[0] === 'validate' ? 'validate' : 'run';
   // MCP keeps today's behavior: no config file, no suite options.
@@ -84,6 +85,8 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
     console.error('plainwright: --screenshot and --trace have no effect without --artifacts <dir>');
   const files = expandFiles(paths, cwd);
   if (command !== 'mcp' && files.length === 0) throw new Error('no YAML files matched the given paths');
+  const picks = choice('picks', values.picks, 'on');
+  if (!PICKS_MODES.includes(picks as PicksMode)) throw new Error(`--picks must be one of ${PICKS_MODES.join(', ')}, got "${picks}"`);
   const optional = (name: string, value: unknown): number | undefined => value === undefined ? undefined : number(name, value, 1);
   const opts: SuiteOptions = {
     files, workers, retries: number('retries', choice('retries', values.retries, 0)),
@@ -94,6 +97,7 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
     reporters, timing: engine === 'browser' && flag(choice('timing', values.timing, false)),
     artifacts: dir ? { dir, screenshot, trace } : undefined,
     specTimeout: optional('spec-timeout', choice('specTimeout', values['spec-timeout'], undefined)),
+    picks: picks as PicksMode,
   };
   const timeout = String(choice('timeout', values.timeout, '15000'));
   // Browser: 0 is Playwright's "no timeout", as before; desktop/mobile always required a positive value.

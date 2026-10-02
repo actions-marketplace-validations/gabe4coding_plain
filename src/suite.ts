@@ -4,6 +4,7 @@ import { createReporters } from './reporters/index.js';
 import { select, listSelected } from './select.js';
 import { schedule, checkSchedule } from './schedule.js';
 import { writeLastRun } from './last-run.js';
+import { PickStore } from './pick-cache.js';
 import type { Artifact, Attempt, Loaded, RunObserver, RunReport, SpecReport, SuiteEngine, SuiteOptions } from './suite-types.js';
 
 export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
@@ -27,7 +28,7 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
     const broken = entries.flatMap((entry) => 'report' in entry ? [entry.report] : []);
     for (const spec of broken) console.error(`✘ ${spec.file}: ${spec.loadError?.replace(/^\w*Error: /, '')}`);
     return { engine: engine.engine, provider: '', model: '', startedAt, durationMs: Date.now() - start, specs: broken,
-      status: broken.length ? 'fail' : 'pass', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0 } };
+      status: broken.length ? 'fail' : 'pass', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0, cachedPicks: 0 } };
   }
   if (opts.workers > engine.maxWorkers) throw new Error(`--workers > ${engine.maxWorkers} is not supported for ${engine.engine}`);
   checkSchedule(opts);
@@ -54,6 +55,9 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
     }
   };
   const reports: SpecReport[] = [];
+  // One pick cache per run (src/pick-cache.ts); its sidecars are written once, after the last spec.
+  let picks: PickStore | undefined;
+  let cachedPicks = 0;
   try {
     await emit('runStart', { engine: engine.engine, specs: selected.map(({ file, name, tags }) => ({ file, name, tags })) });
     if (selected.length) {
@@ -62,10 +66,13 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
       model = MODEL_BY_PROVIDER[p];
       if (engine.engine === 'browser') console.error(`plainwright: Jev via ${p} (${model})`);
       services.warmUp();
+      // One versioned id for both providers: switching provider keeps the sidecars, a model upgrade drops them.
+      picks = new PickStore(opts.picks ?? 'on', MODEL_BY_PROVIDER.typesafe);
     }
     const scheduled = schedule(selected, opts, async (loaded, attemptNumber): Promise<Attempt> => {
       const began = Date.now();
-      const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber };
+      const handle = picks?.attempt(attemptNumber);
+      const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber, ...(handle ? { picks: handle } : {}) };
       const captured: Artifact[] = [];
       const observer: RunObserver = {
         async sessionOpen(event) {
@@ -82,12 +89,17 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
           return captured;
         },
       };
+      let status = 'error';
       try {
         const result = await engine.run(loaded.spec, observer, info);
+        status = result.status;
         return { ...result, attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
       } catch (error) {
         return { name: loaded.name, status: 'error', steps: [], jevCalls: 0, totalTokens: 0, error: `${error}`,
           attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
+      } finally {
+        // A passing attempt stores its new picks; a failing one drops the cached picks it used (Jev judges the retry).
+        if (handle) { cachedPicks += handle.cachedPicks; handle.finish(status === 'pass'); }
       }
     })[Symbol.asyncIterator]();
     for (const entry of entries) {
@@ -105,7 +117,8 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
   } finally {
     await engine.close?.();
   }
-  const totals = { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0 };
+  picks?.write();
+  const totals = { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, cachedPicks };
   for (const spec of reports) {
     for (const attempt of spec.attempts) { totals.jevCalls += attempt.jevCalls; totals.tokens += attempt.totalTokens; }
     if (spec.status === 'pass') totals.passed++;

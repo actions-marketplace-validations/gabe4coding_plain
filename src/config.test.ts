@@ -56,8 +56,10 @@ profile: /tmp/plainwright-test-profile
 channel: chrome
 cdp: http://localhost:9222
 server: http://localhost:4723
+picks: read
 `);
   const config = loadConfig(dir);
+  assert.equal(config.picks, 'read');
   assert.equal(config.workers, 2);
   assert.equal(config.timeout, 0);
   assert.equal(config.headless, true);

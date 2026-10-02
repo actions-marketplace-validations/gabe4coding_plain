@@ -27,8 +27,10 @@ function checkPlaceholders(spec) {
         }
         else if (Array.isArray(value))
             value.forEach(visit);
+        // A step's `at` is the loader's source path (pick cache), never interpolated.
         else if (value !== null && typeof value === 'object')
-            Object.values(value).forEach(visit);
+            Object.entries(value).forEach(([k, v]) => { if (!(k === 'at' && 'kind' in value))
+                visit(v); });
     };
     for (const field of [url, app, platform, device, capabilities, steps])
         visit(field);

@@ -129,6 +129,7 @@ For YAML suites, add `tags: [smoke]` and share steps with
 Keep flows outside spec input globs. Run `node <plugin-root>/bin/launch.mjs validate spec.yaml`
 before replay; missing secrets are warnings and no session/model key is needed.
 For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plainwright-results`.
+Commit the pick cache (`*.picks.json` next to specs and flows) and run CI with `--picks read`.
 Runs stay sequential; screenshots are supported, browser traces are unavailable.
 `include` is expanded by the file loader, so it cannot be sent to MCP `step`.
 

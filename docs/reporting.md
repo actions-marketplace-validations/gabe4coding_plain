@@ -36,7 +36,8 @@ more than one spec, including load errors and never-started skips:
 ```
 
 `passed` includes flaky specs. Summary counts and model usage include all attempts; elapsed time is the
-suite's wall time. Ordinary runs retain their existing output without a new summary.
+suite's wall time. When the [pick cache](running.md#pick-cache) replayed picks, the summary adds
+`N cached picks` after the tokens. Ordinary runs retain their existing output without a new summary.
 
 ## JUnit XML
 
@@ -66,7 +67,8 @@ Retry elements use the Maven Surefire format. Only final outcomes contribute to 
 counters, so a flaky pass remains passing. The relevant step supplies the label and detail; when
 no step ran, the spec name and thrown error supply them.
 
-Suite and testcase `<properties>` include `jevCalls`, `tokens`, `provider`, `model`, and `attempts`.
+Suite and testcase `<properties>` include `jevCalls`, `tokens`, `provider`, `model`, and `attempts`;
+the suite's also include `cachedPicks` (picks replayed from the [pick cache](running.md#pick-cache)).
 Testcase usage and duration include every retry. Suite usage comes from the run totals.
 `<system-out>` contains the step lines with the text reporter's icons, labels, and details.
 Multiple attempts have one-based `attempt N:` headings. Every artifact from every attempt adds
@@ -119,11 +121,11 @@ The JSON file is the `RunReport` with `schemaVersion: 1` added at the top level:
 | `engine`, `provider`, `model` | Execution engine and model identity. |
 | `startedAt`, `durationMs` | ISO start time and elapsed milliseconds. |
 | `status` | `pass` or `fail`; flaky passes count as passing. |
-| `totals` | `jevCalls`, `tokens`, `passed`, `failed`, `flaky`, `skipped`. |
+| `totals` | `jevCalls`, `tokens`, `passed`, `failed`, `flaky`, `skipped`, `cachedPicks`. |
 | `stopped` | Optional `bail` or `max-tokens` reason. |
 | `specs` | Ordered spec reports: `file`, `name`, `tags`, `status`, `flaky`, `attempts`, optional `loadError`/`skipReason`. |
 | `specs[].attempts[]` | Zero-based `attempt`, `name`, `status`, `steps`, `jevCalls`, `totalTokens`, `durationMs`, `artifacts`, optional thrown `error`. |
-| `steps[]` | `step` label, `status`, optional `detail` and per-phase `ms`. |
+| `steps[]` | `step` label, `status`, optional `detail`, per-phase `ms`, and `cached: true` when a pick came from the pick cache. |
 | `artifacts[]` | `kind` (`screenshot`, `trace`, `dump`), absolute `path`, optional zero-based `step` index. |
 
 Step statuses remain `pass`, `fail`, `inconclusive`, `error`, or `skipped`. Spec load errors and

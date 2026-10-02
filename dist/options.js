@@ -3,6 +3,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { homedir } from 'node:os';
 import { loadConfig } from './config.js';
+import { PICKS_MODES } from './pick-cache.js';
 /** No spec paths given: each CLI prints its own usage line. */
 export class UsageError extends Error {
     constructor() { super('usage'); }
@@ -53,7 +54,7 @@ export function parseSuiteArgs(argv, engine, env = process.env, cwd = process.cw
             artifacts: { type: 'string' }, screenshot: { type: 'string' }, trace: { type: 'string' },
             'spec-timeout': { type: 'string' }, timing: { type: 'boolean' }, timeout: { type: 'string' },
             headless: { type: 'boolean' }, profile: { type: 'string' }, channel: { type: 'string' }, cdp: { type: 'string' },
-            server: { type: 'string' },
+            server: { type: 'string' }, picks: { type: 'string' },
         } });
     const command = positionals[0] === 'mcp' ? 'mcp' : positionals[0] === 'validate' ? 'validate' : 'run';
     // MCP keeps today's behavior: no config file, no suite options.
@@ -86,6 +87,9 @@ export function parseSuiteArgs(argv, engine, env = process.env, cwd = process.cw
     const files = expandFiles(paths, cwd);
     if (command !== 'mcp' && files.length === 0)
         throw new Error('no YAML files matched the given paths');
+    const picks = choice('picks', values.picks, 'on');
+    if (!PICKS_MODES.includes(picks))
+        throw new Error(`--picks must be one of ${PICKS_MODES.join(', ')}, got "${picks}"`);
     const optional = (name, value) => value === undefined ? undefined : number(name, value, 1);
     const opts = {
         files, workers, retries: number('retries', choice('retries', values.retries, 0)),
@@ -96,6 +100,7 @@ export function parseSuiteArgs(argv, engine, env = process.env, cwd = process.cw
         reporters, timing: engine === 'browser' && flag(choice('timing', values.timing, false)),
         artifacts: dir ? { dir, screenshot, trace } : undefined,
         specTimeout: optional('spec-timeout', choice('specTimeout', values['spec-timeout'], undefined)),
+        picks: picks,
     };
     const timeout = String(choice('timeout', values.timeout, '15000'));
     // Browser: 0 is Playwright's "no timeout", as before; desktop/mobile always required a positive value.
