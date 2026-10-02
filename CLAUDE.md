@@ -77,7 +77,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early.
 - `src/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
   token budget. In-flight attempts finish; cut retries retain their last status; never-started specs are skipped.
-- `src/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection and list output.
+- `src/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection (no or invalid
+  record: run all selected specs; no failures: run none) and list output.
 - `src/config.ts` — strict YAML config discovery/validation, paths relative to its file; MCP does not read it.
 - `src/validate.ts` — load/expand schemas and check interpolated fields without sessions/hooks; absent `$VAR`
   leaves warn, `${hooks.*}` waits for runtime, unknown namespaces or unresolved `${env.*}` fail validation.
@@ -90,7 +91,7 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
 - `src/context-options.ts` — device/context overrides, auth/geolocation and storage state; CDP rejects context
   settings, profiles cannot load storage state. `runSpec` saves state only after passing steps and teardown.
 - `src/last-run.ts` — atomic cwd `.plainwright/last-run.json`, absolute spec paths and final status/flaky;
-  missing/invalid records run all selected specs, empty failure sets run none; list/validate never replace it.
+  `readLastFailed` returns `undefined` (no or invalid record) or the set of non-pass files; list/validate never replace it.
 - `src/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
   `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
   `auth`/`env` resolve from `process.env` at load time. `interpolate()` replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved

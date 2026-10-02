@@ -240,6 +240,7 @@ quoted globs are accepted; keep steps-only flow files outside spec input paths.
 | Spec `tags:` | String or list, e.g. `[smoke, mobile]`. |
 | Step `include: ./flows/login.yaml` | Expand a steps-only flow at load time; nesting allowed. Paths resolve relative to the including file, placeholders use the root spec’s env/hooks. See [reusable flows](spec-reference.md#reusable-flows). |
 | `--trace`, spec `browser:` | Browser traces/context settings are unavailable. Trace defaults to `off`; other modes error when artifact capture is enabled. `browser:` is rejected by the native schema. |
+| `--headless`, `--profile`, `--channel`, `--cdp`, `--timing` | Browser-only: each is an invocation error (exit 2). |
 | `--workers N` | Only `1` is supported; greater values are invocation errors. |
 
 ```sh

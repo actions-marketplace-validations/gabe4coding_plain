@@ -16,8 +16,8 @@ budget, overridden by the spec’s `timeout:`; there is no whole-attempt cap by
 default. Opening and setup consume that budget, but cleanup may finish after it.
 See [spec timeouts](spec-reference.md#timeouts) for the deadline behavior.
 
-Exit codes: `0` when every selected spec passes (including flaky passes, or an
-empty selection), `1` for non-passing results or load errors, `2` for invocation,
+Exit codes: `0` when every selected spec passes (including flaky passes, or a selection that
+filters every spec out; paths that match no YAML file are an invocation error), `1` for non-passing results or load errors, `2` for invocation,
 config, or missing provider errors. [Reporting](reporting.md) describes output
 formats; [artifacts](artifacts.md) describes optional evidence capture.
 
@@ -61,8 +61,9 @@ An untagged spec ends with `[]`. An empty selection prints nothing.
 
 ## Retries and flaky passes
 
-`--retries N` allows up to N additional attempts after any non-pass result (`fail`, `error`,
-`inconclusive` or `skipped`). Each retry starts immediately in the same worker slot. Attempts
+`--retries N` allows up to N additional attempts after any non-pass result (`fail`, `error` or
+`inconclusive`; an attempt is never `skipped`, since skipped optional steps do not change its status).
+Each retry starts immediately in the same worker slot. Attempts
 are numbered from `0`; their tokens, timing and artifacts remain in the spec report.
 Invalid specs produce a load error and are never retried. An error thrown while running a
 loaded spec is retried like any other non-pass attempt.
@@ -117,8 +118,8 @@ Retries of running specs remain subject to the token budget even after bail.
 
 Completed runs save `.plainwright/last-run.json` under the working directory. It contains
 `schemaVersion: 1`, an ISO `finishedAt` timestamp, the engine, and each spec's absolute file
-path, final status and flaky flag. Each completed run replaces the previous record. The
-folder is gitignored; an atomic replacement prevents readers from seeing partial JSON.
+path, final status and flaky flag. Each completed run replaces the previous record. Add
+`.plainwright/` to your project's `.gitignore`; an atomic replacement prevents readers from seeing partial JSON.
 A write failure prints a warning and does not change the run's result.
 
 ```sh
@@ -136,7 +137,7 @@ plainwright --headless --last-failed tests/
   is still reported, even for a file excluded by filters.
 
 The record is shared by all three engines in the working directory. `--list` and `validate`
-do not update it. A completed run with no selected specs replaces it with an empty record.
+do not update it. A completed run with no selected specs replaces it with a record that holds only the current load errors (empty if there are none).
 
 ## Load errors
 
@@ -161,7 +162,7 @@ reporters:
   - text
 ```
 
-Run `plainwright` with no positional paths to use `files`. Explicit positional
+Run `plainwright` with no positional paths to use `files` (runs only: `validate` needs explicit paths). Explicit positional
 paths replace this list. Config paths (`files`, `profile`, `artifacts.dir`, and
 reporter outputs) resolve relative to the config file's folder, including when
 it is selected with `--config`. CLI paths keep their usual cwd-relative meaning.
@@ -185,7 +186,7 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | `maxTokens` | positive integer | Unset; stop starting specs/retries at this completed-attempt token total |
 | `grep` | string | Unset; include names or paths matching this regex |
 | `grepInvert` | string | Unset; exclude names or paths matching this regex |
-| `tags` | nonempty string or list of them | `[]`; require all tags |
+| `tags` | nonempty string, or list of nonempty strings | `[]`; require all tags |
 | `reporters` | nonempty list of strings or mappings | Browser: `[text]`; native: `[jsonl]`; mappings use `name` and optional `output`; strings use `NAME[:FILE]` |
 | `timing` | boolean | `false`; browser text timing |
 | `artifacts.dir` | nonempty string | Unset; setting it (here or with `--artifacts`) enables capture |
@@ -197,7 +198,7 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | `profile` | nonempty string | Unset; persistent browser profile folder |
 | `channel` | nonempty string | Unset; installed browser channel, e.g. `chrome` |
 | `cdp` | nonempty string | Unset; attach to a browser CDP endpoint |
-| `server` | nonempty string | Mobile Appium server URL; otherwise existing environment / adapter default |
+| `server` | nonempty string | Mobile Appium URL; `--server` and `PLAINWRIGHT_APPIUM_URL` override it; default `http://127.0.0.1:4723` |
 
 `--list`, `--last-failed`, and `--config` are invocation controls and have no
 config keys. Each `artifacts` key may be set alone: a mode in the config can pair
@@ -248,7 +249,7 @@ The shared formatter produces:
 ✔ tests/login.yaml
 ✔ tests/secret.yaml
 ! tests/secret.yaml: tests/secret.yaml: "env.password" references $TEST_PASSWORD but that env var is not set
-✘ tests/broken.yaml: ${env.unknown} is not defined
+✘ tests/broken.yaml: ${env.unknown} is not defined (use ${env.*} from the spec's env block)
 ```
 
 `validate` prints these lines on stdout and exits 1 if any spec has an error.
