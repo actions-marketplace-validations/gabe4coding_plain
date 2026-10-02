@@ -54,10 +54,6 @@ filters. A missing or unreadable record runs every selected spec and prints
 `no previous run found; running all selected specs`. A record with no failures
 runs none and prints `no failures in the last run`. Load errors remain errors.
 
-Last-run persistence and execution require the scheduling lane (C). This lane
-implements the selection rule; Phase 0's scheduling guard still rejects
-`--last-failed` until lane C is integrated.
-
 ## Configuration
 
 The CLI discovers `plainwright.config.yaml` in the current working directory,
@@ -97,16 +93,16 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | `workers` | positive integer | `1`; desktop/mobile require `1`; browser profile/CDP also require `1` |
 | `retries` | nonnegative integer | `0`; additional attempts (C) |
 | `bail` | nonnegative integer | `0`; stop after this many failed specs; `0` disables (C) |
-| `maxTokens` | positive integer | Unset; stop starting specs at this token total (C) |
+| `maxTokens` | positive integer | Unset; stop starting specs at this token total |
 | `grep` | string | Unset; include names or paths matching this regex |
 | `grepInvert` | string | Unset; exclude names or paths matching this regex |
-| `tags` | list of nonempty strings | `[]`; require all tags |
-| `reporters` | nonempty list of strings or mappings | Browser: `[text]`; native: `[jsonl]`; mappings use `name` and optional `output`; strings use `NAME[:FILE]` (A) |
+| `tags` | nonempty string or list of them | `[]`; require all tags |
+| `reporters` | nonempty list of strings or mappings | Browser: `[text]`; native: `[jsonl]`; mappings use `name` and optional `output`; strings use `NAME[:FILE]` |
 | `timing` | boolean | `false`; browser text timing |
-| `artifacts.dir` | nonempty string | Unset; setting it enables capture (B) |
-| `artifacts.screenshot` | `off`, `on-failure`, or `always` | `on-failure` once `dir` is set (B) |
-| `artifacts.trace` | `off`, `on-failure`, or `always` | `on-failure` once `dir` is set; browser only (B) |
-| `specTimeout` | positive integer | Unset; whole-spec milliseconds; spec `timeout` wins (E) |
+| `artifacts.dir` | nonempty string | Unset; setting it (here or with `--artifacts`) enables capture |
+| `artifacts.screenshot` | `off`, `on-failure`, or `always` | `on-failure` once a dir is set |
+| `artifacts.trace` | `off`, `on-failure`, or `always` | `on-failure` once a dir is set; browser only |
+| `specTimeout` | positive integer | Unset; whole-spec milliseconds; spec `timeout` wins |
 | `timeout` | nonnegative number | `15000`; per-action milliseconds; `0` disables browser timeout; native requires greater than `0` |
 | `headless` | boolean | `false`; browser only |
 | `profile` | nonempty string | Unset; persistent browser profile folder |
@@ -115,11 +111,11 @@ config file and key. Use YAML numbers and booleans, rather than quoted strings.
 | `server` | nonempty string | Mobile Appium server URL; otherwise existing environment / adapter default |
 
 `--list`, `--last-failed`, and `--config` are invocation controls and have no
-config keys. An `artifacts` mapping requires `dir`. Features marked A, B, C, or E
-are accepted as config but require their corresponding industrialize lane to
-execute; Phase 0 otherwise reports `not implemented yet`.
+config keys. Each `artifacts` key may be set alone: a mode in the config can pair
+with `--artifacts <dir>` on the command line. An empty config file is an empty
+config. A `profile` starting with `~` is expanded to your home folder.
 
-An example after those lanes are integrated:
+An example:
 
 ```yaml
 files: ['tests/**/*.yaml']
@@ -165,16 +161,8 @@ The shared formatter produces:
 ✘ tests/broken.yaml: ${env.unknown} is not defined
 ```
 
-### Integration notes
-
-The frozen browser and native CLI wrappers still print only error/warning
-messages. Replace their validation output loops with
-`console.error(formatValidation(results))` and import `formatValidation` from
-`validate.ts` to enable the formatted output above. Their existing 0/1 exit
-handling already works.
-
-The frozen `runSuite` retains load errors on normal runs, but its `--list` early
-return currently discards them. Integration should print those load errors and
-return a failed report when any exist, while preserving the no-key/no-session
-list behavior. The successful list output is already wired through
-`listSelected` and needs no change.
+`validate` prints these lines on stdout and exits 1 if any spec has an error.
+`${env.*}` is checked in `url`, desktop `app`, the mobile target fields and every
+step; `${hooks.*}` is known only after setup and is skipped; any other namespace
+is an error. `--list` also reports specs that fail to load (on stderr) and then
+exits 1.

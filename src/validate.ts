@@ -2,16 +2,18 @@ import type { SuiteEngine } from './suite-types.js';
 
 export interface ValidationResult { file: string; error?: string; warnings: string[] }
 
-/** Inspect the loader's normalized URL and steps without resolving hook data or running code. */
+/** Inspect every field the runners interpolate (browser `url`; desktop `app`; mobile target fields; steps) without
+ *  resolving hook data or running code. `name` and `goal` are never interpolated. */
 function checkPlaceholders(spec: unknown): void {
   if (spec === null || typeof spec !== 'object') return;
-  const { url, steps, env } = spec as { url?: unknown; steps?: unknown; env?: unknown };
+  const { url, steps, env, app, platform, device, capabilities } = spec as Record<string, unknown>;
   const visit = (value: unknown): void => {
     if (typeof value === 'string') {
       for (const match of value.matchAll(/\$\{([^}]+)\}/g)) {
         const expr = match[1];
         const [namespace, ...keys] = expr.split('.');
-        if (namespace !== 'env') continue;
+        if (namespace === 'hooks') continue; // known only after setup runs
+        if (namespace !== 'env') throw new Error(`\${${expr}} uses an unknown namespace (use \${env.*} or \${hooks.*})`);
         let leaf: unknown = env;
         for (const key of keys) {
           if (leaf === null || typeof leaf !== 'object' || Array.isArray(leaf) || !Object.hasOwn(leaf, key)) {
@@ -26,8 +28,7 @@ function checkPlaceholders(spec: unknown): void {
     } else if (Array.isArray(value)) value.forEach(visit);
     else if (value !== null && typeof value === 'object') Object.values(value).forEach(visit);
   };
-  visit(url);
-  visit(steps);
+  for (const field of [url, app, platform, device, capabilities, steps]) visit(field);
 }
 
 export function validate<S>(engine: SuiteEngine<S>, files: string[]): ValidationResult[] {

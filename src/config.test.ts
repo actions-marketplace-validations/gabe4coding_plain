@@ -33,7 +33,8 @@ reporters: [text, 'junit:out/junit.xml', {name: json, output: out/results.json}]
   const config = loadConfig(root, path.join(dir, 'plainwright.config.yaml'));
   assert.deepEqual(config.files, [path.join(dir, 'tests'), path.join(dir, 'specs/**/*.yml')]);
   assert.equal(config.profile, path.join(dir, '.profiles/test'));
-  assert.deepEqual(config.artifacts, { dir: path.join(dir, 'results'), screenshot: 'on-failure', trace: 'always' });
+  // No defaults here: options.ts applies them, so a mode alone in config can pair with --artifacts on the CLI.
+  assert.deepEqual(config.artifacts, { dir: path.join(dir, 'results'), trace: 'always' });
   assert.deepEqual(config.reporters, [{ name: 'text' }, { name: 'junit', output: path.join(dir, 'out/junit.xml') },
     { name: 'json', output: path.join(dir, 'out/results.json') }]);
 });
@@ -69,10 +70,10 @@ test('config rejects unknown keys and wrong types with file and key in the error
   const cases = [
     ['mystery: true', 'mystery'], ['workers: "2"', 'workers'], ['workers: 0', 'workers'],
     ['retries: -1', 'retries'], ['bail: 1.5', 'bail'], ['maxTokens: 0', 'maxTokens'],
-    ['tags: smoke', 'tags'], ['files: tests/', 'files'], ['headless: yes', 'headless'],
+    ['tags: 12', 'tags'], ['files: tests/', 'files'], ['headless: yes', 'headless'],
     ['timeout: .inf', 'timeout'], ['specTimeout: 0', 'specTimeout'], ['profile: 12', 'profile'],
     ['artifacts: {dir: results, trace: sometimes}', 'artifacts.trace'],
-    ['artifacts: {dir: results, typo: true}', 'artifacts.typo'], ['artifacts: {}', 'artifacts.dir'],
+    ['artifacts: {dir: results, typo: true}', 'artifacts.typo'],
     ['reporters: [{name: text, typo: true}]', 'reporters.0.typo'], ['reporters: []', 'reporters'],
     ['reporters: ["junit:"]', 'reporters'], ['list: true', 'list'], ['lastFailed: true', 'lastFailed'],
   ];
@@ -83,8 +84,11 @@ test('config rejects unknown keys and wrong types with file and key in the error
   }
 });
 
-test('config reports malformed YAML and non-mapping roots', () => {
-  for (const body of ['workers: [', '[]', 'false', '']) {
+test('config reports malformed YAML and non-mapping roots; an empty file is an empty config', () => {
+  for (const body of ['', '# only a comment\n']) assert.deepEqual(loadConfig(fixture(body)), {});
+  assert.deepEqual(loadConfig(fixture('tags: smoke\n')).tags, ['smoke']);
+  assert.deepEqual(loadConfig(fixture('artifacts: {screenshot: always}\n')).artifacts, { screenshot: 'always' });
+  for (const body of ['workers: [', '[]', 'false']) {
     const dir = fixture(body);
     assert.throws(() => loadConfig(dir), (error: unknown) => error instanceof Error && error.message.includes('plainwright.config.yaml'));
   }

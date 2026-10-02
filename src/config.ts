@@ -16,9 +16,11 @@ const ConfigSchema = z.object({
   files: z.array(text).optional(),
   workers: positive.optional(), retries: z.number().int().nonnegative().optional(),
   bail: z.number().int().nonnegative().optional(), maxTokens: positive.optional(),
-  grep: z.string().optional(), grepInvert: z.string().optional(), tags: z.array(text).optional(),
+  grep: z.string().optional(), grepInvert: z.string().optional(),
+  tags: z.union([text.transform((tag) => [tag]), z.array(text)]).optional(), // like a spec's `tags:`
   reporters: z.array(reporter).min(1).optional(), timing: z.boolean().optional(),
-  artifacts: z.object({ dir: text, screenshot: mode.default('on-failure'), trace: mode.default('on-failure') }).strict().optional(),
+  // Each key may come alone (e.g. modes here, --artifacts on the CLI); options.ts applies the defaults.
+  artifacts: z.object({ dir: text.optional(), screenshot: mode.optional(), trace: mode.optional() }).strict().optional(),
   specTimeout: positive.optional(), timeout: z.number().nonnegative().optional(),
   headless: z.boolean().optional(), profile: text.optional(), channel: text.optional(),
   cdp: text.optional(), server: text.optional(),
@@ -34,7 +36,7 @@ export function loadConfig(cwd: string, explicit?: string): Partial<SuiteOptions
   let raw: unknown;
   try { raw = parse(fs.readFileSync(file, 'utf8')); }
   catch (error) { throw new Error(`${file}: ${error instanceof Error ? error.message : error}`); }
-  const result = ConfigSchema.safeParse(raw);
+  const result = ConfigSchema.safeParse(raw ?? {}); // an empty or comment-only file is an empty config
   if (!result.success) {
     const errors = result.error.issues.map((issue) => {
       const key = issue.path.join('.');
@@ -47,8 +49,9 @@ export function loadConfig(cwd: string, explicit?: string): Partial<SuiteOptions
   const config = result.data;
   const folder = path.dirname(file);
   if (config.files) config.files = config.files.map((input) => path.resolve(folder, input));
-  if (config.profile !== undefined) config.profile = path.resolve(folder, config.profile);
-  if (config.artifacts) config.artifacts.dir = path.resolve(folder, config.artifacts.dir);
+  // `~/...` stays as written: options.ts expands it to the home folder.
+  if (config.profile !== undefined && !/^~(?=[\/\\]|$)/.test(config.profile)) config.profile = path.resolve(folder, config.profile);
+  if (config.artifacts?.dir !== undefined) config.artifacts.dir = path.resolve(folder, config.artifacts.dir);
   if (config.reporters) config.reporters = config.reporters.map((value) => ({ ...value,
     ...(value.output === undefined ? {} : { output: path.resolve(folder, value.output) }),
   }));

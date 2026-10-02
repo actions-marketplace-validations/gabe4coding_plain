@@ -44,11 +44,12 @@ for (const { cli, header, action } of engines) {
     fs.writeFileSync(path.join(dir, warning), `name: Warning\n${header}\nenv: {value: $PLAINWRIGHT_LANE_D_MISSING_ENV}\nsteps:\n  - ${action}: '\${env.value}'\n`);
     const warned = run(cli, ['validate', warning]);
     assert.equal(warned.status, 0, warned.stderr);
-    assert.match(warned.stderr, /env var is not set/);
+    assert.match(warned.stdout, new RegExp(`^✔ ${warning}$`, 'm'));
+    assert.match(warned.stdout, new RegExp(`^! ${warning}: .*env var is not set`, 'm'));
     const bad = `${cli}-bad.yaml`;
     fs.writeFileSync(path.join(dir, bad), `name: Bad\n${header}\nsteps:\n  - ${action}: '\${env.missing}'\n`);
     const invalid = run(cli, ['validate', bad]);
     assert.equal(invalid.status, 1, invalid.stderr);
-    assert.match(invalid.stderr, /env.missing.*not defined/);
+    assert.match(invalid.stdout, new RegExp(`^✘ ${bad}: .*env.missing.*not defined`, 'm'));
   });
 }
