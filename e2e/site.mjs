@@ -54,8 +54,10 @@ document.querySelector('#q').addEventListener('keydown', (e) => {
   `function out(text) { document.querySelector('#result').textContent = text; }`),
   '/new-window': () => page('New Window', '<h1>New Window</h1>'),
 
+  // The ad sync frame removes its body, like static.admaster.cc's cookieSync.html: a look must not wait for one.
   '/frames': () => page('Frames', `<h1>Frames</h1>
 <iframe title="Comment editor" srcdoc="${`<label>Comment <textarea></textarea></label>`.replaceAll('"', '&quot;')}"></iframe>
+<iframe title="Ad sync" srcdoc="<script>addEventListener('load', () => document.body.remove())</script>"></iframe>
 <shadow-counter></shadow-counter>`,
   `customElements.define('shadow-counter', class extends HTMLElement {
   connectedCallback() {

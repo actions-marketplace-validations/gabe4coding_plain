@@ -113,13 +113,29 @@ function toSnapshot(page, title, aria) {
     const marked = markUnchecked(shortenUrls(aria));
     return { url: page.url(), title, aria: marked.slice(0, ARIA_MAX_CHARS), truncated: marked.length > ARIA_MAX_CHARS };
 }
+/** A cap for an iframe's tree, only reached when the frame swaps its document during the look. */
+const IFRAME_ARIA_MS = 2_000;
+/**
+ * One iframe's tree, or null. An ad frame can remove its body (static.admaster.cc cookieSync.html does), and a
+ * `body` locator then waits its whole timeout, 15 s per look, for one that never comes. So check first.
+ */
+async function iframeAria(frame) {
+    try {
+        if (!(await frame.evaluate(() => document.body !== null)))
+            return null;
+        return await frame.locator('body').ariaSnapshot({ timeout: IFRAME_ARIA_MS });
+    }
+    catch {
+        return null; // detached or cross-origin
+    }
+}
 /** The page's accessibility tree, each iframe's tree appended under its own header. An empty iframe has none. */
 export async function snapshot(page) {
     const iframes = page.frames().slice(1);
     const [title, bodyAria, iframeArias] = await Promise.all([
         page.title(),
         page.locator('body').ariaSnapshot(),
-        Promise.all(iframes.map((frame) => frame.locator('body').ariaSnapshot().catch(() => null))), // detached or cross-origin
+        Promise.all(iframes.map(iframeAria)),
     ]);
     const iframeSections = iframes.map((frame, i) => iframeArias[i] ? `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}` : '');
     return toSnapshot(page, title, bodyAria + iframeSections.join(''));
