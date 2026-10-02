@@ -406,7 +406,8 @@ test('shortenUrls: a link target over 200 characters keeps its part before ? or 
 });
 
 test('snapshot: an iframe with an empty tree gets no section; long link targets are cut; snapshotRegion marks a region', async () => {
-  await page.goto(html('<p>outside</p><iframe name="empty" srcdoc="<body></body>"></iframe>' +
+  await page.goto(html(`<p>outside</p><nav><a href="https://ads.example/aclk?sa=l&ai=${'y'.repeat(250)}">Sale</a></nav>` +
+    '<iframe name="empty" srcdoc="<body></body>"></iframe>' +
     `<iframe name="filled" srcdoc="<button>Inside</button><a href='https://ads.example/aclk?sa=l&ai=${'x'.repeat(250)}'>Ad</a>"></iframe>`));
   await page.frameLocator('iframe[name=filled]').getByRole('button').waitFor();
   const snap = await snapshot(page);
@@ -418,4 +419,6 @@ test('snapshot: an iframe with an empty tree gets no section; long link targets 
   const region = await snapshotRegion(page, page.locator('p'));
   assert.equal(region.region, true);
   assert.equal(region.aria, '- paragraph: outside');
+  const links = await snapshotRegion(page, page.locator('nav'));
+  assert.match(links.aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
 });
