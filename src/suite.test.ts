@@ -47,3 +47,13 @@ test('validate only loads: load errors, no run', () => {
     { file: 'one', warnings: [] }, { file: 'bad', error: 'invalid', warnings: [] },
   ]);
 });
+
+test('RunReport.stopped names the first skip reason lane C reports', async () => {
+  const stopEngine: SuiteEngine<string> = { ...engine, run: async (name) => ({ name, status: 'fail', steps: [], jevCalls: 0, totalTokens: 0 }) };
+  const oldLog = console.log; console.log = () => {};
+  try {
+    const report = await runSuite(stopEngine, { ...opts, files: ['one', 'two'], bail: 1 }, { provider: () => 'typesafe', warmUp: () => {} });
+    assert.equal(report.stopped, 'bail');
+    assert.deepEqual(report.specs.map((s) => s.status), ['fail', 'skipped']);
+  } finally { console.log = oldLog; }
+});
