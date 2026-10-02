@@ -66,7 +66,8 @@ Each option has a key with the same effect in the [config file](#configuration).
 
 Numbers must be integers, except `--timeout`. `--workers`, `--max-tokens` and `--spec-timeout` must be more than
 `0`. A browser-only option on the desktop or mobile CLI is an error (exit `2`). `--server` on the browser or
-desktop CLI is also an error. Desktop and mobile always use one worker. The browser also needs one worker with
+desktop CLI is also an error. The same keys in the config file do not stop the CLI. Read
+[Desktop and mobile in the same folder](#desktop-and-mobile-in-the-same-folder). Desktop and mobile always use one worker. The browser also needs one worker with
 `--profile` or `--cdp`. [Your real browser](agent-mode.mdx#your-real-browser) explains `--profile`, `--channel`
 and `--cdp`.
 
@@ -236,16 +237,29 @@ key can be set alone. For example, the config can set `screenshot: always` and t
 
 ### Desktop and mobile in the same folder
 
-These browser settings stop the desktop and
-mobile CLIs (exit `2`):
+The three CLIs read the same config file. Each CLI ignores the config values that it cannot use. It prints one
+note on stderr with the names of these values, and then it continues:
 
-- `workers` more than `1`, also for `validate` and `--list`.
-- An `artifacts.trace` mode other than `off`, with an `artifacts.dir`.
-- `timeout: 0`.
+```text
+plainwright: desktop ignores these config values: headless, workers: 4, artifacts.trace: on-failure
+```
 
-The desktop and mobile CLIs ignore `headless`, `timing`, `profile`, `channel` and `cdp`. The browser and desktop
-CLIs ignore `server`. Give desktop
-or mobile specs their own config file, for example `plainwright-computer --config desktop.config.yaml`.
+| CLI | Config values that it ignores |
+|---|---|
+| `plainwright` | `server` |
+| `plainwright-computer` | `headless`, `timing`, `profile`, `channel`, `cdp`, `server`, `workers` more than `1`, `timeout: 0`, an `artifacts.trace` mode other than `off` |
+| `plainwright-mobile` | `headless`, `timing`, `profile`, `channel`, `cdp`, `workers` more than `1`, `timeout: 0`, an `artifacts.trace` mode other than `off` |
+
+In place of an ignored value, the CLI uses its default: one worker, a `15000` ms timeout and no trace. This is
+also true for `validate` and `--list`.
+
+The same value as a command-line option stops the CLI (exit `2`), for example `plainwright-computer --headless` or
+`plainwright-mobile --workers 4`. An option is a request for this run, thus the CLI does not ignore it. The
+environment variables in the [order of precedence](#order-of-precedence) are not config values. A CLI that does
+not use one of them ignores it and prints no note.
+
+To give desktop or mobile specs other values, for example other `files`, use a second config file:
+`plainwright-computer --config desktop.config.yaml`.
 
 ## Check specs without a run
 
