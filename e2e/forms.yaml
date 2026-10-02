@@ -5,9 +5,8 @@ env:
 steps:
   - goto: /forms
   - select: { target: the Size list, value: Large }
-  # Position, not label: candidates do not carry a wrapping <label>'s text yet.
-  - check: the first checkbox, not the second
-  - uncheck: the second checkbox, not the first
+  - check: the Cheese checkbox
+  - uncheck: the Olives checkbox
   - expect: { that: Cheese is checked and Olives is not checked, within: the Toppings form }
   - expect: the Size list shows Large
   - hover: the avatar image of user one
