@@ -16,7 +16,14 @@ npx playwright install chromium
 npm run build    # compile src/ to dist/ and make the plugin runtime archives again
 npm test         # build, then run all tests in dist/**/*.test.js
 npm run check:docs
+npm run verify   # the key-free gate: tests, docs, examples and plugin install
 ```
+
+`npm run verify` runs `npm test`, `npm run check:docs`, `npm run check:examples` and `npm run test:plugins`. The
+CI workflow runs the same command.
+
+`npm run check:examples` validates the specs in `examples/`, `examples/mobile/` and `e2e/`. It also validates
+each full spec and config example in the user docs, with the CLI of its engine.
 
 `npm run check:docs` checks the user docs: README.md, `docs/*.mdx` and `examples/mobile/README.md`. Each file must
 compile as MDX and show correctly on GitHub. The text must follow the ASD-STE100 rules that a script can test, for
@@ -33,6 +40,62 @@ same check. The full writing rules are in `CLAUDE.md`, in the section "Documenta
 These tests do not prove that a real device, simulator or desktop works. For that, use the
 [native smoke tests](#verification).
 
+## Validation before a pull request
+
+Before you open a pull request, run the full validation loop:
+
+```sh
+node scripts/validate.mjs
+```
+
+The script stops at the first failure. In order, it runs:
+
+1. `npm run verify`.
+2. The live e2e suite, `node scripts/e2e.mjs`.
+3. The claims gate, `node scripts/benchmark-claims.mjs --gate`. A false pass fails it.
+4. The agent evals, `node scripts/eval-agent.mjs`, when the MCP tools, their results or the browser skill
+   changed.
+
+At the end, it lists the benchmarks that the changed files need. Compare each one with a run on main. The
+`validating-changes` skill in `.claude/skills/` gives the full procedure, also for the review of the code and
+the docs. Codex reads the same skill from `.agents/skills/`.
+
+A hook in `.claude/settings.json` and `.codex/hooks.json` stops `gh pr create`. It lets the command run only
+when `scripts/validate.mjs` passed on the same files as HEAD.
+
+### Live e2e suite
+
+The live checks need a Jev key. They use no remote site. `e2e/site.mjs` serves all the pages on `127.0.0.1`
+from the process of the runner. Thus a failure comes from plainwright or Jev, not from the network.
+
+- Each `e2e/*.yaml` spec must pass. A spec with the tag `expect-fail` must end `fail`. A pass there is a false
+  pass.
+- A spec that passes only on a retry counts, but the runner lists it as flaky.
+- The runner also records a login through the MCP server and runs the saved spec again.
+
+To run one spec, use `node scripts/e2e.mjs --only forms`.
+
+### Agent evals
+
+`node scripts/eval-agent.mjs` gives tasks on the local site to a real `claude -p` agent and a real `codex exec`
+agent. It grades each run:
+
+- The final answer must contain the text that the page shows.
+- The agent must reach the page only through the plainwright tools, with no failed tool call.
+- The number of tool calls must stay in the budget of the task.
+- A spec that the agent saves must pass when the CLI runs it.
+
+Each agent runs isolated from your own setup, with the skill and the MCP server of the checkout. The evals cost
+Claude and Codex usage. CI does not run them. Use `--agent claude` or `--only login` to run fewer.
+
+### Continuous integration
+
+- The `Test` workflow runs `npm run verify` on each pull request and on main. It then checks that `dist/` and
+  the runtime archives match the build.
+- The `Live` workflow runs the e2e suite and the claims gate. It runs on pull requests that change the runtime,
+  the e2e suite or the eval data. It needs the `TYPESAFE_API_KEY` repository secret. Without it, the workflow fails, but
+  on a pull request from a fork it is skipped.
+
 To run one test file or one test case after a build:
 
 ```sh
@@ -47,7 +110,7 @@ The repository contains `dist/` and the three `runtime.tgz` archives. The plugin
 
 - After a change in `src/`, run `npm run build` before you commit. Then `dist/` agrees with the source.
 - Do not edit the generated files by hand: `dist/`, `plugins/*/runtime.tgz`, `plugins/*/bin/launch.mjs`.
-- The CI workflow runs `npm test`. Then it fails if `dist/` or an archive is different from the build output.
+- The CI workflow runs `npm run verify`. Then it fails if `dist/` or an archive is different from the build output.
 - Git ignores the compiled tests, `dist/**/*.test.js`.
 
 ## Repository layout
@@ -61,7 +124,8 @@ plugins/
   plainwright/               browser plugin: manifests, skill, launcher, runtime archive
   plainwright-computer/      desktop plugin
   plainwright-mobile/        mobile plugin
-scripts/                     plugin build, smoke tests, benchmarks
+scripts/                     plugin build, smoke tests, benchmarks, evals, the validation loop
+e2e/                         the live e2e suite: its local site and specs
 examples/                    browser specs against public demo sites; examples/mobile/ for mobile
 docs/                        user documentation; docs/benchmarks/ for benchmark reports
 ```
@@ -94,7 +158,7 @@ Git ignores the `.runtime/` folders.
 To check the archives as a plugin host sees them, run:
 
 ```sh
-node scripts/smoke-plugins.mjs
+npm run test:plugins
 ```
 
 This script copies each plugin to a temporary folder, compares the three manifests, installs the archive and lists

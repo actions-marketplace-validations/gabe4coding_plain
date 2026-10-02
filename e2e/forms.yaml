@@ -1,0 +1,16 @@
+name: select, check, uncheck, hover and a key press
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /forms
+  - select: { target: the Size list, value: Large }
+  - check: the Cheese checkbox
+  - uncheck: the Olives checkbox
+  - expect: { that: Cheese is checked and Olives is not checked, within: the Toppings form }
+  - expect: the Size list shows Large
+  - hover: the avatar image of user one
+  - expect: 'a heading with the text "name: user1" is shown'
+  - fill: { target: the Search field, value: pizza }
+  - press: Enter
+  - expect: the page says "Results for pizza"
