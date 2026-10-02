@@ -126,7 +126,7 @@ results between steps.
 
 For YAML suites, add `tags: [smoke]` and share steps with
 `include: ./flows/login.yaml` (a steps-only file; placeholders use root env/hooks).
-Keep flows outside spec input globs. Run `plainwright-computer validate spec.yaml`
+Keep flows outside spec input globs. Run `node <plugin-root>/bin/launch.mjs validate spec.yaml`
 before replay; missing secrets are warnings and no session/model key is needed.
 For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plainwright-results`.
 Runs stay sequential; screenshots are supported, browser traces are unavailable.

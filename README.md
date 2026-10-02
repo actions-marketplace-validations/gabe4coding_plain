@@ -260,8 +260,8 @@ node bin/plainwright.mjs --headless --tag smoke --retries 1 tests/
 | Selection | `--tag T` | Repeatable; require all tags. No tag filter by default. |
 | Selection | `--last-failed` | Intersect selection with the previous run’s non-pass files. |
 | Selection | `--list` | List selected specs without a model key or session; still requires spec `$VAR` values. |
-| Selection | `--config FILE` | Use this config instead of cwd `plainwright.config.yaml`/`.yml`. |
-| Selection | `validate <paths...>` | Check every supplied spec and include without sessions, hooks or a model key. |
+| Invocation | `--config FILE` | Use this config instead of cwd `plainwright.config.yaml`/`.yml`. |
+| Invocation | `validate <paths...>` | Check every supplied spec and include without sessions, hooks or a model key. |
 | Reports | `--reporter NAME[:FILE]` | Repeatable; `text`, `jsonl`, `junit:FILE`, `json:FILE`. Default browser `text`, native `jsonl`. |
 | Reports | `--timing` | Browser only: print phase timings with the text reporter. |
 | Artifacts | `--artifacts DIR` | Enable capture in a dedicated output folder; off by default. |
