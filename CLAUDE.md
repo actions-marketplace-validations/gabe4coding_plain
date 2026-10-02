@@ -1,6 +1,20 @@
+## Validation (mandatory)
+
+Before any pull request, and before you report a change as done, follow the `validating-changes` skill
+(`.claude/skills/validating-changes/SKILL.md`; Codex reads the same file through `.agents/skills/`). Its core is
+`node scripts/validate.mjs`; a `PreToolUse` hook (`.claude/settings.json`, `.codex/hooks.json`,
+`scripts/pr-gate.mjs`) blocks `gh pr create` until that passed on exactly the files of HEAD.
+
+- Evidence that counts: integration tests at a real boundary, the live e2e suite, evals and real agent runs.
+  Unit tests only for pure logic with edge cases.
+- Never weaken a gate to get green (thresholds, expected statuses, `optional`, skipped tests, eval checks).
+- CI is the last gate, not the first: `Test` runs `npm run verify`; `Live` runs the e2e and the claims gate with
+  the `TYPESAFE_API_KEY` secret on pull requests that touch the runtime. Agent evals run only locally.
+
 ## Commands
 
-Build (TypeScript, ESM, `src/` → `dist/`, `tsc` per `tsconfig.json`):
+Build (TypeScript, ESM, `src/` → `dist/`, `tsc` per `tsconfig.json`; strict, plus no unused locals/parameters,
+explicit `override`, no implicit returns):
 
 ```
 npm run build
@@ -11,12 +25,26 @@ Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compil
 ```
 npm test                                                    # build + node --test 'dist/**/*.test.js'
 npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
+npm run check:examples                                      # validate examples/, e2e/ and the doc YAML, per engine
+npm run test:plugins                                        # install each plugin archive in isolation, list MCP tools
+npm run verify                                              # all of the above: the key-free gate CI runs
 node --test dist/browser/runner.test.js                     # one file, after a build
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
 ```
 
 No test in the regular suite needs a Jev API key: the `jev/` and `core/spec` tests exercise pure functions with injected env
 objects, and `browser/runner.test.ts` drives real headless Chromium against `data:text/html` URLs with `goto` steps only.
+
+Live checks (Jev key, build first). No remote site: `e2e/site.mjs` serves the pages on `127.0.0.1` from the runner
+process, and the `e2e/*.yaml` specs reach it through `${env.site}`. A spec tagged `expect-fail` must end `fail`.
+
+```
+node scripts/e2e.mjs [--only forms] [--skip-mcp]            # e2e specs + MCP open/batch/ask/read/save/replay
+node scripts/benchmark-claims.mjs --gate                    # exit 1 on a false pass or a Jev error
+npm run verify:live                                         # build + both of the above
+node scripts/eval-agent.mjs [--agent claude,codex] [--only login]   # graded claude -p / codex exec runs; local only
+node scripts/validate.mjs                                   # the whole loop + the pre-PR stamp
+```
 
 Run a spec, or start the MCP server (`src/cli.ts` dispatches on the first positional):
 
@@ -297,7 +325,10 @@ and read the code for those.
 - Specs never hold literal credentials: put them in the spec's `env` block as `$VAR` references, used in steps as
   `${env.*}`.
 - `examples/*.yaml` run against public demo sites; `examples/fixtures/` and `examples/hooks/` back the
-  `login-dataset.yaml` example.
+  `login-dataset.yaml` example. They are user demos, checked offline only (`check:examples`).
+- `e2e/` is the live gate: every page it needs lives in `e2e/site.mjs`, never on a remote site, so a failure is
+  plainwright's or Jev's. Phrase its targets and claims so one clear answer exists; when Jev misses on such a page,
+  suspect the product (what Jev is shown) before the wording.
 - Per `plugins/plainwright/skills/using-plainwright/SKILL.md`: test environments only, stop before the last irreversible step
   (payment, booking, sending), never bypass bot protection.
 

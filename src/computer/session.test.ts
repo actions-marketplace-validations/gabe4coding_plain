@@ -103,9 +103,9 @@ test('native observer: sessionOpen after the adapter opens, a screenshot is safe
   class RecordingAdapter extends FakeAdapter {
     events: string[] = [];
     failOpen = false;
-    async open(target: unknown) { this.events.push('open'); if (this.failOpen) throw new Error('no app'); return super.open(target); }
-    async screenshot() { this.events.push('screenshot'); return super.screenshot(); }
-    async close() { this.events.push('close'); return super.close(); }
+    override async open(target: unknown) { this.events.push('open'); if (this.failOpen) throw new Error('no app'); return super.open(target); }
+    override async screenshot() { this.events.push('screenshot'); return super.screenshot(); }
+    override async close() { this.events.push('close'); return super.close(); }
   }
   const dir = mkdtempSync(join(tmpdir(), 'native-observer-'));
   const shot = join(dir, 'shots', 'screen.png');
@@ -193,7 +193,7 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
 test('a window that appears after the previous step is waited for, not reported as no candidates', async () => {
   class LateWindow extends FakeAdapter {
     empty = 2;
-    async capture(kind: unknown, within?: string) {
+    override async capture(kind: unknown, within?: string) {
       const frame = await super.capture(kind, within);
       return this.empty-- > 0 ? { ...frame, candidates: [], elements: new Map() } : frame;
     }

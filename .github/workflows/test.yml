@@ -1,4 +1,3 @@
----
 name: Test
 
 on:  # yamllint disable-line rule:truthy
@@ -20,10 +19,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Check docs
-        run: npm run check:docs
       - run: npx playwright install --with-deps chromium
-      - run: npm test
+      # The same key-free gate an agent runs before it reports a change done (CLAUDE.md "Validation").
+      - run: npm run verify
       - name: Check generated files
         shell: bash
         run: |

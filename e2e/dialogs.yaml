@@ -1,0 +1,12 @@
+name: an alert, a confirm and a new window
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /dialogs
+  - click: the Show alert button
+  - expect: the result text says "You clicked the alert"
+  - click: the Show confirm button
+  - expect: the result text says "You chose Ok"
+  - click: the Open new window link
+  - expect: the page heading says New Window

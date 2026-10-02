@@ -1,0 +1,13 @@
+# Must end `fail`: a pass here is a false pass, the worst bug plainwright can ship.
+name: a wrong password does not log in
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+hooks: ./hooks/user.mjs
+tags: [expect-fail]
+steps:
+  - goto: /login
+  - fill: { target: the Username field, value: "${hooks.user.name}" }
+  - fill: { target: the Password field, value: wrong }
+  - click: the Login button
+  - expect: the user is logged in and sees the Secure Area

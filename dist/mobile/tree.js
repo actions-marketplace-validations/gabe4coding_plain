@@ -114,6 +114,7 @@ export function findMobileNode(roots, path) {
                 return found;
         }
     }
+    return undefined;
 }
 function mobileMatches(node, kind) {
     if (!node.visible)
