@@ -159,6 +159,16 @@ In browser trees, a checkbox, radio, switch or checkable menu item that is not c
 checked one shows `[checked]`, and a mixed one shows `[checked=mixed]`. Thus each line always shows the state. Jev,
 the snapshot views and the `changed` lines all see this mark.
 
+### Long link targets
+
+In browser trees, a link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200
+characters, followed by `…`. These long targets are usually ad and tracking links. Jev, the snapshot views, the
+`read` answers and the `changed` lines all see the short form. Thus the ads of a page do not fill the 60,000
+character capture or the `changed` limit.
+
+To open such a link, click it by its text. To get the full target, use `evaluate`, for example
+`[...document.links].map((a) => a.href)`.
+
 ### Iframes
 
 A snapshot of the whole page adds the tree of each readable iframe after the page tree, under a line
