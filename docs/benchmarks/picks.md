@@ -1,7 +1,7 @@
 # Picks with and without the flow's goal
 
 `scripts/benchmark-picks.mjs` asks 41 targets against 11 saved candidate lists (`scripts/pick-states/`,
-captured by `src/candidates.ts` on 2026-09-25 from Hacker News, GitHub search / repo / issues, Wikipedia, Open
+captured by `src/browser/candidates.ts` on 2026-09-25 from Hacker News, GitHub search / repo / issues, Wikipedia, Open
 Library, TodoMVC and the-internet's login page), through the real `pickElements`, once without a goal and
 once with `goal` in the pick state. Saved pages keep the input fixed: a change in the numbers is a change
 in the asking, not in the page.

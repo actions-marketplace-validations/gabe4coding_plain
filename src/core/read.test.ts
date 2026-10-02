@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { AskAnswer, Question } from '../jev/jev.js';
-import { readAnswer, READ_LINES } from './read.js';
+import type { AskAnswer, Question } from '../jev/ask.js';
+import { readAnswer } from './read.js';
+import { MAX_CHOICE_OPTIONS as READ_LINES } from '../jev/ask.js';
 
 const snap = (aria: string) => ({ url: 'test://fixture', title: 'Fixture', aria, truncated: false });
 const books = [

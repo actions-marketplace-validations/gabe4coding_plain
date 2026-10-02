@@ -7,7 +7,7 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles } from '../dist/jev/jev.js';
+import { loadEnvFiles } from '../dist/jev/provider.js';
 import { readAnswer, readOptions } from '../dist/core/read.js';
 import { snapshotView } from '../dist/core/snapshot-view.js';
 import { markUnchecked } from '../dist/browser/page.js';

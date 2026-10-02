@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { plan, candidates, readings, spans, keysFrom, rest, type Ask } from './planner.js';
-import type { AskAnswer, Question } from '../jev/jev.js';
+import type { AskAnswer, Question } from '../jev/ask.js';
 
 test('keysFrom maps spoken keys to Playwright names', () => {
   assert.equal(keysFrom('command S'), 'Meta+s');

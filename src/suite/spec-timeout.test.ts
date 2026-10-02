@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runSpec, sharedBrowser, closeSharedBrowser } from '../browser/runner.js';
-import { NativeSession, runNativeSpec, type NativeAdapter } from '../native/native.js';
+import { runSpec } from '../browser/runner.js';
+import { sharedBrowser, closeSharedBrowser } from '../browser/session.js';
+import { NativeSession, type NativeAdapter } from '../native/session.js';
+import { runNativeSpec } from '../native/run-spec.js';
 import { mobileLabel, type MobileStep } from '../mobile/spec.js';
-import { checkSpecFeatures, checkSpecTimeoutFlag } from '../core/spec-features.js';
+import { checkSpecTimeoutFlag } from './spec-timeout.js';
 import { specDeadline } from './spec-timeout.js';
-import { loadSpec, type Spec } from '../core/spec.js';
+import { checkSpecTimeout, loadSpec, type Spec } from '../core/spec.js';
 import { loadComputerSpec } from '../computer/spec.js';
 import { loadMobileSpec } from '../mobile/spec.js';
 import { validate } from './validate.js';
@@ -31,10 +33,10 @@ test('timeout and browser fields load and validate for every supported engine wi
   const { dir } = fixture(t);
   checkSpecTimeoutFlag(1000);
   checkSpecTimeoutFlag();
-  checkSpecFeatures({ browser: { colorScheme: 'dark' }, timeout: 1000 }, 'spec.yaml');
+  checkSpecTimeout({ timeout: 1000 }, 'spec.yaml');
   for (const value of [0, -1, .5, Infinity, NaN]) {
     assert.throws(() => checkSpecTimeoutFlag(value), /--spec-timeout must be/);
-    assert.throws(() => checkSpecFeatures({ timeout: value }, 'spec.yaml'), /timeout must be/);
+    assert.throws(() => checkSpecTimeout({ timeout: value }, 'spec.yaml'), /timeout must be/);
   }
   const files = [
     ['browser.yaml', 'url: about:blank\nbrowser: { colorScheme: dark }\nsteps: [{goto: about:blank}]', loadSpec],
@@ -115,7 +117,7 @@ class SlowAdapter implements NativeAdapter<unknown, string> {
 }
 class SlowSession extends NativeSession<unknown, string, MobileStep, SlowAdapter> {
   parse(): MobileStep { throw Error('not used'); }
-  protected label(step: MobileStep) { return mobileLabel(step); }
+  label(step: MobileStep) { return mobileLabel(step); }
   protected async act(step: MobileStep, name: string) {
     await this.adapter.press(step.kind === 'press' ? step.key : step.kind);
     return { step: name, status: 'pass' as const };

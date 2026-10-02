@@ -1,23 +1,67 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-/** `engine` lets suite callers reject native tracing before opening a session. */
+import { DUMP_DIR, errorMessage, isFailure } from '../core/results.js';
+const MARKER = '.plainwright-results';
+/** Stays below common file name limits, with room for a suffix. */
+const MAX_SLUG = 180;
+const isInside = (child, parent) => {
+    const relative = path.relative(parent, child);
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+};
+/**
+ * Makes `root` ours: never a folder that holds the project (the cwd or a parent, home, the filesystem root, or one
+ * with a spec in it), never one plainwright did not create. Then deletes only what an earlier run made: spec slugByFile
+ * that hold nothing but attempt-N slugByFile.
+ */
+function prepareResultsFolder(root, cwd, specFiles) {
+    if (root === path.parse(root).root || root === os.homedir() || isInside(cwd, root)) {
+        throw new Error(`${root} cannot hold artifacts: it is the working folder, one of its parents, the home folder or the filesystem root`);
+    }
+    const spec = specFiles.find((file) => isInside(path.resolve(cwd, file), root));
+    if (spec)
+        throw new Error(`${root} cannot hold artifacts: it contains the spec ${spec}`);
+    const marker = path.join(root, MARKER);
+    if (fs.existsSync(root)) {
+        const owned = fs.existsSync(marker) && fs.lstatSync(marker).isFile();
+        if (fs.lstatSync(root).isSymbolicLink() || !fs.statSync(root).isDirectory() || (!owned && fs.readdirSync(root).length)) {
+            throw new Error(`${root} exists and was not created by plainwright`);
+        }
+        if (owned) {
+            for (const entry of fs.readdirSync(root)) {
+                const folder = path.join(root, entry);
+                if (!fs.lstatSync(folder).isDirectory())
+                    continue;
+                const isAttempt = (child) => /^attempt-\d+$/.test(child) && fs.lstatSync(path.join(folder, child)).isDirectory();
+                const onlyAttempts = fs.readdirSync(folder).every(isAttempt);
+                if (onlyAttempts)
+                    fs.rmSync(folder, { recursive: true, force: true });
+            }
+        }
+    }
+    else {
+        fs.mkdirSync(root, { recursive: true });
+    }
+    fs.writeFileSync(marker, 'plainwright results\n');
+}
+/**
+ * Captures failure-step screenshots, a final screenshot, browser traces and copies of Jev dumps into one folder per
+ * spec and attempt. `engine` lets the suite reject native tracing before a session opens.
+ */
 export function artifactsObserver(opts, engine) {
-    const modes = opts.artifacts;
-    if (!modes)
+    const settings = opts.artifacts;
+    if (!settings)
         return null;
-    const checkEngine = (value) => {
-        if (value !== 'browser' && modes.trace !== 'off')
+    const checkEngine = (runEngine) => {
+        if (runEngine !== 'browser' && settings.trace !== 'off')
             throw new Error('--trace is browser-only; use --trace off for desktop or mobile artifacts');
     };
     if (engine)
         checkEngine(engine);
     const cwd = process.cwd();
-    const root = path.resolve(cwd, modes.dir);
-    const marker = path.join(root, '.plainwright-results');
-    const dumpRoot = path.join(os.tmpdir(), 'plainwright');
+    const root = path.resolve(cwd, settings.dir);
     const captures = new WeakMap();
-    const folders = new Map();
+    const slugByFile = new Map();
     const usedSlugs = new Set();
     const usedAttempts = new Set();
     let ready = false;
@@ -27,87 +71,58 @@ export function artifactsObserver(opts, engine) {
         if (warned)
             return;
         warned = true;
-        console.error(`plainwright: artifacts: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`plainwright: artifacts: ${errorMessage(error)}`);
     };
     const slugFor = (file) => {
         const relative = path.relative(cwd, path.resolve(cwd, file));
-        const existing = folders.get(relative);
+        const existing = slugByFile.get(relative);
         if (existing)
             return existing;
-        // Reserve suffix space and stay below common filesystem component limits.
-        const cleaned = relative.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 180);
+        const cleaned = relative.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, MAX_SLUG);
         const base = !cleaned || cleaned === '.' || cleaned === '..' ? 'spec' : cleaned;
         let slug = base;
         // Case-insensitive: on APFS and NTFS `X/Login.yaml` and `x-login.yaml` would share one folder.
         for (let n = 2; usedSlugs.has(slug.toLowerCase()); n++)
             slug = `${base}-${n}`;
         usedSlugs.add(slug.toLowerCase());
-        folders.set(relative, slug);
+        slugByFile.set(relative, slug);
         return slug;
     };
     const captureFor = (info) => {
         const slug = slugFor(info.file);
         let dir = path.join(root, slug, `attempt-${info.attempt}`);
-        // Repeated command-line paths can execute the same attempt concurrently too.
+        // The same path given twice can run the same attempt concurrently.
         for (let n = 2; usedAttempts.has(dir); n++)
             dir = path.join(root, `${slug}-duplicate-${n}`, `attempt-${info.attempt}`);
         usedAttempts.add(dir);
         fs.mkdirSync(dir, { recursive: true });
         return { dir, artifacts: [], dumps: [] };
     };
-    const write = async (capture, artifact, action) => {
+    const saveArtifact = async (capture, artifact, action) => {
         try {
             await action();
             capture.artifacts.push(artifact);
         }
         catch (error) {
             warn(error);
-            // A failed capture may have left a partial file behind.
             try {
-                fs.rmSync(artifact.path, { force: true });
+                fs.rmSync(artifact.path, { force: true }); // a failed capture may have left a partial file
             }
-            catch { /* best effort */ }
+            catch {
+                // best effort
+            }
         }
     };
     return {
         async runStart(event) {
             ready = false;
             checkEngine(event.engine);
-            folders.clear();
+            slugByFile.clear();
             usedSlugs.clear();
             usedAttempts.clear();
             warned = false;
             cdpNoted = false;
-            // Never a folder that holds the project: the cwd or a parent of it, home, the filesystem root, or one with a spec in it.
-            const inside = (child, parent) => {
-                const relative = path.relative(parent, child);
-                return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-            };
-            if (root === path.parse(root).root || root === os.homedir() || inside(cwd, root))
-                throw new Error(`${root} cannot hold artifacts: it is the working folder, one of its parents, the home folder or the filesystem root`);
-            const spec = event.specs.find(({ file }) => inside(path.resolve(cwd, file), root));
-            if (spec)
-                throw new Error(`${root} cannot hold artifacts: it contains the spec ${spec.file}`);
-            if (fs.existsSync(root)) {
-                const owned = fs.existsSync(marker) && fs.lstatSync(marker).isFile();
-                if (fs.lstatSync(root).isSymbolicLink() || !fs.statSync(root).isDirectory()
-                    || (!owned && fs.readdirSync(root).length))
-                    throw new Error(`${root} exists and was not created by plainwright`);
-                // Delete only what a run made: spec folders that hold nothing but attempt-N folders. Anything else stays.
-                if (owned)
-                    for (const entry of fs.readdirSync(root)) {
-                        const folder = path.join(root, entry);
-                        const stat = fs.lstatSync(folder);
-                        if (!stat.isDirectory())
-                            continue;
-                        const children = fs.readdirSync(folder);
-                        if (children.every((child) => /^attempt-\d+$/.test(child) && fs.lstatSync(path.join(folder, child)).isDirectory()))
-                            fs.rmSync(folder, { recursive: true, force: true });
-                    }
-            }
-            else
-                fs.mkdirSync(root, { recursive: true });
-            fs.writeFileSync(marker, 'plainwright results\n');
+            prepareResultsFolder(root, cwd, event.specs.map(({ file }) => file));
             for (const spec of event.specs)
                 slugFor(spec.file);
             ready = true;
@@ -124,9 +139,8 @@ export function artifactsObserver(opts, engine) {
                 return;
             }
             captures.set(event.target, capture);
-            if (modes.trace === 'off' || event.target.engine !== 'browser')
+            if (settings.trace === 'off' || event.target.engine !== 'browser')
                 return;
-            // Attached browsers must explicitly advertise CDP on their capture target.
             if (event.target.cdp) {
                 if (!cdpNoted) {
                     cdpNoted = true;
@@ -147,17 +161,17 @@ export function artifactsObserver(opts, engine) {
             const capture = captures.get(event.target);
             if (!ready || !capture)
                 return;
-            // Any labelled dump: `state: <file>` (claims), `candidates: <file>` (picks), ...
+            // Every labelled dump in the detail: `state: <file>` (claims), `candidates: <file>` (picks), `cache: <file>`.
             for (const match of (event.result.detail ?? '').matchAll(/\b[a-z]+:\s+(.+?\.json)(?=\s*(?:\||—|$))/g)) {
                 const source = match[1];
-                if (path.isAbsolute(source) && path.dirname(source) === dumpRoot)
+                if (path.isAbsolute(source) && path.dirname(source) === DUMP_DIR)
                     capture.dumps.push({ source, step: event.index });
             }
-            const failed = ['fail', 'error', 'inconclusive'].includes(event.result.status);
-            // `always` adds final.png at close; step shots stay failure-only (a shot per step costs time on every step).
-            if (modes.screenshot !== 'off' && failed) {
+            const failed = isFailure(event.result.status);
+            // Step screenshots are for failures only, even with `always`: a shot per step would slow every step.
+            if (settings.screenshot !== 'off' && failed) {
                 const file = path.join(capture.dir, `step-${event.index}-${event.result.status}.png`);
-                await write(capture, { kind: 'screenshot', path: file, step: event.index }, () => event.target.screenshot(file));
+                await saveArtifact(capture, { kind: 'screenshot', path: file, step: event.index }, () => event.target.screenshot(file));
             }
         },
         async sessionClose(event) {
@@ -165,15 +179,15 @@ export function artifactsObserver(opts, engine) {
             if (!ready || !capture)
                 return [];
             captures.delete(event.target);
-            if (modes.screenshot === 'always') {
+            if (settings.screenshot === 'always') {
                 const file = path.join(capture.dir, 'final.png');
-                await write(capture, { kind: 'screenshot', path: file }, () => event.target.screenshot(file));
+                await saveArtifact(capture, { kind: 'screenshot', path: file }, () => event.target.screenshot(file));
             }
             if (capture.tracing) {
                 const tracing = capture.tracing;
-                if (modes.trace === 'always' || event.status !== 'pass') {
+                if (settings.trace === 'always' || event.status !== 'pass') {
                     const file = path.join(capture.dir, 'trace.zip');
-                    await write(capture, { kind: 'trace', path: file }, () => tracing.stop({ path: file }));
+                    await saveArtifact(capture, { kind: 'trace', path: file }, () => tracing.stop({ path: file }));
                 }
                 else {
                     try {
@@ -190,7 +204,7 @@ export function artifactsObserver(opts, engine) {
                 if (copied.has(file))
                     continue;
                 copied.add(file);
-                await write(capture, { kind: 'dump', path: file, step }, async () => { fs.copyFileSync(source, file); });
+                await saveArtifact(capture, { kind: 'dump', path: file, step }, async () => { fs.copyFileSync(source, file); });
             }
             try {
                 if (!fs.readdirSync(capture.dir).length) {

@@ -5,7 +5,7 @@
 // "unchanged" is the same page again. Three small built-in pages add the changes the saved pages lack: a
 // button identified by its value (Subscribe → Unsubscribe), a newer row that fits the target better, and a
 // dialog over the page. For every target: Jev picks on "before" (the run that wrote the cache); the
-// accepted pick becomes the entry (src/pick-cache.ts makeEntry); the lookup runs on "after" (match). Every
+// accepted pick becomes the entry (src/pick-cache.ts makeEntry); the lookup runs on "after" (matchEntry). Every
 // hit is checked against a fresh Jev pick on "after":
 //   right        the fresh pick accepts the same element
 //   wrong        the fresh pick accepts another element or says none, or the hit is another element
@@ -21,8 +21,10 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles, pickElements, decide } from '../dist/jev/jev.js';
-import { makeEntry, match } from '../dist/core/pick-cache.js';
+import { loadEnvFiles } from '../dist/jev/provider.js';
+import { pickElements } from '../dist/jev/pick.js';
+import { decide } from '../dist/jev/decide.js';
+import { makeEntry, matchEntry } from '../dist/core/pick-cache.js';
 
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, goal: { type: 'string', default: 'on' },
   skip: { type: 'string', multiple: true }, only: { type: 'string' }, out: { type: 'string' } } });
@@ -135,7 +137,7 @@ for (let run = 0; run < Number(values.runs); run++) {
       const items = apply(before.map((c) => ({ key: c.id, desc: c.desc })), new Set(stored.map((e) => e.picked)));
       const after = withEditable(renumber(items.map((it) => it.desc)).map((desc, id) => ({ id, desc })));
       if (change !== 'unchanged' && sameList(after, before)) continue;
-      const looked = stored.map((e) => ({ e, hit: match(e.entry, after, state) }));
+      const looked = stored.map((e) => ({ e, hit: matchEntry(e.entry, after, state) }));
       const hits = looked.filter((l) => l.hit);
       const fresh = hits.length ? await pick(after, hits.map((l) => l.e.c.target), state, goal) : [];
       for (const l of looked) {

@@ -16,7 +16,8 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles, decide } from '../dist/jev/jev.js';
+import { loadEnvFiles } from '../dist/jev/provider.js';
+import { decide } from '../dist/jev/decide.js';
 import { judgeState } from '../dist/core/automation.js';
 import { markUnchecked } from '../dist/browser/page.js';
 

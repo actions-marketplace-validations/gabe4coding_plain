@@ -1,59 +1,82 @@
-import { interpolate } from '../core/spec.js';
-import { parseMobileStep, validateMobileStep, mobileLabel, type MobileStep, type MobileSpec, type Direction } from './spec.js';
-import { HiddenTargetError, type MobileAdapter, type MobileAction } from './adapter.js';
-import type { MobileKind } from './tree.js';
+import { interpolate } from '../core/interpolate.js';
 import type { StepResult } from '../core/results.js';
-import { NativeSession, runNativeSpec } from '../native/native.js';
+import { NativeSession } from '../native/session.js';
+import { runNativeSpec } from '../native/run-spec.js';
 import type { RunObserver, SpecInfo } from '../suite/types.js';
+import { parseMobileStep, validateMobileStep, mobileLabel, type MobileStep, type MobileSpec, type Direction } from './spec.js';
+import { HiddenTargetError } from '../core/automation.js';
+import type { MobileAdapter, MobileAction } from './adapter.js';
+import type { MobileKind } from './tree.js';
+
+const SCROLL_DIRECTION = /^(up|down|left|right):\s*/;
+
+/** The candidates a mobile step picks from. */
+function candidateKind(kind: MobileStep['kind']): MobileKind {
+  if (kind === 'fill') return 'fill';
+  if (kind === 'check' || kind === 'uncheck') return 'check';
+  if (kind === 'scroll') return 'scroll';
+  return 'click';
+}
 
 export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, MobileStep, MobileAdapter<T>> {
   parse(raw: unknown) { return parseMobileStep(raw); }
-  protected label(step: MobileStep) { return mobileLabel(step); }
+  label(step: MobileStep) { return mobileLabel(step); }
   protected validate(step: MobileStep) { return validateMobileStep(step); }
-  protected async act(step: MobileStep, name: string): Promise<StepResult> {
-    if (step.kind === 'press') await this.timed('act', () => this.adapter.press(step.key));
-    else if (step.kind === 'swipe') {
+
+  protected async act(step: MobileStep, stepLabel: string): Promise<StepResult> {
+    if (step.kind === 'press') {
+      await this.timed('act', () => this.adapter.press(step.key));
+      return { step: stepLabel, status: 'pass' };
+    }
+    if (step.kind === 'swipe') {
       let element: T | undefined;
       if (step.within) {
-        const [r] = await this.find('region', [step.within]);
-        if (r.element === null) return { step: name, status: 'inconclusive', detail: r.detail };
-        element = r.element;
+        const [region] = await this.find('region', [step.within]);
+        if (region.element === null) return { step: stepLabel, status: 'inconclusive', detail: region.detail };
+        element = region.element;
       }
       await this.timed('act', () => this.adapter.gesture('swipe', step.direction, element));
-    } else if (step.kind !== 'expect' && step.kind !== 'wait') {
-      const kind: MobileKind = step.kind === 'fill' ? 'fill' : step.kind === 'check' || step.kind === 'uncheck' ? 'check' :
-        step.kind === 'scroll' ? 'scroll' : 'click';
-      const target = step.kind === 'scroll' ? step.target.replace(/^(up|down|left|right):\s*/, '') : step.target;
-      // An approximate capture (AppiumAdapter.capture) also lists covered elements. That lowers Jev's confidence
-      // (Calendar sheet steps: 0.43-0.75 against 0.80-0.96 exact) but not its choice: on recorded Calendar trees
-      // both captures picked the same element in 24 of 24 asks. So its pick is used when accepted and visible;
-      // a rejected (a keyboard still sliding in can be missing) or covered pick is picked again from an exact one.
-      for (let retargeted = false; ; retargeted = true) {
-        const [r] = await this.find(kind, [target]);
-        if (r.approximate && !retargeted && r.element === null) { this.retarget(); continue; }
-        if (r.element === null) return { step: name, status: 'inconclusive', detail: r.detail };
-        const element = r.element;
-        try {
-          if (step.kind === 'scroll') await this.timed('act', () => this.adapter.gesture('scroll', step.target.split(':')[0] as Direction, element));
-          else await this.timed('act', () => this.adapter.act(step.kind as MobileAction, element, step.kind === 'fill' ? step.value : undefined));
-          return { step: name, status: 'pass', detail: r.detail };
-        } catch (error) {
-          if (retargeted || !(error instanceof HiddenTargetError)) throw error;
-          // Jev accepted a covered element over a visible one: the case the approximate capture assumes is rare
-          // (Calendar: 0 of 24). Logged so other apps can check that assumption.
-          if (r.approximate) console.error(`plainwright-mobile: accepted pick from an approximate capture was covered, picking again from the exact tree: ${target} ${r.detail}`);
-          this.retarget();
+      return { step: stepLabel, status: 'pass' };
+    }
+    if (step.kind === 'expect' || step.kind === 'wait') return { step: stepLabel, status: 'pass' };
+
+    const target = step.kind === 'scroll' ? step.target.replace(SCROLL_DIRECTION, '') : step.target;
+    // An approximate capture also lists covered elements. That lowers Jev's confidence but not its choice, so its
+    // pick is used when accepted and visible; a rejected or covered pick is picked again from an exact capture.
+    for (let retargeted = false; ; retargeted = true) {
+      const [resolved] = await this.find(candidateKind(step.kind), [target]);
+      if (resolved.approximate && !retargeted && resolved.element === null) {
+        this.retarget();
+        continue;
+      }
+      if (resolved.element === null) return { step: stepLabel, status: 'inconclusive', detail: resolved.detail };
+      const element = resolved.element;
+      try {
+        if (step.kind === 'scroll') {
+          const direction = step.target.split(':')[0] as Direction;
+          await this.timed('act', () => this.adapter.gesture('scroll', direction, element));
+        } else {
+          const value = step.kind === 'fill' ? step.value : undefined;
+          await this.timed('act', () => this.adapter.act(step.kind as MobileAction, element, value));
         }
+        return { step: stepLabel, status: 'pass', detail: resolved.detail };
+      } catch (error) {
+        if (retargeted || !(error instanceof HiddenTargetError)) throw error;
+        // Jev accepted a covered element over a visible one. Logged: the approximate capture assumes this is rare.
+        if (resolved.approximate) {
+          console.error(`plainwright-mobile: accepted pick from an approximate capture was covered, picking again from the exact tree: ${target} ${resolved.detail}`);
+        }
+        this.retarget();
       }
     }
-    return { step: name, status: 'pass' };
   }
 }
 
 export function runMobileSpec<T>(spec: MobileSpec, session: MobileSession<T>, observer?: RunObserver, info?: SpecInfo, specTimeout?: number) {
   return runNativeSpec(spec, session as MobileSession, async (vars) => {
-    const { steps, ...target } = interpolate({ platform: spec.platform, device: spec.device, app: spec.app, capabilities: spec.capabilities, steps: spec.steps }, vars, spec.name);
-    await session.adapter.open(target);
+    const target = { platform: spec.platform, device: spec.device, app: spec.app, capabilities: spec.capabilities };
+    const { steps, ...resolvedTarget } = interpolate({ ...target, steps: spec.steps }, vars, spec.name);
+    await session.adapter.open(resolvedTarget);
     session.noteActivity();
     return steps;
   }, observer, info, specTimeout);

@@ -1,3 +1,4 @@
+import { errorMessage } from '../core/results.js';
 export function observerCalls(observer, info) {
     let warned = false;
     const call = async (name, event) => {
@@ -10,7 +11,7 @@ export function observerCalls(observer, info) {
         catch (error) {
             if (!warned) {
                 warned = true;
-                console.error(`plainwright: observer: ${error instanceof Error ? error.message : String(error)}`);
+                console.error(`plainwright: observer: ${errorMessage(error)}`);
             }
             return undefined;
         }

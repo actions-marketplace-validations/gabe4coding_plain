@@ -7,7 +7,8 @@ import { chromium } from 'playwright';
 import { createServer } from 'node:net';
 import { artifactsObserver } from './artifacts.js';
 import { loadSpec } from '../core/spec.js';
-import { runSpec, closeSharedBrowser } from '../browser/runner.js';
+import { runSpec } from '../browser/runner.js';
+import { closeSharedBrowser } from '../browser/session.js';
 import { runSuite } from './run-suite.js';
 import type { SuiteOptions } from './types.js';
 

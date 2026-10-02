@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
-import { AppiumAdapter, HiddenTargetError, mobileCapabilities } from './adapter.js';
+import { AppiumAdapter, mobileCapabilities } from './adapter.js';
+import { HiddenTargetError } from '../core/automation.js';
 import { parseMobileTree, mobileFrame, findMobileNode, type MobileNode, type MobileElement, type MobileKind } from './tree.js';
 
 const android = `<?xml version="1.0"?><hierarchy rotation="0"><android.widget.FrameLayout enabled="true">

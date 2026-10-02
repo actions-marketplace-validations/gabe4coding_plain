@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { loadSpec, interpolate, parseStep } from './spec.js';
+import { loadSpec, parseStep } from './spec.js';
+import { interpolate } from './interpolate.js';
 
 // The pick-cache source (`at`) is covered in pick-cache.test.ts; these tests compare the parsed steps without it.
 function stripped(spec: ReturnType<typeof loadSpec>) {

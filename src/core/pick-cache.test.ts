@@ -4,17 +4,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  PickStore, entryKey, normalizeDesc, makeEntry, match, parseFile, formatFile, sidecarPath, pageOf, listHash,
+  PickStore, entryKey, normalizeDesc, makeEntry, matchEntry, parseFile, formatFile, sidecarPath, pageOf, listHash,
   DESC_FORMAT, PICK_FILE_VERSION, type PickRef, type PickIO,
 } from './pick-cache.js';
 import { resolveTargets, type Candidate, type Intelligence } from './automation.js';
 import { runSuite } from '../suite/run-suite.js';
-import { loadSpec, parseStep, interpolate } from './spec.js';
+import { loadSpec, parseStep } from './spec.js';
+import { interpolate } from './interpolate.js';
 import { loadComputerSpec, type ComputerSpec } from '../computer/spec.js';
 import { ComputerSession, runComputerSpec } from '../computer/session.js';
 import type { ComputerAdapter } from '../computer/adapter.js';
 import type { RunReport, SuiteEngine, SuiteOptions } from '../suite/types.js';
-import { MODEL_BY_PROVIDER } from '../jev/jev.js';
+import { MODEL_BY_PROVIDER } from '../jev/provider.js';
 
 const MODEL = MODEL_BY_PROVIDER.typesafe;
 const state = { url: 'https://shop.test/cart?x=1#top', title: 'Cart' };
@@ -57,14 +58,14 @@ test('value= is ignored only on text-entry fields: a submit or native value iden
   assert.equal(normalizeDesc(field), 'input[type=text] name="user"');
   const submit = cands('input[type=submit] value="Subscribe"', 'a "Home"');
   const entry = makeEntry(submit[0], submit, state)!;
-  assert.equal(match(entry, cands('input[type=submit] value="Unsubscribe"', 'a "Home"'), state), undefined);
+  assert.equal(matchEntry(entry, cands('input[type=submit] value="Unsubscribe"', 'a "Home"'), state), undefined);
   const native = cands('static_text "" value="Draft"', 'button "Send"');
-  assert.equal(match(makeEntry(native[0], native, state)!, cands('static_text "" value="Sent"', 'button "Send"'), state), undefined);
+  assert.equal(matchEntry(makeEntry(native[0], native, state)!, cands('static_text "" value="Sent"', 'button "Send"'), state), undefined);
   // A fill changes only the editable field's value: the entry and the list hash still match.
   const before: Candidate[] = [{ id: 0, desc: 'input name="q"', editable: true }, { id: 1, desc: 'button "Go"' }];
   const after: Candidate[] = [{ id: 0, desc: 'input value="books" name="q"', editable: true }, { id: 1, desc: 'button "Go"' }];
-  assert.equal(match(makeEntry(before[1], before, state)!, after, state)?.id, 1);
-  assert.equal(match(makeEntry(before[0], before, state)!, after, state)?.id, 0);
+  assert.equal(matchEntry(makeEntry(before[1], before, state)!, after, state)?.id, 1);
+  assert.equal(matchEntry(makeEntry(before[0], before, state)!, after, state)?.id, 0);
   assert.equal(DESC_FORMAT, 3);
 });
 
@@ -92,15 +93,15 @@ test('ordinal and rejected picks are never stored; every entry carries the list 
 test('lookup needs the same page, the same whole list, and exactly one equal desc in the same frame', () => {
   const list = cands('a "Home"', 'a "View" context: tr text="Order 1234"', 'button "Go"');
   const entry = makeEntry(list[1], list, state)!;
-  assert.equal(match(entry, list, { ...state, url: 'https://shop.test/cart?y=2' })?.id, 1);
-  assert.equal(match(entry, list, { ...state, url: 'https://shop.test/checkout' }), undefined);
+  assert.equal(matchEntry(entry, list, { ...state, url: 'https://shop.test/cart?y=2' })?.id, 1);
+  assert.equal(matchEntry(entry, list, { ...state, url: 'https://shop.test/checkout' }), undefined);
   // A newer, better-matching row ("the newest order's View link") changes the list: miss.
-  assert.equal(match(entry, cands('a "Home"', 'a "View" context: tr text="Order 1235"', list[1].desc, 'button "Go"'), state), undefined);
+  assert.equal(matchEntry(entry, cands('a "Home"', 'a "View" context: tr text="Order 1235"', list[1].desc, 'button "Go"'), state), undefined);
   // A dialog over the page adds candidates first: miss.
-  assert.equal(match(entry, cands('button "Accept all" context: dialog heading="Cookies"', ...list.map((c) => c.desc)), state), undefined);
-  assert.equal(match(entry, cands(list[1].desc, list[1].desc), state), undefined);
+  assert.equal(matchEntry(entry, cands('button "Accept all" context: dialog heading="Cookies"', ...list.map((c) => c.desc)), state), undefined);
+  assert.equal(matchEntry(entry, cands(list[1].desc, list[1].desc), state), undefined);
   const framed = cands('a "Home"', `[iframe x] ${list[1].desc}`, 'button "Go"');
-  assert.equal(match({ ...entry, list: listHash(framed) }, framed, state), undefined);
+  assert.equal(matchEntry({ ...entry, list: listHash(framed) }, framed, state), undefined);
 });
 
 test('resolveTargets asks Jev only for the misses: one request, the cached target costs nothing', async () => {
@@ -355,14 +356,14 @@ test('a templated step keeps no page path or element text in the sidecar, and st
   const entry = makeEntry(list[0], list, state, true)!;
   assert.ok(entry.desc.startsWith('sha256:') && entry.page.startsWith('sha256:') && entry.frame.startsWith('sha256:'));
   assert.ok(!JSON.stringify(entry).includes('alice'));
-  assert.equal(match(entry, list, state, true)?.id, 0);
-  assert.equal(match(entry, list, { ...state, url: 'https://shop.test/u/bob@example.com' }, true), undefined);
+  assert.equal(matchEntry(entry, list, state, true)?.id, 0);
+  assert.equal(matchEntry(entry, list, { ...state, url: 'https://shop.test/u/bob@example.com' }, true), undefined);
 });
 
 test('a UI state flip on an otherwise unchanged page is a miss', () => {
   const tabs = (selected: number): Candidate[] => [0, 1].map((id) => ({ id, desc: `[role=tab] "Tab ${id}"`,
     ...(id === selected ? { state: 'aria-selected=true' } : { state: 'aria-selected=false' }) }));
   const entry = makeEntry(tabs(0)[1], tabs(0), state)!;
-  assert.equal(match(entry, tabs(0), state)?.id, 1);
-  assert.equal(match(entry, tabs(1), state), undefined);
+  assert.equal(matchEntry(entry, tabs(0), state)?.id, 1);
+  assert.equal(matchEntry(entry, tabs(1), state), undefined);
 });

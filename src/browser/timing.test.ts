@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatMs, timed, type StepContext } from './steps.js';
+import { formatMs } from '../core/results.js';
+import { timed, type StepContext } from './context.js';
 
 test('formatMs prints total first, then only the phases present', () => {
   assert.equal(formatMs({ total: 3985, settle: 512, jev: 1830 }), 'total=3985 settle=512 jev=1830');

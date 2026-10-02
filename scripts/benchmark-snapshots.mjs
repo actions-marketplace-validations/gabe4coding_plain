@@ -2,7 +2,8 @@
 // Build first. --live-jev adds real classification calls using the CLI's env precedence.
 import { existsSync } from 'node:fs';
 import { snapshotView } from '../dist/core/snapshot-view.js';
-import { describeSnapshot, USER_ENV_FILE } from '../dist/jev/jev.js';
+import { describeSnapshot } from '../dist/jev/describe.js';
+import { USER_ENV_FILE } from '../dist/jev/provider.js';
 
 const live = process.argv.includes('--live-jev');
 if (live) for (const path of ['.env', USER_ENV_FILE]) if (existsSync(path)) process.loadEnvFile(path);

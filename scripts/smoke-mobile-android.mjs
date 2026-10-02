@@ -12,7 +12,7 @@ import { createMobileServer } from '../dist/mobile/mcp.js';
 import { MobileSession, runMobileSpec } from '../dist/mobile/session.js';
 import { loadMobileSpec } from '../dist/mobile/spec.js';
 import { intelligence } from '../dist/core/automation.js';
-import { USER_ENV_FILE } from '../dist/jev/jev.js';
+import { USER_ENV_FILE } from '../dist/jev/provider.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 

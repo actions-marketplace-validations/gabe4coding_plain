@@ -1,21 +1,26 @@
-import { StepKind } from './step-kind.js';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
+import { StepKind } from './step-kind.js';
 import { expandIncludes, splitSource } from './include.js';
-import { checkSpecFeatures } from './spec-features.js';
 
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
 const origin = z.string().optional();
-// Where the step was written (absolute file, index in it): the pick cache key. Set by the loaders, never by YAML or MCP.
-const at = z.object({ file: z.string(), index: z.number().int(), templated: z.boolean().optional() }).optional();
+/**
+ * Where a step was written (absolute file, index in it): the pick cache key. Set by the loaders, never by YAML or
+ * MCP. `templated`: the step holds a `${...}` placeholder, so its target may carry data (a user name, a secret) and
+ * the cache stores a hash of the interpolated target instead of its text.
+ */
+const StepSourceSchema = z.object({ file: z.string(), index: z.number().int(), templated: z.boolean().optional() });
+export type StepSource = z.infer<typeof StepSourceSchema>;
+const at = StepSourceSchema.optional();
 const target = nonEmptyString;
+
 /** `tags: smoke` or `tags: [smoke, checkout]`; always a list after loading. */
 export const TagsSchema = z.union([nonEmptyString.transform((tag) => [tag]), z.array(nonEmptyString)]).optional();
 
-// Schemas are the source of truth for normalized data and its TypeScript types.
 export const StepSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(StepKind.goto), url: nonEmptyString, optional, origin, at }),
   z.object({ kind: z.literal(StepKind.fill), target, value: z.string(), optional, origin, at }),
@@ -31,18 +36,22 @@ export const StepSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal(StepKind.wait), condition: nonEmptyString, within: nonEmptyString.optional(), optional, origin, at }),
   z.object({ kind: z.literal(StepKind.press), key: nonEmptyString, optional, origin, at }),
   z.object({ kind: z.literal(StepKind.drag), source: nonEmptyString, target, optional, origin, at }),
-  // Negative y is the escape hatch for exit-intent triggers above the viewport.
+  // A negative y reaches above the viewport, for exit-intent triggers.
   z.object({ kind: z.literal(StepKind.mouse), x: z.number(), y: z.number(), optional, origin, at }),
-  z.object({ kind: z.literal(StepKind.expect), expectations: z.array(nonEmptyString).min(1), within: nonEmptyString.optional(), optional, origin, at }),
+  z.object({
+    kind: z.literal(StepKind.expect), expectations: z.array(nonEmptyString).min(1), within: nonEmptyString.optional(),
+    optional, origin, at,
+  }),
 ]);
 export type Step = z.infer<typeof StepSchema>;
 
 export const SpecSchema = z.object({
   name: nonEmptyString,
   url: nonEmptyString,
-  dir: z.string(), // directory used to resolve upload paths
+  /** Upload paths resolve against it. */
+  dir: z.string(),
   dialogs: z.enum(['accept', 'dismiss']),
-  // What the whole flow is for; picks see it and settle vague targets toward it (claims never see it).
+  /** What the whole flow is for: picks see it, claims never do. */
   goal: nonEmptyString.optional(),
   auth: z.object({ user: nonEmptyString, pass: nonEmptyString }).optional(),
   geolocation: z.object({ lat: z.number(), lon: z.number() }).optional(),
@@ -50,13 +59,18 @@ export const SpecSchema = z.object({
   timeout: z.number().int().positive().optional(),
   browser: z.object({
     viewport: z.object({ width: z.number().int().positive(), height: z.number().int().positive() }).optional(),
-    device: nonEmptyString.optional(), locale: nonEmptyString.optional(), timezone: nonEmptyString.optional(),
-    colorScheme: z.enum(['light', 'dark']).optional(), storageState: nonEmptyString.optional(), saveState: nonEmptyString.optional(),
+    device: nonEmptyString.optional(),
+    locale: nonEmptyString.optional(),
+    timezone: nonEmptyString.optional(),
+    colorScheme: z.enum(['light', 'dark']).optional(),
+    storageState: nonEmptyString.optional(),
+    saveState: nonEmptyString.optional(),
   }).strict().optional(),
-  // MCP-built specs have no env block; loadSpec supplies {} for file-based specs.
+  /** Absent in an MCP session; `{}` for a spec file without one. */
   env: z.record(z.string(), z.unknown()).optional(),
-  hooks: nonEmptyString.optional(), // absolute path after loading
-  steps: z.array(StepSchema), // an MCP session starts with no steps
+  /** An absolute path after loading. */
+  hooks: nonEmptyString.optional(),
+  steps: z.array(StepSchema),
 });
 export type Spec = z.infer<typeof SpecSchema>;
 
@@ -64,6 +78,151 @@ const FileSpecSchema = SpecSchema.omit({ dir: true, steps: true }).extend({
   dialogs: SpecSchema.shape.dialogs.nullish().transform((value) => value ?? 'accept'),
   steps: z.array(z.unknown()).min(1),
 });
+
+export interface LoadOptions { onMissingEnv?: (message: string) => void }
+
+export function loadSpec(path: string, opts?: LoadOptions): Spec {
+  const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
+  const spec: Spec = {
+    ...raw,
+    dir: dirname(path),
+    auth: raw.auth && (resolveEnvBlock(path, 'auth', raw.auth, opts) as typeof raw.auth),
+    env: resolveEnvBlock(path, 'env', raw.env ?? {}, opts),
+    hooks: raw.hooks === undefined ? undefined : resolve(dirname(path), raw.hooks),
+    steps: loadSteps(raw.steps, path, (step, file, index) => parseStep(file, index, step)),
+  };
+  checkSpecTimeout(spec, path);
+  return spec;
+}
+
+/** Loads a desktop or mobile spec file: hooks resolved next to it, `$VAR` env leaves resolved, steps parsed. */
+export function loadNativeSpec<R extends { hooks?: string; env: Record<string, unknown>; steps: unknown[] }, S>(file: string,
+  schema: z.ZodType<R>, parseOne: (raw: unknown, where: string, index: number) => S, opts?: LoadOptions) {
+  const raw = schema.parse(parse(readFileSync(file, 'utf8')));
+  const dir = dirname(resolve(file));
+  const env = resolveEnvBlock(file, 'env', raw.env, opts);
+  checkSpecTimeout(raw as { timeout?: number }, file);
+  return {
+    ...raw,
+    dir,
+    hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
+    env,
+    steps: loadSteps(raw.steps, file, parseOne),
+  };
+}
+
+/** Expands includes and parses each step. Errors name the file and index where the step was written. */
+function loadSteps<S>(rawSteps: unknown[], file: string, parseOne: (raw: unknown, where: string, index: number) => S): S[] {
+  return expandIncludes(rawSteps, file).map((expanded, i) => {
+    const { step, source } = splitSource(expanded);
+    const parsed = withOrigin(step, (raw) => parseOne(raw, source?.file ?? file, source?.index ?? i));
+    return withSource(parsed, step, file, source, i);
+  });
+}
+
+const MappingSchema = z.record(z.string(), z.unknown());
+const STEP_KINDS = StepSchema.options.map((schema) => schema.shape.kind.value);
+/** Step kinds written as `kind: <value>`, and the field the value fills. */
+const SINGLE_VALUE_FIELD: Record<string, string> = {
+  goto: 'url', press: 'key', click: 'target', hover: 'target', dblclick: 'target',
+  rightclick: 'target', check: 'target', uncheck: 'target', scroll: 'target',
+};
+
+/** Parses one step as YAML and MCP write it: one action key, plus an optional `optional`. */
+export function parseStep(path: string, i: number, raw: unknown): Step {
+  const where = `${path}: step ${i}`;
+  const mapping = parseData(MappingSchema, raw, where);
+  const keys = Object.keys(mapping).filter((key) => key !== 'optional');
+  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional"), got [${keys.join(', ')}]`);
+  const [kind] = keys;
+  if (!STEP_KINDS.some((key) => key === kind)) fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);
+
+  const fields = stepFields(kind, mapping[kind], where);
+  for (const reserved of ['at', 'origin']) {
+    if (reserved in fields) fail(`${where} "${kind}": "${reserved}" is reserved for the loader`);
+  }
+  return parseData(StepSchema, { ...fields, kind, optional: mapping.optional === true }, where);
+}
+
+function stepFields(kind: string, value: unknown, where: string): Record<string, unknown> {
+  const field = SINGLE_VALUE_FIELD[kind];
+  if (field) return { [field]: value };
+  if (kind === StepKind.wait) {
+    // `wait: <claim>`, or `wait: {that, within}` to poll one region.
+    const wait = typeof value === 'string' ? { that: value } : parseData(MappingSchema, value, `${where} "wait"`);
+    return { condition: wait.that, ...(wait.within === undefined ? {} : { within: wait.within }) };
+  }
+  if (kind === StepKind.expect) {
+    const scoped = typeof value !== 'string' && !Array.isArray(value);
+    const expect = scoped ? parseData(MappingSchema, value, `${where} "expect"`) : { that: value };
+    return {
+      expectations: typeof expect.that === 'string' ? [expect.that] : expect.that,
+      ...(expect.within === undefined ? {} : { within: expect.within }),
+    };
+  }
+  return parseData(MappingSchema, value, `${where} "${kind}"`);
+}
+
+/**
+ * Only include expansion sets `origin`. It is taken off before the step is parsed, so `parseStep` keeps
+ * rejecting it, and put back on the parsed step for its label.
+ */
+export function withOrigin<S>(raw: unknown, parse: (raw: unknown) => S): S {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw) || !('origin' in raw)) return parse(raw);
+  const { origin, ...rest } = raw as Record<string, unknown>;
+  if (typeof origin !== 'string' || !origin) fail('origin must be a non-empty string');
+  return { ...parse(rest), origin };
+}
+
+/**
+ * Puts the step's source (absolute file, index in it) on the parsed step: the pick cache key. `templated` when
+ * the step as written holds a placeholder: its key then hashes the interpolated target.
+ */
+function withSource<S>(parsed: S, raw: unknown, root: string, source: { file?: string; index: number } | undefined, i: number): S {
+  const file = source?.file === undefined ? resolve(root) : resolve(dirname(resolve(root)), source.file);
+  const templated = JSON.stringify(raw).includes('${');
+  return { ...parsed, at: { file, index: source?.index ?? i, ...(templated ? { templated } : {}) } };
+}
+
+/**
+ * `$VAR` in an env or auth value reads process.env.VAR, so no credential sits in the spec file. Any depth: setup
+ * data is often nested (`env.user.name`). A plain string passes through unchanged.
+ */
+function resolveEnvBlock(path: string, field: string, raw: Record<string, unknown>, opts?: LoadOptions): Record<string, unknown> {
+  const resolved: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const childField = `${field}.${key}`;
+    if (typeof value === 'string') resolved[key] = resolveEnvRef(path, childField, value, opts);
+    else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      resolved[key] = resolveEnvBlock(path, childField, value as Record<string, unknown>, opts);
+    } else resolved[key] = value;
+  }
+  return resolved;
+}
+
+function resolveEnvRef(path: string, field: string, value: string, opts?: LoadOptions): string {
+  if (!value.startsWith('$')) return value;
+  const name = value.slice(1);
+  const resolved = process.env[name];
+  if (resolved) return resolved;
+  const message = `${path}: "${field}" references $${name} but that env var is not set`;
+  if (!opts?.onMissingEnv) fail(message);
+  opts.onMissingEnv(message);
+  return value;
+}
+
+export function checkSpecTimeout(spec: { timeout?: number }, file: string): void {
+  if (spec.timeout !== undefined && (!Number.isSafeInteger(spec.timeout) || spec.timeout <= 0)) {
+    throw new Error(`invalid spec: ${file}: timeout must be a positive safe integer`);
+  }
+}
+
+/** Throws when a desktop or mobile step uses the browser-only `css=` escape hatch. */
+export function rejectCss(step: object, what: string): void {
+  const fields = step as Record<string, unknown>;
+  const targets = ['target', 'source', 'within', 'condition'].flatMap((key) => key in fields ? [String(fields[key])] : []);
+  if (targets.some((value) => value.startsWith('css='))) throw new Error(`css= is browser-only; describe a ${what} accessibility element`);
+}
 
 function parseData<T extends z.ZodType>(schema: T, raw: unknown, where: string): z.output<T> {
   const result = schema.safeParse(raw);
@@ -75,158 +234,6 @@ function parseData<T extends z.ZodType>(schema: T, raw: unknown, where: string):
   return result.data;
 }
 
-function fail(msg: string): never {
-  throw new Error(`invalid spec: ${msg}`);
-}
-
-// `$VAR` in an auth value means "read process.env.VAR" so a credential never sits in the spec file
-// itself. A plain string (e.g. the-internet's public demo creds) passes through unchanged.
-export interface LoadOptions { onMissingEnv?: (message: string) => void }
-function resolveEnvRef(path: string, field: string, value: string, opts?: LoadOptions): string {
-  if (!value.startsWith('$')) return value;
-  const name = value.slice(1);
-  const resolved = process.env[name];
-  if (!resolved) {
-    const message = `${path}: "${field}" references $${name} but that env var is not set`;
-    if (opts?.onMissingEnv) { opts.onMissingEnv(message); return value; }
-    fail(message);
-  }
-  return resolved;
-}
-
-// `env` mirrors auth/geolocation's `$VAR` convention but at arbitrary depth, since setup data
-// (dataset lookups, feature flags, ...) is naturally nested (`env.user.name`, not `env["user.name"]`).
-export function resolveEnvBlock(path: string, field: string, raw: Record<string, unknown>, opts?: LoadOptions): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    const childField = `${field}.${key}`;
-    if (typeof value === 'string') out[key] = resolveEnvRef(path, childField, value, opts);
-    else if (value !== null && typeof value === 'object' && !Array.isArray(value))
-      out[key] = resolveEnvBlock(path, childField, value as Record<string, unknown>, opts);
-    else out[key] = value;
-  }
-  return out;
-}
-
-const MappingSchema = z.record(z.string(), z.unknown());
-const STEP_KINDS = StepSchema.options.map((schema) => schema.shape.kind.value);
-
-// YAML/MCP use one action key; normalize that syntax before schema validation.
-export function parseStep(path: string, i: number, raw: unknown): Step {
-  const where = `${path}: step ${i}`;
-  const obj = parseData(MappingSchema, raw, where);
-  const keys = Object.keys(obj).filter((key) => key !== 'optional');
-  if (keys.length !== 1) fail(`${where} must have exactly one key (plus optional "optional"), got [${keys.join(', ')}]`);
-  const [kind] = keys;
-  if (!STEP_KINDS.some((key) => key === kind))
-    fail(`${where} has unknown key "${kind}" (expected one of ${STEP_KINDS.join(', ')})`);
-
-  const val = obj[kind];
-  const field = { goto: 'url', press: 'key', click: 'target', hover: 'target', dblclick: 'target',
-    rightclick: 'target', check: 'target', uncheck: 'target', scroll: 'target' }[kind as string];
-  let fields: Record<string, unknown>;
-  if (field) fields = { [field]: val };
-  else if (kind === StepKind.wait) {
-    // wait: <claim>, or wait: {that, within} to poll one region instead of the whole page.
-    const scoped = typeof val !== 'string';
-    const w = scoped ? parseData(MappingSchema, val, `${where} "wait"`) : { that: val };
-    fields = { condition: w.that, ...(w.within === undefined ? {} : { within: w.within }) };
-  } else if (kind === StepKind.expect) {
-    const scoped = typeof val !== 'string' && !Array.isArray(val);
-    const expectation = scoped ? parseData(MappingSchema, val, `${where} "expect"`) : { that: val };
-    fields = {
-      expectations: typeof expectation.that === 'string' ? [expectation.that] : expectation.that,
-      ...(expectation.within === undefined ? {} : { within: expectation.within }),
-    };
-  } else fields = parseData(MappingSchema, val, `${where} "${kind}"`);
-  // The loader's own fields are never accepted from YAML or an MCP step, not even inside the step's mapping.
-  for (const reserved of ['at', 'origin']) if (reserved in fields) fail(`${where} "${kind}": "${reserved}" is reserved for the loader`);
-  // Preserve the existing flag convention: only literal true enables optional execution.
-  return parseData(StepSchema, { ...fields, kind, optional: obj.optional === true }, where);
-}
-
-/** `origin` is set only by include expansion, never by a spec author or an MCP step: it is taken off before the
- *  step is parsed (so `parseStep` keeps rejecting it) and put back on the parsed step for its label. */
-export function withOrigin<S>(raw: unknown, parse: (raw: unknown) => S): S {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw) || !('origin' in raw)) return parse(raw);
-  const { origin, ...rest } = raw as Record<string, unknown>;
-  if (typeof origin !== 'string' || !origin) fail('origin must be a non-empty string');
-  return { ...parse(rest), origin };
-}
-
-/** Puts the step's source (absolute file, index in it) on the parsed step, for the pick cache key (src/pick-cache.ts).
- *  `templated` when the step as written holds a placeholder: its key then hashes the interpolated target. */
-function withSource<S>(parsed: S, raw: unknown, root: string, source: { file?: string; index: number } | undefined, i: number): S {
-  const file = source?.file === undefined ? resolve(root) : resolve(dirname(resolve(root)), source.file);
-  const templated = JSON.stringify(raw).includes('${');
-  return { ...parsed, at: { file, index: source?.index ?? i, ...(templated ? { templated } : {}) } };
-}
-
-export function loadSpec(path: string, opts?: LoadOptions): Spec {
-  const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
-  const spec: Spec = {
-    ...raw,
-    dir: dirname(path),
-    auth: raw.auth && (resolveEnvBlock(path, 'auth', raw.auth, opts) as typeof raw.auth),
-    env: resolveEnvBlock(path, 'env', raw.env ?? {}, opts),
-    hooks: raw.hooks === undefined ? undefined : resolve(dirname(path), raw.hooks),
-    steps: expandIncludes(raw.steps, path).map((expanded, i) => {
-      // Errors name the file and index the step was written at, also for included steps.
-      const { step, source } = splitSource(expanded);
-      return withSource(withOrigin(step, (s) => parseStep(source?.file ?? path, source?.index ?? i, s)), step, path, source, i);
-    }),
-  };
-  checkSpecFeatures(spec, path);
-  return spec;
-}
-
-// Deep-walks `value`, replacing every `${a.b.c}` in any string with the leaf it names under
-// `vars.env`/`vars.hooks` (the spec's env block, and whatever the hooks module's setup returned).
-// Pure and side-effect-free: returns a new value, never mutates `value`.
-export function interpolate<T>(value: T, vars: { env: Record<string, unknown>; hooks: Record<string, unknown> }, where: string): T {
-  if (typeof value === 'string') {
-    if (!value.includes('${')) return value;
-    return value.replace(/\$\{([^}]+)\}/g, (_match, expr: string) => {
-      const [namespace, ...rest] = expr.split('.');
-      let leaf: unknown = namespace === 'env' || namespace === 'hooks' ? vars[namespace] : undefined;
-      for (const key of rest) {
-        if (leaf === null || typeof leaf !== 'object' || Array.isArray(leaf)) { leaf = undefined; break; }
-        leaf = (leaf as Record<string, unknown>)[key];
-      }
-      if (leaf === undefined || leaf === null || typeof leaf === 'object')
-        fail(
-          `${where}: \${${expr}} is not defined (use \${env.*} from the spec's env block or \${hooks.*} from what setup returned)`
-        );
-      return String(leaf);
-    }) as unknown as T;
-  }
-  if (Array.isArray(value)) return value.map((v) => interpolate(v, vars, where)) as unknown as T;
-  // A parsed step's source (`at`, set by the loader) is a path, not spec text: a `${` in a folder name stays as it is.
-  if (value !== null && typeof value === 'object' && 'kind' in value && 'at' in value) {
-    const { at: source, ...rest } = value as Record<string, unknown>;
-    return { ...interpolate(rest, vars, where), at: source } as T;
-  }
-  if (value !== null && typeof value === 'object')
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, interpolate(v, vars, where)])) as T;
-  return value;
-}
-
-/** Throws when a desktop/mobile step uses the browser-only `css=` escape hatch. */
-export function rejectCss(step: object, what: string): void {
-  const targets = ['target', 'source', 'within', 'condition'].flatMap((key) => key in step ? [String((step as Record<string, unknown>)[key])] : []);
-  if (targets.some((v) => v.startsWith('css='))) throw new Error(`css= is browser-only; describe a ${what} accessibility element`);
-}
-
-/** Loads a desktop/mobile spec file: hooks resolved next to it, `$VAR` env leaves resolved, steps parsed. */
-export function loadNativeSpec<R extends { hooks?: string; env: Record<string, unknown>; steps: unknown[] }, S>(file: string,
-  schema: z.ZodType<R>, parseOne: (raw: unknown, where: string, index: number) => S, opts?: LoadOptions) {
-  const raw = schema.parse(parse(readFileSync(file, 'utf8')));
-  const dir = dirname(resolve(file));
-  const env = resolveEnvBlock(file, 'env', raw.env, opts);
-  checkSpecFeatures(raw as { timeout?: number }, file);
-  return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
-    env, steps: expandIncludes(raw.steps, file).map((expanded, i) => {
-      const { step, source } = splitSource(expanded);
-      return withSource(withOrigin(step, (s) => parseOne(s, source?.file ?? file, source?.index ?? i)), step, file, source, i);
-    }) };
+function fail(message: string): never {
+  throw new Error(`invalid spec: ${message}`);
 }

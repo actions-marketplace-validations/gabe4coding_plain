@@ -24,7 +24,7 @@ literal task context, not a hooks/env template. These reads are not recorded in 
 
 ## Iframe labels
 
-`frameLabel()` (`src/frames.ts`) uses the frame's name when it is set, otherwise the URL pathname,
+`frameLabel()` (`src/browser/frames.ts`) uses the frame's name when it is set, otherwise the URL pathname,
 otherwise the raw URL. A whole-page snapshot appends each readable iframe's accessibility tree under
 a `--- iframe <label> ---` line. `snapshotRegion` adds no iframe headers. Candidates inside an iframe
 use the same label as a `[iframe <label>] ` prefix; where those candidates sit in the list is in the
@@ -39,7 +39,7 @@ identity, and source order. Whole lines are selected; a line and its ancestors t
 are omitted rather than cut mid-label. Unknown roles remain eligible for selection.
 
 In browser trees an unchecked checkbox, radio, switch or checkable menu item shows `[checked=false]`,
-a checked one `[checked]` and a mixed one `[checked=mixed]` (`markUnchecked` in `src/page.ts`), so the
+a checked one `[checked]` and a mixed one `[checked=mixed]` (`markUnchecked` in `src/browser/page.ts`), so the
 state is always written on the line, as in the mobile tree. The mark reaches Jev, `snapshot` views and
 `changed` lines alike.
 

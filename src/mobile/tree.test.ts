@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { findMobileNode, nodeIdentity, type MobileNode } from './tree.js';
 
 // Captured handles are rechecked with these two helpers before a native action
-// (AppiumAdapter.checkHandle). XML parsing and candidate filters live in mobile-adapter.test.ts.
+// (AppiumAdapter.checkHandle). XML parsing and candidate filters live in adapter.test.ts.
 function node(over: Partial<MobileNode> & Pick<MobileNode, 'path'>): MobileNode {
   return { attrs: {}, role: 'android.widget.Button', name: 'OK', visible: true, enabled: true, children: [], ...over };
 }

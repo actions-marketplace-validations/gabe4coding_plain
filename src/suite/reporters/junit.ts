@@ -2,6 +2,7 @@ import path from 'node:path';
 import type { Attempt, RunObserver, RunReport, SpecReport } from '../types.js';
 import { writeReport } from './file.js';
 import { stepLine } from './text.js';
+import { isFailure } from '../../core/results.js';
 
 /** XML 1.0 allows tabs/newlines, printable BMP characters, and valid supplementary code points. */
 export function escapeXml(value: string): string {
@@ -18,38 +19,39 @@ function properties(values: Record<string, string | number>): string {
     + '\n    </properties>';
 }
 
-function problem(attempt: Attempt | undefined, spec: SpecReport): { message: string; type: string; detail: string } {
+function failureOf(attempt: Attempt | undefined, spec: SpecReport): { message: string; type: string; detail: string } {
   if (spec.loadError !== undefined) return { message: spec.name, type: 'error', detail: spec.loadError };
   if (attempt?.error !== undefined) return { message: spec.name, type: 'error', detail: attempt.error };
   const status = attempt?.status ?? spec.status;
   const step = attempt?.steps.find((step) => step.status === status)
-    ?? attempt?.steps.find((step) => ['fail', 'inconclusive', 'error'].includes(step.status));
+    ?? attempt?.steps.find((step) => isFailure(step.status));
   return { message: step?.step ?? spec.name, type: status, detail: step?.detail ?? '' };
 }
 
 function testCase(spec: SpecReport, report: RunReport): string {
   const final = spec.attempts.at(-1);
   const duration = spec.attempts.reduce((sum, attempt) => sum + attempt.durationMs, 0);
-  const lines = [`    <testcase classname="${attr(path.relative(process.cwd(), path.resolve(spec.file)))}" name="${attr(spec.name)}" time="${seconds(duration)}">`];
+  const classname = path.relative(process.cwd(), path.resolve(spec.file));
+  const lines = [`    <testcase classname="${attr(classname)}" name="${attr(spec.name)}" time="${seconds(duration)}">`];
   lines.push(properties({
     jevCalls: spec.attempts.reduce((sum, attempt) => sum + attempt.jevCalls, 0),
     tokens: spec.attempts.reduce((sum, attempt) => sum + attempt.totalTokens, 0),
     provider: report.provider, model: report.model, attempts: spec.attempts.length,
   }));
+  const crashed = spec.loadError !== undefined || final?.error !== undefined;
   if (spec.status === 'skipped') {
     lines.push(`      <skipped message="${attr(spec.skipReason ?? 'skipped')}"/>`);
-  } else if (spec.status !== 'pass' || spec.loadError !== undefined || final?.error !== undefined) {
-    const { message, type, detail } = problem(final, spec);
-    const tag = spec.status === 'error' || spec.loadError !== undefined || final?.error !== undefined ? 'error' : 'failure';
+  } else if (spec.status !== 'pass' || crashed) {
+    const { message, type, detail } = failureOf(final, spec);
+    const tag = spec.status === 'error' || crashed ? 'error' : 'failure';
     lines.push(`      <${tag} message="${attr(message)}" type="${attr(type)}">${escapeXml(detail)}</${tag}>`);
   }
   for (const attempt of spec.attempts.slice(0, -1)) {
-    if (!['fail', 'inconclusive', 'error'].includes(attempt.status)) continue;
-    const { message, type, detail } = problem(attempt, spec);
-    // Surefire: an attempt that errored is flakyError/rerunError, a failed one flakyFailure/rerunFailure.
+    if (!isFailure(attempt.status)) continue;
+    const { message, type, detail } = failureOf(attempt, spec);
+    // Surefire: flakyError/flakyFailure before a pass, rerunError/rerunFailure otherwise, the body in stackTrace.
     const kind = attempt.status === 'error' ? 'Error' : 'Failure';
     const tag = (spec.status === 'pass' ? 'flaky' : 'rerun') + kind;
-    // Surefire stores the failure body in stackTrace for retry elements.
     lines.push(`      <${tag} message="${attr(message)}" type="${attr(type)}"><stackTrace>${escapeXml(detail)}</stackTrace></${tag}>`);
   }
   const output: string[] = [];
@@ -66,12 +68,14 @@ function testCase(spec: SpecReport, report: RunReport): string {
 }
 
 export function junitXml(report: RunReport): string {
-  const counts = `tests="${report.specs.length}" failures="${report.specs.filter((spec) => spec.status === 'fail' || spec.status === 'inconclusive').length}" errors="${report.specs.filter((spec) => spec.status === 'error').length}" skipped="${report.specs.filter((spec) => spec.status === 'skipped').length}" time="${seconds(report.durationMs)}"`;
+  const countOf = (...statuses: string[]) => report.specs.filter((spec) => statuses.includes(spec.status)).length;
+  const counts = `tests="${report.specs.length}" failures="${countOf('fail', 'inconclusive')}" errors="${countOf('error')}" ` +
+    `skipped="${countOf('skipped')}" time="${seconds(report.durationMs)}"`;
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<testsuites name="plainwright ${attr(report.engine)}" ${counts}>`,
     `  <testsuite name="plainwright" timestamp="${attr(report.startedAt)}" ${counts}>`,
-    properties({ jevCalls: report.totals.jevCalls, tokens: report.totals.tokens, cachedPicks: report.totals.cachedPicks ?? 0,
+    properties({ jevCalls: report.totals.jevCalls, tokens: report.totals.tokens, cachedPicks: report.totals.cachedPicks,
       provider: report.provider, model: report.model, attempts: report.specs.reduce((sum, spec) => sum + spec.attempts.length, 0) }),
     ...report.specs.map((spec) => testCase(spec, report)),
     '  </testsuite>', '</testsuites>', '',
@@ -79,5 +83,9 @@ export function junitXml(report: RunReport): string {
 }
 
 export function junitReporter(file: string): RunObserver {
-  return { async runEnd({ report }) { await writeReport(file, junitXml(report)); } };
+  return {
+    async runEnd({ report }) {
+      await writeReport(file, junitXml(report));
+    },
+  };
 }
