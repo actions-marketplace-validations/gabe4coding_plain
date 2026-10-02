@@ -12,7 +12,7 @@ Appium must already be running; the hook does not start them.
 
 ## Common setup
 
-- Node 22+, npm, `npm ci`, and `npm run build` in this checkout.
+- Node 22+ and npm. `bin/plainwright-mobile.mjs` installs the npm dependencies on first run.
 - Appium with the appropriate platform driver installed before starting the server.
 - `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`, configured in the environment, repository `.env`,
   or `~/.config/plainwright/.env`. Never put a key in YAML.

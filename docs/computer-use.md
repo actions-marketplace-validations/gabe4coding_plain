@@ -32,11 +32,9 @@ Browser dependencies do not need native permissions. xa11y is optional in the ro
 loaded only for desktop operations; the desktop plugin reports an actionable error if the optional native package is unavailable.
 Keep optional platform packages enabled when installing xa11y.
 
-From a clone:
+From a clone (the launcher installs the shared npm dependencies, xa11y included, on first run; `dist/` is committed):
 
 ```sh
-npm ci
-npm run build
 node bin/plainwright-computer.mjs mcp
 node bin/plainwright-computer.mjs --timeout 15000 path/to/desktop.yaml
 ```

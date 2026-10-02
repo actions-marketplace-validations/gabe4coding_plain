@@ -141,10 +141,10 @@ then opens a visible browser:
 node bin/plainwright.mjs examples/todo.yaml
 ```
 
-For desktop specs, install the shared dependencies first, then run a spec targeting an open app:
+For desktop specs, run a spec targeting an open app. Like the browser launcher, it installs the shared
+npm dependencies on first run:
 
 ```sh
-npm ci
 node bin/plainwright-computer.mjs path/to/desktop.yaml
 ```
 
