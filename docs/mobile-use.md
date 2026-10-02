@@ -148,6 +148,9 @@ is a button ("the Workout button"), and the iOS back button carries the previous
 ("the Summary button in the Step Count navigation bar"). An inconclusive pick lists its top
 guesses with the tree's names, so the right wording is usually one of them.
 
+In Claude Code the plugin also draws a session pane (`/plainwright-mobile-pane`) with each step's status and Jev tokens; see
+[Session pane](agent-mode.md#session-pane-claude-code).
+
 ## Mobile specs
 
 This example assumes an installed test app exposing the described controls. Supply your app's

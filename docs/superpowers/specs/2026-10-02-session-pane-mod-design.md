@@ -1,6 +1,15 @@
 # Session pane mod — design
 
-Date: 2026-10-02. Status: approved design, not implemented.
+Date: 2026-10-02. Status: implemented; this is the design as approved. Where the code differs:
+
+- The files live in `mods/session-pane/hooks/session-pane/` (`register.ts`, `model.ts`, `view.ts`, one test file
+  each), and a generated `config.ts` names the plugin and engine instead of `$.plugin.name`.
+- Buttons and the field use `onPress`/`onInput`/`onSubmit` callbacks, not `ui.press`/`ui.input` hooks.
+- `/<plugin>-pane` shows the pane (no toggle). The pane opens by itself only on a session's first `open`, and a
+  narrow terminal gets a notice instead.
+- The server name is the constant `plugin_<plugin>_<plugin>`. There is no `session.end` reset: the MCP server and
+  its transcript outlive `/clear` and `/resume`, so the pane does too.
+- A docked terminal pane clips about two columns inside `bodyColumns`, so lines stop two columns short.
 
 ## Goal
 

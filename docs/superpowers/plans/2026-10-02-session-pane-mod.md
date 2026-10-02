@@ -15,7 +15,7 @@
 **Decisions taken while planning (differ slightly from the spec):**
 - The per-plugin `config.ts` names the plugin and engine (`browser` | `native`) instead of reading `$.plugin.name`: it is explicit, and tests run with the browser values.
 - `/<plugin>-pane` *shows* the pane (it does not toggle). Esc or the pane's close mark hides it. The pane opens by itself only on the first successful `open` of a session.
-- Only `$.mcp.call`'s server name is learned at runtime, from the first matched tool name (`mcp__plugin_plainwright_plainwright__step` → `plugin_plainwright_plainwright`, a spelling `$.mcp.call` accepts).
+- Only `$.mcp.call`'s server name is learned at runtime, from the first matched tool name (`mcp__plugin_plainwright_plainwright__step` → `plugin_plainwright_plainwright`, a spelling `$.mcp.call` accepts). *(Changed by the code review: it is the constant `plugin_<plugin>_<plugin>`, and the `session.end` reset below was removed. See the spec's notes for the as-built differences.)*
 
 ---
 
