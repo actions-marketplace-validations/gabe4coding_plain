@@ -17,7 +17,7 @@ export function filterLastFailed<S>(specs: Loaded<S>[], failed: Set<string> | un
 export function select<S>(specs: Loaded<S>[], opts: SuiteOptions): Loaded<S>[] {
   const include = regex(opts.grep, '--grep');
   const exclude = regex(opts.grepInvert, '--grep-invert');
-  const matches = (re: RegExp, spec: Loaded<S>): boolean => re.test(spec.name) || re.test(path.relative(process.cwd(), spec.file));
+  const matches = (re: RegExp, spec: Loaded<S>): boolean => re.test(spec.name) || re.test(path.relative(process.cwd(), spec.file).replaceAll(path.sep, '/'));
   let selected = specs.filter((spec) => (!include || matches(include, spec)) && (!exclude || !matches(exclude, spec)))
     .filter((spec) => opts.tags.every((tag) => spec.tags.includes(tag)));
   // runSuite keeps load errors separately and always reports them, regardless of selection.
