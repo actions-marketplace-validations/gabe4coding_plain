@@ -113,8 +113,10 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
     else totals.failed++;
     if (spec.flaky) totals.flaky++;
   }
+  // Lane C marks every spec it did not start; the first reason (in input order) names the stop.
+  const stopped = reports.find((spec) => spec.skipReason)?.skipReason;
   const report: RunReport = { engine: engine.engine, provider: chosenProvider, model, startedAt,
-    durationMs: Date.now() - start, specs: reports, totals,
+    durationMs: Date.now() - start, specs: reports, totals, ...(stopped ? { stopped } : {}),
     status: reports.every((spec) => spec.status === 'pass') ? 'pass' : 'fail' };
   await emit('runEnd', { report });
   writeLastRun(process.cwd(), report);
