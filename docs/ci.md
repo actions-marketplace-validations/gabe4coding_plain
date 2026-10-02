@@ -33,7 +33,19 @@ jobs:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
 ```
 
-For JUnit output and failure artifacts, set the paths explicitly. `args` and `specs` use shell-style quoting for values containing spaces; they are parsed as arguments, never run as a shell script.
+### Inputs
+
+| Input | Default | Meaning |
+|---|---|---|
+| `specs` | required | Space-separated spec files, directories or globs |
+| `args` | `''` | Extra CLI flags, added after the action's own flags (so `--picks off` here wins over `picks`) |
+| `picks` | `read` | [Pick cache](running.md#pick-cache) mode: `read` reuses the committed `*.picks.json` sidecars and never writes them; `on` or `off` as in the CLI. Empty passes no `--picks`, so `plainwright.config.yaml` or the CLI default (`on`) applies |
+| `junit` | `plainwright-results/junit.xml` | JUnit XML path, uploaded on every run. Empty turns off the JUnit reporter and its upload |
+| `artifacts` | `plainwright-results` | Directory for failure screenshots and traces, uploaded when the run fails. Empty turns off capture and the upload |
+| `artifact-name` | `plainwright-results` | Name of the failure artifact; the JUnit report is uploaded as `<artifact-name>-junit` |
+| `node-version` | `22` | Node.js version for `actions/setup-node` |
+
+To set the paths explicitly, or pass extra flags, use `with:`. `args` and `specs` use shell-style quoting for values containing spaces; they are parsed as arguments, never run as a shell script.
 
 ```yaml
 name: Browser specs
@@ -47,6 +59,7 @@ jobs:
         with:
           specs: 'tests/smoke/ tests/checkout/*.yaml'
           args: '--workers 2 --retries 1'
+          picks: read
           junit: plainwright-results/junit.xml
           artifacts: plainwright-results
           node-version: '22'
@@ -55,7 +68,16 @@ jobs:
           # Or use AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
 ```
 
-The action installs its own locked runtime dependencies and Chromium, runs the specs with text and JUnit reporters, and uploads the artifacts directory if the run fails. Artifact names must be unique in a workflow run, so in a matrix give each job its own `artifact-name` (for example `plainwright-results-${{ matrix.site }}`). See [reporting](reporting.md) and [artifacts](artifacts.md) for formats and capture defaults.
+### What the action does
+
+1. Installs Node.js, its own locked runtime dependencies and Chromium.
+2. Runs `plainwright --headless --reporter text`, plus `--picks <picks>`, `--reporter junit:<junit>` and `--artifacts <artifacts>` for each of those inputs that is not empty, then `args`, then `specs`. The step fails when a spec does not pass.
+3. Uploads the JUnit file as the `<artifact-name>-junit` artifact on every run, passed or failed, when `junit` is set. A run that stops before writing it (for example a missing key) gives a warning, not an error.
+4. Uploads the `artifacts` directory as the `<artifact-name>` artifact only when the run fails, and only when `artifacts` is set. With the default paths the JUnit file is inside this directory, so it is in both artifacts.
+
+With the default `picks: read`, a CI run reuses committed picks and leaves the working tree unchanged. To refresh the sidecars, run with `on` locally and commit them. Artifact names must be unique in a workflow run, so in a matrix give each job its own `artifact-name` (for example `plainwright-results-${{ matrix.site }}`). See [reporting](reporting.md) and [artifacts](artifacts.md) for formats and capture defaults.
+
+The action uploads the JUnit file but does not publish it as a check. To see results on the pull request, add a JUnit reporter action after it, with `if: ${{ !cancelled() }}` and the same `junit` path; such actions usually need `permissions: checks: write`.
 
 ## Docker
 
@@ -79,7 +101,7 @@ browser-specs:
     PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
   script:
     - npm ci
-    - node dist/cli.js --headless --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
+    - node dist/cli.js --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
   artifacts:
     when: always
     paths:
