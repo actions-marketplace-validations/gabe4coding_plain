@@ -106,7 +106,14 @@ const baseFile = values.compare ? JSON.parse(readFileSync(values.compare, 'utf8'
 const base = baseFile?.median ?? null;
 console.log(`step statuses ${summary.statusesStable ? 'identical across runs' : 'DIFFER across runs'}` +
   (baseFile?.statuses ? `, ${JSON.stringify(baseFile.statuses) === JSON.stringify(summary.statuses) ? 'identical to' : 'DIFFERENT from'} the base` : ''));
-if (baseFile?.statuses) for (const [i, line] of summary.statuses.entries()) if (line !== baseFile.statuses[i]) console.log(`  ${line}  (base: ${baseFile.statuses[i] ?? 'absent'})`);
+if (baseFile?.statuses) {
+  // By step label, so a spec that stopped early in one run does not shift every later line.
+  const byStep = (lines) => new Map(lines.map((line) => [line.slice(0, line.lastIndexOf(': ')), line.slice(line.lastIndexOf(': ') + 2)]));
+  const now = byStep(summary.statuses), then = byStep(baseFile.statuses);
+  for (const step of new Set([...then.keys(), ...now.keys()])) {
+    if (now.get(step) !== then.get(step)) console.log(`  ${step}: ${now.get(step) ?? 'not run'}  (base: ${then.get(step) ?? 'not run'})`);
+  }
+}
 console.log('metric      median' + (base ? '      base   change' : ''));
 for (const [k, v] of Object.entries(summary.median)) {
   const row = `${k.padEnd(10)} ${String(v).padStart(8)}`;
