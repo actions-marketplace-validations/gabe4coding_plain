@@ -243,10 +243,15 @@ function collectCandidatesInPage({ selector, includeExtras, labelsOfToggles, lis
     for (const d of descs)
         counts.set(d, (counts.get(d) ?? 0) + 1);
     const seen = new Map();
+    // A text-entry field's value is what the user typed, not its identity (the pick cache ignores it); a
+    // submit/button input's value is its label.
+    const TEXT_TYPES = new Set(['', 'text', 'email', 'password', 'search', 'tel', 'url', 'number', 'date', 'datetime-local', 'month', 'time', 'week']);
+    const editable = (el) => el instanceof HTMLTextAreaElement || el.isContentEditable ||
+        (el instanceof HTMLInputElement && TEXT_TYPES.has((el.getAttribute('type') ?? '').toLowerCase()));
     return descs.map((d, i) => {
         const n = (seen.get(d) ?? 0) + 1;
         seen.set(d, n);
-        return `${d}${counts.get(d) > 1 ? ` #${n}` : ''}${context(final[i])}`;
+        return [`${d}${counts.get(d) > 1 ? ` #${n}` : ''}${context(final[i])}`, editable(final[i])];
     });
 }
 export async function candidates(page, kind, max) {
@@ -268,8 +273,8 @@ export async function candidates(page, kind, max) {
             continue; // detached or cross-origin frame — skip, never fatal
         }
         const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
-        for (const desc of descs)
-            out.push({ id: out.length, desc: prefix + desc, frameIndex });
+        for (const [desc, editable] of descs)
+            out.push({ id: out.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}) });
     }
     return out;
 }

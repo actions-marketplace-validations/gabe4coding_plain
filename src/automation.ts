@@ -3,7 +3,8 @@ import { pickElements, judge, decide, isTooLong, describeSnapshot, ask } from '.
 import { dumpDebug, topGuesses } from './results.js';
 
 // Shared perception boundary. Handles stay inside adapters; only descriptions reach Jev.
-export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), frameIndex: z.number().optional() });
+// `editable`: a text-entry field (browser only), whose `value=` the pick cache ignores; native candidates never set it.
+export const CandidateSchema = z.object({ id: z.number(), desc: z.string(), frameIndex: z.number().optional(), editable: z.boolean().optional() });
 export type Candidate = z.infer<typeof CandidateSchema>;
 export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
 export type Snapshot = z.infer<typeof SnapshotSchema>;

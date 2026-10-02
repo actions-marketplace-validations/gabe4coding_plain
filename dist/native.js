@@ -88,7 +88,7 @@ export class NativeSession {
             if (refs)
                 for (const [i, r] of result.entries()) {
                     if (r.cached) {
-                        picks.hit(refs[i]);
+                        picks.hit(refs[i], frame.snapshot);
                         this.ms.cached = (this.ms.cached ?? 0) + 1;
                     }
                     else if (r.candidate)

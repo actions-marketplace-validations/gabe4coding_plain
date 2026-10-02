@@ -266,7 +266,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
     // Only the answer kept is recorded: an early look's answer may have been discarded above.
     if (refs) for (const [j, r] of result!.entries()) {
       const ref = refs.get(jevTargets[j])!;
-      if (r.cached) { ctx.picks!.hit(ref); ctx.ms.cached = (ctx.ms.cached ?? 0) + 1; }
+      if (r.cached) { ctx.picks!.hit(ref, { url, title }); ctx.ms.cached = (ctx.ms.cached ?? 0) + 1; }
       else if (r.candidate) ctx.picks!.accept(ref, r.candidate, cands, { url, title });
     }
     result!.forEach((r, j) => {

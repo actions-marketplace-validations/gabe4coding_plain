@@ -66,7 +66,8 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions,
       model = MODEL_BY_PROVIDER[p];
       if (engine.engine === 'browser') console.error(`plainwright: Jev via ${p} (${model})`);
       services.warmUp();
-      picks = new PickStore(opts.picks ?? 'on', model);
+      // One versioned id for both providers: switching provider keeps the sidecars, a model upgrade drops them.
+      picks = new PickStore(opts.picks ?? 'on', MODEL_BY_PROVIDER.typesafe);
     }
     const scheduled = schedule(selected, opts, async (loaded, attemptNumber): Promise<Attempt> => {
       const began = Date.now();
