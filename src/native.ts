@@ -12,7 +12,7 @@ import type { Engine, SuiteEngine } from './suite-types.js';
 import { parseSuiteArgs, UsageError } from './options.js';
 import { checkSpecTimeoutFlag } from './spec-features.js';
 import { runSuite } from './suite.js';
-import { validate } from './validate.js';
+import { validate, formatValidation } from './validate.js';
 
 // Shared by the desktop (computer.ts) and mobile (mobile.ts) paths: Jev targeting, expect/wait polling,
 // phase timing, spec runs and the CLI. Subclasses only perform their platform's actions.
@@ -262,10 +262,8 @@ export async function nativeCli<S>(bin: string, usage: string, engineName: Extra
       run: (spec, observer, info) => main.run(spec, timeout, args, observer, info, opts.specTimeout), maxWorkers: 1 };
     if (command === 'validate') {
       const results = validate(engine, opts.files);
-      for (const result of results) {
-        for (const warning of result.warnings) console.error(`${result.file}: ${warning}`);
-        if (result.error) console.error(`${result.file}: ${result.error}`);
-      }
+      const output = formatValidation(results); // ✔ / ✘ / ! lines on stdout
+      if (output) console.log(output);
       process.exitCode = results.some((result) => result.error) ? 1 : 0;
     } else {
       process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;
