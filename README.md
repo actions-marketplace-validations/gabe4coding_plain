@@ -14,11 +14,10 @@ coding agent explore a flow through MCP and save it as a spec.
 [Jev](https://typesafe.ai), a small decision model, selects the element that a target describes and judges each
 claim. Jev reads the accessibility tree, not screenshots. Playwright, xa11y or Appium do the actions.
 
-<p align="center">
-  <a href="docs/media/plainwright-explainer.mp4"><img src="docs/media/plainwright-explainer.jpg" alt="Video: plainwright, explained in 6 minutes. A click step, the login button, with Jev's probability for each candidate on the page; the Login button wins at 0.95." width="80%" /></a>
-  <br />
-  <sub><a href="docs/media/plainwright-explainer.mp4">Watch the 6-minute explainer</a>: plain-English specs, how Jev selects and judges, the three engines, agent mode, the pick cache, what Jev costs, and how it compares with a classic test framework.</sub>
-</p>
+https://github.com/user-attachments/assets/cd3eecfc-91de-4ac9-a4cf-44300cf5ccc2
+
+<p align="center"><sub>plainwright, explained in 6 minutes: plain-English specs, how Jev picks and judges, the three engines,
+agent mode, the pick cache, what Jev costs, and how it compares with a classic test framework.</sub></p>
 
 | | Browser | Desktop | Mobile |
 |---|---|---|---|
