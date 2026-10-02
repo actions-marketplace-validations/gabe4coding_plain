@@ -4,12 +4,13 @@ import { settlePage, waitHold } from './activity.js';
 import { settledAsk } from './settled-ask.js';
 import { resolveOne } from './locate.js';
 import { timed } from './context.js';
+const CLAIM = { claim: true };
 const sameObserved = (a, b) => a.snap.url === b.snap.url && a.snap.title === b.snap.title && a.snap.aria === b.snap.aria &&
     a.events.length === b.events.length && a.events.every((event, i) => event === b.events[i]);
 /** Judges claims against the whole settled page, in one request; null probabilities when `skip` says so. */
 export async function judgeSettled(ctx, claims, skip) {
     const { state, result } = await settledAsk(ctx, {
-        observe: async () => ({ snap: await timed(ctx, 'snapshot', () => snapshot(ctx.page)), events: [...ctx.events] }),
+        observe: async () => ({ snap: await timed(ctx, 'snapshot', () => snapshot(ctx.page, CLAIM)), events: [...ctx.events] }),
         same: sameObserved,
         ask: ({ snap, events }) => judgeState(snap, claims, events),
         discard: (unused) => ctx.track(unused.tokens),
@@ -22,7 +23,7 @@ export async function judgeSettled(ctx, claims, skip) {
 /** Judges one claim against a region only; null probabilities when `skip` says so. */
 export async function judgeRegion(ctx, region, claim, skip) {
     await timed(ctx, 'settle', () => settlePage(ctx.page));
-    const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, region));
+    const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, region, CLAIM));
     const state = { snap, events: [...ctx.events] };
     if (skip(state))
         return { state, probabilities: null };
@@ -36,7 +37,7 @@ export async function judgeClaims(ctx, claims, within) {
         const region = await resolveOne(ctx, 'region', within);
         if (!region.element)
             return { detail: region.detail };
-        const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, region.element));
+        const snap = await timed(ctx, 'snapshot', () => snapshotRegion(ctx.page, region.element, CLAIM));
         const result = await timed(ctx, 'jev', () => judgeState(snap, claims, ctx.events));
         ctx.track(result.tokens);
         return { snap, probabilities: result.probabilities };

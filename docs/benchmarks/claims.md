@@ -1,12 +1,16 @@
 # Claims: does an `expect` judge right?
 
-`scripts/benchmark-claims.mjs` judges 139 claims with known answers (50 hold, 89 do not) on 16 saved pages, through
+`scripts/benchmark-claims.mjs` judges 181 claims with known answers (73 hold, 108 do not) on 28 saved pages, through
 the same `judgeState` and `decide()` an `expect` step uses. Saved pages keep the input fixed: a change in the
 numbers is a change in the judging, not in the page.
 
 - UI states (`scripts/claim-states/`, `capture-claim-states.mjs`, plain Playwright actions, no Jev): the-internet
   login with a wrong and a right password, checkboxes, a dropdown, dynamic loading before and after, dynamic
   controls, and TodoMVC with three todos and one completed.
+- Regions (`region: true`, judged as an `expect` with `within` sees them), from practice.expandtesting.com and
+  the-internet: each drag-and-drop box after the drag, both boxes, a login message, a table row and one cell.
+- Ad-funded pages (`ad-*`, practice.expandtesting.com, saved from a plainwright run on 2026-10-02, not
+  re-capturable: ads change on each load): login success, a dropdown, checkboxes, and drag and drop.
 - Content pages, shared with the read benchmark (`scripts/read-states/`): Wikipedia, Hacker News, GitHub repo and
   issues, Open Library, the-internet tables, books.toscrape, quotes.toscrape.
 
@@ -33,6 +37,92 @@ node scripts/benchmark-claims.mjs --runs 3 --out /tmp/base.json
 node scripts/benchmark-claims.mjs --runs 3 --compare /tmp/base.json
 node scripts/benchmark-claims.mjs --group page         # all claims of a page in one call, like an expect list
 ```
+
+## Regions without the page URL, and short ad links (2026-10-02)
+
+A live MCP session on practice.expandtesting.com showed two weaknesses. Both reproduce on saved pages.
+
+**A region was doubted.** After box A was dragged onto box B, `expect: {that: the letter "B" is shown, within:
+"css=#column-a"}` stayed inconclusive at p = 0.86, on a region tree of exactly `- text: B`. Other phrasings did
+not help: "the box shows the letter B" 0.84, "the text is B" 0.80, "B is shown" 0.70. The page context did: the
+same claim on the same tree gets 0.95 with the URL and title left out, 0.91 with only the URL left out, and 0.88
+with only the title left out.
+
+Leaving out both is not right in general. The live e2e found a counter case: the `Feed` region of
+`e2e/site.mjs` with Post 1 to Post 6, and "the feed shows Post 3 or a later post", gets 0.92 with the URL and
+title and 0.80 without both. On the 29 region cases (6 of them on that feed, 3 runs each), with what Jev gets:
+
+| | URL and title (baseline) | nothing | title only |
+|---|---|---|---|
+| Right | 63 / 87 | 72 / 87 | **72 / 87** |
+| False pass / false fail | 0 / 0 | 0 / 0 | 0 / 0 |
+| Lowest p, claim holds | 0.52 | 0.25 | 0.51 |
+| Highest p, claim does not hold | 0.70 | 0.62 | 0.59 |
+
+"Nothing" drops the feed claim to 0.80 and "the letter B comes before the letter A" on `- text: B A` to 0.26.
+"Title only" moves no case much toward the wrong side. `judgeState` now sends a region (`snapshotRegion` marks it
+`region: true`) with the page title and without the URL.
+
+**Ad links filled whole-page claims.** On the same site, a whole-page `expect` cost 15k to 26k Jev tokens. The
+login-success state was 41,447 characters: 39,461 in ad iframes, and 38,133 in `/url:` lines. One ad link target
+is up to 1,900 characters of tracking query. Link targets on the saved content pages stay under 250 characters.
+A claim now gets each link target over 200 characters cut to its part before `?` or `#` (`shortenUrls`,
+before the 60k cap), and a snapshot leaves out iframes with an empty tree. The empty iframes also caused a second Jev call:
+an empty reCAPTCHA frame header appeared between the early and the settled look, so `settledAsk` asked again.
+Cross-origin iframes are not dropped: a payment form or an embedded widget is real content, and ad text
+("Garden tools on sale") is visible content that a claim can name.
+
+3 runs each, 187 cases (561 judgments), back to back on the same saved pages:
+
+| | baseline | change |
+|---|---|---|
+| False pass / false fail | 0 / 0 | 0 / 0 |
+| Right | 475 (84.7%) | **482 (85.9%)** |
+| Inconclusive | 86 (15.3%) | 79 (14.1%) |
+| Jev tokens per claim | 5,539 | **3,739** |
+
+Split by whether the change touched the page (7 regions, 4 ad pages, and Hacker News and GitHub with a few long
+links):
+
+| | pages it touched (177) | pages it did not touch (384) |
+|---|---|---|
+| Right | 139 → **145** | 336 → 337 |
+| Inconclusive | 38 → 32 | 48 → 47 |
+| Jev tokens per claim | 9,781 → **4,076** | 3,584 → 3,584 |
+| Highest p, claim does not hold | 0.72 → 0.60 | 0.75 → 0.80 |
+
+The pages it did not touch get the same input in both arms, so their movement is run-to-run noise: the 0.80 is
+the Einstein over-count on the quotes page, the closest call of the set since the first run.
+
+Jev tokens per claim on the ad pages: login 26,383 → 1,826, dropdown 25,915 → 3,724, drag and drop 16,283 →
+1,544, checkboxes 15,247 → 1,567. The ad text stays: "an advertisement for Thinkmate computing hardware is shown"
+passes at 0.98 in both arms. Two claims on these pages got less sure, both safe: "a country is selected" (does
+not hold) 2/3 → 0/3 right at p = 0.14–0.18 (baseline 0.10–0.12), and "the page has exactly two checkboxes" 3/3
+→ 1/3 right at p = 0.89–0.90 (baseline 0.93–0.94). On the regions:
+
+| Region claim | baseline p | change p |
+|---|---|---|
+| `- text: B`, "the letter "B" is shown" (holds) | 0.83–0.85 | **0.92–0.93** |
+| `- text: A`, "the letter "A" is shown" (holds) | 0.88–0.90 | **0.92** |
+| `- text: A`, "the letter "B" is shown" (does not hold) | 0.10–0.11 | **0.05–0.06** |
+| cell `fbach@yahoo.com`, "the email fbach@yahoo.com is shown" (holds) | 0.89 | **0.91** |
+| a login error message, "a Login button is shown" (outside the region) | 0.68–0.69 | 0.42–0.43 |
+| the Feed region, "the feed shows Post 3 or a later post" (holds) | 0.91–0.93 | 0.90–0.91 |
+
+The margins on the passing region claims are thin (0.90–0.93), but steady across runs: `e2e/regions.yaml` passed
+at 0.91–0.93 in 3 of 3 runs, and `e2e/waits.yaml` in 3 of 3.
+
+**Still open: a claim on the position of a box with no role.** The boxes are plain `div` elements, so the whole
+page tree shows only `B A`. "The first box shows the letter B and the second box shows A" stays inconclusive in
+both arms (p = 0.67–0.77), and so does its false twin (0.54–0.72). Nothing in the tree says which box is first.
+`within` on each box is the way (`docs/phrasing.mdx`), but a region pick has no layout: `within: the first box`
+picked the header "A" (the box that started first), or nothing. Use `css=` for such a box.
+
+Live check of the same flow on practice.expandtesting.com: `within: "css=#column-a"` passes at 0.92–0.93 in 3 of 3
+runs (baseline 0.86, inconclusive). `scripts/benchmark-steps.mjs` on that flow plus TodoMVC, 3 runs each: median claim tokens
+12,296 → 8,678, overhead 9,545 → 8,139 ms, re-asks 3 → 2. Ads change on each load (one baseline run had 29,668
+claim tokens), so the saved pages above are the measure. `e2e/regions.yaml` and `e2e/regions-fails.yaml` cover both
+on the local site.
 
 ## Unchecked mark (2026-10-01)
 
