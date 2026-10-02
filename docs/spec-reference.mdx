@@ -1,0 +1,300 @@
+---
+title: Spec reference
+description: Write a browser spec. This page lists the file format, every top-level key and step kind, reusable flows, and what Jev sees.
+---
+
+# Spec reference
+
+A spec is one YAML file. It has a name, a base URL, optional settings and a list of steps. plainwright runs
+the steps in order.
+
+This page describes browser specs. [Desktop specs](computer-use.mdx#desktop-specs) and
+[mobile specs](mobile-use.mdx#mobile-specs) list their differences.
+
+```yaml
+name: login works                         # label in the report
+url: https://the-internet.herokuapp.com   # base for goto, never opened by itself
+goal: log in as the demo user             # optional, every pick sees it
+dialogs: accept                           # accept (default) or dismiss
+env:
+  path: /login
+  user: tomsmith
+  password: $DEMO_PASSWORD                # read from the environment when the spec loads
+tags: [smoke, login]
+timeout: 120000                           # time budget for one attempt, in ms
+steps:
+  - goto: "${env.path}"                   # the first step opens the page
+  - fill: { target: the username textbox, value: "${env.user}" }
+  - fill: { target: the password textbox, value: "${env.password}" }
+  - click: the Login button
+  - expect: a heading with the text "Secure Area" is shown
+```
+
+Start every spec with a `goto` step. Without it, the first step acts on an empty page and comes back
+`inconclusive`. To check a spec without a browser or an API key, run `plainwright validate <file>`.
+
+## Top-level keys
+
+| Key | Meaning |
+|---|---|
+| `name` | Required. The label in the report. |
+| `url` | Required. The base URL for `goto` steps. plainwright does not open it. |
+| `goal` | One sentence that says what the spec does. Every pick sees it. Claims never see it. |
+| `dialogs` | `accept` (default) or `dismiss`. How plainwright answers `alert`, `confirm` and `prompt`. |
+| `auth` | `{ user, pass }`. Credentials for an HTTP Basic or Digest prompt. |
+| `geolocation` | `{ lat, lon }`. Sets a GPS position and grants the `geolocation` permission. |
+| `env` | Static data for the spec, nested as you like. Steps use it as `${env.*}`. |
+| `hooks` | The path of a setup and teardown module, relative to the spec file. See [hooks](hooks.mdx). |
+| `tags` | A string or a list, for example `[smoke, checkout]`. `--tag` selects specs by tag. |
+| `timeout` | A positive integer in ms. The time budget for one attempt. See [timeouts](#timeouts). |
+| `browser` | Browser context settings. See [browser context](#browser-context). |
+| `steps` | Required. A list of one or more steps. See [steps](#steps). |
+
+A `goal` helps Jev with a vague target, such as `the comments link`. If the `goal` and the target do not
+agree, the target wins.
+
+An unknown key is an error. This applies at the top level, in `auth`, `geolocation` and `browser`, in a step,
+and in the keys of a step such as `expect: {that, within}`. Only `env` accepts all keys. The error gives the
+name of the key. If a known key is near, the error also gives that key:
+
+```
+invalid spec: checkout.yaml: step 2 "expect": unknown key "whithin"; did you mean "within"?
+```
+
+Step numbers start at 0. Desktop and mobile specs use the same rule.
+
+### Values from the environment
+
+Do not write credentials in a spec. Put a `$NAME` value in `auth` or `env`, and set the environment variable
+`NAME`:
+
+```yaml
+auth: { user: $BASIC_USER, pass: $BASIC_PASS }
+env:
+  account:
+    password: $TEST_PASSWORD     # used in steps as ${env.account.password}
+```
+
+- plainwright replaces each string that starts with `$`, at any depth of `auth` and `env`, when the spec loads.
+- The full string is the name. `$HOME/x` looks for a variable with the name `HOME/x`.
+- An unset or empty variable is an error. `validate` shows it as a warning.
+- A `$NAME` inside a list stays as text.
+
+plainwright also reads [`.env` files](getting-started.mdx).
+
+### Browser context
+
+| Key | Meaning |
+|---|---|
+| `device` | A Playwright device name, for example `iPhone 15`. Sets the viewport, user agent, touch and scale. |
+| `viewport` | `{ width, height }` in pixels, both positive integers. |
+| `locale` | The context locale, for example `it-IT`. |
+| `timezone` | The context time zone, for example `Europe/Rome`. |
+| `colorScheme` | `light` or `dark`. |
+| `storageState` | A JSON file of cookies and local storage to load into a new context. |
+| `saveState` | A JSON file to write cookies and local storage to, after a passing attempt. |
+
+- A key that you write overrides the same value from `device`.
+- `device` does not change the browser. The CLI uses Chromium, unless you set `--channel`.
+- The `browser` block rejects unknown keys.
+
+### Stored login state
+
+To log in once and reuse the session in other specs:
+
+1. Write a login spec with `saveState: ./.auth/user.json`.
+2. Write the other specs with `storageState: ./.auth/user.json`.
+3. Run the login spec first. plainwright does not order specs by their dependencies.
+
+- Both paths are relative to the spec file.
+- plainwright writes `saveState` only after a passing attempt and its `teardown`. If the save fails, the
+  attempt ends `error`.
+- If the `storageState` file is missing, the session does not open.
+
+Do not commit state files. They can contain session cookies and tokens.
+
+With [your real browser](agent-mode.mdx#your-real-browser), `--cdp` rejects `auth`, `geolocation` and a
+`browser` block that is not empty. `--profile` supports all `browser` keys except `storageState`.
+
+### Timeouts
+
+`--timeout` limits one action and one `wait` step (default `15000` ms). The spec `timeout:`, or
+`--spec-timeout`, is the budget for one attempt. The spec value wins, and there is no default budget.
+
+- A retry gets a new budget. Browser launch, `setup` and reporters use part of it.
+- When the budget ends, the current step ends `error` with `spec timeout after <ms> ms`. No later step starts,
+  also when the step is optional.
+- `teardown` and cleanup can continue after the budget ends.
+
+`--timeout 0` disables the action limit. A `wait` that Jev judges then ends at once as `inconclusive`.
+
+## Steps
+
+A step is a mapping with one key, the step kind. It can also have `optional: true`.
+
+An action step names a **target**: a sentence that Jev resolves to one element. A target can also be
+`css=<selector>`, which skips Jev. If the selector matches more than one element, the step is
+`inconclusive`. If it matches none until `--timeout`, the step is `error`. Use `css=` only as the last choice.
+
+### Actions
+
+| Step | Form | Notes |
+|---|---|---|
+| `goto` | `goto: /path` or a full URL | Opens the page and waits for the `load` event. |
+| `click` | `click: <target>` | Can open a page or a new tab. |
+| `dblclick`, `rightclick` | `dblclick: <target>` | Same as `click`. |
+| `fill` | `fill: { target, value }` | Replaces the value of the field. `value: ''` clears it. |
+| `press` | `press: Enter` | Sends a Playwright key name to the focused element. |
+| `hover` | `hover: <target>` | Targets also include images, `svg` and `figure`. |
+| `select` | `select: { target, value }` | A native `select` only. Tries the option label, then the option value. |
+| `check`, `uncheck` | `check: <target>` | Sets a checkbox, radio, switch or toggle button on or off. |
+| `upload` | `upload: { target, files: [a.pdf] }` | Sets the files of an `input[type=file]`, also an invisible one. |
+| `scroll` | `scroll: <target>`, `top` or `bottom` | Scrolls a control into view, or the page to its top or bottom. |
+| `drag` | `drag: { source, target }` | Drags the source element onto the target element. |
+| `mouse` | `mouse: { x, y }` | Moves the mouse to a position in the viewport. `y` can be negative. |
+
+- A `goto` value that does not start with `http://` or `https://` is relative to the full `url`, not to the
+  site root. With `url: https://test.example/app`, `goto: /login` opens `https://test.example/app/login`.
+- `check` and `uncheck` read the state first and click only if it must change. If the click does not change
+  the state, the step is `error`. For a chip or button that shows no state, use `click`.
+- `upload` paths are relative to the spec file, also in a [reusable flow](#reusable-flows).
+- If `scroll: bottom` reports `did not move`, the content scrolls inside an element. Scroll to an element in
+  that area. A heading or a paragraph is not a `scroll` target.
+- `drag` moves the mouse in small steps, so native HTML5 drag and drop works.
+- For a custom dropdown, click the control, then click the option.
+
+### Checks
+
+| Step | Form | Notes |
+|---|---|---|
+| `expect` | `expect: <claim>` | Jev judges the claim against the settled page. |
+| | `expect: [claim, claim]` | Several claims, one snapshot, one Jev request. |
+| | `expect: { that: <claim or list>, within: <target> }` | Jev judges only one region of the page. |
+| `wait` | `wait: <claim>` or `wait: { that, within }` | Asks Jev until the claim holds. |
+| | `wait: css=<selector>` | Waits until the selector is visible. |
+
+With several claims, one `fail` makes the step `fail`. Else one `inconclusive` claim makes it `inconclusive`.
+
+A `within` target names a region, for example `main`, a `dialog`, a `form`, a `table` or a list of results.
+Use it on a page that shows more than one thing. It also costs fewer tokens on a large page.
+
+A `wait` looks again when the page changes, or after 1.5 s. If nothing changed since a clear no, it does not
+ask Jev again. It stops after 8 Jev answers or at `--timeout`.
+A `wait` that never passes ends `inconclusive`, never `fail`. A `wait: css=` that times out ends `error`.
+
+### Reusable flows
+
+Use `include` to share steps, such as a login, across specs. It works on all engines.
+
+```yaml
+name: Account settings
+url: https://test.example
+env:
+  user: $TEST_USER
+  password: $TEST_PASSWORD
+steps:
+  - goto: /login
+  - include: ./flows/login.yaml
+  - click: the Settings link
+```
+
+`flows/login.yaml` contains only `steps:`:
+
+```yaml
+steps:
+  - fill: { target: the Username field, value: "${env.user}" }
+  - fill: { target: the Password field, value: "${env.password}" }
+  - click: the Login button
+```
+
+- plainwright expands each `include` when the spec loads. A flow can include other flows.
+- An `include` path is relative to the file that contains it.
+- A flow file with any key other than `steps:` is an error.
+- Placeholders in a flow use the `env` and `hooks` data of the root spec. Other paths, such as `upload`
+  files, are relative to the root spec.
+- Keep flow files out of the folders and globs that you run as specs.
+
+Results name the flow file, for example `flows/login.yaml › click "the Login button"`. The MCP `step` and
+`batch` tools do not accept `include`, and `save` does not write it.
+
+### `optional: true`
+
+An optional step that ends `inconclusive` or `error` becomes `skipped`, and the spec continues. Use it for
+an element that is not always there, such as a cookie banner.
+
+### How a step waits for the page
+
+Before Jev picks or judges, a step waits until the DOM is quiet and no request is open, for up to 3 s. If the
+page needs more time, add a `wait` step.
+
+- The step sends its first look at the page to Jev at once. If the page then changes, plainwright asks Jev
+  again about the settled page. This costs more tokens.
+- `click`, `dblclick`, `rightclick`, `press` and `fill` wait for a page that they open to load.
+- After `fill`, the next step also waits for a debounced request, such as an autocomplete.
+- A new tab becomes the active page. The next step waits until it loads.
+- If a step finds no element to choose from, it looks again for up to 2 s.
+
+A run can reuse the element that Jev picked in the last passing run. See the [pick cache](running.mdx#pick-cache).
+
+## Step results
+
+| Status | Meaning |
+|---|---|
+| `pass` | The action or the check passed. |
+| `fail` | Jev is sure that an `expect` claim is false. |
+| `inconclusive` | No element matches the target well enough, Jev is not sure about a claim, or a `wait` never passes. |
+| `error` | An exception, such as a timeout or a navigation failure. |
+| `skipped` | An optional step that did not pass. |
+
+The detail of an `inconclusive` step lists the top guesses of Jev and the path of a JSON file with the state
+that Jev saw. [Phrasing](phrasing.mdx#how-jev-decides) gives the thresholds.
+
+An attempt stops at the first step that does not pass, except an optional skip.
+
+## What Jev can see
+
+### For a pick
+
+For an action step, Jev gets a numbered list of candidates: the visible, enabled elements that the step kind
+can act on. It also gets the page URL and title, the date and the spec `goal`. A candidate description contains:
+
+- the tag, its `type` and `role`, for example `input[type=email]`
+- the visible text (max 60 characters) or the field value
+- the `aria-label`, `placeholder`, `alt`, `title`, `name` and `id` attributes, and the path of a link
+- context from the row, card or group around it, for example the row of an Edit button.
+
+Jev does not get the accessibility tree for a pick. The list puts an open dialog first, then the page, then
+`nav` and `footer`, then each iframe with the prefix `[iframe <label>]` (see [iframes](snapshots.mdx#iframes)).
+For `click` and `hover`, clickable cards, labels and elements with `tabindex` follow the real controls.
+plainwright also looks inside open shadow roots. Identical descriptions get `#1`, `#2` in page order.
+
+Over about 1000 candidates, plainwright drops the last ones (iframes, `nav` and `footer` first). On such a
+page, use `within` or `css=`.
+
+### For a claim
+
+For `expect` and `wait`, Jev gets the accessibility snapshot of the settled page, with the tree of each
+iframe. With `within`, Jev gets only the tree of that region. plainwright cuts the snapshot at 60,000
+characters, and the step detail then shows `(aria truncated at 60k chars)`.
+
+Jev also gets the last 30 page events, which the tree does not show:
+
+- dialogs, and how plainwright answered them
+- new tabs
+- downloads, with the path of the saved file
+- uncaught page errors and `console.error` messages of the page.
+
+Thus Jev can judge `expect: a file was downloaded`. plainwright deletes the downloads when the browser
+closes, after `teardown`. Console errors about blocked resources or from scripts of other sites are not events.
+
+## Placeholders
+
+plainwright replaces `${env.*}` and `${hooks.*}` in `url` and in every string of every step. It does not
+replace them in `goal`, `auth`, `geolocation`, `dialogs` or `browser`.
+
+- `${env.a.b}` reads the `env` block. `${hooks.a.b}` reads what `setup` returned. See [hooks](hooks.mdx).
+- The path must name a text, number or boolean value. An object, a list, a missing value, a list index
+  (`${env.users.0}`) or another namespace is an error.
+
+plainwright replaces placeholders after `setup` and before the first step. An unresolved placeholder ends the
+attempt `error` before the first step. `teardown` still runs.
