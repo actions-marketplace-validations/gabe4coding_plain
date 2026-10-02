@@ -422,3 +422,41 @@ test('snapshot: an iframe with an empty tree gets no section; long link targets 
   const links = await snapshotRegion(page, page.locator('nav'));
   assert.match(links.aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
 });
+
+test('snapshot: an iframe whose document has no body is skipped at once, not waited for', async () => {
+  // Ad sync frames (static.admaster.cc cookieSync.html) remove their body; a `body` locator then waits its whole timeout.
+  const timed = await browser.newPage();
+  timed.setDefaultTimeout(15_000);
+  try {
+    await timed.goto(html(`<p>outside</p><iframe name="bodyless" srcdoc="<script>addEventListener('load', () => document.body.remove())</script>"></iframe>` +
+      '<iframe name="filled" srcdoc="<button>Inside</button>"></iframe>'));
+    await timed.frameLocator('iframe[name=filled]').getByRole('button').waitFor();
+    await timed.frame('bodyless')!.waitForFunction(() => !document.body);
+    const start = performance.now();
+    const snap = await snapshot(timed);
+    assert.ok(performance.now() - start < 2_000, `snapshot took ${Math.round(performance.now() - start)} ms`);
+    assert.match(snap.aria, /^- paragraph: outside/);
+    assert.match(snap.aria, /--- iframe filled ---\n- button "Inside"/);
+    assert.doesNotMatch(snap.aria, /bodyless/);
+  } finally {
+    await timed.close();
+  }
+});
+
+test('snapshot: an iframe still parsing its head gets its body waited for', async () => {
+  const parsing = await browser.newPage();
+  await parsing.route('https://slow.test/head.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    await route.fulfill({ contentType: 'text/javascript', body: '' });
+  });
+  try {
+    await parsing.goto(html(`<p>outside</p><iframe name="parsing" srcdoc="<script src='https://slow.test/head.js'></script><button>Late</button>"></iframe>`),
+      { waitUntil: 'domcontentloaded' });
+    await parsing.waitForFunction(() => document.querySelector('iframe')?.contentDocument?.readyState === 'loading');
+    assert.equal(await parsing.frame('parsing')!.evaluate(() => document.body), null);
+    const snap = await snapshot(parsing);
+    assert.match(snap.aria, /--- iframe parsing ---\n- button "Late"/);
+  } finally {
+    await parsing.close();
+  }
+});

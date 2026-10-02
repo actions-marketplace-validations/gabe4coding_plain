@@ -1,5 +1,6 @@
 name: a field inside an iframe and a button inside a shadow root
 url: ${env.site}
+timeout: 25000 # about 2 s normally, so room for a slow Jev call; two 15 s waits for the ad sync frame break it
 env:
   site: $PLAINWRIGHT_E2E_SITE
 steps:
