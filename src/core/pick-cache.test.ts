@@ -66,7 +66,7 @@ test('value= is ignored only on text-entry fields: a submit or native value iden
   const after: Candidate[] = [{ id: 0, desc: 'input value="books" name="q"', editable: true }, { id: 1, desc: 'button "Go"' }];
   assert.equal(matchEntry(makeEntry(before[1], before, state)!, after, state)?.id, 1);
   assert.equal(matchEntry(makeEntry(before[0], before, state)!, after, state)?.id, 0);
-  assert.equal(DESC_FORMAT, 3);
+  assert.equal(DESC_FORMAT, 4);
 });
 
 test('ordinal and rejected picks are never stored; every entry carries the list hash', () => {

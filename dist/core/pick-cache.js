@@ -14,8 +14,9 @@ export const PICK_FILE_VERSION = 1;
  * Bump whenever a candidate description changes (src/browser/candidates.ts or a native adapter).
  * 2: `value=` is ignored only on editable candidates; every entry has the list hash.
  * 3: the list hash also covers each element's UI state (checked, selected, pressed, expanded, disabled).
+ * 4: a labelable control's description carries its `<label>` text (`label="…"`).
  */
-export const DESC_FORMAT = 3;
+export const DESC_FORMAT = 4;
 export const PICKS_MODES = ['on', 'read', 'off'];
 export const sidecarPath = (file) => {
     const { dir, name } = path.parse(file);
