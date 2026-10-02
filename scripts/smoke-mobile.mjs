@@ -1,7 +1,7 @@
 // Opt-in native connection/tree/screenshot smoke against an installed test app. No Jev key.
 import assert from 'node:assert/strict';
-import { AppiumAdapter } from '../dist/mobile-adapter.js';
-import { MobileTargetSchema } from '../dist/mobile-spec.js';
+import { AppiumAdapter } from '../dist/mobile/adapter.js';
+import { MobileTargetSchema } from '../dist/mobile/spec.js';
 
 const target = MobileTargetSchema.parse({
   platform: process.env.PLAINWRIGHT_MOBILE_PLATFORM,

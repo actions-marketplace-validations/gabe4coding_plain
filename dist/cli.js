@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { loadSpec } from './spec.js';
-import { runSpec, closeSharedBrowser } from './runner.js';
-import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev.js';
-import { parseSuiteArgs, UsageError } from './options.js';
-import { runSuite } from './suite.js';
-import { validate, formatValidation } from './validate.js';
-import { checkSpecTimeoutFlag } from './spec-features.js';
+import { loadSpec } from './core/spec.js';
+import { runSpec, closeSharedBrowser } from './browser/runner.js';
+import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev/jev.js';
+import { parseSuiteArgs, UsageError } from './suite/options.js';
+import { runSuite } from './suite/run-suite.js';
+import { validate, formatValidation } from './suite/validate.js';
+import { checkSpecTimeoutFlag } from './core/spec-features.js';
 loadEnvFiles();
 try {
     const { command, opts, flags } = parseSuiteArgs(process.argv.slice(2), 'browser');
@@ -22,7 +22,7 @@ try {
             console.error(error instanceof Error ? error.message : String(error));
         }
         warmUp();
-        await (await import('./mcp.js')).serveMcp(runOpts);
+        await (await import('./browser/mcp.js')).serveMcp(runOpts);
     }
     else {
         const engine = { engine: 'browser', load: loadSpec,

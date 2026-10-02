@@ -1,8 +1,8 @@
 // Projection microbenchmark: synthetic captures, no browser/device work or agent task execution.
 // Build first. --live-jev adds real classification calls using the CLI's env precedence.
 import { existsSync } from 'node:fs';
-import { snapshotView } from '../dist/snapshot-view.js';
-import { describeSnapshot, USER_ENV_FILE } from '../dist/jev.js';
+import { snapshotView } from '../dist/core/snapshot-view.js';
+import { describeSnapshot, USER_ENV_FILE } from '../dist/jev/jev.js';
 
 const live = process.argv.includes('--live-jev');
 if (live) for (const path of ['.env', USER_ENV_FILE]) if (existsSync(path)) process.loadEnvFile(path);

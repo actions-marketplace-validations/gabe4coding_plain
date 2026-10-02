@@ -21,8 +21,8 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles, pickElements, decide } from '../dist/jev.js';
-import { makeEntry, match } from '../dist/pick-cache.js';
+import { loadEnvFiles, pickElements, decide } from '../dist/jev/jev.js';
+import { makeEntry, match } from '../dist/core/pick-cache.js';
 
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, goal: { type: 'string', default: 'on' },
   skip: { type: 'string', multiple: true }, only: { type: 'string' }, out: { type: 'string' } } });
