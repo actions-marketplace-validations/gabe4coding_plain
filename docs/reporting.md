@@ -12,28 +12,30 @@ plainwright-mobile --reporter json:out/mobile.json tests/mobile/
 | Reporter | Destination | Behavior |
 |---|---|---|
 | `text` | stdout | Status icons, step labels and details; browser `--timing` adds phase timings. |
-| `jsonl` | stdout | One line per executed spec, with the legacy native result fields. Load errors and thrown runs go to stderr. |
+| `jsonl` | stdout | One line per executed spec, with the legacy native result fields. Load errors, thrown runs and never-started skips go to stderr. |
 | `junit:FILE` | File | JUnit XML for CI, written when the suite finishes. |
 | `json:FILE` | File | Complete run report, written when the suite finishes. |
 
 `junit` and `json` require a nonempty file path and create missing parent directories. `text` and
-`jsonl` do not accept file paths. At most one stdout reporter is allowed, including duplicate names;
-unknown names and invalid combinations are usage errors (exit 2) before a session opens.
+`jsonl` do not accept file paths. At most one stdout reporter is allowed, including duplicate names.
+Two file reporters cannot write the same resolved output path. Unknown names and
+invalid combinations are usage errors (exit 2) before a session opens.
 Reporters run in flag order. File-write failures are reported on stderr using the suite's observer
 warning behavior; they do not change spec results or the exit code, so a CI job that needs the
 file should also check that it exists.
 
-Text output preserves ordinary Phase 0 runs. A flaky result adds `flaky, passed on attempt N` to
+Text output uses the same step format for ordinary runs. A flaky result adds `flaky, passed on attempt N` to
 its header and prints the earlier attempts' failing steps underneath, prefixed `attempt K:`.
 Attempt numbers in text are one-based. A spec skipped by a stop rule prints
 `» <file>  (skipped: bail|max-tokens)`.
-A run with retries or stop-rule skips prints a final summary when more than one spec was executed:
+A run with retries or stop-rule skips prints a final summary when the report contains
+more than one spec, including load errors and never-started skips:
 
 ```text
 1 passed, 1 failed, 1 flaky, 1 skipped  (6 Jev calls, 90 tokens, 5.25s)
 ```
 
-`passed` includes flaky specs. Counts and model usage include all attempts; elapsed time is the
+`passed` includes flaky specs. Summary counts and model usage include all attempts; elapsed time is the
 suite's wall time. Ordinary runs retain their existing output without a new summary.
 
 ## JUnit XML
@@ -55,8 +57,10 @@ no attempts and zero duration. Jenkins splits `classname` at its last dot, so it
 | Load error or thrown `Attempt.error` | `<error type="error" message="<spec name>">` with the stored error. |
 | `skipped` by bail/token budget | `<skipped message="bail|max-tokens"/>`. |
 | Other `skipped` result | `<skipped message="skipped"/>`. |
-| Earlier failed attempt, finally passing | `<flakyFailure>` with `message`, `type`, and `<stackTrace>` detail. |
-| Earlier failed attempt, finally failing | `<rerunFailure>` with `message`, `type`, and `<stackTrace>` detail. |
+| Earlier `fail`/`inconclusive` attempt, finally passing | `<flakyFailure>` with `message`, `type`, and `<stackTrace>` detail. |
+| Earlier `error` attempt, finally passing | `<flakyError>` with the same attributes and detail. |
+| Earlier `fail`/`inconclusive` attempt, finally non-passing | `<rerunFailure>` with the same attributes and detail. |
+| Earlier `error` attempt, finally non-passing | `<rerunError>` with the same attributes and detail. |
 
 Retry elements use the Maven Surefire format. Only final outcomes contribute to failure/error
 counters, so a flaky pass remains passing. The relevant step supplies the label and detail; when
@@ -72,7 +76,7 @@ an attachment line for Jenkins/GitLab:
 [[ATTACHMENT|/absolute/path/to/screenshot.png]]
 ```
 
-Artifact capture is supplied by the artifacts lane; choosing a reporter alone does not capture
+Artifact capture is enabled with `--artifacts DIR`; choosing a reporter alone does not capture
 anything. Upload the files separately if your CI does not retain the runner's filesystem.
 XML entities are escaped and characters forbidden by XML 1.0 are removed.
 
@@ -127,4 +131,4 @@ unexecuted skips have empty `attempts`; flaky is a separate boolean. JSON preser
 artifact metadata verbatim. The default JSONL format is unchanged and does not add schemaVersion,
 suite totals, attempts, or artifact metadata.
 
-Retries and stop rules come from [scheduling](scheduling.md), artifacts from [artifacts](artifacts.md).
+Retries and stop rules come from [running suites](running.md), artifacts from [artifacts](artifacts.md).
