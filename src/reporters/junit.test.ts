@@ -95,7 +95,7 @@ test('JUnit retains all failed retries, all attempt artifacts, timings, and aggr
   const props = Object.fromEntries(flaky.properties.property.map((p: Record<string, string>) => [p['@_name'], p['@_value']]));
   assert.deepEqual(props, { jevCalls: '6', tokens: '90', provider: 'typesafe', model: 'jev-test', attempts: '3' });
   const suiteProps = Object.fromEntries(parsed.testsuite.properties.property.map((p: Record<string, string>) => [p['@_name'], p['@_value']]));
-  assert.deepEqual(suiteProps, { jevCalls: '10', tokens: '150', provider: 'typesafe', model: 'jev-test', attempts: '5' });
+  assert.deepEqual(suiteProps, { jevCalls: '10', tokens: '150', cachedPicks: '0', provider: 'typesafe', model: 'jev-test', attempts: '5' });
 });
 
 test('JUnit creates nested directories at runEnd and reports empty native suites', async () => {

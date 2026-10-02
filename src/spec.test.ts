@@ -5,6 +5,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { loadSpec, interpolate, parseStep } from './spec.js';
 
+// The pick-cache source (`at`) is covered in pick-cache.test.ts; these tests compare the parsed steps without it.
+function stripped(spec: ReturnType<typeof loadSpec>) {
+  return { ...spec, steps: spec.steps.map(({ at: _at, ...step }) => step) };
+}
+
 function specFile(yaml: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'plainwright-spec-test-'));
   const path = join(dir, 'spec.yaml');
@@ -21,7 +26,7 @@ steps:
     optional: true
   - press: Enter
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.equal(spec.steps[0].optional, true);
   assert.equal(spec.steps[1].optional, false);
 });
@@ -35,7 +40,7 @@ steps:
   - dblclick: "the file icon"
   - rightclick: "the context menu target"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'hover', target: 'the first avatar', optional: false });
   assert.deepEqual(spec.steps[1], { kind: 'dblclick', target: 'the file icon', optional: false });
   assert.deepEqual(spec.steps[2], { kind: 'rightclick', target: 'the context menu target', optional: false });
@@ -48,7 +53,7 @@ url: https://example.com
 steps:
   - select: { target: "the dropdown list", value: "Option 2" }
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'select', target: 'the dropdown list', value: 'Option 2', optional: false });
   assert.throws(() => loadSpec(specFile('name: x\nurl: https://example.com\nsteps:\n  - select: { target: "a" }\n')));
 });
@@ -61,7 +66,7 @@ steps:
   - check: "the first checkbox"
   - uncheck: "the second checkbox"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'check', target: 'the first checkbox', optional: false });
   assert.deepEqual(spec.steps[1], { kind: 'uncheck', target: 'the second checkbox', optional: false });
 });
@@ -73,7 +78,7 @@ url: https://example.com
 steps:
   - upload: { target: "the file input", files: ["fixtures/hello.txt"] }
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'upload', target: 'the file input', files: ['fixtures/hello.txt'], optional: false });
   assert.throws(() => loadSpec(specFile('name: x\nurl: https://example.com\nsteps:\n  - upload: { target: "a", files: [] }\n')));
 });
@@ -86,7 +91,7 @@ steps:
   - scroll: bottom
   - scroll: "the footer link"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'scroll', target: 'bottom', optional: false });
   assert.deepEqual(spec.steps[1], { kind: 'scroll', target: 'the footer link', optional: false });
 });
@@ -99,7 +104,7 @@ steps:
   - wait: "css=#done"
   - wait: "the text 'Hello World!' is visible"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'wait', condition: 'css=#done', optional: false });
   assert.deepEqual(spec.steps[1], { kind: 'wait', condition: "the text 'Hello World!' is visible", optional: false });
 });
@@ -114,7 +119,7 @@ steps:
   - expect: { that: "a success message is shown", within: "the dialog" }
   - expect: { that: ["claim a", "claim b"] }
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'expect', expectations: ['the page loaded'], optional: false });
   assert.deepEqual(spec.steps[1], {
     kind: 'expect',
@@ -146,7 +151,7 @@ auth: { user: admin, pass: admin }
 steps:
   - click: "ok"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.auth, { user: 'admin', pass: 'admin' });
 });
 
@@ -171,7 +176,7 @@ geolocation: { lat: 45.4642, lon: 9.19 }
 steps:
   - click: "ok"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.geolocation, { lat: 45.4642, lon: 9.19 });
   assert.throws(() =>
     loadSpec(specFile('name: x\nurl: https://example.com\ngeolocation: { lat: "45" }\nsteps:\n  - click: "ok"\n'))
@@ -185,7 +190,7 @@ url: https://example.com
 steps:
   - drag: { source: "the box labelled A", target: "the box labelled B" }
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'drag', source: 'the box labelled A', target: 'the box labelled B', optional: false });
   assert.throws(() => loadSpec(specFile('name: x\nurl: https://example.com\nsteps:\n  - drag: { source: "a" }\n')));
 });
@@ -198,7 +203,7 @@ steps:
   - mouse: { x: 300, y: 300 }
   - mouse: { x: 300, y: -10 }
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.steps[0], { kind: 'mouse', x: 300, y: 300, optional: false });
   assert.deepEqual(spec.steps[1], { kind: 'mouse', x: 300, y: -10, optional: false });
   assert.throws(() => loadSpec(specFile('name: x\nurl: https://example.com\nsteps:\n  - mouse: { x: "a", y: 1 }\n')));
@@ -225,7 +230,7 @@ env:
 steps:
   - click: "ok"
 `);
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.deepEqual(spec.env, { path: '/login', user: { name: 'tomsmith' } });
 });
 
@@ -248,7 +253,7 @@ test('env must be a mapping', () => {
 
 test('hooks resolves to an absolute path relative to the spec file, must be a non-empty string', () => {
   const path = specFile('name: x\nurl: https://example.com\nhooks: ./hooks.mjs\nsteps:\n  - click: "ok"\n');
-  const spec = loadSpec(path);
+  const spec = stripped(loadSpec(path));
   assert.equal(spec.hooks, join(dirname(path), 'hooks.mjs'));
   assert.throws(() => loadSpec(specFile('name: x\nurl: https://example.com\nhooks: 5\nsteps:\n  - click: "ok"\n')));
   assert.throws(() => loadSpec(specFile('name: x\nurl: https://example.com\nhooks: ""\nsteps:\n  - click: "ok"\n')));

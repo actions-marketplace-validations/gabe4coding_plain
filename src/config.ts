@@ -24,6 +24,7 @@ const ConfigSchema = z.object({
   specTimeout: positive.optional(), timeout: z.number().nonnegative().optional(),
   headless: z.boolean().optional(), profile: text.optional(), channel: text.optional(),
   cdp: text.optional(), server: text.optional(),
+  picks: z.enum(['on', 'read', 'off']).optional(),
 }).strict();
 
 export function loadConfig(cwd: string, explicit?: string): Partial<SuiteOptions & EngineFlags> {

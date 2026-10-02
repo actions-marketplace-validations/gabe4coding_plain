@@ -12,18 +12,26 @@ export const intelligence = { pick: pickElements, judge, describe: describeSnaps
 export async function resolveTargets(adapter, targets, ai = intelligence) {
     if (!adapter.candidates.length)
         return targets.map(() => ({ element: null, detail: 'no candidates', tokens: 0, usedJev: false }));
-    const picks = await ai.pick(adapter.candidates, targets, adapter.state);
+    // Cache hits act on the stored decision; only the misses go to Jev, in one request as before.
+    const hits = targets.map((target) => adapter.cached?.(target));
+    const asked = targets.filter((_, i) => !hits[i]);
+    const picks = asked.length ? await ai.pick(adapter.candidates, asked, adapter.state) : [];
+    let n = 0;
     return targets.map((target, i) => {
-        const pick = picks[i];
+        const hit = hits[i];
+        if (hit)
+            return { element: adapter.element(hit), detail: `→ ${hit.desc}`, tokens: 0, usedJev: false, cached: true, candidate: hit };
+        const first = n === 0;
+        const pick = picks[n++];
         if (!pick)
             throw new Error('Jev returned fewer picks than targets');
         const { id, probability, confidence, probabilities, tokens } = pick;
         const candidate = adapter.candidates.find((c) => c.id === id);
         const accepted = candidate !== undefined && decide(confidence ?? probability, 'pick') === 'pass';
         const c = confidence === undefined ? '' : ` c=${confidence.toFixed(2)}`;
-        const base = { tokens, usedJev: i === 0, confidence, score: confidence ?? probability };
+        const base = { tokens, usedJev: first, confidence, score: confidence ?? probability };
         if (accepted)
-            return { ...base, element: adapter.element(candidate), detail: `→ ${candidate.desc} (p=${probability.toFixed(2)}${c})` };
+            return { ...base, element: adapter.element(candidate), candidate, detail: `→ ${candidate.desc} (p=${probability.toFixed(2)}${c})` };
         const file = dumpDebug('pick', { instruction: target, probabilities, confidence, candidates: adapter.candidates });
         return { ...base, element: null, detail: `${id === null ? 'no matching element' : 'low confidence or invalid candidate'}${c} — top: ${topGuesses(probabilities, adapter.candidates)} — candidates: ${file}` };
     });

@@ -10,6 +10,7 @@ import { browserContextOptions } from './context-options.js';
 import { observerCalls } from './observe.js';
 import { label } from './results.js';
 import { specDeadline } from './spec-timeout.js';
+import { withCacheDump } from './pick-cache.js';
 const MAX_EVENTS = 30; // ponytail: cap what's sent to Jev as `events` — a long spec shouldn't grow this unbounded
 // Ad-heavy sites log CSP violations that list every allowed domain (~4,500 chars each): sent to Jev with
 // every judgment, they cost more tokens than the page. The head says what the error is.
@@ -234,7 +235,9 @@ export async function runSpec(spec, opts, observer, info) {
     }
     const target = { engine: 'browser', cdp: !!opts.cdp, page: () => session.ctx.page,
         screenshot: async (file) => { fs.mkdirSync(path.dirname(file), { recursive: true }); await session.ctx.page.screenshot({ path: file, timeout: 10_000 }); } }; // capped: a step cut by the spec timeout may still hold the page
-    const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
+    const { picks, ...specInfo } = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
+    session.ctx.picks = picks;
+    const observe = observerCalls(observer, specInfo);
     const record = async (result) => {
         const index = steps.push(result) - 1;
         await observe('stepEnd', { index, result, target });
@@ -273,6 +276,7 @@ export async function runSpec(spec, opts, observer, info) {
             // ponytail: `optional: true` steps tolerate inconclusive/error (e.g. an intermittent cookie banner):
             // reported as skipped, and the run keeps going instead of failing the whole spec.
             let result = await deadline.step(() => runStepSafely(session.ctx, step), () => label(step));
+            result = withCacheDump(result, picks?.endStep(result.status));
             const notes = session.drainNotes();
             if (notes.length)
                 result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };

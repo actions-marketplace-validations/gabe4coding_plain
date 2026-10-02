@@ -14,6 +14,8 @@ export const StepResultSchema = z.object({
   status: StatusSchema,
   detail: z.string().optional(),
   ms: z.record(z.string(), z.number()).optional(),
+  /** A target came from the pick cache (src/pick-cache.ts): no Jev pick for it. */
+  cached: z.boolean().optional(),
 });
 export type StepResult = z.infer<typeof StepResultSchema>;
 

@@ -19,6 +19,7 @@ import {
 import { decide, MAX_CANDIDATES } from './jev.js';
 import { resolveTargets, judgeState, type ResolvedTarget } from './automation.js';
 import { label, dumpDebug, timedInto, type Status, type StepResult } from './results.js';
+import type { PickAttempt, PickRef } from './pick-cache.js';
 export { label, formatMs, StatusSchema, StepResultSchema, type Status, type StepResult } from './results.js';
 
 // Adds the elapsed ms of `fn` into ctx.ms[phase], a per-step accumulator reset in runStep().
@@ -224,6 +225,10 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   }
 
   if (jevTargets.length > 0) {
+    // Pick cache key parts: only a step loaded from a file has a source (never an MCP step).
+    const step = ctx.step;
+    const refs = ctx.picks && step?.at ? new Map(jevTargets.map((target): [string, PickRef] =>
+      [target, { at: step.at!, kind: step.kind, target, goal: ctx.spec.goal }])) : undefined;
     // Let debounced autocompletes, modals etc. finish rendering before we act (networkidle fires too early:
     // it sees the quiet gap *before* a debounced request starts); Jev already works on the early look.
     // A page still redirecting or rendering after `open` has no candidates yet (Booking answered "no
@@ -249,14 +254,21 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
           candidates: cands,
           state: { url, title, goal: ctx.spec.goal },
           element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
+          ...(refs ? { cached: (target: string) => ctx.picks!.lookup(refs.get(target)!, cands, { url, title }) } : {}),
         }, jevTargets),
-        discard: ([first]) => { if (first?.usedJev) ctx.track(first.tokens); },
+        discard: (rs) => { for (const r of rs) if (r.usedJev) ctx.track(r.tokens); },
       }).catch((err) => { if (Date.now() < deadline && /context was destroyed|navigat/i.test(String(err))) return null; throw err; });
       if ((look && look.state.cands.length) || Date.now() >= deadline) break;
       await timed(ctx, 'idle', () => new Promise((r) => setTimeout(r, 150)));
     }
     if (!look) throw new Error('the page kept navigating; no candidates could be read');
-    const { state: { cands }, result } = look;
+    const { state: { cands, url, title }, result } = look;
+    // Only the answer kept is recorded: an early look's answer may have been discarded above.
+    if (refs) for (const [j, r] of result!.entries()) {
+      const ref = refs.get(jevTargets[j])!;
+      if (r.cached) { ctx.picks!.hit(ref); ctx.ms.cached = (ctx.ms.cached ?? 0) + 1; }
+      else if (r.candidate) ctx.picks!.accept(ref, r.candidate, cands, { url, title });
+    }
     result!.forEach((r, j) => {
       results[jevIndices[j]] = { ...r, detail: cands.length ? r.detail :
         `no candidates: nothing on the page matches a ${kind} target${NO_CANDIDATES_HINT[kind] ?? ''}` };
@@ -289,6 +301,10 @@ export interface StepContext {
   // Per-step phase-timing accumulator, reset to {} at the top of runStep(). Always populated
   // (whether or not --timing is passed); only the CLI decides whether to print it.
   ms: Record<string, number>;
+  /** This attempt's pick cache (spec runs only; MCP sessions have none). */
+  picks?: PickAttempt;
+  /** The step running now (set by runStep): its source and kind key the pick cache. */
+  step?: Step;
 }
 
 // Resolve `target` under `kind`, account for the Jev call, and either report "inconclusive" or run
@@ -517,11 +533,13 @@ export async function runStepSafely(ctx: StepContext, step: Step, prepare: (step
 // whole step (including any resolve/settle/jev/action/post time nested calls add into ctx.ms).
 export async function runStep(ctx: StepContext, step: Step): Promise<StepResult> {
   ctx.ms = {};
+  ctx.step = step;
   const start = Date.now();
   if (!settlesFirst(step)) await timed(ctx, 'settle', () => waitHold(ctx.page));
   const result = await runStepInner(ctx, step);
   ctx.ms.total = Date.now() - start;
-  return { ...result, ms: { ...ctx.ms } };
+  const cached = ctx.ms.cached ? { cached: true, detail: result.detail ? `${result.detail} (cached pick)` : '(cached pick)' } : {};
+  return { ...result, ...cached, ms: { ...ctx.ms } };
 }
 
 async function runStepInner(ctx: StepContext, step: Step): Promise<StepResult> {
