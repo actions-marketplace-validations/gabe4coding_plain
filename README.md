@@ -235,34 +235,53 @@ to fail.
 
 ## Run options and results
 
-All CLIs accept several spec paths and `--timeout` (default 15,000 ms). Desktop specs run sequentially
-because they share one physical desktop. Mobile files also run sequentially; avoid concurrent
-automation sessions on the same device.
+All CLIs accept files, directories, or quoted globs. Browser specs can run concurrently;
+desktop and mobile run sequentially because they share one input stream.
 
 ```sh
-node bin/plainwright.mjs --timeout 30000 spec.yaml other.yaml
-node bin/plainwright-computer.mjs --timeout 30000 desktop.yaml other-desktop.yaml
+node bin/plainwright.mjs validate tests/
+node bin/plainwright.mjs --headless --tag smoke --retries 1 tests/
 ```
 
-The browser CLI also supports:
+| Group | Option | Purpose / default |
+| --- | --- | --- |
+| Running | `--timeout MS` | Per-action timeout: `15000`; browser `0` disables it, native requires a positive value. |
+| Running | `--spec-timeout MS` | Whole-attempt budget; unset by default, spec `timeout:` wins. |
+| Running | `--workers N` | `1`; concurrent isolated browser contexts. Desktop/mobile, `--profile`, and `--cdp` require `1`. |
+| Running | `--retries N` | Additional attempts after non-pass: `0`. A retry pass is flaky and counts as passing. |
+| Running | `--bail [N]` | Stop starting specs after N final non-passes; bare flag means `1`, default `0` disables. |
+| Running | `--max-tokens N` | Stop starting specs/retries after completed attempts reach this token budget; unset by default. |
+| Running | `--headless` | Browser only: hide the window; visible by default. |
+| Running | `--profile DIR` | Browser only: persistent profile folder. |
+| Running | `--channel chrome` | Browser only: use installed Chrome; works with `--profile`. |
+| Running | `--cdp URL` | Browser only: attach to an existing Chrome debugging session. |
+| Running | `--server URL` | Mobile only: Appium URL; default `http://127.0.0.1:4723`. |
+| Selection | `--grep RE`, `--grep-invert RE` | Include/exclude a case-sensitive regex on the name or cwd-relative path. |
+| Selection | `--tag T` | Repeatable; require all tags. No tag filter by default. |
+| Selection | `--last-failed` | Intersect selection with the previous run’s non-pass files. |
+| Selection | `--list` | List selected specs without a model key or session; still requires spec `$VAR` values. |
+| Selection | `--config FILE` | Use this config instead of cwd `plainwright.config.yaml`/`.yml`. |
+| Selection | `validate <paths...>` | Check every supplied spec and include without sessions, hooks or a model key. |
+| Reports | `--reporter NAME[:FILE]` | Repeatable; `text`, `jsonl`, `junit:FILE`, `json:FILE`. Default browser `text`, native `jsonl`. |
+| Reports | `--timing` | Browser only: print phase timings with the text reporter. |
+| Artifacts | `--artifacts DIR` | Enable capture in a dedicated output folder; off by default. |
+| Artifacts | `--screenshot MODE` | `off`, `on-failure`, `always`; default `on-failure` when capture is enabled. |
+| Artifacts | `--trace MODE` | Browser: same modes, default `on-failure`; native: `off` only when capture is enabled. |
 
-| Option | Purpose |
-|---|---|
-| `--headless` | Hide the browser window. |
-| `--timing` | Print per-step, spec, and run phase timings. |
-| `--workers 4` | Run specs concurrently in isolated browser contexts; requires the default launch mode. |
-| `--profile ~/.plainwright` | Keep a persistent browser profile between runs. |
-| `--channel chrome` | Use installed Google Chrome; can be combined with `--profile`. |
-| `--cdp http://127.0.0.1:9222` | Attach to an existing Chrome debugging session. |
-
-See [your real browser](docs/agent-mode.md#your-real-browser) for profile and attachment setup.
-`--workers` cannot be combined with `--profile` or `--cdp`.
-
-The browser CLI prints step results with `✔` for pass, `✘` for fail or error, `?` for inconclusive,
-and `»` for skipped. The desktop and mobile CLIs print a JSON result per spec with the same statuses.
-All exit with code 0 only when every spec passes.
+See [running suites](docs/running.md) for selection, config, retries and stop rules,
+and [your real browser](docs/agent-mode.md#your-real-browser) for profile and attachment setup.
+The browser defaults to `✔` pass, `✘` fail/error, `?` inconclusive and `»` skipped output;
+desktop/mobile default to one JSON line per executed spec. Exit `0` means all reported specs
+pass (including flaky passes or an empty selection), `1` means a non-passing result or load
+error, and `2` means invocation/config/provider error.
 
 ## Configuration
+
+Suite runs discover `plainwright.config.yaml` (or `.yml`) in the current directory;
+`--config FILE` selects another file. It can set default paths, workers, retries,
+selection, reporters and artifacts. CLI flags override the existing `PLAINWRIGHT_*`
+settings, which override config, then defaults. MCP does not read suite config.
+See the [config key table](docs/running.md#configuration).
 
 All engines read the shell environment, then a `.env` in the current directory (see
 [.env.example](.env.example)), then `~/.config/plainwright/.env`. A variable already set is never
@@ -288,12 +307,16 @@ because the decision thresholds and phrasing advice were tuned against it.
 
 | Guide | Contents |
 |---|---|
-| [Browser spec reference](docs/spec-reference.md) | Steps and settings, including dialogs, authentication and geolocation. |
+| [Browser spec reference](docs/spec-reference.md) | Steps, tags, timeouts, reusable flows, browser context and stored login state. |
 | [Browser agent mode](docs/agent-mode.md) | MCP tools, plugin setup, persistent profiles and Chrome attachment. |
 | [Computer use](docs/computer-use.md) | Native setup, desktop steps and tools, backend comparison and platform limitations. |
 | [Mobile use](docs/mobile-use.md) | Appium setup, iOS/Android steps, MCP authoring and native validation. |
 | [Phrasing](docs/phrasing.md) | Targets, claims, confidence thresholds and inconclusive results. |
 | [Hooks](docs/hooks.md) | Isolated setup/teardown and test-data interpolation. |
+| [Running suites](docs/running.md) | Workers, retries, bail, token budgets, selection, config and validation. |
+| [Reporting](docs/reporting.md) | Text, JSONL, JUnit and JSON formats, totals and flaky passes. |
+| [Artifacts](docs/artifacts.md) | Failure screenshots, browser traces, debug dumps and cleanup. |
+| [CI and containers](docs/ci.md) | GitHub Action, GitLab and Docker setup. |
 
 ## Usage rules
 

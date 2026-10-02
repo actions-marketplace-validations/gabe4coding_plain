@@ -1,7 +1,8 @@
 # Spec reference
 
 This page describes browser specs. [Desktop specs](computer-use.md#desktop-specs) use `app`
-instead of `url` and a documented subset of the shared step vocabulary.
+instead of `url`; [mobile specs](mobile-use.md#mobile-specs) use `platform`, `device` and `app`.
+All three engines support `tags`, `timeout`, and reusable `include` flows.
 
 A spec is one YAML file: a name, a start URL, optional settings, and a list of steps run in order.
 
@@ -16,6 +17,8 @@ auth: { user: $BASIC_USER, pass: $BASIC_PASS }
 geolocation: { lat: 48.85, lon: 2.35 }
 env: { path: /login }
 hooks: ./hooks/dataset.mjs
+tags: [smoke, login]
+timeout: 120000                         # whole-attempt budget in ms
 steps:
   - goto: "${env.path}"
   - click: the Login button
@@ -33,17 +36,108 @@ steps:
 | `geolocation` | `{ lat, lon }` emulates a GPS position and grants the `geolocation` permission. |
 | `env` | Static data for the spec, nested as you like. Used in steps as `${env.*}`. |
 | `hooks` | Path, relative to the spec file, of a setup/teardown module. See [hooks.md](hooks.md). |
-| `steps` | The steps, run in order. |
+| `tags` | Optional string or list, e.g. `smoke` or `[smoke, checkout]`. `--tag` requires all requested tags. |
+| `timeout` | Optional positive safe integer in milliseconds; whole-attempt budget, overriding `--spec-timeout`. No whole-attempt cap by default. |
+| `browser` | Optional browser-context settings; see below. Desktop/mobile reject this block. |
+| `steps` | A nonempty list of steps, run in order, including reusable `include` flows. |
 
-**`$VAR` values.** A leaf string starting with `$` in `auth`, `geolocation` or `env` is replaced by
+**`$VAR` values.** A leaf string starting with `$` in `auth` or in nested `env` mappings is replaced by
 `process.env.VAR` when the spec loads. A missing variable is an error that names it. This is how a
-credential stays out of the file.
+credential stays out of the file. Array contents are not walked for `$VAR` references.
+`geolocation` takes numeric coordinates directly.
+
+### Browser context
+
+```yaml
+browser:
+  device: iPhone 15
+  viewport: {width: 1280, height: 800}
+  locale: it-IT
+  timezone: Europe/Rome
+  colorScheme: dark
+  storageState: ./.auth/user.json
+  saveState: ./.auth/user.json
+```
+
+| Key | Meaning |
+| --- | --- |
+| `viewport` | `{width, height}` in pixels, both positive integers; overrides the device viewport. |
+| `device` | An exact Playwright device name, e.g. `iPhone 15`; sets viewport, user agent, touch and scale. Explicit browser keys override the preset. The CLI still launches Chromium by default. |
+| `locale` | Context locale, e.g. `it-IT`. |
+| `timezone` | Context timezone, e.g. `Europe/Rome`. |
+| `colorScheme` | `light` or `dark`. |
+| `storageState` | Load JSON cookies/localStorage into a fresh context. Incompatible with `--profile`. |
+| `saveState` | Write cookies/localStorage after the attempt and teardown pass, creating parent folders. A non-passing attempt never creates or overwrites it. A save error makes the attempt `error`. |
+
+State paths resolve relative to the spec file. Run a login spec with `saveState`
+first, then specs with `storageState`; there is no dependency ordering between
+specs. Missing input state fails at session open with
+`storageState file not found: <path> (run the spec that saves it first)`.
+Using the same input/output path requires an existing file on the first run.
+State files can contain credentials; keep `.auth/` or your chosen path out of
+version control.
+
+`--cdp` rejects any nonempty `browser:` block, as well as `auth` and `geolocation`,
+because it attaches to an existing context. An empty browser block is allowed.
+`--profile` supports device, viewport, locale, timezone, color scheme and
+`saveState`, but cannot load `storageState`.
+
+### Timeouts
+
+`--timeout MS` is the per-action timeout (default `15000`; browser `0` disables
+it). `timeout:` or `--spec-timeout MS` sets a separate budget for each attempt;
+a retry receives a fresh budget. Opening, setup hooks and observer calls consume
+it. Each step races the remaining time. Expiration reports `error` with
+`spec timeout after <ms> ms`, even for an optional step, and no later step starts.
+
+The deadline is enforced at steps: opening and setup finish before it is checked,
+and teardown and session cleanup may finish after it. Closing the browser context
+or mobile session stops the interrupted action; a desktop action already running
+can finish, while an action that has not yet started is refused. It is not a hard
+wall-clock limit on the whole process.
 
 ## Steps
 
-A step is a mapping with one key, the step kind, plus an optional `optional: true`. Every action kind
-takes a **target**: a sentence Jev resolves to one element, or `css=<selector>` to skip Jev and use
+A step is a mapping with one key, the step kind, plus an optional `optional: true`. Targeted actions
+take a **target**: a sentence Jev resolves to one element, or `css=<selector>` to skip Jev and use
 the selector directly.
+
+### Reusable flows
+
+Use `include` to share login or setup steps across specs on any engine:
+
+```yaml
+name: Account settings
+url: https://test.example
+env:
+  user: $TEST_USER
+  password: $TEST_PASSWORD
+steps:
+  - include: ./flows/login.yaml
+  - click: the Settings link
+```
+
+`flows/login.yaml` contains only `steps:`:
+
+```yaml
+steps:
+  - fill: {target: the Username field, value: '${env.user}'}
+  - fill: {target: the Password field, value: '${env.password}'}
+  - click: the Login button
+```
+
+Includes expand at load time before step validation. Paths resolve relative to the
+including file; nested includes are allowed and cycles report the full chain.
+Included placeholders use the root spec’s `env`/`hooks`. Other step paths, such as
+`upload.files`, still resolve relative to the root spec. Included files have no
+`env`, `hooks`, name or target settings of their own. Keep them outside directories
+or globs passed as spec inputs.
+
+Results label the actual source file, e.g.
+`flows/login.yaml › click "the Login button"`; load errors name its source step
+index. `origin` is reserved for the loader. `optional: true` on an include is
+unsupported; individual included steps may be optional. `include` is a YAML
+loader feature and cannot be sent to MCP `step`/`batch` or produced by `save`.
 
 ### Actions
 
@@ -98,14 +192,28 @@ may or may not appear, like a cookie banner.
 
 | Status | Symbol | Meaning |
 |---|---|---|
-| `pass` | `✔` | |
+| `pass` | `✔` | The action or assertion passed. |
 | `fail` | `✘` | Jev is confident the claim does not hold. |
 | `inconclusive` | `?` | Jev is not sure: a pick below the acceptance threshold, or a claim in the grey zone, or a `css=` target that matches several elements. `detail` lists the top guesses and the path of a JSON dump of what Jev saw. |
 | `error` | `✘` | An exception: a timeout, a `css=` target that matched nothing, a navigation failure. |
-| `skipped` | `»` | An `optional` step that was inconclusive or errored. |
+| `skipped` | `»` | An `optional` step that was inconclusive or errored; at suite level, a spec never started because of bail or the token budget. |
 
-A run's status is the worst of its steps. The CLI exits 0 only when every spec passed. The thresholds
-behind `pass`, `fail` and `inconclusive` are in the [phrasing guide](phrasing.md#how-jev-decides).
+An attempt stops on the first non-pass step other than an optional skip; teardown
+errors make it `error`. Optional skips alone do not prevent a passing attempt.
+With retries, the spec uses its last completed attempt’s status. A pass on a retry
+has `flaky: true`, a separate flag rather than a step status; it counts as passing
+for the exit code. The CLI exits `0` when every reported spec passes, `1` otherwise,
+and `2` for invocation/config/provider errors. An empty selection passes.
+See [running suites](running.md) for retries and stop rules, and the
+[phrasing guide](phrasing.md#how-jev-decides) for judgment thresholds.
+
+### Reports and artifacts
+
+Browser output defaults to `text`; desktop/mobile default to `jsonl`. Use
+`--reporter junit:out/junit.xml` or `--reporter json:out/run.json` for CI and
+`--artifacts plainwright-results` for evidence capture. Reporters alone do not
+capture artifacts. See [reporting](reporting.md) for formats and flaky results,
+and [artifacts](artifacts.md) for screenshots, browser traces and debug dumps.
 
 ## What Jev can see
 

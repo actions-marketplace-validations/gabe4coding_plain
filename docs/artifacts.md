@@ -11,11 +11,11 @@ plainwright --headless --artifacts plainwright-results tests/
 | --- | --- | --- |
 | `--artifacts DIR` | Output directory | Capture is off until a directory is set |
 | `--screenshot MODE` | `off`, `on-failure`, `always` | `on-failure` |
-| `--trace MODE` | `off`, `on-failure`, `always` | `on-failure` |
+| `--trace MODE` | `off`, `on-failure`, `always` | Browser: `on-failure`; desktop/mobile: `off` |
 
 `--screenshot` and `--trace` alone print one warning and do not enable capture. The config file can
 also set `artifacts.dir`, `artifacts.screenshot` and `artifacts.trace`
-([selection and config](selection-and-config.md)); explicit flags override config values.
+([configuration](running.md#configuration)); explicit flags override config values.
 
 Screenshots work on browser, desktop, and mobile. `on-failure` captures each step whose status is
 `fail`, `error`, or `inconclusive`; `skipped` steps do not trigger it. `always` does the same and
@@ -93,4 +93,4 @@ After the test step, upload evidence on CI failure:
 ```
 
 The marker is a hidden file and does not need to be uploaded. Traces include action screenshots
-and snapshots, with source capture disabled; Phase 1 does not produce separate videos.
+and snapshots, with source capture disabled; separate videos are not produced.

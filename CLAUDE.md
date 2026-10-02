@@ -22,6 +22,9 @@ Run a spec, or start the MCP server (`src/cli.ts` dispatches on the first positi
 ```
 node dist/cli.js [--headless] [--timeout 15000] examples/login.yaml [more.yaml ...]
 node dist/cli.js --headless mcp
+node dist/cli.js validate tests/                         # schemas/includes/placeholders, no key or session
+node dist/cli.js --list --tag smoke tests/                # list selected specs; spec env still required
+node dist/cli.js --headless --retries 1 --reporter text --reporter junit:out/junit.xml --artifacts plainwright-results tests/
 ```
 
 Performance tracking (live sites and a Jev key; build first). `benchmark-steps.mjs` reports per-phase step overhead
@@ -42,14 +45,18 @@ node scripts/benchmark-claims.mjs --runs 3           # expect judging on saved p
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
 persistent context; `--channel chrome` launches an installed browser instead of the bundled Chromium; `--cdp <url>` attaches
 to a running Chrome (`openPage()` in `src/runner.ts` picks one of the three; env fallbacks `PLAINWRIGHT_PROFILE`/
-`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/cli.ts`). The browser plugin `.mcp.json` runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs --headless mcp`, which installs and dispatches to the shared runtime.
+`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/options.ts`). The browser plugin `.mcp.json` runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs --headless mcp`, which installs and dispatches to the shared runtime.
+
+Suite flags are shared by all three CLIs; native engines require `--workers 1` and default to `jsonl`
+rather than browser `text`. Config comes from cwd `plainwright.config.yaml`/`.yml` or `--config`;
+CLI > existing `PLAINWRIGHT_*` env > config > defaults. MCP ignores suite config. See `docs/running.md`.
 
 Environment: `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` (`TYPESAFE_API_KEY` wins if both set), or force one with
 `JEV_PROVIDER=typesafe|gateway` (`src/jev.ts`, `selectProvider`). `src/cli.ts` loads `.env` from the cwd, then
 `~/.config/plainwright/.env` (`USER_ENV_FILE` in `src/jev.ts`), via Node's native `process.loadEnvFile()` (no `dotenv`);
 variables already in the environment are never overridden. The user file exists because Codex passes plugin MCP
-servers no shell environment. Without a key the CLI exits at startup; MCP mode keeps serving and the first Jev
-call returns the message as a tool error.
+servers no shell environment. Spec runs check for a key just before execution; `validate` and `--list` need none.
+MCP mode keeps serving and the first Jev call returns the message as a tool error.
 
 `dist/` is committed on purpose — this repo is also a Claude Code plugin and ships its built output
 (`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium).
@@ -62,9 +69,31 @@ only decision maker. It picks the element a natural-language target describes (C
 natural-language claim holds (Noul) against the page's accessibility tree. Specs have no CSS selectors except a
 `css=` escape hatch.
 
+- `src/suite.ts` — `runSuite`: load all specs, select (load errors always kept), list without a key or build
+  observers → schedule attempts → totals/reporters → persist last run. All engines share it; output stays in
+  input order. `src/suite-types.ts` owns attempts/spec/run reports, observers and engine adapters; `flaky` is
+  a separate boolean and counts as pass.
+- `src/options.ts` — shared CLI flags, file/directory/`*`/`**` expansion and CLI/env/config/default precedence;
+  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early.
+- `src/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
+  token budget. In-flight attempts finish; cut retries retain their last status; never-started specs are skipped.
+- `src/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection and list output.
+- `src/config.ts` — strict YAML config discovery/validation, paths relative to its file; MCP does not read it.
+- `src/validate.ts` — load/expand schemas and check interpolated fields without sessions/hooks; absent `$VAR`
+  leaves warn, `${hooks.*}` waits for runtime, unknown namespaces or unresolved `${env.*}` fail validation.
+- `src/artifacts.ts` — optional observer for failure-step screenshots, final screenshots, browser traces and
+  copied Jev dumps; dedicated marked directories, per-spec/attempt folders, no CDP trace or native trace.
+- `src/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
+  JSON schema version 1, Surefire retry failure/error elements, all-attempt usage and artifact paths.
+- `src/include.ts` — nested steps-only YAML flows expanded before validation; paths relative to each includer,
+  cycle/source-index diagnostics, origin labels; included placeholders use root env/hooks, not flow-local data.
+- `src/context-options.ts` — device/context overrides, auth/geolocation and storage state; CDP rejects context
+  settings, profiles cannot load storage state. `runSpec` saves state only after passing steps and teardown.
+- `src/last-run.ts` — atomic cwd `.plainwright/last-run.json`, absolute spec paths and final status/flaky;
+  missing/invalid records run all selected specs, empty failure sets run none; list/validate never replace it.
 - `src/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
-  `geolocation`, `env`, `hooks`, plus `steps`). `$VAR` leaves in `auth`/`env` resolve from `process.env` at load
-  time. `interpolate()` replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
+  `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
+  `auth`/`env` resolve from `process.env` at load time. `interpolate()` replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
   leaf, is an error.
 - `src/candidates.ts` — candidate collection (`candidates()`, selector + shadow-DOM walk per step kind, with
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
@@ -105,7 +134,9 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   session → `setup()` → interpolate `url`/`steps` with `{env, hooks: data}` → run steps → `teardown()` in
   `finally` → close the child → close the session. `Status` is `pass | fail | inconclusive | error | skipped`.
   A setup error yields a single `setup` step and `error`, with no teardown; a teardown error always makes the
-  run `error`. Steps go through `runStepSafely` (`src/steps.ts`), shared with `src/mcp.ts`: errors become results, optional misses become `skipped`.
+  run `error`. `src/spec-timeout.ts` bounds steps by the remaining attempt budget; opening/setup consume it,
+  cleanup is allowed to finish afterward. Optional steps cannot skip a spec timeout. Steps go through
+  `runStepSafely` (`src/steps.ts`), shared with `src/mcp.ts`: errors become results, optional misses become `skipped`.
 - Hooks contract: an ES module next to the spec (`hooks:`, resolved relative to the spec file) with optional
   `setup({spec})` (its return becomes `${hooks.*}`) and `teardown({spec, data, result})`, run in its own child
   process (`src/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks
@@ -132,7 +163,8 @@ natural-language claim holds (Noul) against the page's accessibility tree. Specs
   packages compiled runtime plus the root manifest/lockfile into the same archive for all plugins.
   `scripts/plugin-launcher.mjs` is copied into each plugin and caches the installed runtime by archive hash.
   Never add per-plugin package manifests, symlinks or parent-directory runtime imports.
-- Docs: `README.md` is the quick start; `docs/spec-reference.md`, `docs/phrasing.md`, `docs/hooks.md`,
+- Docs: `README.md` is the quick start; `docs/running.md`, `docs/reporting.md`, `docs/artifacts.md`,
+  `docs/ci.md` cover suites and CI; `docs/spec-reference.md`, `docs/phrasing.md`, `docs/hooks.md`,
   `docs/agent-mode.md`, `docs/computer-use.md` and `docs/mobile-use.md` are the reference. A change to step kinds, thresholds, MCP tools, env loading or plugin
   install steps lands in the matching doc too (and in the skill, for thresholds and tool names).
 
