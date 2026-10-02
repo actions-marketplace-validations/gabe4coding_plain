@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing';
 import { apply, emptyState } from './model.ts';
-import { fit, render, spread, type Elements } from './view.ts';
+import { EDGE, fit, render, spread, type Elements } from './view.ts';
 
 type Node = { type: string; props: Record<string, any> };
 const el = Object.fromEntries(['Box', 'Text', 'Button', 'Input'].map((type) => [type, (props: Record<string, unknown>) => ({ type, props })])) as Elements;
@@ -38,10 +38,16 @@ test('steps show icon, label and tokens; a failure shows its detail and the copy
   expect(text).toContain('https://example.test/');
   expect(text).toContain('goal: Read it');
   expect(text).toContain('✓ goto "https://example.test"');
-  expect(text).toContain(spread('? expect "comments show"', '340 tk', 40));
+  expect(text).toContain(spread('? expect "comments show"', '340 tk', 40 - EDGE));
   expect(text).toContain('  inconclusive: p=0.62');
   expect(text).toContain('2 steps · 1 pass · 340 Jev tokens');
   expect(keyed(tree, 'copy')).toBeDefined();
+});
+
+test('no line reaches the last EDGE columns, which the terminal pane does not show', async () => {
+  let state = apply(emptyState(), 'browser', 'open', { url: 'https://example.test/' + 'a'.repeat(80), goal: 'g'.repeat(80) }, {});
+  state = apply(state, 'browser', 'step', { step: { expect: 'x'.repeat(80) } }, { status: 'fail', detail: 'p=0.01 @ ' + 'y'.repeat(80), jevTokens: 12345 });
+  for (const text of lines(render(state, el, controls()))) expect(text.length <= 40 - EDGE).toBe(true);
 });
 
 test('the save controls pass the path on', async () => {
