@@ -136,6 +136,7 @@ export class Xa11yAdapter implements ComputerAdapter<Element> {
     return sdk.inputSim();
   }
   async act(kind: ComputerAction, element: Element, value?: string) {
+    this.current(); // closed (e.g. a step cut by the spec timeout): never touch the user's app again
     if (kind === 'click' && !this.web.has(element) && element.actions.includes('press')) return element.press();
     if (kind === 'fill') return element.setValue(value!);
     if (kind === 'check' || kind === 'uncheck') {

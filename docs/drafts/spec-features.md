@@ -14,7 +14,7 @@ These rows are ready to add to the spec reference. Paths below resolve relative 
 | `browser.storageState` | Browser | JSON cookies/localStorage file to load into a fresh context. Run the saving spec first. Incompatible with `--profile`. |
 | `browser.saveState` | Browser | Write the context's cookies/localStorage after steps and teardown pass, creating parent folders. A failing run never creates or overwrites this file. |
 
-`--spec-timeout MS` supplies a default budget to every engine. Opening, setup hooks and observer calls consume the budget. Each step races the remaining time; expiration reports `error` with `spec timeout after <ms> ms`, including for optional steps. No subsequent step starts. Teardown still runs and then the session closes, stopping the interrupted action. Setup and teardown keep their existing lifecycle: setup finishes before steps are considered, and cleanup is allowed to finish after the deadline.
+`--spec-timeout MS` supplies a default budget to every engine. Opening, setup hooks and observer calls consume the budget. Each step races the remaining time; expiration reports `error` with `spec timeout after <ms> ms`, including for optional steps. No subsequent step starts. Teardown still runs and then the session closes: the browser context and a mobile session stop the interrupted action, and a desktop action that has not started yet is refused, but a desktop action already in progress finishes. Setup and teardown keep their existing lifecycle: setup finishes before steps are considered, and cleanup is allowed to finish after the deadline.
 
 With `--cdp`, any non-empty `browser:` block is rejected because its options cannot be applied to an existing context. An empty block is allowed. With `--profile`, device, viewport, locale, timezone and color scheme apply to the persistent context; `saveState` is supported.
 
@@ -49,3 +49,5 @@ Included files may contain only `steps:` and can include other flows. Their `${e
 Add `browser: {saveState: ./.auth/user.json}` to a login spec. After it passes, later specs can use `browser: {storageState: ./.auth/user.json}` to start logged in. The user runs the login spec first; there is no dependency ordering between specs. State is saved only after teardown succeeds. Missing input state fails at session open with `storageState file not found: <path> (run the spec that saves it first)`.
 
 The state file holds session cookies and localStorage, which can contain credentials. Add `.auth/` (or the chosen state path) to your project's `.gitignore` and keep the file out of version control.
+
+`storageState` and `saveState` may name the same file only after a first run has created it: a spec that loads a file which does not exist yet fails at open.
