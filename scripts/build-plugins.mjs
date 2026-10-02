@@ -1,6 +1,6 @@
 // One npm package owns all engines. Plugin hosts copy subdirectories independently, so each
 // plugin ships an identical, reproducible runtime tarball built from the root manifest/lockfile.
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, mkdtempSync, rmSync, existsSync, statSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -21,11 +21,13 @@ try {
     mkdirSync(dirname(join(packageDir, 'dist', name)), { recursive: true });
     copyFileSync(join(root, 'dist', name), join(packageDir, 'dist', name));
   }
-  // Every relative import in the shipped runtime must resolve inside the package.
+  // Every relative import in the shipped runtime must resolve inside the package, to a file: Node ESM does not
+  // resolve a bare folder import to its index.js.
+  const isFile = (path) => existsSync(path) && statSync(path).isFile();
   const missing = shipped.flatMap((name) => {
     const file = join(packageDir, 'dist', name);
     return [...readFileSync(file, 'utf8').matchAll(/(?:from\s+|import\s*\(\s*|import\s+)['"](\.{1,2}\/[^'"]+)['"]/g)]
-      .map((match) => match[1]).filter((spec) => !existsSync(resolve(dirname(file), spec))).map((spec) => `dist/${name} -> ${spec}`);
+      .map((match) => match[1]).filter((spec) => !isFile(resolve(dirname(file), spec))).map((spec) => `dist/${name} -> ${spec}`);
   });
   if (missing.length) throw new Error(`runtime has unresolved imports:\n${missing.join('\n')}`);
   for (const name of ['plainwright.mjs', 'plainwright-computer.mjs', 'plainwright-mobile.mjs']) copyFileSync(join(root, 'bin', name), join(packageDir, 'bin', name));
