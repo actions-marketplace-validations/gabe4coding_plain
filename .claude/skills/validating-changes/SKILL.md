@@ -8,6 +8,9 @@ description: Use before you open, update or mark ready any pull request in the p
 Mandatory before every pull request. A hook blocks `gh pr create` until `node scripts/validate.mjs` has passed
 on exactly the files of HEAD. CI repeats the gates; it is the last line, not the first.
 
+The hook sees only shell commands, so it catches only `gh pr create`. A pull request opened another way (the
+GitHub web page, `gh api`, a GitHub MCP tool) is not blocked, but the rule still holds: validate first.
+
 Unit tests prove little here. The evidence that counts: integration tests at a real boundary, the live e2e
 suite, the evals and real agent runs. A green result that you did not see run is not evidence.
 
