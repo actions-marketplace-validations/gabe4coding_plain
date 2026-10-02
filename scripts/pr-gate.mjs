@@ -2,20 +2,49 @@
 // PreToolUse hook (Claude Code .claude/settings.json, Codex .codex/hooks.json): blocks `gh pr create` unless
 // scripts/validate.mjs passed on exactly the files of HEAD. Every other command passes through untouched.
 // Exit 2 with a reason on stderr is the block signal both agents understand.
-import { headTree, readStamp } from './validation-stamp.mjs';
+//
+// The hook checks the checkout the command runs in, not its own working directory: in a git worktree, Claude Code
+// runs the hook from the main checkout. That checkout is the hook input's `cwd` (sent by Claude Code and Codex),
+// then a Codex `workdir` argument, then each leading `cd <dir> &&` of the command.
+import { realpathSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { commonDir, headTree, readStamp } from './validation-stamp.mjs';
 
 let input = '';
 for await (const chunk of process.stdin) input += chunk;
-let command = '';
-try { command = JSON.parse(input).tool_input?.command ?? ''; } catch { process.exit(0); }
+let hook;
+try { hook = JSON.parse(input); } catch { process.exit(0); }
+const command = String(hook?.tool_input?.command ?? '');
 if (!/\bgh\s+pr\s+create\b/.test(command)) process.exit(0);
 
-const stamp = readStamp();
-const tree = headTree();
+const dir = targetDir();
+const repo = (path) => realpathSync(commonDir(path));
+let tree, stamp;
+try {
+  // A pull request of another repository is not this gate's business.
+  if (repo(dir) !== repo(dirname(dirname(fileURLToPath(import.meta.url))))) process.exit(0);
+  tree = headTree(dir);
+  stamp = readStamp(dir);
+} catch {
+  console.error(`Blocked: ${dir} is not a git checkout, so the validation stamp cannot be checked. Run gh pr create ` +
+    'from the worktree of the branch.');
+  process.exit(2);
+}
 if (stamp?.tree === tree) process.exit(0);
 console.error(stamp
   ? `Blocked: HEAD's files changed since the last passing validation (${stamp.at}). Run the validating-changes skill ` +
     '(node scripts/validate.mjs) on the committed files, then open the pull request.'
-  : 'Blocked: no passing validation for this worktree. Run the validating-changes skill (node scripts/validate.mjs) ' +
-    'before you open a pull request.');
+  : `Blocked: no passing validation for this worktree (${dir}). Run the validating-changes skill ` +
+    '(node scripts/validate.mjs) before you open a pull request.');
 process.exit(2);
+
+function targetDir() {
+  let at = resolve(String(hook.cwd ?? process.cwd()), String(hook.tool_input?.workdir ?? '.'));
+  const cd = /^\s*cd\s+(?:"([^"]*)"|'([^']*)'|([^\s;&|]+))\s*(?:&&|;)/;
+  for (let rest = command, m; (m = cd.exec(rest)); rest = rest.slice(m[0].length)) {
+    at = resolve(at, (m[1] ?? m[2] ?? m[3]).replace(/^~(?=\/|$)/, homedir()));
+  }
+  return at;
+}

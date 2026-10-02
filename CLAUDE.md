@@ -20,7 +20,8 @@ explicit `override`, no implicit returns):
 npm run build
 ```
 
-Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`):
+Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`; tests of
+`scripts/` are `scripts/*.test.mjs`, run as they are):
 
 ```
 npm test                                                    # build + node --test 'dist/**/*.test.js'
