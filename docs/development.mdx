@@ -1,0 +1,221 @@
+---
+title: Development
+description: Build and test plainwright from a checkout, run the opt-in native smoke tests, and package the three plugins.
+---
+
+# Development
+
+This page is for contributors. To use plainwright, start with [getting started](getting-started.mdx).
+[CLAUDE.md](../CLAUDE.md) describes the architecture and the code conventions.
+
+## Build and test
+
+```sh
+npm ci
+npx playwright install chromium
+npm run build    # compile src/ to dist/ and make the plugin runtime archives again
+npm test         # build, then run all tests in dist/**/*.test.js
+npm run check:docs
+```
+
+`npm run check:docs` checks the user docs: README.md, `docs/*.mdx` and `examples/mobile/README.md`. Each file must
+compile as MDX and show correctly on GitHub. The text must follow the ASD-STE100 rules that a script can test, for
+example a maximum of 25 words in a sentence. All relative links and anchors must resolve. The CI workflow runs the
+same check. The full writing rules are in `CLAUDE.md`, in the section "Documentation".
+
+`npm test` needs no API key and no native SDK. It runs these tests:
+
+- The browser runner against headless Chromium, with `data:` URLs.
+- The desktop and mobile sessions, with injected adapters and injected Jev decisions.
+- Mobile requests from real WebdriverIO to a local Appium-protocol fixture, for Android and iOS.
+- MCP recording and replay of the saved specs.
+
+These tests do not prove that a real device, simulator or desktop works. For that, use the
+[native smoke tests](#verification).
+
+To run one test file or one test case after a build:
+
+```sh
+node --test dist/browser/runner.test.js
+node --test --test-name-pattern "<name>" dist/jev/pick.test.js
+```
+
+## Committed build output
+
+The repository contains `dist/` and the three `runtime.tgz` archives. The plugins ship this built output, and
+`bin/plainwright.mjs` runs `dist/cli.js` directly.
+
+- After a change in `src/`, run `npm run build` before you commit. Then `dist/` agrees with the source.
+- Do not edit the generated files by hand: `dist/`, `plugins/*/runtime.tgz`, `plugins/*/bin/launch.mjs`.
+- The CI workflow runs `npm test`. Then it fails if `dist/` or an archive is different from the build output.
+- Git ignores the compiled tests, `dist/**/*.test.js`.
+
+## Repository layout
+
+```text
+package.json                 all dependencies, the three CLI binaries, build and test scripts
+src/                         browser, desktop, mobile and shared code, with tests next to each module
+dist/                        compiled runtime (committed)
+bin/                         CLI launchers
+plugins/
+  plainwright/               browser plugin: manifests, skill, launcher, runtime archive
+  plainwright-computer/      desktop plugin
+  plainwright-mobile/        mobile plugin
+scripts/                     plugin build, smoke tests, benchmarks
+examples/                    browser specs against public demo sites; examples/mobile/ for mobile
+docs/                        user documentation; docs/benchmarks/ for benchmark reports
+```
+
+## Plugin packaging
+
+One root `package.json` and one `package-lock.json` own the dependencies of all engines. Do not add a package
+manifest, a lockfile, a symlink or a parent-directory import to a plugin.
+
+Each plugin directory contains:
+
+- The portable manifests `plugin.json` and `mcp.json`. The server starts in `${PLUGIN_ROOT}`.
+- The Claude Code manifests `.claude-plugin/plugin.json` and `.mcp.json`. The server runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs`.
+- The Codex manifest `.codex-plugin/plugin.json`. It uses the same `.mcp.json` and `skills/`.
+- The skill in `skills/`.
+- The generated `runtime.tgz`, `bin/launch.mjs` and `LICENSE`.
+
+Keep the `name`, `version` and `description` equal in the three `plugin.json` files of each plugin. Both root
+marketplaces, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`, list the three plugin
+directories.
+
+`npm run build` compiles TypeScript. Then `scripts/build-plugins.mjs` packs one archive and copies it into each
+plugin. The archive contains the root package manifest, the root lockfile as `npm-shrinkwrap.json`, the compiled
+runtime without tests, the CLI launchers and the license. Thus a plugin install uses the locked dependency graph.
+
+On the first start, the plugin launcher installs the archive in `plugins/<name>/.runtime/<archive hash>/`. A new
+archive gets a new installation. The launcher writes npm output to stderr, because stdout is the MCP channel.
+Git ignores the `.runtime/` folders.
+
+To check the archives as a plugin host sees them, run:
+
+```sh
+node scripts/smoke-plugins.mjs
+```
+
+This script copies each plugin to a temporary folder, compares the three manifests, installs the archive and lists
+the MCP tools. It needs no API key.
+
+Pitfalls:
+
+- Keep `.env` files and `.runtime/` folders out of the plugin directories. Codex copies the plugin directory into
+  `~/.codex/plugins/cache/`.
+- To try a plugin from a clone without an install, run `claude --plugin-dir /absolute/path/to/plainwright/plugins/plainwright`.
+  Use the same command for `plugins/plainwright-computer` and `plugins/plainwright-mobile`.
+- `AGENTS.md` is a symlink to `CLAUDE.md`. Codex reads the same repository guidance as Claude Code.
+
+## Verification
+
+The native smoke tests are opt-in. They run on a real desktop, device or simulator. Each test builds the project
+first.
+
+### Desktop on macOS
+
+```sh
+npm run test:computer:mac
+```
+
+The test compiles a disposable Cocoa application with `xcrun clang`, then removes it. Give the host that runs Node
+the Accessibility and Screen Recording permissions. Without Screen Recording, add `-- --skip-screenshot`.
+
+The test injects deterministic Jev decisions and needs no API key. It checks the real application state after
+attach, tree capture, fill, click, check and uncheck, a key press, hover and a PNG screenshot. A second `check` on
+a checked box must not change it.
+Windows and Linux need the same kind of run on their own hosts before you claim native parity.
+
+### Mobile connection
+
+This test connects to your installed test app, reads the tree and takes a PNG screenshot. It needs no API key.
+
+```sh
+PLAINWRIGHT_MOBILE_PLATFORM=android \
+PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 \
+PLAINWRIGHT_MOBILE_APP=com.example.fixture \
+npm run test:mobile
+```
+
+| Variable | Meaning |
+|---|---|
+| `PLAINWRIGHT_MOBILE_PLATFORM` | `android` or `ios`. |
+| `PLAINWRIGHT_MOBILE_DEVICE` | Device ID: ADB serial or UDID. |
+| `PLAINWRIGHT_MOBILE_APP` | App package or bundle ID. |
+| `PLAINWRIGHT_MOBILE_CAPABILITIES` | Optional. A JSON object of extra Appium capabilities. |
+| `PLAINWRIGHT_APPIUM_URL` | Optional. The Appium server. Default `http://127.0.0.1:4723`. |
+
+This test does not check taps, input or gestures.
+
+### Android fixture
+
+This test builds a small offline Android app, installs it, and does real text entry, check and uncheck, tap, long
+press, scroll, swipe and screenshots. It records a flow through MCP, restarts the app and runs the saved spec. Then
+it removes the app. If the fixture app is already installed, the test stops and does not replace it.
+
+Prepare the host:
+
+1. Install Android SDK Platform 36 and Build-Tools 36.0.0.
+2. Set `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) and `JAVA_HOME`.
+3. Make sure that `zip` is on your `PATH`.
+4. Start your emulator.
+5. Start Appium with the UiAutomator2 driver.
+
+You do not need Gradle or an application project.
+
+```sh
+PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 npm run test:mobile:android
+PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 npm run test:mobile:android -- --live-jev
+```
+
+- The default run injects deterministic decisions. `--live-jev` uses real Jev picks and judgments, with your key
+  from the repository `.env` or the user env file.
+- At the end, the test prints a temporary folder with `recorded.yaml`, `report.json` and `preview.png`.
+- To use a different installed Build-Tools version, set `PLAINWRIGHT_ANDROID_BUILD_TOOLS`.
+
+This test checks native Android controls. It does not prove React Native or iOS parity.
+
+### iOS Simulator fixture
+
+This test builds an offline UIKit app with the Xcode simulator SDK and installs it. It records native actions
+through MCP, restarts the app and runs the saved spec. Then it removes the app. If the fixture app is already
+installed, the test stops. You do not need an Apple developer account.
+
+Prepare the host:
+
+1. Install Xcode and an iOS Simulator runtime, iOS 16 or newer.
+2. Complete the first-launch setup of Xcode. Make sure that `xcode-select -p` shows a path in Xcode.
+3. Install the Appium XCUITest driver before you start the Appium server.
+4. Boot an iPhone simulator.
+
+```sh
+xcrun simctl list devices booted
+PLAINWRIGHT_MOBILE_DEVICE=<simulator-udid> npm run test:mobile:ios
+PLAINWRIGHT_MOBILE_DEVICE=<simulator-udid> npm run test:mobile:ios -- --live-jev
+```
+
+- The first session builds WebDriverAgent. This can take some minutes. The test allows 4 minutes for each Appium
+  request.
+- Set `PLAINWRIGHT_APPIUM_URL` if your server uses a different address or port.
+- At the end, the test prints a temporary folder with `recorded.yaml`, `report.json` and `preview.png`.
+- The fixture closes its keyboard with its Done key. A generic `press: HideKeyboard` can fail on iPhone.
+
+A pass on the simulator does not prove physical iPhone or React Native parity.
+
+## Performance checks
+
+The benchmark scripts need live sites and an API key. Build first, then compare a change against a saved run:
+
+```sh
+node scripts/benchmark-steps.mjs --runs 3 --out /tmp/new.json --compare /tmp/base.json
+node scripts/benchmark-mcp.mjs --cli dist/cli.js --gap 5000 --runs 2
+```
+
+[CLAUDE.md](../CLAUDE.md) lists the other benchmark scripts. [Performance](performance.mdx) summarizes the
+results.
+
+## Documentation changes
+
+If you change step kinds, thresholds, MCP tools, the env file loading or the plugin install steps, change the
+matching doc in the same commit. For thresholds and tool names, also change the plugin skill.
