@@ -40,6 +40,8 @@ node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, c
 node scripts/benchmark-read.mjs --runs 2 --smart     # read vs smart snapshot on saved pages (scripts/read-states/, read-cases.json)
 node scripts/eval-browser-steps.mjs --variant v1     # step-time eval: examples + MCP session, overhead and same step statuses (.claude/hillclimb/, gitignored)
 node scripts/benchmark-claims.mjs --runs 3           # expect judging on saved pages (scripts/claim-cases.json); false passes must stay 0
+node scripts/benchmark-pick-cache.mjs --skip turing-click   # pick cache on stale saved pages; wrong hits must stay 0
+node scripts/benchmark-steps.mjs --picks on --dir <scratch copy of examples>   # warm pick cache; never --dir examples
 ```
 
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
