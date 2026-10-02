@@ -15,7 +15,13 @@ npm ci
 npx playwright install chromium
 npm run build    # compile src/ to dist/ and make the plugin runtime archives again
 npm test         # build, then run all tests in dist/**/*.test.js
+npm run check:docs
 ```
+
+`npm run check:docs` checks the user docs: README.md, `docs/*.mdx` and `examples/mobile/README.md`. Each file must
+compile as MDX and show correctly on GitHub. The text must follow the ASD-STE100 rules that a script can test, for
+example a maximum of 25 words in a sentence. All relative links and anchors must resolve. The CI workflow runs the
+same check. The full writing rules are in `CLAUDE.md`, in the section "Documentation".
 
 `npm test` needs no API key and no native SDK. It runs these tests:
 
