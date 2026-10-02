@@ -9,21 +9,14 @@ const PANE = PLUGIN;
 const COMMAND = `${PLUGIN}-pane`;
 /** Every tool of this plugin's MCP server, which has the plugin's name: `mcp__plugin_plainwright_plainwright__step`. */
 const TOOL = new RegExp(`^mcp__plugin_${PLUGIN}_${PLUGIN}__(\\w+)$`);
+/** The plugin's own MCP server, named as `$.mcp.call` takes it: the tool-name spelling without `mcp__` (the server has the plugin's name, as TOOL assumes). */
+const SERVER = `plugin_${PLUGIN}_${PLUGIN}`;
 
 let state: State = emptyState();
-/** The server as `$.mcp.call` names it (`plugin_plainwright_plainwright`), learned from the first matched call. */
-let server: string | undefined;
 /** What the user typed in the Spec field; undefined follows the goal. */
 let typedPath: string | undefined;
 /** Whether this session's first `open` already showed the pane: later ones never reopen it. */
 let shown = false;
-
-function reset(): void {
-  state = emptyState();
-  server = undefined;
-  typedPath = undefined;
-  shown = false;
-}
 
 const specPath = (): string => typedPath?.trim() || saveName(state.goal);
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -35,14 +28,10 @@ async function show($: any): Promise<void> {
 
 /** Asks the plugin's own server to write the passing steps: the same session Claude is driving. */
 async function save($: any, path: string): Promise<void> {
-  if (!server) {
-    $.ui.toast('No plainwright session yet: nothing to save');
-    return;
-  }
   try {
-    const result = await $.mcp.call(server, 'save', { path });
+    const result = await $.mcp.call(SERVER, 'save', { path });
     const data = jsonOf(result);
-    $.ui.toast(result?.isError ? `Save failed: ${errorText(result)}` : `Saved ${data?.steps} steps to ${data?.path ?? path}`);
+    $.ui.toast(result?.isError ? `Save failed: ${errorText(result)}` : `Saved ${data?.steps ?? '?'} steps to ${data?.path ?? path}`);
   } catch (error) {
     $.ui.toast(`Save failed: ${message(error)}`);
   }
@@ -51,8 +40,8 @@ async function save($: any, path: string): Promise<void> {
 async function copy($: any): Promise<void> {
   if (!state.lastFailure) return;
   try {
-    await $.ui.copy({ text: JSON.stringify(state.lastFailure, null, 2) });
-    $.ui.toast('Copied the last failure');
+    const copied = await $.ui.copy({ text: JSON.stringify(state.lastFailure, null, 2) });
+    $.ui.toast(copied?.isCopied ? 'Copied the last failure' : `Copy failed: ${copied?.reason ?? 'nothing was copied'}`);
   } catch (error) {
     $.ui.toast(`Copy failed: ${message(error)}`);
   }
@@ -61,11 +50,6 @@ async function copy($: any): Promise<void> {
 export function register(on: any): void {
   on('session.start', async ($: any, e: any, next: any) => {
     await $.command.register({ name: COMMAND, description: `Show the ${PLUGIN} session pane`, immediate: true });
-    return next(e);
-  });
-
-  on('session.end', async ($: any, e: any, next: any) => {
-    reset();
     return next(e);
   });
 
@@ -81,12 +65,11 @@ export function register(on: any): void {
       const data = payload(outcome);
       if (data) {
         const tool = TOOL.exec(e.tool)![1];
-        server ??= e.tool.slice('mcp__'.length, e.tool.lastIndexOf('__'));
         state = apply(state, ENGINE, tool, e, data);
         $.ui.invalidate('ui.render');
         if (tool === 'open' && !shown) {
           shown = true;
-          await show($);
+          void show($).catch((error: unknown) => $.ui.toast(`${PLUGIN} pane: ${message(error)}`));
         }
       }
     } catch (error) {
@@ -103,7 +86,7 @@ export function register(on: any): void {
       onSavePath: (path) => {
         typedPath = path;
       },
-      onSave: (path) => save($, path ?? specPath()),
+      onSave: (path) => save($, path?.trim() || specPath()),
       onCopy: () => copy($),
     });
   });

@@ -11,6 +11,10 @@ test('payload reads structured content, a text block, a JSON string or the outco
   expect(payload({ result: undefined, text: JSON.stringify(DATA) })).toEqual(DATA);
 });
 
+test('payload prefers the outcome text over an unrelated result record', async () => {
+  expect(payload({ ref: 1, result: { record: true }, text: JSON.stringify(DATA) })).toEqual(DATA);
+});
+
 test('payload is null for a refused, failed or non-JSON result', async () => {
   expect(payload({ deny: 'no' })).toBe(null);
   expect(payload({ result: { content: [{ type: 'text', text: 'boom' }] }, isError: true })).toBe(null);
@@ -44,6 +48,21 @@ test('native open starts over, with the app as target', async () => {
   const before = apply(emptyState(), 'native', 'step', { step: { click: 'Add' } }, DATA);
   const state = apply(before, 'native', 'open', { app: 'Calculator' }, { placeholders: [] });
   expect(state).toEqual({ rows: [], tokens: 0, target: 'Calculator', goal: undefined });
+});
+
+test('native open names the app from what the server returned', async () => {
+  const desktop = apply(emptyState(), 'native', 'open', { pid: 1234 }, { name: 'Calculator', pid: 1234, placeholders: [] });
+  expect(desktop.target).toBe('Calculator');
+  const mobile = apply(emptyState(), 'native', 'open', { app: '${hooks.bundle}', device: 'X', platform: 'ios' },
+    { platform: 'ios', device: 'X', app: 'com.example.app' });
+  expect(mobile.target).toBe('com.example.app');
+});
+
+test('a skipped step keeps its row and detail but is not a failure', async () => {
+  const state = apply(emptyState(), 'browser', 'step', { step: { click: 'Accept cookies', optional: true } },
+    { status: 'skipped', detail: 'not found', notes: [], url: 'https://example.test/', jevTokens: 5 });
+  expect(state.rows).toEqual([{ label: 'click "Accept cookies"', status: 'skipped', tokens: 5, detail: 'not found' }]);
+  expect(state.lastFailure).toBeUndefined();
 });
 
 test('a non-pass step keeps its detail, adds its tokens and becomes the last failure', async () => {
