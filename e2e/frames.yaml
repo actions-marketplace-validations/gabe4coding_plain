@@ -1,0 +1,11 @@
+name: a field inside an iframe and a button inside a shadow root
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /frames
+  - fill: { target: the Comment field in the comment editor frame, value: Hello from plainwright }
+  - expect: the Comment field in the frame contains "Hello from plainwright"
+  - click: the Add one button
+  - click: the Add one button
+  - expect: 'the page shows "Count: 2"'

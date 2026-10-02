@@ -21,7 +21,7 @@ function candidateKind(kind: MobileStep['kind']): MobileKind {
 export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, MobileStep, MobileAdapter<T>> {
   parse(raw: unknown) { return parseMobileStep(raw); }
   label(step: MobileStep) { return mobileLabel(step); }
-  protected validate(step: MobileStep) { return validateMobileStep(step); }
+  protected override validate(step: MobileStep) { return validateMobileStep(step); }
 
   protected async act(step: MobileStep, stepLabel: string): Promise<StepResult> {
     if (step.kind === 'press') {

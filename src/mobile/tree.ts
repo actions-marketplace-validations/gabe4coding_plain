@@ -149,6 +149,7 @@ export function findMobileNode(roots: MobileNode[], path: string): MobileNode | 
       if (found) return found;
     }
   }
+  return undefined;
 }
 
 function mobileMatches(node: MobileNode, kind: MobileKind): boolean {

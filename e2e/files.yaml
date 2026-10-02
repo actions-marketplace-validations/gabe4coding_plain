@@ -1,0 +1,12 @@
+name: upload a file and download a file
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /files
+  - upload: { target: the File to send input, files: [fixtures/hello.txt] }
+  - click: the Upload button
+  - expect: the page says the file hello.txt was uploaded
+  - goto: /files
+  - click: the notes.txt link
+  - expect: a text file named notes.txt was downloaded

@@ -1,0 +1,70 @@
+name: Live
+
+# Real Jev picks and judgments, against the local site in e2e/ and saved pages: no remote site in the loop.
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    paths:
+      - src/**
+      - dist/**
+      - bin/**
+      - e2e/**
+      - scripts/e2e.mjs
+      - scripts/benchmark-claims.mjs
+      - scripts/claim-cases.json
+      - scripts/claim-states/**
+      - scripts/read-states/**
+      - package-lock.json
+      - .github/workflows/live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+      # Jev debug dumps go to $TMPDIR/plainwright; pin TMPDIR so the upload step finds them.
+      TMPDIR: /tmp
+      # A pull request from a fork gets no secrets: skip there, fail everywhere else.
+      FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository && github.event_name == 'pull_request' }}
+    steps:
+      - name: Check the Jev key
+        id: key
+        shell: bash
+        run: |
+          if [[ -n "$TYPESAFE_API_KEY" ]]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [[ "$FORK" == 'true' ]]; then echo '::warning::No TYPESAFE_API_KEY on a fork pull request: live checks skipped.'; exit 0; fi
+          echo '::error::Set the TYPESAFE_API_KEY repository secret: the live checks need it.' >&2
+          exit 1
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.run == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.run == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+      - if: steps.key.outputs.run == 'true'
+        run: npm ci
+      - if: steps.key.outputs.run == 'true'
+        run: npx playwright install --with-deps chromium
+      # dist/ is committed and the Test workflow checks that it matches src/, so no build here.
+      - name: E2E on the local site (CLI and MCP)
+        if: steps.key.outputs.run == 'true'
+        run: node scripts/e2e.mjs
+      - name: Claims eval (false passes must stay 0)
+        if: steps.key.outputs.run == 'true'
+        run: node scripts/benchmark-claims.mjs --gate
+      - name: Keep the Jev debug dumps
+        if: failure() && steps.key.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jev-dumps
+          path: /tmp/plainwright/
+          if-no-files-found: ignore

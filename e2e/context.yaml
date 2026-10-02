@@ -1,0 +1,12 @@
+name: HTTP basic auth and emulated geolocation
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+auth: { user: admin, pass: admin }
+geolocation: { lat: 45.4642, lon: 9.19 }
+steps:
+  - goto: /basic-auth
+  - expect: the page congratulates the user on the proper credentials
+  - goto: /where
+  - click: the Locate me button
+  - expect: latitude 45.4642 and longitude 9.19 are displayed
