@@ -44,3 +44,8 @@ test('onMissingEnv collects missing values while preserving the literal referenc
   assert.equal(warnings.length, 2);
   assert.throws(() => loadSpec(file), /env var is not set/);
 });
+
+test('at and origin are rejected inside a step mapping too (YAML and MCP)', () => {
+  assert.throws(() => parseStep('mcp', 0, { fill: { target: 'x', value: 'y', at: { file: '/evil', index: 9 } } }), /"at" is reserved for the loader/);
+  assert.throws(() => parseStep('mcp', 0, { fill: { target: 'x', value: 'y', origin: 'flows/x.yaml' } }), /"origin" is reserved for the loader/);
+});

@@ -139,6 +139,8 @@ export function parseStep(path: string, i: number, raw: unknown): Step {
       ...(expectation.within === undefined ? {} : { within: expectation.within }),
     };
   } else fields = parseData(MappingSchema, val, `${where} "${kind}"`);
+  // The loader's own fields are never accepted from YAML or an MCP step, not even inside the step's mapping.
+  for (const reserved of ['at', 'origin']) if (reserved in fields) fail(`${where} "${kind}": "${reserved}" is reserved for the loader`);
   // Preserve the existing flag convention: only literal true enables optional execution.
   return parseData(StepSchema, { ...fields, kind, optional: obj.optional === true }, where);
 }

@@ -19,8 +19,11 @@ export const sidecarPath = (file) => {
     return path.join(dir, `${name}.picks.json`);
 };
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
-/** `[index, kind, target, goal, page]` as JSON; a templated step's target is replaced by its sha256. */
-export const entryKey = (ref, page) => JSON.stringify([ref.at.index, ref.kind, ref.at.templated ? `sha256:${sha256(ref.target)}` : ref.target, ref.goal ?? '', page]);
+/** A templated step may carry data in its target, its page path and the picked element's text: the sidecar
+ *  (committed) keeps only their sha256 then, and matching compares hashes. */
+const hidden = (text, templated) => templated ? `sha256:${sha256(text)}` : text;
+/** `[index, kind, target, goal, page]` as JSON; a templated step's target and page are replaced by their sha256. */
+export const entryKey = (ref, page) => JSON.stringify([ref.at.index, ref.kind, hidden(ref.target, ref.at.templated), ref.goal ?? '', hidden(page, ref.at.templated)]);
 const VALUE = / value="(?:[^"\\]|\\.)*"/g;
 /** The desc an entry compares: without `value="…"` on a text-entry field (a fill changes it, the element is
  *  the same). Every other value stays: a submit button or a native element is identified by it. */
@@ -43,21 +46,22 @@ export function pageOf(state) {
     }
 }
 /** The entry an accepted pick becomes, or null when it must never be stored. */
-export function makeEntry(candidate, candidates, state) {
+export function makeEntry(candidate, candidates, state, templated) {
     if (hasOrdinal(candidate.desc))
         return null;
     const desc = normalizeDesc(candidate);
     // Unique on this page, or the same page would already miss (two text fields that differ only by value).
     if (candidates.filter((c) => normalizeDesc(c) === desc).length !== 1)
         return null;
-    return { desc, frame: frameOf(candidate.desc), page: pageOf(state), list: listHash(candidates) };
+    return { desc: hidden(desc, templated), frame: hidden(frameOf(candidate.desc), templated), page: hidden(pageOf(state), templated),
+        list: listHash(candidates) };
 }
 /** The one candidate a stored entry matches on this page, or undefined: same page, the same whole candidate
  *  list (a new row that fits the target better is a change), and exactly one equal desc in the same frame. */
-export function match(entry, candidates, state) {
-    if (pageOf(state) !== entry.page || listHash(candidates) !== entry.list)
+export function match(entry, candidates, state, templated) {
+    if (hidden(pageOf(state), templated) !== entry.page || listHash(candidates) !== entry.list)
         return undefined;
-    const found = candidates.filter((c) => normalizeDesc(c) === entry.desc && frameOf(c.desc) === entry.frame);
+    const found = candidates.filter((c) => hidden(normalizeDesc(c), templated) === entry.desc && hidden(frameOf(c.desc), templated) === entry.frame);
     return found.length === 1 ? found[0] : undefined;
 }
 const isEntry = (v) => {
@@ -208,7 +212,7 @@ export class PickAttempt {
         if (!this.reads || this.closed || !this.store)
             return undefined;
         const entry = this.store.get(ref, pageOf(state));
-        return entry && match(entry, candidates, state);
+        return entry && match(entry, candidates, state, ref.at.templated);
     }
     /** The step acted on a cached pick. */
     hit(ref, state) {
@@ -221,7 +225,7 @@ export class PickAttempt {
         if (!this.writes || this.closed)
             return;
         const page = pageOf(state);
-        this.stepPending.set(`${entryKey(ref, page)}\0${ref.at.file}`, { ref, page, entry: makeEntry(candidate, candidates, state) });
+        this.stepPending.set(`${entryKey(ref, page)}\0${ref.at.file}`, { ref, page, entry: makeEntry(candidate, candidates, state, ref.at.templated) });
     }
     /** Ends a step; returns a dump of the cached picks this attempt used when the step did not pass. */
     endStep(status) {

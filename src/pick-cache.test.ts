@@ -339,3 +339,13 @@ test('an included flow writes its own sidecar, shared by the specs that include 
   assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.picks.json')), []);
   assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(dir, 'flows', 'save.picks.json'), 'utf8')).entries), [SAVE_KEY]);
 });
+
+test('a templated step keeps no page path or element text in the sidecar, and still matches', () => {
+  const state = { url: 'https://shop.test/u/alice@example.com', title: 'Alice' };
+  const list = cands('a "Alice Smith" href="/u/alice"', 'button "Log out"');
+  const entry = makeEntry(list[0], list, state, true)!;
+  assert.ok(entry.desc.startsWith('sha256:') && entry.page.startsWith('sha256:') && entry.frame.startsWith('sha256:'));
+  assert.ok(!JSON.stringify(entry).includes('alice'));
+  assert.equal(match(entry, list, state, true)?.id, 0);
+  assert.equal(match(entry, list, { ...state, url: 'https://shop.test/u/bob@example.com' }, true), undefined);
+});
