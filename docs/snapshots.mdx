@@ -1,0 +1,167 @@
+---
+title: Snapshot views
+description: Select a raw, compact or smart snapshot in agent mode to read a page or screen with fewer tokens.
+---
+
+# Snapshot views
+
+The `snapshot` tool of the browser, desktop and mobile MCP servers returns the accessibility tree of the page or
+screen. The `mode` option selects how much of the tree you get, and in which form:
+
+```json
+{"mode":"compact"}
+{"mode":"smart","intent":"Change the delivery address"}
+{"mode":"raw","within":"the delivery address form","maxChars":12000}
+```
+
+Do not take a snapshot before a known action: a step finds its own targets. Use a compact or smart view to decide
+what to do next. Use a raw snapshot of one region to read exact data. To read one value, use `read` (see
+[agent mode](agent-mode.mdx#read)).
+
+## Choose a mode
+
+| Mode | Returns | Default size | Jev call |
+|---|---|---|---|
+| `raw` (default) | The tree as text, in `aria` | 20,000 characters | No |
+| `compact` | Selected tree lines, in `observed.aria` | 6,000 characters | No |
+| `smart` | Selected tree lines, plus classifications in `inferred` | 6,000 characters | One request |
+
+## Options
+
+- `maxChars`: an integer from 1 to 60,000. It limits the tree text, not the full JSON response.
+- `within`: a region, for example `the results list`. Jev finds the region. In the browser, `css=main` uses a CSS
+  selector and needs no Jev call. `within` can contain `${hooks.*}` placeholders.
+- `intent`: the task, in up to 2,000 characters, for example `Change the delivery address`. It is for smart mode
+  only: with another mode, the call returns an error. plainwright uses the text as written, with no placeholders.
+
+If no region matches `within`, the browser server returns `found: false` and a `detail`. The desktop and mobile
+servers return a tool error. `save` does not record a snapshot.
+
+Smart mode needs an API key for its classifications. Raw and compact modes need no key, except when Jev must find
+a `within` region.
+
+## Raw mode
+
+A raw snapshot has `url`, `title`, `aria` and `truncated`, plus `region` when you use `within`. It has no
+`jevTokens` or `ms` fields, also when Jev found the region.
+
+plainwright captures at most 60,000 characters of the tree. `truncated: true` means that the capture or the
+`maxChars` limit cut the text.
+
+## Compact mode
+
+A compact view removes the anonymous wrapper lines, for example a `generic` line with no name. Then it selects
+whole lines in this order until the `maxChars` limit:
+
+1. Dialogs, alerts, status messages and sheets.
+2. Headings and controls.
+3. Other content.
+4. Navigation and footer content.
+
+Each selected line keeps its text, states, values, named ancestors, iframe and position in the tree. plainwright
+never cuts a line in the middle. If a line and its ancestors do not fit, the view leaves them out.
+
+## Smart mode
+
+Smart mode returns the same evidence as compact mode, plus classifications from Jev in `inferred`. The
+classifications are advice: they do not change how Jev picks elements or judges claims.
+
+### Screen type and signals
+
+`inferred.screen.type` is one of `authentication`, `form`, `results`, `detail`, `dashboard`, `other` or
+`unknown`. The type is `unknown` when Jev is less than 0.9 sure.
+
+`inferred.signals` has three independent signals: `blockingDialog`, `error` and `loading`. Each has a `probability`
+and a `status`:
+
+- `present`: the probability is 0.9 or more.
+- `absent`: the probability is 0.1 or less, and Jev saw the full tree.
+- `inconclusive`: all other cases.
+
+A signal is never `absent` when the capture was truncated or when some regions were not assessed.
+
+### Focus on a task with `intent`
+
+With `intent`, plainwright divides the tree into regions: forms, search regions, landmarks, named groups, lists,
+tables and heading sections. Jev judges, for each region, if the task needs it. All regions go in one request.
+
+- The view keeps the regions with a relevance of 0.5 or more, with their ancestors and section headings.
+- The view always keeps dialogs, alerts, status messages and sheets.
+- The view does not add other content to fill the `maxChars` limit.
+- If the relevant content is longer than `maxChars`, critical messages come first, then the most relevant regions.
+
+Jev assesses at most 64 regions. `coverage.unassessedRegions` counts the others. An unassessed region is not proof
+that something is absent. Relevance does not prove a claim and does not permit an action.
+
+`inferred.selection` tells you the result of the focus:
+
+| `status` | Meaning |
+|---|---|
+| `focused` | At least one region matched. |
+| `no-confident-match` | No region reached 0.5. The view has only critical messages and their context. |
+| `fallback` | The classification failed. The view is a compact overview with no focus. |
+
+`matchedRegions` counts the matched regions. `uncertainRegions` counts the regions between 0.1 and 0.5. Use these
+counts to decide if you change the `intent`, use `within`, or ask for more content.
+
+Without `intent`, smart mode makes four judgments (the screen type and three signals) and returns a compact
+overview.
+
+### When classification fails
+
+If Jev is not available or returns answers that are not valid, smart mode returns the compact evidence with
+`inferred.status: "unavailable"` and a `reason`. An empty capture also gets `unavailable`, with no Jev call. A
+failed classification never gives a negative signal.
+
+## Coverage and truncation
+
+Compact and smart views have a `coverage` object:
+
+| Field | Meaning |
+|---|---|
+| `sourceChars`, `sourceLines` | The size of the captured tree. |
+| `returnedChars` | The size of the returned text. |
+| `removedWrappers` | Anonymous wrapper lines that the view removed. |
+| `omittedLines` | Content lines that the view left out. |
+| `filteredLines` | Lines that the `intent` focus excluded, also lines of unassessed regions. |
+| `omittedCriticalLines` | Dialog, alert, status and sheet lines that the view left out. |
+| `sourceTruncated` | `true` when the capture reached 60,000 characters. |
+| `unassessedRegions` | Smart mode only: the regions that Jev did not assess. |
+
+The top-level `truncated` is `true` when the capture was cut or the view left out content lines. Wrapper removal
+alone does not set it.
+
+Do not treat missing content as absent. Do not count rows in a view: a view can leave out siblings, rows and
+messages. `omittedCriticalLines: 0` is only about the roles in the table, not about every possible error. To see
+more, use `within`, a larger `maxChars`, or raw mode.
+
+## Cost and time
+
+Compact and smart views report `jevTokens` and `ms`:
+
+- `jevTokens`: the Jev tokens of the classification and of the `within` region. It is `null` when the
+  classification failed, because a failed request can use tokens and not report them. These are not tokens of
+  your agent.
+- `ms.projection`: the time to make the view, with the Jev call.
+- `ms.jev`: the time of the Jev call.
+- `ms.total`: the time of the full tool call, with the capture and the region search.
+
+A shorter view does not always cost less in total. A small tree can give a larger compact or smart response,
+because the metadata is larger than the removed wrappers. An `intent` focus can decrease the input of your agent
+but increase the Jev tokens, because more regions need more questions. For a comparison of `read` and smart
+snapshots, see the [read benchmark](benchmarks/read.md).
+
+## Browser tree details
+
+### Checkbox state
+
+In browser trees, a checkbox, radio, switch or checkable menu item that is not checked shows `[checked=false]`. A
+checked one shows `[checked]`, and a mixed one shows `[checked=mixed]`. Thus each line always shows the state. Jev,
+the snapshot views and the `changed` lines all see this mark.
+
+### Iframes
+
+A snapshot of the whole page adds the tree of each readable iframe after the page tree, under a line
+`--- iframe <label> ---`. The label is the name of the frame. If the frame has no name, the label is the path of
+its URL, or else the full URL. A snapshot with `within` has no iframe lines. Targets inside an iframe use the same
+label (see [what Jev sees for a pick](spec-reference.mdx#for-a-pick)).

@@ -1,0 +1,291 @@
+---
+title: Mobile use
+description: Drive installed iOS and Android apps through Appium, write mobile specs, and use the mobile MCP tools with a coding agent.
+---
+
+# Mobile use
+
+`plainwright-mobile` drives installed native iOS and Android apps, React Native apps included, through Appium.
+Jev picks the controls and judges the claims from the native UI tree.
+The MCP tools and the YAML spec runner use the same session, so a recorded session replays as a spec.
+
+For the API key and the plugin install, read [Getting started](getting-started.mdx).
+For specs that you can run now, read the [runnable mobile examples](../examples/mobile/README.md).
+
+## Setup
+
+You need:
+
+- Node 22 or later and npm.
+- A running Appium server with the driver for your platform.
+- A booted simulator or emulator, or a connected test device, with the app under test installed.
+
+Install Appium and your drivers, then start the server:
+
+```sh
+npm install -g appium
+appium driver install uiautomator2 # Android host: Android SDK, Java and adb
+appium driver install xcuitest     # iOS host: macOS and Xcode
+appium                             # listens on http://127.0.0.1:4723
+```
+
+Use versions that agree with the upstream
+[Android requirements](https://github.com/appium/appium-uiautomator2-driver) and
+[iOS requirements](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/requirements/).
+If the setup does not work, run `appium driver doctor uiautomator2` or `appium driver doctor xcuitest`.
+A physical iPhone needs a signed WebDriverAgent: read
+[iOS provisioning](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/provisioning-profile/).
+
+### Device and app IDs
+
+Each spec and each `open` call names one device and one app. plainwright never selects a device.
+
+- Android device ID: the serial from `adb devices -l` (for example `emulator-5554`).
+- iOS Simulator device ID: the UDID from `xcrun simctl list devices booted`.
+- Physical iPhone device ID: the UDID from the Xcode Devices window.
+- App ID: the Android package name or the iOS bundle ID.
+
+Use dedicated test devices. Actions also reach system dialogs and keyboards.
+Do not start two automation sessions on one device.
+
+### Appium server URL
+
+plainwright uses the first value that it finds:
+
+1. The `--server <url>` flag.
+2. The `PLAINWRIGHT_APPIUM_URL` environment variable.
+3. The `server:` key in the [config file](running.mdx#configuration). The MCP server does not read it.
+4. The default, `http://127.0.0.1:4723`.
+
+The URL must use `http` or `https` and can include a base path such as `/wd/hub`.
+It cannot include credentials, a query or a fragment, so authenticated device clouds are not supported.
+
+### API key
+
+These need no API key: `list_devices`, `list_apps`, `open`, `screenshot`, `close`, `validate`, `--list`, and
+`snapshot` in raw or compact mode without `within`. Without a key, a smart snapshot returns the compact view.
+Spec runs and all other tools need a key.
+
+### App state between runs
+
+plainwright does not install apps, start emulators or Appium, clear app data or restart the app:
+
+- `open` and a spec run start the app if it is not open. Else they bring it to the front on its current screen.
+- `close` and the end of a spec run end the Appium session. The app continues to run.
+
+The installed Appium driver can change this lifecycle. A spec starts on the screen that the last run left.
+Prepare the start screen and the test data in a hook or in the first steps (for example an `optional: true` tap on
+a back button).
+
+## Agent tools
+
+The mobile MCP server has eleven tools (ten if `PLAINWRIGHT_READ=0` hides `read`). It runs one call at a time.
+The tools work as the [desktop tools](computer-use.mdx) and the [browser tools](agent-mode.mdx), with these differences.
+
+| Tool | What it does |
+|---|---|
+| `list_devices {platform?}` | Lists local Android devices and emulators, and iOS simulators. No session needed. |
+| `list_apps {platform, device, query?, include_system?, offset?, limit?}` | Lists the apps on one ready local device. No session needed. |
+| `open {platform, device, app, capabilities?, hooks?, goal?}` | Starts an Appium session on the app and a new recording. Closes the previous session and runs its teardown. |
+| `step {step}` | Runs one step. Returns the status, timing, tokens and `changed`. |
+| `find {kind, target}` | Picks a target without an action. Kinds: `click`, `fill`, `check`, `region`, `scroll`. |
+| `snapshot {within?, maxChars?, mode?, intent?}` | Returns the native UI tree as text. |
+| `ask {claims, within?}` | Answers 1 to 16 yes/no claims. Not recorded. |
+| `read {question, within?}` | Returns the exact tree lines that answer a question. Not recorded. |
+| `screenshot {}` | Returns a PNG of the device screen. Jev does not see it. |
+| `save {path, name?}` | Writes the recorded steps that passed as a mobile spec. |
+| `close {}` | Runs teardown and ends the Appium session. The app keeps its data. |
+
+- `open`: `platform` is `ios` or `android`. The `hooks` path is relative to the working directory of the MCP server.
+- `find`: use the `click` kind for `tap`, `longpress` and `dblclick` targets.
+- `snapshot`: read [Snapshot views](snapshots.mdx) for the modes and size limits.
+
+### Find the device and the app
+
+1. Call `list_devices`. Select a device with `ready: true`.
+2. Call `list_apps` with its `platform` and `device`.
+3. Copy the returned `app` ID into `open`.
+
+Discovery uses the SDK tools on the MCP server host, not the Appium host (`scope: "local"`). It does not start
+apps, boot devices or open Appium sessions.
+
+- Android: plainwright finds `adb` from `ANDROID_HOME`, `ANDROID_SDK_ROOT`, the usual SDK folder or `PATH`.
+- iOS: plainwright uses `xcrun simctl` and `plutil`, so it needs macOS and Xcode. It lists only iOS simulators,
+  each with its `runtime`. A simulator that is shut down has `ready: false`.
+- If one platform fails (for example no Android SDK), its error is in `errors`. The other platform still lists devices.
+- Discovery does not find physical iPhones or devices on a remote Appium host. Get those IDs on that host.
+
+`list_apps` details:
+
+- `query` filters by ID or name, with no case match.
+- `include_system` is `true` by default. With `false`, Android lists third-party packages and iOS lists user apps.
+- iOS returns display names. Android returns package names, and some packages have no screen that you can open.
+- The list is sorted by app ID. `limit` is 100 by default (maximum 500). `offset` is 0 by default.
+- If more apps are available, pass `nextOffset` as the next `offset`. `total` counts all matches.
+- A lookup failure is a tool error, not an empty list.
+
+### Capabilities
+
+Add vendor-prefixed Appium capabilities in `open {capabilities}` or in the spec `capabilities:` key.
+Examples: `appium:appActivity` on Android, `appium:xcodeOrgId` and `appium:xcodeSigningId` on iOS.
+
+plainwright owns these capabilities, and you cannot set them: `platformName`, `browserName`, `appium:automationName`,
+`appium:udid`, `appium:app`, `appium:bundleId`, `appium:appPackage`, `appium:noReset`, `appium:fullReset`,
+`appium:autoLaunch`, `appium:dontStopAppOnReset`, `appium:forceAppLaunch`, `appium:shouldTerminateApp`, `appium:autoWebview`.
+A key without a `vendor:` prefix and `appium:options` are also rejected.
+
+`validate` does not check capabilities. A reserved capability fails only when the session opens.
+
+To make Android runs faster, disable animations for the session:
+
+```yaml
+capabilities:
+  appium:disableWindowAnimation: true   # Android (UiAutomator2)
+```
+
+This changes the device settings and can hide transition bugs. Keep animations on for specs that check transitions.
+On iOS, `appium:reduceMotion: true` does not make runs faster, and it stays on in the simulator after the session. To disable it, open a session with
+`appium:reduceMotion: false`, or use the Settings app.
+
+### Name the targets
+
+Use the names of the native tree, not the visual role:
+
+- A tab bar item is a button: "the Workout button", not "the Workout tab".
+- The iOS back button has the title of the previous screen: "the Summary button in the Step Count navigation bar".
+
+If a pick is `inconclusive`, its detail lists the best guesses with their tree names. Read [Phrasing](phrasing.mdx).
+
+### Record and save
+
+An MCP session has only `${hooks.*}` placeholders, from `open {hooks}`. Use them for credentials and changing data.
+
+`save` writes the steps that passed, as in [Agent mode](agent-mode.mdx). The saved spec also has `platform`,
+`device`, `app`, and `capabilities` when you gave them. `save` writes `device` and `app` as you gave them to `open`.
+If you gave a literal UDID, change it to `${env.device}` and add an `env` block before you commit the spec.
+
+## Mobile specs
+
+A mobile spec uses the browser [spec format](spec-reference.mdx), with the differences below.
+
+```yaml
+name: Preview a message
+platform: android
+device: "${env.device}"
+app: "${env.app}"
+env:
+  device: $TEST_DEVICE
+  app: $TEST_APP
+  message: $TEST_MESSAGE
+goal: Preview a message before sending it
+tags: [smoke, mobile]
+steps:
+  - fill: {target: "the Message text field", value: "${env.message}"}
+  - press: HideKeyboard
+  - check: "the Enable preview switch"
+  - tap: "the Preview button"
+  - wait: "The preview panel is shown"
+  - expect: "The preview contains the test message"
+  - swipe: {direction: left, within: "the preview panel"}
+```
+
+For iOS, use `platform: ios`, the UDID and the bundle ID. Two platforms can share steps when the app has the same
+flow on both. Run the spec on each platform.
+
+### Top-level keys
+
+| Key | Required | Value |
+|---|---|---|
+| `name` | yes | The spec name. |
+| `platform` | yes | `ios` or `android`. |
+| `device` | yes | The UDID or ADB serial. Use `${env.device}` to keep it out of the file. |
+| `app` | yes | The installed bundle ID or package name. |
+| `steps` | yes | One or more steps. |
+| `capabilities` | no | Extra Appium capabilities. Read [Capabilities](#capabilities). |
+
+The optional `env`, `hooks`, `goal`, `tags` and `timeout` keys work as in the [spec reference](spec-reference.mdx).
+A mobile spec has no `url` and no `browser` key. An unknown key is an error, at the top level and in a step.
+Only `env` and `capabilities` accept all keys.
+`${env.*}` and `${hooks.*}` work in `device`, `app`, `capabilities` and the steps.
+A hook `setup` runs before the session opens. `teardown` also runs when the open fails.
+
+### Steps
+
+| Step | What it does |
+|---|---|
+| `tap: the Preview button` | Taps the element. `click` is the same step. |
+| `fill: {target: Email, value: "${env.email}"}` | Clears the text field and types the value. |
+| `longpress: the first row` | Holds the element for one second. |
+| `dblclick: the image` | Taps the element two times. |
+| `check: the Enable preview switch` | Taps the switch only if it is off. `uncheck` taps it only if it is on. |
+| `scroll: "down: the results list"` | Scrolls the content of the container one time. |
+| `swipe: left` | Swipes across the screen one time. |
+| `swipe: {direction: up, within: the carousel}` | Swipes in the region that Jev picks. |
+| `press: Home`, `press: HideKeyboard` | Goes to the home screen, or closes the keyboard. Both platforms. |
+| `press: Back`, `press: Enter` | Android only. On iOS, the step is an error. |
+| `expect: [claim, another claim]` | Judges all claims in one Jev call. Also `{that, within}`. |
+| `wait: claim` | Judges the claim again until it passes. Also `{that, within}`. |
+
+Step rules:
+
+- `fill` on an iOS picker wheel selects the value and does not clear the control. Use the format that the control shows.
+- `check` and `uncheck` read Android `checked` or the iOS switch `value`. An unknown or mixed state is an error.
+- `scroll` needs a direction (`up`, `down`, `left` or `right`) before the container. The direction moves the content.
+  One gesture does not always reach the end. `scroll: top` and `scroll: bottom` are not supported.
+- The `swipe` direction is the direction of the finger.
+- `press` accepts only the four keys in the table. `HideKeyboard` fails when the platform cannot close the keyboard.
+  On iOS, tap the visible back button or keyboard key instead of `Back` or `Enter`.
+- `wait` judges the claim up to eight times, until the `--timeout` limit. After a clear "no" on a screen that did
+  not change, it does not ask again.
+- A `wait` that does not pass ends `inconclusive`, never `fail`. `wait: {that, within}` picks the region one time.
+- `include:` adds a [reusable flow](spec-reference.mdx#reusable-flows).
+
+These browser and desktop steps are not supported: `goto`, `select`, `upload`, `hover`, `rightclick`, `mouse`,
+`drag`, and the `css=` target. Use the visible native controls of menus and pickers instead.
+
+`optional: true` changes `error` and `inconclusive` to `skipped`. A failed `expect` still fails.
+The thresholds are the same as in the browser. Read [Phrasing](phrasing.mdx).
+
+### What Jev sees
+
+Jev reads the native UI tree as text: the names, types, values and states of the elements.
+
+- A capture holds up to 5,000 nodes, 32 levels, 1,016 candidates and 60,000 characters. A cut tree is reported.
+  plainwright rejects a page source larger than 5 MB.
+- A password field shows no value. Its name is its label, or "password".
+- A React Native parent that you can tap gets the label of its children.
+- Hidden and disabled controls are not candidates for an action.
+- Jev does not see React internals, selectors or pixels. A custom canvas control needs accessibility support in the app.
+
+### Before an action
+
+Before an action, plainwright checks that the picked element did not change. If it changed, the step ends with
+an error and does not act.
+
+plainwright does not retry Appium requests, so an action never occurs two times. After an error, look at the
+screen before you try again: text was possibly cleared or typed already. `--timeout` also limits one Appium request.
+
+### Step timing
+
+The `ms` field of a step result has `total`, `capture` (the tree read), `jev`, `act`, `idle` and `cached`, as on desktop.
+Mobile adds two keys:
+
+- `reasked`: Jev asked again on a settled tree because the screen changed (Android).
+- `retargeted`: `1` when an iOS pick was covered and plainwright picked again from the exact tree.
+
+## Suite options
+
+Read [Running suites](running.mdx) for all flags, the config file and the exit codes. These differ on mobile:
+
+| Option | On mobile |
+|---|---|
+| `--workers` | Must be `1`. Specs run one after another. |
+| `--reporter` | The default is `jsonl`, not `text`. |
+| `--server` | The Appium URL. Mobile only. |
+| `--trace` | Not available. With `--artifacts`, any value other than `off` is an error. |
+| `--headless`, `--profile`, `--channel`, `--cdp`, `--timing` | Browser only. The command exits with code `2`. |
+| `--retries` | A retry opens a new session and runs the hooks again. It does not reset the app. |
+
+The [pick cache](running.mdx#pick-cache) works as in the browser.
+
+Read [Reporting](reporting.mdx) and [Failure artifacts](artifacts.mdx). Device smoke tests are in [Development](development.mdx).

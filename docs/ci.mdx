@@ -1,0 +1,160 @@
+---
+title: CI and containers
+description: Run plainwright specs in GitHub Actions, GitLab CI or Docker, publish JUnit results and keep failure artifacts.
+---
+
+# CI and containers
+
+A CI job for plainwright needs three things: Node.js, Chromium for browser specs, and a Jev API key
+(`TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`) as a secret. [Getting started](getting-started.mdx) describes the
+API key. [Running suites](running.mdx) describes the options, the config file and the exit codes.
+
+## Check specs before a live run
+
+`validate` and `--list` do not need an API key or a browser session. Use them in a pull request job without
+secrets:
+
+```sh
+node bin/plainwright.mjs validate tests/
+node bin/plainwright.mjs --list --tag smoke tests/
+```
+
+`validate` gives a warning for an absent spec environment variable. `--list` needs these variables.
+
+On its first run, `bin/plainwright.mjs` installs the dependencies and downloads Chromium, also for `validate`.
+To skip the Chromium download, install the dependencies with `npm ci --omit=dev` and run `node dist/cli.js`.
+
+## GitHub Action
+
+The `action.yml` file at the root of the plainwright repository runs specs from your checkout. Add the API key
+as a repository secret. A minimal workflow:
+
+```yaml
+name: Browser specs
+on: [pull_request]
+jobs:
+  specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gabe4coding/plainwright@main
+        with:
+          specs: tests/
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+```
+
+### Inputs
+
+| Input | Required | Default | Meaning |
+|---|---|---|---|
+| `specs` | Yes | None | Spec files, folders or globs, separated by spaces |
+| `args` | No | Empty | More CLI options, for example `--workers 2 --retries 1` |
+| `junit` | No | `plainwright-results/junit.xml` | Path of the JUnit XML file |
+| `artifacts` | No | `plainwright-results` | Output folder for screenshots, traces and debug files |
+| `artifact-name` | No | `plainwright-results` | Name of the uploaded artifact |
+| `node-version` | No | `'22'` | Node.js version |
+
+The action parses `specs` and `args` with shell quoting rules, so you can put quotes around a value with spaces.
+It does not run them as a shell script.
+
+Do not set `junit` or `artifacts` to an empty value. An empty `junit` stops the run (exit `2`). An empty
+`artifacts` disables capture.
+
+### What the action does
+
+1. It installs Node.js, the locked dependencies of plainwright and Chromium with its system packages.
+2. It runs `plainwright --headless --reporter text --reporter junit:<junit> --artifacts <artifacts>`, then the
+   `args` and then the `specs`.
+3. If the run fails, it uploads the `artifacts` folder with the name `artifact-name`.
+
+Thus the action always writes JUnit XML and always captures artifacts. With the defaults, the JUnit file is in
+the artifacts folder. Thus the action uploads the JUnit file only when the run fails. The action does not publish
+the JUnit results as a check. To publish them, add a step after the action (see below).
+
+The action runs in the folder of your checkout. Thus it reads `plainwright.config.yaml` from there. The action's
+`--reporter` options replace the config `reporters`, and `specs` replaces the config `files`. The other config
+keys apply.
+
+The action does not set the [pick cache](running.mdx#pick-cache) mode, so the mode is `on`. The run then writes
+pick files in the runner's checkout. To use the committed pick files and write nothing, add `--picks read` to
+`args`.
+
+`args` can add a file reporter, for example `--reporter json:plainwright-results/run.json`. `args` cannot add a
+stdout reporter, because the action already uses `text`.
+
+### A full workflow
+
+This workflow uses the committed pick files and publishes the JUnit results as a check:
+
+```yaml
+name: Browser specs
+on: [pull_request]
+permissions:
+  contents: read
+  checks: write
+jobs:
+  specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gabe4coding/plainwright@main
+        with:
+          specs: 'tests/smoke/ tests/checkout/*.yaml'
+          args: '--workers 2 --retries 1 --picks read'
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          # Or: AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      - name: Publish JUnit results
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: plainwright-results/junit.xml
+```
+
+The publish step needs the `checks: write` permission. In a matrix, give each job its own `artifact-name`, for
+example `plainwright-results-${{ matrix.site }}`. Artifact names must be unique in a workflow run.
+
+## GitLab CI
+
+This job runs in a checkout of the plainwright repository with your specs in `tests/`. It keeps the JUnit report
+and the artifacts:
+
+```yaml
+browser-specs:
+  image: mcr.microsoft.com/playwright:v1.63.0-noble
+  variables:
+    PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+  script:
+    - npm ci
+    - node dist/cli.js --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
+  artifacts:
+    when: always
+    paths:
+      - plainwright-results/
+    reports:
+      junit: plainwright-results/junit.xml
+```
+
+Set `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` as a masked CI variable.
+
+## Docker
+
+The image uses the Chromium of Playwright 1.63.0 and runs as the user `pwuser`. Build it from the plainwright
+repository, then run it from the folder that holds your specs:
+
+```sh
+docker build -t plainwright .
+docker run --rm -v "$PWD:/work" -e TYPESAFE_API_KEY plainwright tests/
+docker run --rm -v "$PWD:/work" plainwright validate tests/
+```
+
+- The image always adds `--headless`. Give the other options after the image name.
+- The mounted folder is the current folder of the CLI. The CLI reads `plainwright.config.yaml` and `.env` from
+  it.
+- Set the API key in the host environment and give only its name with `-e`. Do not put the key in a spec or in
+  the image. The build does not copy the `.env` file of the repository into the image.
+- The run writes reports, artifacts, pick files and `.plainwright/last-run.json` into the mounted folder. Make
+  sure that `pwuser` in the container can write to it.
+- Without spec paths, the CLI runs the config `files`. If there is no `files` key, it prints a usage line and
+  exits with `2`.
