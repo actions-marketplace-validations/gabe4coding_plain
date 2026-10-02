@@ -2,6 +2,18 @@
 
 The regular `npm test` suite needs no Jev API key. It builds the TypeScript output and runs local tests. The repository's GitHub workflow also checks that `dist/` and the plugin runtime archives match `npm run build`.
 
+Before a live run, validate specs or list the selected ones without a model key
+or session:
+
+```sh
+node bin/plainwright.mjs validate tests/
+node bin/plainwright.mjs --list --tag smoke tests/
+```
+
+`validate` warns about absent spec environment variables; `--list` requires them
+when loading specs. Keep reusable flow files outside the suite’s spec paths.
+[Running suites](running.md) covers config, selection, retries and token budgets.
+
 ## GitHub Action
 
 The root `action.yml` runs YAML specs from the caller's checkout. Supply a Jev key as a repository secret. A minimal caller workflow is:
@@ -43,7 +55,7 @@ jobs:
           # Or use AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
 ```
 
-The action installs its own locked runtime dependencies and Chromium, runs the specs with text and JUnit reporters, and uploads the artifacts directory if the run fails. Artifact names must be unique in a workflow run, so in a matrix give each job its own `artifact-name` (for example `plainwright-results-${{ matrix.site }}`). The `--reporter` and `--artifacts` flags become available after the reporting and artifacts lanes merge.
+The action installs its own locked runtime dependencies and Chromium, runs the specs with text and JUnit reporters, and uploads the artifacts directory if the run fails. Artifact names must be unique in a workflow run, so in a matrix give each job its own `artifact-name` (for example `plainwright-results-${{ matrix.site }}`). See [reporting](reporting.md) and [artifacts](artifacts.md) for formats and capture defaults.
 
 ## Docker
 

@@ -146,7 +146,7 @@ the sites you need once. The profile dir keeps it all. Rules of the attached mod
 - `auth` and `geolocation` in a spec are rejected: they configure a new browser context, and the point
   here is to reuse yours.
 - When `--cdp` is given, `--profile` and `--channel` are ignored. There is nothing to launch.
-- Anything the agent does happens in your real accounts. Read the [rules](../README.md#rules) again.
+- Anything the agent does happens in your real accounts. Read the [rules](../README.md#usage-rules) again.
 
 ## The API key
 
