@@ -13,3 +13,7 @@ plainwright-results/
 
 # Explainer video project (manim scenes, narration, renders): local only.
 .claude/explainer-video/
+
+# Mod type declarations Claude Code writes when it loads a mod with --plugin-dir.
+mods/*/.claude-plugin/types/
+plugins/*/.claude-plugin/types/
