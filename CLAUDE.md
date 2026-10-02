@@ -10,6 +10,7 @@ Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compil
 
 ```
 npm test                                                    # build + node --test 'dist/**/*.test.js'
+npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
 node --test dist/browser/runner.test.js                     # one file, after a build
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
 ```
@@ -273,8 +274,12 @@ Content:
 - Every browser example starts with `goto`. Full spec examples must pass `node dist/cli.js validate` (or the
   `computer`/`mobile` CLI); config examples must pass `--list`.
 
-Check a doc change: compile each changed file with `@mdx-js/mdx` (MDX 3, with `remark-gfm` and
-`remark-frontmatter`), check that every relative link and anchor resolves, and validate the YAML examples.
+Check a doc change with `npm run check:docs` (`scripts/check-docs.mjs`, also run in CI): every user doc compiles
+as MDX 3 (GFM + frontmatter), has a `title`/`description` frontmatter whose title is the H1 (`.mdx` files), uses no
+JSX/comments/autolinks, passes the mechanical STE rules (sentences of 25 words or fewer, no modals, contractions,
+semicolons, filler words or Latin abbreviations), and every relative link and anchor resolves, also in
+`CLAUDE.md`, `docs/benchmarks/` and the skills. It does not check facts or word choice: validate the YAML examples
+and read the code for those.
 
 ## Constraints
 

@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Check docs
+        run: npm run check:docs
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - name: Check generated files
