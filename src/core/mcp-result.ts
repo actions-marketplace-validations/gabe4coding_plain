@@ -1,14 +1,16 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { decide } from '../jev/jev.js';
+import { decide } from '../jev/decide.js';
 
-// MCP 2025-11-25 requires an object for structuredContent. Keep the text copy for
-// older clients; apps supplies its historical bare-array text representation.
+/**
+ * `data` as structured content (an object, as MCP requires) and as text for older clients. `legacyText` replaces
+ * the text where a tool always returned another shape (`apps`: a bare array).
+ */
 export function jsonResult(data: object, legacyText?: string): CallToolResult {
   const text = JSON.stringify(data);
   return {
     content: [{ type: 'text', text: legacyText ?? text }],
-    // Apply the same JSON normalization on in-memory and stdio transports (e.g. undefined).
+    // Parsed back so in-memory and stdio transports see the same JSON (no `undefined` fields).
     structuredContent: JSON.parse(text) as Record<string, unknown>,
   };
 }
@@ -23,8 +25,10 @@ export const AskClaims = z.array(z.string().min(1)).min(1).max(16);
 /** The `ask` tool's per-claim answers, with the state they were judged against summarized. */
 export function askResult(claims: string[], probabilities: number[], state: { url: string; title: string; truncated: boolean }) {
   const answers = claims.map((claim, i) => {
-    const d = decide(probabilities[i], 'expect');
-    return { claim, p: Math.round(probabilities[i] * 1000) / 1000, answer: d === 'pass' ? 'yes' : d === 'fail' ? 'no' : 'unsure' };
+    const decision = decide(probabilities[i], 'expect');
+    const answer = decision === 'pass' ? 'yes' : decision === 'fail' ? 'no' : 'unsure';
+    return { claim, p: Math.round(probabilities[i] * 1000) / 1000, answer };
   });
-  return { answers, url: state.url, title: state.title, ...(state.truncated ? { note: 'state truncated at 60k chars: a "no" may be content that was cut' } : {}) };
+  const note = state.truncated ? { note: 'state truncated at 60k chars: a "no" may be content that was cut' } : {};
+  return { answers, url: state.url, title: state.title, ...note };
 }

@@ -1,36 +1,40 @@
-// Step (and batch) results in every MCP server carry `changed`, what the action did to the page or screen: the
-// agent reads the outcome there instead of a snapshot/ask call (browser: -30% tool calls, -20% agent cost;
-// docs/benchmarks/agent-changes.md). PLAINWRIGHT_CHANGES=0 turns it off, to measure against (scripts/benchmark-agent.mjs).
-export const CHANGES = process.env.PLAINWRIGHT_CHANGES !== '0';
-export const CHANGES_NOTE = !CHANGES ? '' : ' The result also has `changed`: the page title/URL if they changed, and the accessibility-tree ' +
+/**
+ * Step and batch results in every MCP server carry `changed`, so the agent reads the outcome there instead of
+ * calling snapshot or ask (docs/benchmarks/agent-changes.md). PLAINWRIGHT_CHANGES=0 turns it off.
+ */
+export const CHANGES_ENABLED = process.env.PLAINWRIGHT_CHANGES !== '0';
+export const CHANGES_NOTE = !CHANGES_ENABLED ? '' : ' The result also has `changed`: the page title/URL if they changed, and the accessibility-tree ' +
     'lines the action added (`added`, in page order, capped) and how many it removed. Read it before calling snapshot or ask.';
-// About a compact snapshot's worth of the new lines: a navigation shows the top of the new page.
-export const ADDED_CHARS = 1500;
-/** What an action changed in the page: a line-multiset diff of two aria snapshots. */
+/** Roughly one compact snapshot: after a navigation, `added` shows the top of the new page. */
+const ADDED_CHARS = 1500;
+/** What an action changed: a diff of the two trees' lines, counted as multisets. */
 export function ariaChanges(before, after, cap = ADDED_CHARS) {
-    const left = new Map();
-    const lines = (aria) => aria.split('\n').filter((l) => l.trim() !== '');
-    for (const l of lines(before.aria))
-        left.set(l, (left.get(l) ?? 0) + 1);
+    const linesOf = (aria) => aria.split('\n').filter((line) => line.trim() !== '');
+    const unmatched = new Map();
+    for (const line of linesOf(before.aria))
+        unmatched.set(line, (unmatched.get(line) ?? 0) + 1);
     const added = [];
-    let chars = 0, omitted = 0;
-    for (const l of lines(after.aria)) {
-        const n = left.get(l) ?? 0;
-        if (n > 0) {
-            left.set(l, n - 1);
-            continue;
+    let chars = 0;
+    let omitted = 0;
+    for (const line of linesOf(after.aria)) {
+        const count = unmatched.get(line) ?? 0;
+        if (count > 0) {
+            unmatched.set(line, count - 1);
         }
-        if (chars + l.length + 1 > cap) {
+        else if (chars + line.length + 1 > cap) {
             omitted++;
-            continue;
         }
-        added.push(l);
-        chars += l.length + 1;
+        else {
+            added.push(line);
+            chars += line.length + 1;
+        }
     }
-    const removed = [...left.values()].reduce((a, b) => a + b, 0);
+    const removed = [...unmatched.values()].reduce((sum, count) => sum + count, 0);
     return {
         ...(after.title !== before.title ? { title: after.title } : {}),
         ...(after.url !== before.url ? { url: after.url } : {}),
-        added, addedOmitted: omitted, removed,
+        added,
+        addedOmitted: omitted,
+        removed,
     };
 }

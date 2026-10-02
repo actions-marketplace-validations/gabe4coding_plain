@@ -4,7 +4,9 @@ import { writeFileSync, mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadSpec } from '../core/spec.js';
-import { runSpec, openSession, sharedBrowser, closeSharedBrowser, mapLimitSettled, shortNote, pushCollapsed, isConsoleNoise, noiseNote } from './runner.js';
+import { runSpec } from './runner.js';
+import { openSession, sharedBrowser, closeSharedBrowser } from './session.js';
+import { shortNote, pushCollapsed, isConsoleNoise, noiseNote } from './notes.js';
 import { startHooks } from '../core/hooks.js';
 import { chromium } from 'playwright';
 
@@ -249,23 +251,6 @@ test('openSession gives each session its own downloads dir, gone after close()',
   assert.equal(existsSync(b.downloadsDir), false, 'gone after close()');
 
   await closeSharedBrowser();
-});
-
-test('mapLimitSettled runs at most `limit` tasks concurrently and resolves results in input order', async () => {
-  let inFlight = 0;
-  let maxInFlight = 0;
-  const run = async (i: number): Promise<number> => {
-    inFlight++;
-    maxInFlight = Math.max(maxInFlight, inFlight);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    inFlight--;
-    return i;
-  };
-
-  const results = await Promise.all(mapLimitSettled([0, 1, 2, 3], 2, run));
-
-  assert.deepEqual(results, [0, 1, 2, 3], 'results are in input order');
-  assert.equal(maxInFlight, 2, 'never more than `limit` tasks in flight');
 });
 
 test('console notes are shortened and consecutive repeats collapse into a count', () => {

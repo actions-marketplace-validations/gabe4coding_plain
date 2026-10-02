@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeSnapshot, type AskAnswer, type SnapshotEvidence } from '../jev/jev.js';
+import { describeSnapshot, type SnapshotEvidence } from '../jev/describe.js';
+import { type AskAnswer } from '../jev/ask.js';
 import { snapshotView } from './snapshot-view.js';
 
 const snap = (aria: string, truncated = false) => ({ url: 'test://fixture', title: 'Fixture', aria, truncated });

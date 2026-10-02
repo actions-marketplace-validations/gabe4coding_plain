@@ -23,7 +23,8 @@ export function browserContextOptions(spec, opts) {
         const device = Object.hasOwn(devices, browser.device) ? devices[browser.device] : undefined;
         if (!device) {
             const requested = browser.device.toLowerCase();
-            const close = Object.keys(devices).sort((a, b) => distance(requested, a.toLowerCase()) - distance(requested, b.toLowerCase()) || a.localeCompare(b)).slice(0, 3);
+            const byDistance = (a, b) => distance(requested, a.toLowerCase()) - distance(requested, b.toLowerCase()) || a.localeCompare(b);
+            const close = Object.keys(devices).sort(byDistance).slice(0, 3);
             throw new Error(`unknown browser device "${browser.device}"; close names: ${close.join(', ')}`);
         }
         const { defaultBrowserType: _type, ...context } = device;

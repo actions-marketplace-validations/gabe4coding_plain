@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
+import { errorMessage, StatusSchema } from '../core/results.js';
 const LastRun = z.object({
     schemaVersion: z.literal(1),
     finishedAt: z.iso.datetime(),
     engine: z.enum(['browser', 'desktop', 'mobile']),
     specs: z.array(z.object({
         file: z.string().refine(isAbsolute, 'spec file must be absolute'),
-        status: z.enum(['pass', 'fail', 'inconclusive', 'error', 'skipped']),
+        status: StatusSchema,
         flaky: z.boolean(),
     })),
 });
@@ -20,7 +21,7 @@ export function readLastFailed(cwd) {
     }
     catch (error) {
         if (error.code !== 'ENOENT')
-            console.error(`plainwright: could not read ${file} (${error instanceof Error ? error.message : error}); ignoring previous run`);
+            console.error(`plainwright: could not read ${file} (${errorMessage(error)}); ignoring previous run`);
         return undefined;
     }
 }
@@ -36,7 +37,7 @@ export function writeLastRun(cwd, report) {
     }
     catch (error) {
         // Persistence should not turn a completed suite into a usage/config error.
-        console.error(`plainwright: could not write last run: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`plainwright: could not write last run: ${errorMessage(error)}`);
     }
     finally {
         try {

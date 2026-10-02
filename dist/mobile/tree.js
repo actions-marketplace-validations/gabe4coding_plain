@@ -1,18 +1,42 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
-import { MAX_CANDIDATES } from '../jev/jev.js';
-// Identity excludes changing values/checked state, but includes labels and native identifiers.
+import { MAX_CANDIDATES } from '../jev/pick.js';
+const MAX_SOURCE_CHARS = 5_000_000;
+const MAX_NODES = 5000;
+const MAX_DEPTH = 32;
+const MAX_TREE_CHARS = 60000;
+const MAX_INNER_NAME = 500;
+const IOS_TYPE = 'XCUIElementType';
+/** Containers whose content can lie outside their own frame (scrolled away), a web view's page too. */
+const CLIPPING_ROLE = /ScrollView|Table|CollectionView|WebView|Window|Application/;
+const CHECKABLE_ROLE = /Switch|CheckBox|Checkbox|ToggleButton/;
+const IDENTITY_ATTRIBUTES = ['resource-id', 'name', 'label', 'content-desc', 'text'];
+/** The identity a target is checked against before acting: labels and native ids, not values or checked state. */
 export function nodeIdentity(node) {
-    return JSON.stringify([node.role, node.name, ...['resource-id', 'name', 'label', 'content-desc', 'text'].map(k => node.attrs[k] ?? '')]);
+    return JSON.stringify([node.role, node.name, ...IDENTITY_ATTRIBUTES.map((key) => node.attrs[key] ?? '')]);
 }
+/** The parts of nodeIdentity() an iOS lookup can check: `nativeName` is the element's own `name` attribute. */
+export function parseIdentity(identity) {
+    const [role, name, , nativeName, label] = JSON.parse(identity);
+    return { role, name, nativeName, label };
+}
+const isPassword = (attrs, role) => attrs.password === 'true' || /SecureTextField/.test(role);
+function ownName(attrs, role) {
+    if (isPassword(attrs, role))
+        return attrs['content-desc'] || attrs.label || 'password';
+    return attrs['content-desc'] || attrs.label || attrs.text || attrs.name || '';
+}
+function intersection(a, b) {
+    return { left: Math.max(a.left, b.left), top: Math.max(a.top, b.top), right: Math.min(a.right, b.right), bottom: Math.min(a.bottom, b.bottom) };
+}
+const overlaps = (box, clip) => box.left < clip.right && box.right > clip.left && box.top < clip.bottom && box.bottom > clip.top;
 /**
- * `boundsVisibility`: for an iOS source read without the costly `visible` attribute (AppiumAdapter), a node
- * counts as visible when its frame has an area inside the window and every scrolling ancestor (scroll, table,
- * collection and web views). This keeps
- * every node XCUITest reports visible (checked on recorded Calendar trees) but also keeps covered ones
- * (content under a sheet), so it is only for picking targets whose visibility is confirmed before acting.
+ * Parses an XCUITest or UiAutomator2 page source. `boundsVisibility`: for an iOS source read without the costly
+ * `visible` attribute, a node counts as visible when its frame has an area inside the window and every scrolling
+ * ancestor. That keeps every node XCUITest reports visible, but also covered ones (content under a sheet), so it
+ * is only for picking targets whose visibility is confirmed before acting.
  */
 export function parseMobileTree(xml, { boundsVisibility = false } = {}) {
-    if (xml.length > 5_000_000)
+    if (xml.length > MAX_SOURCE_CHARS)
         throw new Error('Mobile UI source exceeds 5 MB');
     if (/<!DOCTYPE|<!ENTITY/i.test(xml))
         throw new Error('DTD/entity declarations are not supported in mobile UI source');
@@ -20,61 +44,65 @@ export function parseMobileTree(xml, { boundsVisibility = false } = {}) {
         throw new Error('Appium returned invalid XML UI source');
     const parsed = new XMLParser({ preserveOrder: true, ignoreAttributes: false, attributeNamePrefix: '',
         parseAttributeValue: false, parseTagValue: false, ignoreDeclaration: true }).parse(xml);
-    let count = 0, truncated = false;
-    function walk(items, path, depth, visible, enabled, clip, chain) {
+    let count = 0;
+    let truncated = false;
+    function walk(items, path, depth, parentVisible, parentEnabled, clip, chain) {
         const nodes = [];
         let ordinal = 0;
-        const sameType = new Map();
+        const sameTypeCount = new Map();
         for (const item of items) {
-            const tag = Object.keys(item).find(k => k !== ':@' && !k.startsWith('#') && !k.startsWith('?'));
+            const tag = Object.keys(item).find((key) => key !== ':@' && !key.startsWith('#') && !key.startsWith('?'));
             if (!tag)
                 continue;
             ordinal++;
-            if (count >= 5000 || depth > 32) {
+            if (count >= MAX_NODES || depth > MAX_DEPTH) {
                 truncated = true;
                 break;
             }
             count++;
             const attrs = (item[':@'] ?? {});
             const role = attrs.type ?? attrs.class ?? tag;
-            const password = attrs.password === 'true' || /SecureTextField/.test(role);
-            const ownName = password ? attrs['content-desc'] || attrs.label || 'password' : attrs['content-desc'] || attrs.label || attrs.text || attrs.name || '';
-            // XCUITest can mark a layout container invisible while its controls are visible.
-            // Its explicit per-element visibility wins; Android visibility remains inherited.
-            const nativeVisible = attrs.visible !== 'false' && attrs.displayed !== 'false';
-            let box, childClip = clip;
+            let box;
+            let childClip = clip;
             if (boundsVisibility && attrs.visible === undefined && attrs.x !== undefined) {
                 box = { left: +attrs.x, top: +attrs.y, right: +attrs.x + +attrs.width, bottom: +attrs.y + +attrs.height };
-                // Containers whose content can lie outside their own frame (scrolled away): a web view's page too.
-                if (/ScrollView|Table|CollectionView|WebView|Window|Application/.test(role))
-                    childClip = !clip ? box : { left: Math.max(clip.left, box.left),
-                        top: Math.max(clip.top, box.top), right: Math.min(clip.right, box.right), bottom: Math.min(clip.bottom, box.bottom) };
+                if (CLIPPING_ROLE.test(role))
+                    childClip = clip ? intersection(clip, box) : box;
             }
-            const effectiveVisible = box ? box.right > box.left && box.bottom > box.top && (!clip ||
-                (box.left < clip.right && box.right > clip.left && box.top < clip.bottom && box.bottom > clip.top))
-                : role.startsWith('XCUIElementType') && attrs.visible !== undefined ? nativeVisible : visible && nativeVisible;
-            const typeIndex = (sameType.get(role) ?? 0) + 1;
-            sameType.set(role, typeIndex);
-            // The application itself (depth 0) is the chain's root; below it, iOS types only.
-            const nodeChain = chain === undefined ? '' : role.startsWith('XCUIElementType') ? `${chain}${chain ? '/' : ''}${role}[${typeIndex}]` : '';
-            const node = { path: `${path}/*[${ordinal}]`, chain: nodeChain, attrs, role, name: ownName,
-                visible: effectiveVisible,
-                enabled: enabled && attrs.enabled !== 'false', children: [] };
-            const childChain = depth === 0 && role === 'XCUIElementTypeApplication' ? '' : nodeChain || undefined;
+            const nativeVisible = attrs.visible !== 'false' && attrs.displayed !== 'false';
+            // XCUITest can mark a layout container invisible while its controls are visible: an iOS node's own flag
+            // wins. Android visibility is inherited.
+            const visible = box ? box.right > box.left && box.bottom > box.top && (!clip || overlaps(box, clip))
+                : role.startsWith(IOS_TYPE) && attrs.visible !== undefined ? nativeVisible
+                    : parentVisible && nativeVisible;
+            const typeIndex = (sameTypeCount.get(role) ?? 0) + 1;
+            sameTypeCount.set(role, typeIndex);
+            // The application (depth 0) is the chain's root; below it, iOS types only.
+            const nodeChain = chain === undefined ? '' : role.startsWith(IOS_TYPE) ? `${chain}${chain ? '/' : ''}${role}[${typeIndex}]` : '';
+            const node = {
+                path: `${path}/*[${ordinal}]`,
+                chain: nodeChain,
+                attrs,
+                role,
+                name: ownName(attrs, role),
+                visible,
+                enabled: parentEnabled && attrs.enabled !== 'false',
+                children: [],
+            };
+            const childChain = depth === 0 && role === `${IOS_TYPE}Application` ? '' : nodeChain || undefined;
             node.children = walk(item[tag], node.path, depth + 1, node.visible, node.enabled, childClip, childChain);
-            // React Native often puts text inside an otherwise unnamed pressable container.
-            if (!node.name)
-                node.name = node.children.filter(c => c.visible).map(c => c.name).filter(Boolean).join(' ').slice(0, 500);
+            // React Native often puts the text inside an otherwise unnamed pressable container.
+            if (!node.name) {
+                node.name = node.children.filter((child) => child.visible).map((child) => child.name).filter(Boolean).join(' ').slice(0, MAX_INNER_NAME);
+            }
             nodes.push(node);
         }
         return nodes;
     }
-    // XCUITest wraps page source in AppiumAUT, but its XPath lookup is rooted at the
-    // application itself. Remove only this synthetic wrapper so paths address real nodes.
-    const source = parsed.length === 1 && Array.isArray(parsed[0].AppiumAUT)
-        ? parsed[0].AppiumAUT : parsed;
-    const roots = walk(source, '', 0, true, true);
-    return { roots, truncated };
+    // XCUITest wraps the source in AppiumAUT, but its XPath lookup is rooted at the application: drop the wrapper so
+    // paths address real nodes.
+    const source = parsed.length === 1 && Array.isArray(parsed[0].AppiumAUT) ? parsed[0].AppiumAUT : parsed;
+    return { roots: walk(source, '', 0, true, true), truncated };
 }
 export function findMobileNode(roots, path) {
     for (const node of roots) {
@@ -87,64 +115,76 @@ export function findMobileNode(roots, path) {
         }
     }
 }
-export function mobileMatches(node, kind) {
+function mobileMatches(node, kind) {
     if (!node.visible)
         return false;
     if (kind === 'region')
         return true;
     if (!node.enabled)
         return false;
+    const { attrs, role } = node;
     if (kind === 'fill')
-        return node.attrs.editable === 'true' || /EditText|AutoCompleteTextView|XCUIElementType(SecureTextField|TextField|TextView|SearchField|PickerWheel)/.test(node.role);
+        return attrs.editable === 'true' || /EditText|AutoCompleteTextView|XCUIElementType(SecureTextField|TextField|TextView|SearchField|PickerWheel)/.test(role);
     if (kind === 'check')
-        return node.attrs.checkable === 'true' || /Switch|CheckBox|Checkbox|ToggleButton/.test(node.role);
+        return isCheckable(node);
     if (kind === 'scroll')
-        return node.attrs.scrollable === 'true' || /ScrollView|ListView|RecyclerView|Table|CollectionView|WebView/.test(node.role);
-    return node.attrs.clickable === 'true' || node.attrs['long-clickable'] === 'true' || node.attrs.focusable === 'true' ||
-        /Button|Link|Cell|TextField|TextView|EditText|Switch|CheckBox|Checkbox|Image|StaticText/.test(node.role) ||
-        (node.attrs.accessible === 'true' && !!node.name);
+        return attrs.scrollable === 'true' || /ScrollView|ListView|RecyclerView|Table|CollectionView|WebView/.test(role);
+    return attrs.clickable === 'true' || attrs['long-clickable'] === 'true' || attrs.focusable === 'true' ||
+        /Button|Link|Cell|TextField|TextView|EditText|Switch|CheckBox|Checkbox|Image|StaticText/.test(role) ||
+        (attrs.accessible === 'true' && !!node.name);
 }
-/** `containersOnly`: region candidates are only nodes with children (AppiumAdapter's approximate region picks). */
 /**
- * Jetpack Compose marks a clickable View's role with an unnamed, non-clickable child of the same bounds
- * (a Button inside "Add email" in Google Contacts). It is the same control: listing both split Jev's pick
- * between them (0.51/0.47, rejected), so the marker is not a candidate; its parent is.
+ * Jetpack Compose marks a clickable view's role with an unnamed, non-clickable child of the same bounds. It is the
+ * same control, and listing both splits Jev's pick between them, so the marker is no candidate; its parent is.
  */
-function roleMarker(node, parent) {
-    const a = node.attrs;
-    return !!parent && parent.attrs.clickable === 'true' && a.clickable === 'false' && a['long-clickable'] !== 'true' &&
-        !a.text && !a['content-desc'] && a.bounds !== undefined && a.bounds === parent.attrs.bounds;
+function isRoleMarker(node, parent) {
+    const attrs = node.attrs;
+    return !!parent && parent.attrs.clickable === 'true' && attrs.clickable === 'false' && attrs['long-clickable'] !== 'true' &&
+        !attrs.text && !attrs['content-desc'] && attrs.bounds !== undefined && attrs.bounds === parent.attrs.bounds;
 }
+const isCheckable = (node) => node.attrs.checkable === 'true' || CHECKABLE_ROLE.test(node.role);
+function describeNode(node) {
+    const attrs = node.attrs;
+    const password = isPassword(attrs, node.role);
+    const nativeValue = attrs.value ?? (mobileMatches(node, 'fill') ? attrs.text : undefined);
+    const value = !password && nativeValue !== undefined ? ` value=${JSON.stringify(nativeValue)}` : '';
+    const checkable = isCheckable(node);
+    const flags = [
+        !node.enabled && 'disabled',
+        checkable && attrs.checked !== undefined && `checked=${attrs.checked}`,
+        attrs.selected === 'true' && 'selected',
+        password && 'password',
+    ].filter(Boolean).join(' ');
+    const name = password ? attrs.label || attrs['content-desc'] || 'password' : node.name;
+    return `${node.role} ${JSON.stringify(name)}${value}${flags ? ` [${flags}]` : ''}`;
+}
+/** The snapshot text and the candidates for `kind`. `containersOnly`: region candidates are nodes with children. */
 export function mobileFrame(roots, kind, state, generation, truncated = false, { containersOnly = false } = {}) {
-    const candidates = [], elements = new Map(), lines = [];
+    const candidates = [];
+    const elements = new Map();
+    const lines = [];
     let chars = 0;
     function walk(nodes, depth, context, parent) {
         for (const node of nodes) {
             if (!node.visible) {
-                // Keep hidden nodes out of the snapshot/candidates, but inspect descendants:
-                // a native iOS child's explicit visible=true is independent of its container.
+                // A hidden node stays out, but its children are looked at: an iOS child's own visible=true holds.
                 walk(node.children, depth, context, parent);
                 continue;
             }
-            if (chars >= 60000) {
+            if (chars >= MAX_TREE_CHARS) {
                 truncated = true;
                 return;
             }
-            const a = node.attrs;
-            const password = a.password === 'true' || /SecureTextField/.test(node.role);
-            const nativeValue = a.value ?? (mobileMatches(node, 'fill') ? a.text : undefined);
-            const value = !password && nativeValue !== undefined ? ` value=${JSON.stringify(nativeValue)}` : '';
-            const checkable = a.checkable === 'true' || /Switch|CheckBox|Checkbox|ToggleButton/.test(node.role);
-            const flags = [!node.enabled && 'disabled', checkable && a.checked !== undefined && `checked=${a.checked}`, a.selected === 'true' && 'selected', password && 'password'].filter(Boolean).join(' ');
-            const desc = `${node.role} ${JSON.stringify(password ? a.label || a['content-desc'] || 'password' : node.name)}${value}${flags ? ` [${flags}]` : ''}`;
+            const desc = describeNode(node);
             const line = `${'  '.repeat(depth)}${desc}\n`;
-            if (chars + line.length > 60000)
+            if (chars + line.length > MAX_TREE_CHARS)
                 truncated = true;
-            lines.push(line.slice(0, 60000 - chars));
+            lines.push(line.slice(0, MAX_TREE_CHARS - chars));
             chars += line.length;
-            if (mobileMatches(node, kind) && !(containersOnly && !node.children.length) && !roleMarker(node, parent)) {
-                if (candidates.length >= MAX_CANDIDATES)
+            if (mobileMatches(node, kind) && !(containersOnly && !node.children.length) && !isRoleMarker(node, parent)) {
+                if (candidates.length >= MAX_CANDIDATES) {
                     truncated = true;
+                }
                 else {
                     const id = candidates.length;
                     candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });

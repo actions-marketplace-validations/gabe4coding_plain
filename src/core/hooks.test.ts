@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { placeholderPaths } from './hooks.js';
 
-// MCP `open` lists these paths and never the leased values (src/hooks.ts). Browser, desktop and
+// MCP `open` lists these paths and never the leased values (src/core/hooks.ts). Browser, desktop and
 // mobile tests only exercise flat keys such as ${hooks.text}.
 test('placeholderPaths names nested leaves and never includes the values', () => {
   const secret = 'SuperSecretPassword!';

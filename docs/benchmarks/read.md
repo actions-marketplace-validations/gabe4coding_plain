@@ -1,6 +1,6 @@
 # The `read` tool
 
-`read {question, within?}` answers a question with the page's own accessibility-tree lines (`src/read.ts`).
+`read {question, within?}` answers a question with the page's own accessibility-tree lines (`src/core/read.ts`).
 Code numbers the lines, Jev picks the first and the last line of the answer (two Choice questions, one
 request), and the lines in between are copied verbatim. Measured 2026-09-25.
 

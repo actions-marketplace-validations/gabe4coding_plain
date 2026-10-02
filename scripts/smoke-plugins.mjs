@@ -28,7 +28,7 @@ try {
     await client.connect(transport, { timeout: 120000 });
     try {
       const tools = (await client.listTools()).tools.map(t => t.name);
-      assert.equal(tools.length, name === 'plainwright' ? 7 : name === 'plainwright-computer' ? 8 : 9);
+      assert.equal(tools.length, name === 'plainwright' ? 9 : name === 'plainwright-computer' ? 10 : 11);
       if (name === 'plainwright') {
         const opened = await client.callTool({ name: 'open', arguments: { url: 'data:text/html,<main>Isolated browser plugin works</main>' } });
         assert.ok(!opened.isError, JSON.stringify(opened));
@@ -52,7 +52,7 @@ try {
       try {
         await client.connect(transport);
         assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(),
-          ['close', 'find', 'list_apps', 'list_devices', 'open', 'save', 'screenshot', 'snapshot', 'step']);
+          ['ask', 'close', 'find', 'list_apps', 'list_devices', 'open', 'read', 'save', 'screenshot', 'snapshot', 'step']);
         const invalid = await client.callTool({ name: 'open', arguments: { platform: 'android', app: 'com.example.fixture' } });
         assert.equal(invalid.isError, true, 'No implicit device selection');
         assert.ok(!(await client.callTool({ name: 'close', arguments: {} })).isError);

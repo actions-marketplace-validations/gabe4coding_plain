@@ -1,38 +1,56 @@
-import { interpolate } from '../core/spec.js';
-import { parseComputerStep } from './spec.js';
+import { interpolate } from '../core/interpolate.js';
 import { label } from '../core/results.js';
-import { NativeSession, runNativeSpec } from '../native/native.js';
+import { NativeSession } from '../native/session.js';
+import { runNativeSpec } from '../native/run-spec.js';
+import { parseComputerStep } from './spec.js';
+const BROWSER_ONLY = new Set(['goto', 'select', 'upload']);
+const SCROLL_DIRECTION = /^(up|down):\s*/;
+const SCROLL_LINES = 3;
+/** The candidates a desktop step picks from. */
+function candidateKind(kind) {
+    if (kind === 'fill')
+        return 'fill';
+    if (kind === 'check' || kind === 'uncheck')
+        return 'check';
+    if (kind === 'scroll' || kind === 'hover')
+        return kind;
+    return 'click';
+}
 export class ComputerSession extends NativeSession {
     parse(raw) { return parseComputerStep(raw); }
     label(step) { return label(step); }
-    async act(step, name) {
-        if (step.kind === 'press')
+    async act(step, stepLabel) {
+        if (step.kind === 'press') {
             await this.timed('act', () => this.adapter.press(step.key));
-        else if (step.kind === 'mouse')
+            return { step: stepLabel, status: 'pass' };
+        }
+        if (step.kind === 'mouse') {
             await this.timed('act', () => this.adapter.mouse(step.x, step.y));
-        else if (step.kind === 'drag') {
+            return { step: stepLabel, status: 'pass' };
+        }
+        if (step.kind === 'drag') {
             const [source, target] = await this.find('click', [step.source, step.target]);
-            if (source.element === null || target.element === null)
-                return { step: name, status: 'inconclusive', detail: `${source.detail} → ${target.detail}` };
+            if (source.element === null || target.element === null) {
+                return { step: stepLabel, status: 'inconclusive', detail: `${source.detail} → ${target.detail}` };
+            }
             const [from, to] = [source.element, target.element];
             await this.timed('act', () => this.adapter.drag(from, to));
+            return { step: stepLabel, status: 'pass' };
         }
-        else if (step.kind === 'goto' || step.kind === 'select' || step.kind === 'upload' || step.kind === 'expect' || step.kind === 'wait') {
+        if (!('target' in step) || BROWSER_ONLY.has(step.kind))
             throw new Error(`${step.kind} is browser-only`);
-        }
-        else {
-            const kind = step.kind === 'fill' ? 'fill' : step.kind === 'check' || step.kind === 'uncheck' ? 'check' :
-                step.kind === 'scroll' ? 'scroll' : step.kind === 'hover' ? 'hover' : 'click';
-            const target = step.kind === 'scroll' ? step.target.replace(/^(up|down):\s*/, '') : step.target;
-            const [r] = await this.find(kind, [target]);
-            if (r.element === null)
-                return { step: name, status: 'inconclusive', detail: r.detail };
-            const element = r.element, action = step.kind;
-            const value = step.kind === 'fill' ? step.value : step.kind === 'scroll' ? (step.target.startsWith('up:') ? '-3' : '3') : undefined;
-            await this.timed('act', () => this.adapter.act(action, element, value));
-            return { step: name, status: 'pass', detail: r.detail };
-        }
-        return { step: name, status: 'pass' };
+        // `scroll: "down: the list"`: the direction prefix is not part of the target.
+        const target = step.kind === 'scroll' ? step.target.replace(SCROLL_DIRECTION, '') : step.target;
+        const [resolved] = await this.find(candidateKind(step.kind), [target]);
+        if (resolved.element === null)
+            return { step: stepLabel, status: 'inconclusive', detail: resolved.detail };
+        const element = resolved.element;
+        const value = step.kind === 'fill' ? step.value
+            : step.kind === 'scroll' ? String(step.target.startsWith('up:') ? -SCROLL_LINES : SCROLL_LINES)
+                : undefined;
+        const action = step.kind;
+        await this.timed('act', () => this.adapter.act(action, element, value));
+        return { step: stepLabel, status: 'pass', detail: resolved.detail };
     }
 }
 export function runComputerSpec(spec, session, observer, info, specTimeout) {

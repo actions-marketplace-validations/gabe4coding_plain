@@ -4,15 +4,20 @@ import os from 'node:os';
 import path from 'node:path';
 import { StepKind } from './step-kind.js';
 export const StatusSchema = z.enum(['pass', 'fail', 'inconclusive', 'error', 'skipped']);
+/** Every status but pass and skipped: it stops a run and fails the spec. */
+export const isFailure = (status) => status !== 'pass' && status !== 'skipped';
+/** Where rejected picks and failed claims are dumped; the artifacts observer copies from here. */
+export const DUMP_DIR = path.join(os.tmpdir(), 'plainwright');
 export const StepResultSchema = z.object({
     step: z.string(),
     status: StatusSchema,
     detail: z.string().optional(),
     ms: z.record(z.string(), z.number()).optional(),
-    /** A target came from the pick cache (src/pick-cache.ts): no Jev pick for it. */
+    /** A target came from the pick cache: no Jev pick for it. */
     cached: z.boolean().optional(),
 });
-/** Adds the elapsed ms of `fn` into ms[phase]; phases accumulate across calls within one step. */
+export const errorMessage = (error) => (error instanceof Error ? error.message : String(error));
+/** Adds the time `fn` takes to ms[phase]; a phase adds up over the calls of one step. */
 export async function timedInto(ms, phase, fn) {
     const start = Date.now();
     try {
@@ -22,12 +27,11 @@ export async function timedInto(ms, phase, fn) {
         ms[phase] = (ms[phase] ?? 0) + (Date.now() - start);
     }
 }
-// Formats a step's `ms` phase timings for --timing output, e.g. "total=3985 settle=512 jev=1830" —
-// `total` first (if present), then the rest in insertion order, only phases actually recorded.
+/** Phase timings for --timing, `total` first: "total=3985 settle=512 jev=1830". */
 export function formatMs(ms) {
     const keys = Object.keys(ms);
-    const ordered = keys.includes('total') ? ['total', ...keys.filter((k) => k !== 'total')] : keys;
-    return ordered.map((k) => `${k}=${ms[k]}`).join(' ');
+    const ordered = keys.includes('total') ? ['total', ...keys.filter((key) => key !== 'total')] : keys;
+    return ordered.map((key) => `${key}=${ms[key]}`).join(' ');
 }
 export function label(step) {
     const base = baseLabel(step);
@@ -46,24 +50,23 @@ function baseLabel(step) {
             const claim = step.expectations.length > 1 ? step.expectations.join(' | ') : step.expectations[0];
             return step.within ? `expect "${claim}" within "${step.within}"` : `expect "${claim}"`;
         }
-        default: return `${step.kind} "${step.target}"`; // fill, click, hover, dblclick, rightclick, check, uncheck, scroll
+        default: return `${step.kind} "${step.target}"`;
     }
 }
-let dumpSeq = 0;
-/** Dump debug data to a temp file for a rejection/timeout/fail detail line, and return its path. */
+let dumpCount = 0;
+/** Writes what Jev saw to a temp file, for the detail line of a rejected pick or a failed claim. Returns its path. */
 export function dumpDebug(kind, data) {
-    const dir = path.join(os.tmpdir(), 'plainwright');
-    fs.mkdirSync(dir, { recursive: true });
-    // pid + a per-process counter: concurrent specs must not overwrite each other's dump.
-    const file = path.join(dir, `${Date.now()}-${process.pid}-${++dumpSeq}-${kind}.json`);
+    fs.mkdirSync(DUMP_DIR, { recursive: true });
+    // The pid and a counter keep concurrent specs from overwriting each other's dumps.
+    const file = path.join(DUMP_DIR, `${Date.now()}-${process.pid}-${++dumpCount}-${kind}.json`);
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
     return file;
 }
-/** Top 3 candidates by probability, formatted for a pick-rejection detail line. */
+/** The three most likely candidates, for the detail line of a rejected pick. */
 export function topGuesses(probabilities, candidates) {
     return Object.entries(probabilities)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
-        .map(([k, p]) => `${k === 'none' ? 'none' : candidates.find((c) => String(c.id) === k)?.desc} (p=${p.toFixed(2)})`)
+        .map(([key, p]) => `${key === 'none' ? 'none' : candidates.find((c) => String(c.id) === key)?.desc} (p=${p.toFixed(2)})`)
         .join(' | ');
 }

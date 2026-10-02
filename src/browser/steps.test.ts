@@ -1,7 +1,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
-import { runStep, type StepContext } from './steps.js';
+import { runStep } from './steps.js';
+import { type StepContext } from './context.js';
 import { parseStep } from '../core/spec.js';
 
 let browser: Browser;

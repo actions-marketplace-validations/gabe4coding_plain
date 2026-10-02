@@ -1,3 +1,4 @@
+import { errorMessage } from '../core/results.js';
 import type { RunObserver, SpecInfo } from './types.js';
 
 export function observerCalls(observer: RunObserver | undefined, info: SpecInfo) {
@@ -9,7 +10,7 @@ export function observerCalls(observer: RunObserver | undefined, info: SpecInfo)
     catch (error) {
       if (!warned) {
         warned = true;
-        console.error(`plainwright: observer: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`plainwright: observer: ${errorMessage(error)}`);
       }
       return undefined;
     }

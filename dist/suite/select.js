@@ -1,24 +1,25 @@
 import path from 'node:path';
+import { errorMessage } from '../core/results.js';
 import { readLastFailed } from './last-run.js';
-function regex(pattern, flag) {
+function compileFlagRegex(pattern, flag) {
     if (pattern === undefined)
         return undefined;
     try {
         return new RegExp(pattern);
     }
     catch (error) {
-        throw new Error(`${flag}: invalid regex ${JSON.stringify(pattern)}: ${error instanceof Error ? error.message : error}`);
+        throw new Error(`${flag}: invalid regex ${JSON.stringify(pattern)}: ${errorMessage(error)}`);
     }
 }
-/** Last-run persistence belongs to scheduling; keep its selection rule independently testable. */
+/** Keeps only the specs that did not pass in the last run; `undefined` (no usable last run) keeps them all. */
 export function filterLastFailed(specs, failed) {
     if (failed === undefined)
         return specs;
     return specs.filter(({ file }) => failed.has(path.resolve(file)));
 }
 export function select(specs, opts) {
-    const include = regex(opts.grep, '--grep');
-    const exclude = regex(opts.grepInvert, '--grep-invert');
+    const include = compileFlagRegex(opts.grep, '--grep');
+    const exclude = compileFlagRegex(opts.grepInvert, '--grep-invert');
     const matches = (re, spec) => re.test(spec.name) || re.test(path.relative(process.cwd(), spec.file).replaceAll(path.sep, '/'));
     let selected = specs.filter((spec) => (!include || matches(include, spec)) && (!exclude || !matches(exclude, spec)))
         .filter((spec) => opts.tags.every((tag) => spec.tags.includes(tag)));

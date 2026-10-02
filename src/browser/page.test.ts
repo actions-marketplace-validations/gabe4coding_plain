@@ -2,8 +2,12 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
 import { intelligence } from '../core/automation.js';
-import { candidates, elementById, installSettleObserver, mark, markUnchecked, settle, snapshot, unchangedSince, waitForMutation } from './page.js';
-import { holdActivity, mayNavigate, resolveLocators, settledAsk, settlePage, waitHold, type StepContext } from './steps.js';
+import { candidates, elementById } from './candidates.js';
+import { installSettleObserver, mark, markUnchecked, settle, snapshot, unchangedSince, waitForMutation } from './page.js';
+import { holdActivity, mayNavigate, settlePage, waitHold } from './activity.js';
+import { resolveLocators } from './locate.js';
+import { settledAsk } from './settled-ask.js';
+import { type StepContext } from './context.js';
 
 let browser: Browser;
 let page: Page;

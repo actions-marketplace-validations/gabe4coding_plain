@@ -84,7 +84,7 @@ test('browser timing golden output is unchanged on and off', async () => {
   ]);
 });
 
-test('a spec whose run threw prints file + error, as the pre-refactor cli.ts did', async () => {
+test('a spec whose run threw prints the file and the error', async () => {
   const engine: SuiteEngine<string> = { engine: 'browser', maxWorkers: 4, load: (file) => file,
     meta: (name) => ({ name: `spec ${name}`, tags: [] }),
     run: async () => { throw new Error("Cannot find module '/x/hooks.mjs'"); } };

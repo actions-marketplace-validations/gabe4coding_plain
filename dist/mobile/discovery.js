@@ -3,12 +3,16 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { errorMessage } from '../core/results.js';
 export const AppListingSchema = z.object({
-    platform: z.enum(['android', 'ios']), device: z.string().trim().min(1),
-    query: z.string().default(''), include_system: z.boolean().default(true),
-    offset: z.number().int().nonnegative().default(0), limit: z.number().int().min(1).max(500).default(100),
+    platform: z.enum(['android', 'ios']),
+    device: z.string().trim().min(1),
+    query: z.string().default(''),
+    include_system: z.boolean().default(true),
+    offset: z.number().int().nonnegative().default(0),
+    limit: z.number().int().min(1).max(500).default(100),
 });
-// No shell interpolation, bounded output/time, and no Appium session or app lifecycle changes.
+/** No shell, bounded output and time; never touches an Appium session or an app's lifecycle. */
 const runCommand = (file, args, input) => new Promise((resolve, reject) => {
     const child = execFile(file, args, { encoding: 'utf8', timeout: 15000, maxBuffer: 10_000_000, windowsHide: true }, (error, stdout, stderr) => {
         if (error)
@@ -16,7 +20,7 @@ const runCommand = (file, args, input) => new Promise((resolve, reject) => {
         else
             resolve(stdout);
     });
-    child.stdin?.on('error', () => { }); // A missing executable may close stdin before input is written.
+    child.stdin?.on('error', () => { }); // a missing executable may close stdin before the input is written
     child.stdin?.end(input);
 });
 export function parseAdbDevices(output) {
@@ -29,18 +33,30 @@ export function parseAdbDevices(output) {
         if (!match)
             throw new Error('Unexpected adb device entry');
         const [, device, state] = match;
-        return { platform: 'android', device, name: /\bmodel:(\S+)/.exec(line)?.[1].replaceAll('_', ' ') ?? device,
-            type: device.startsWith('emulator-') ? 'emulator' : 'device', state, ready: state === 'device' };
+        return {
+            platform: 'android',
+            device,
+            name: /\bmodel:(\S+)/.exec(line)?.[1].replaceAll('_', ' ') ?? device,
+            type: device.startsWith('emulator-') ? 'emulator' : 'device',
+            state,
+            ready: state === 'device',
+        };
     });
 }
 export function parseSimulators(output) {
     const parsed = z.object({ devices: z.record(z.string(), z.array(z.object({
             udid: z.string(), name: z.string(), state: z.string(), isAvailable: z.boolean(),
         }))) }).parse(JSON.parse(output));
-    return Object.entries(parsed.devices).flatMap(([runtime, devices]) => /\.iOS-/.test(runtime) ? devices.filter(d => d.isAvailable).map(d => ({
-        platform: 'ios', device: d.udid, name: d.name, type: 'simulator',
-        state: d.state, ready: d.state === 'Booted', runtime,
-    })) : []);
+    return Object.entries(parsed.devices).flatMap(([runtime, devices]) => !/\.iOS-/.test(runtime) ? [] :
+        devices.filter((device) => device.isAvailable).map((device) => ({
+            platform: 'ios',
+            device: device.udid,
+            name: device.name,
+            type: 'simulator',
+            state: device.state,
+            ready: device.state === 'Booted',
+            runtime,
+        })));
 }
 export class LocalMobileDiscovery {
     run;
@@ -73,13 +89,13 @@ export class LocalMobileDiscovery {
     }
     async listDevices(platform) {
         const result = { scope: 'local', devices: [], errors: [] };
-        // Keep a missing SDK visible while returning devices found by the other platform.
+        // A missing SDK is reported next to the devices the other platform found.
         for (const selected of platform ? [platform] : ['android', 'ios']) {
             try {
                 result.devices.push(...await this.devices(selected));
             }
             catch (error) {
-                result.errors.push({ platform: selected, detail: error instanceof Error ? error.message : String(error) });
+                result.errors.push({ platform: selected, detail: errorMessage(error) });
             }
         }
         return result;
@@ -88,7 +104,7 @@ export class LocalMobileDiscovery {
         const options = AppListingSchema.parse(raw);
         const { platform, device, include_system, query, offset, limit } = options;
         const devices = await this.devices(platform);
-        const selected = devices.find(d => d.device === device);
+        const selected = devices.find((listed) => listed.device === device);
         if (!selected)
             throw new Error(`Device ${device} is not listed on this MCP host. Use list_devices. iOS discovery supports simulators only; remote Appium devices and physical iPhones require explicit IDs for open.`);
         if (!selected.ready)

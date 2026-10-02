@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadSpec } from '../core/spec.js';
-import { runSpec, closeSharedBrowser } from './runner.js';
+import { runSpec } from './runner.js';
+import { closeSharedBrowser } from './session.js';
 import type { RunObserver } from '../suite/types.js';
 
 test('browser observer sees session and step, captures screenshot before close', async () => {

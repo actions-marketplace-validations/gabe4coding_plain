@@ -1,26 +1,36 @@
-import type { TestResult } from '../browser/runner.js';
-import type { Status, StepResult } from '../core/results.js';
+import type { Page } from 'playwright';
+import type { Status, StepResult, TestResult } from '../core/results.js';
 import type { LoadOptions } from '../core/spec.js';
+import type { PickAttempt, PicksMode } from '../core/pick-cache.js';
+
+export type Engine = 'browser' | 'desktop' | 'mobile';
+export type StopReason = 'bail' | 'max-tokens';
+export const CAPTURE_MODES = ['off', 'on-failure', 'always'] as const;
+export type CaptureMode = typeof CAPTURE_MODES[number];
+
+export interface Artifact { kind: 'screenshot' | 'trace' | 'dump'; path: string; step?: number }
 
 /** One execution of one spec. */
-export type AttemptResult = TestResult;
-export type Engine = 'browser' | 'desktop' | 'mobile';
-export interface Artifact { kind: 'screenshot' | 'trace' | 'dump'; path: string; step?: number }
-export interface Attempt extends AttemptResult {
-  attempt: number; durationMs: number; artifacts: Artifact[];
-  /** `${error}` when `engine.run` threw (hooks module missing, browser launch failed, ...): no steps ran. */
+export interface Attempt extends TestResult {
+  attempt: number;
+  durationMs: number;
+  artifacts: Artifact[];
+  /** `${error}` when `engine.run` threw (hooks module missing, browser launch failed...): no steps ran. */
   error?: string;
 }
+
 export interface SpecReport {
   file: string;
   name: string;
   tags: string[];
   status: Status;
+  /** Passed on a retry; counts as a pass. */
   flaky: boolean;
   attempts: Attempt[];
   loadError?: string;
-  skipReason?: 'bail' | 'max-tokens';
+  skipReason?: StopReason;
 }
+
 export interface RunReport {
   engine: Engine;
   provider: string;
@@ -29,40 +39,56 @@ export interface RunReport {
   durationMs: number;
   specs: SpecReport[];
   totals: { jevCalls: number; tokens: number; passed: number; failed: number; flaky: number; skipped: number; cachedPicks: number };
-  stopped?: 'bail' | 'max-tokens';
+  stopped?: StopReason;
   status: 'pass' | 'fail';
 }
+
+/** What an observer can capture: a screenshot, and for the browser the page (for tracing). */
 export interface CaptureTarget {
   engine: Engine;
-  /** Attached browser context: tracing would also record the user's other tabs. */
+  /** An attached browser context: tracing would also record the user's other tabs. */
   cdp?: boolean;
   screenshot(file: string): Promise<void>;
-  page?(): import('playwright').Page;
+  page?(): Page;
 }
-export interface SpecInfo { file: string; name: string; tags: string[]; attempt: number;
-  /** This attempt's pick cache handle (src/pick-cache.ts), from the suite; engines take it off before observers see the info. */
-  picks?: import('../core/pick-cache.js').PickAttempt }
+
+export interface SpecInfo {
+  file: string;
+  name: string;
+  tags: string[];
+  attempt: number;
+  /** This attempt's pick cache, from the suite; engines take it off before observers see the info. */
+  picks?: PickAttempt;
+}
+
 export interface RunObserver {
-  runStart?(e: { engine: Engine; specs: { file: string; name: string; tags: string[] }[] }): Promise<void>;
-  /** The target can be captured; fires before the first step. Browser: right after the context opens, before setup
-   *  hooks. Desktop/mobile: after setup hooks and `open()` (setup may choose the app or device). `stepEnd` fires only
-   *  after it, and `sessionClose` only when it fired. */
-  sessionOpen?(e: SpecInfo & { target: CaptureTarget }): Promise<void>;
-  stepEnd?(e: SpecInfo & { index: number; result: StepResult; target: CaptureTarget }): Promise<void>;
-  sessionClose?(e: SpecInfo & { status: Status; target: CaptureTarget }): Promise<Artifact[]>;
-  specEnd?(e: { report: SpecReport }): Promise<void>;
-  runEnd?(e: { report: RunReport }): Promise<void>;
+  runStart?(event: { engine: Engine; specs: { file: string; name: string; tags: string[] }[] }): Promise<void>;
+  /**
+   * The target can be captured; fires before the first step. Browser: right after the context opens, before
+   * setup. Desktop and mobile: after setup and `open()`, since setup may choose the app or the device. `stepEnd`
+   * fires only after it, and `sessionClose` only when it fired.
+   */
+  sessionOpen?(event: SpecInfo & { target: CaptureTarget }): Promise<void>;
+  stepEnd?(event: SpecInfo & { index: number; result: StepResult; target: CaptureTarget }): Promise<void>;
+  sessionClose?(event: SpecInfo & { status: Status; target: CaptureTarget }): Promise<Artifact[]>;
+  specEnd?(event: { report: SpecReport }): Promise<void>;
+  runEnd?(event: { report: RunReport }): Promise<void>;
 }
+
+/** What each engine gives the shared suite runner. */
 export interface SuiteEngine<S> {
   engine: Engine;
   load(file: string, opts?: LoadOptions): S;
   meta(spec: S): { name: string; tags: string[]; timeoutMs?: number };
-  run(spec: S, observer: RunObserver | undefined, info: SpecInfo): Promise<AttemptResult>;
+  run(spec: S, observer: RunObserver | undefined, info: SpecInfo): Promise<TestResult>;
   maxWorkers: number;
   close?(): Promise<void>;
 }
+
 export interface Loaded<S> { file: string; spec: S; name: string; tags: string[]; timeoutMs?: number }
+
 export interface ReporterSpec { name: string; output?: string }
+
 export interface SuiteOptions {
   files: string[];
   workers: number;
@@ -76,9 +102,10 @@ export interface SuiteOptions {
   list: boolean;
   reporters: ReporterSpec[];
   timing: boolean;
-  artifacts?: { dir: string; screenshot: 'off' | 'on-failure' | 'always'; trace: 'off' | 'on-failure' | 'always' };
+  artifacts?: { dir: string; screenshot: CaptureMode; trace: CaptureMode };
   specTimeout?: number;
-  /** Pick cache mode (src/pick-cache.ts): `on` (default) reads and writes, `read` never writes, `off` neither. */
-  picks?: import('../core/pick-cache.js').PicksMode;
+  /** `on` (default) reads and writes the pick cache, `read` never writes, `off` neither. */
+  picks?: PicksMode;
 }
+
 export type EngineFlags = Record<string, string | boolean | undefined>;

@@ -2,71 +2,76 @@ import { fork, type ChildProcess } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { Spec } from './spec.js';
 import type { Status, StepResult } from './results.js';
-export interface HookSpec { name: string; steps: unknown[]; }
 
-// What a hooks module (`spec.hooks`) may export. Both are optional; anything else is rejected once
-// imported, before the browser opens. Exported so the MCP server can lease the same module shape.
-// No `page`: hooks run in their own child process (see hooks-child.ts), so only JSON-serializable
-// arguments cross the IPC channel.
+export interface HookSpec { name: string; steps: unknown[] }
+
+interface TeardownArgs<S> { spec: S; data: Record<string, unknown>; result: { status: Status; steps: StepResult[] } }
+
+/**
+ * What a hooks module may export; both are optional. Hooks run in their own child process, so their arguments
+ * are JSON only: no `page`.
+ */
 export interface HooksModule<S extends HookSpec = Spec> {
   setup?: (args: { spec: S }) => unknown;
-  teardown?: (args: { spec: S; data: Record<string, unknown>; result: { status: Status; steps: StepResult[] } }) => unknown;
+  teardown?: (args: TeardownArgs<S>) => unknown;
 }
 
 export type HooksRunner<S extends HookSpec = Spec> = {
   has: { setup: boolean; teardown: boolean };
   setup(spec: S): Promise<Record<string, unknown>>;
-  teardown(args: { spec: S; data: Record<string, unknown>; result: { status: Status; steps: StepResult[] } }): Promise<void>;
-  close(): void; // kills the child
+  teardown(args: TeardownArgs<S>): Promise<void>;
+  close(): void;
 };
 
 type ChildReply = { type: string; ok?: boolean; data?: Record<string, unknown>; message?: string; has?: { setup: boolean; teardown: boolean } };
 
-// Forks src/hooks-child.ts (compiled next to this file) to import and validate a hooks module in its
-// own process — one child per spec run, so module-level state never leaks between specs and
-// concurrent specs (--workers) never share a module instance. Shared by the batch runner and the MCP
-// server's `open {hooks}`, so both fail the same way on a broken module. Requests are sequential
-// (one in flight at a time): a simple one-pending-reply pattern is enough for setup/teardown.
+/**
+ * Imports and checks a hooks module in its own child process (src/core/hooks-child.ts), one per spec run: module
+ * state never leaks between specs, and concurrent specs never share a module instance. One request is in
+ * flight at a time, so the child's next message is always the reply.
+ */
 export async function startHooks<S extends HookSpec = Spec>(file: string): Promise<HooksRunner<S>> {
   const child: ChildProcess = fork(fileURLToPath(new URL('./hooks-child.js', import.meta.url)), [file]);
 
-  let pending: { resolve: (msg: ChildReply) => void; reject: (err: Error) => void } | null = null;
-  const settle = (fn: (p: NonNullable<typeof pending>) => void) => { if (pending) fn(pending); pending = null; };
-  child.on('message', (msg: ChildReply) => settle((p) => p.resolve(msg)));
-  const onGone = (reason: string) => settle((p) => p.reject(new Error(`hooks child for ${file} ${reason}`)));
+  let pending: { resolve: (reply: ChildReply) => void; reject: (error: Error) => void } | null = null;
+  const settle = (fn: (waiting: NonNullable<typeof pending>) => void) => {
+    if (pending) fn(pending);
+    pending = null;
+  };
+  child.on('message', (reply: ChildReply) => settle((waiting) => waiting.resolve(reply)));
+  const onGone = (reason: string) => settle((waiting) => waiting.reject(new Error(`hooks child for ${file} ${reason}`)));
   child.on('exit', (code) => onGone(`exited (code ${code}) before responding`));
-  child.on('error', (err) => onGone(`failed: ${err.message}`));
-  // One request in flight at a time: the next message from the child is its reply.
-  const call = (msg?: Record<string, unknown>): Promise<ChildReply> => {
+  child.on('error', (error) => onGone(`failed: ${error.message}`));
+  const request = (message?: Record<string, unknown>): Promise<ChildReply> => {
     const reply = new Promise<ChildReply>((resolve, reject) => (pending = { resolve, reject }));
-    if (msg) child.send(msg);
+    if (message) child.send(message);
     return reply;
   };
 
-  const first = await call(); // the child sends 'ready' or 'error' as soon as it has imported and validated the module
-  if (first.type === 'error') {
+  const ready = await request(); // 'ready' or 'error', as soon as the module is imported and checked
+  if (ready.type === 'error') {
     child.kill();
-    throw new Error(first.message);
+    throw new Error(ready.message);
   }
 
   return {
-    has: first.has ?? { setup: false, teardown: false },
+    has: ready.has ?? { setup: false, teardown: false },
     async setup(spec) {
-      const reply = await call({ type: 'setup', spec });
+      const reply = await request({ type: 'setup', spec });
       if (!reply.ok) throw new Error(reply.message);
       return reply.data ?? {};
     },
     async teardown(args) {
-      const reply = await call({ type: 'teardown', ...args });
+      const reply = await request({ type: 'teardown', ...args });
       if (!reply.ok) throw new Error(reply.message);
     },
     close: () => void child.kill(),
   };
 }
 
-// Leaf paths of `data` as `${hooks.a.b}` placeholders for an MCP `open` response — never the values
-// themselves, since leased data can be credentials. Arrays and non-object leaves are leaves.
+/** The `${hooks.a.b}` placeholders `data` offers, for the MCP `open` result: never the values, which may be secrets. */
 export function placeholderPaths(data: Record<string, unknown>, prefix = 'hooks'): string[] {
-  return Object.entries(data).flatMap(([k, v]) => v && typeof v === 'object' && !Array.isArray(v) ?
-    placeholderPaths(v as Record<string, unknown>, `${prefix}.${k}`) : ['${' + prefix + '.' + k + '}']);
+  return Object.entries(data).flatMap(([key, value]) => value && typeof value === 'object' && !Array.isArray(value)
+    ? placeholderPaths(value as Record<string, unknown>, `${prefix}.${key}`)
+    : ['${' + prefix + '.' + key + '}']);
 }

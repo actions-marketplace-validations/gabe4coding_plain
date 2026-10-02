@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { devices } from 'playwright';
 import { browserContextOptions } from './context-options.js';
-import { openSession, runSpec, closeSharedBrowser } from './runner.js';
+import { openSession, closeSharedBrowser } from './session.js';
+import { runSpec } from './runner.js';
 import type { Spec } from '../core/spec.js';
 
 const opts = { headed: false, timeout: 5000 };

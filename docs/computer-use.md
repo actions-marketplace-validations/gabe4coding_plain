@@ -255,7 +255,7 @@ plainwright-computer do [--app NAME] [--yes] "open TextEdit, then type salt and 
 steps. Nothing runs when a part is not understood, or when a step is hard to undo without `--yes`.
 Like `open`, `do` attaches to a running app; it never launches one.
 
-Jev never writes the steps (`src/planner.ts`). Code splits at sentence ends and at then/after that/
+Jev never writes the steps (`src/computer/planner.ts`). Code splits at sentence ends and at then/after that/
 next/finally; for every "and" or comma it lists the possible readings of the piece and Jev picks one
 (one Choice), so "type salt and pepper in the box and press enter" keeps the text whole. A second
 request picks each piece's action and, speculatively, the exact words for its target, text, app and
@@ -277,7 +277,7 @@ wait for the new one (`wait: "a window named Untitled 2 is shown"`) before actin
 assertion retry logic, and injectable intelligence. Both Playwright's `resolveLocators` and
 `ComputerSession.find` use it. `results.ts`, `spec.ts` and `hooks.ts` supply shared status/labels,
 parsing/interpolation, and hook lifecycle. Browser-specific settling/navigation stays in the browser
-adapter; desktop capture/actions live in `computer-adapter.ts`. Desktop steps do not wait for the UI
+adapter; desktop capture/actions live in `src/computer/adapter.ts`. Desktop steps do not wait for the UI
 to settle: a step is capture, then Jev, then the action, and its `ms` reports `capture`, `jev`, `act`
 and `idle` (between `wait` polls). The Jev call is almost all of a step's time, so there is no wait
 to overlap it with, unlike the browser and Android.

@@ -218,8 +218,8 @@ test('captureTree: a label inside a control is not a second candidate; an unname
     node('row', 'Report', null, [node('button', 'Edit', null)]),
     node('static_text', '', 'Standalone label'),
   ], []);
-  const { candidates, web } = await captureTree(tree as never, 'click', 1000);
-  assert.equal(web.size, candidates.length); // all inside the web_area: pointer clicks
+  const { candidates, inWebView } = await captureTree(tree as never, 'click', 1000);
+  assert.equal(inWebView.size, candidates.length); // all inside the web_area: pointer clicks
   assert.deepEqual(candidates.map((c) => c.desc), [
     'tab "Files & links" value="0" in web_area "Slack"',
     'button "" value="" text="Activity" in web_area "Slack"',

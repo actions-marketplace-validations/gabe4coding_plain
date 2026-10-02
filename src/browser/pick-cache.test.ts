@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { intelligence } from '../core/automation.js';
 import { loadSpec } from '../core/spec.js';
-import { runSpec, closeSharedBrowser } from './runner.js';
+import { runSpec } from './runner.js';
+import { closeSharedBrowser } from './session.js';
 import { runSuite } from '../suite/run-suite.js';
 import type { SuiteOptions } from '../suite/types.js';
 
