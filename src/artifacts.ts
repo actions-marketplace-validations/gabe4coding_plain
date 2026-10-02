@@ -43,8 +43,9 @@ export function artifactsObserver(opts: SuiteOptions, engine?: Engine): RunObser
     const cleaned = relative.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 180);
     const base = !cleaned || cleaned === '.' || cleaned === '..' ? 'spec' : cleaned;
     let slug = base;
-    for (let n = 2; usedSlugs.has(slug); n++) slug = `${base}-${n}`;
-    usedSlugs.add(slug);
+    // Case-insensitive: on APFS and NTFS `X/Login.yaml` and `x-login.yaml` would share one folder.
+    for (let n = 2; usedSlugs.has(slug.toLowerCase()); n++) slug = `${base}-${n}`;
+    usedSlugs.add(slug.toLowerCase());
     folders.set(relative, slug);
     return slug;
   };
@@ -73,12 +74,29 @@ export function artifactsObserver(opts: SuiteOptions, engine?: Engine): RunObser
       checkEngine(event.engine);
       folders.clear(); usedSlugs.clear(); usedAttempts.clear();
       warned = false; cdpNoted = false;
+      // Never a folder that holds the project: the cwd or a parent of it, home, the filesystem root, or one with a spec in it.
+      const inside = (child: string, parent: string): boolean => {
+        const relative = path.relative(parent, child);
+        return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+      };
+      if (root === path.parse(root).root || root === os.homedir() || inside(cwd, root))
+        throw new Error(`${root} cannot hold artifacts: it is the working folder, one of its parents, the home folder or the filesystem root`);
+      const spec = event.specs.find(({ file }) => inside(path.resolve(cwd, file), root));
+      if (spec) throw new Error(`${root} cannot hold artifacts: it contains the spec ${spec.file}`);
       if (fs.existsSync(root)) {
         const owned = fs.existsSync(marker) && fs.lstatSync(marker).isFile();
         if (fs.lstatSync(root).isSymbolicLink() || !fs.statSync(root).isDirectory()
           || (!owned && fs.readdirSync(root).length))
           throw new Error(`${root} exists and was not created by plainwright`);
-        if (owned) for (const entry of fs.readdirSync(root)) fs.rmSync(path.join(root, entry), { recursive: true, force: true });
+        // Delete only what a run made: spec folders that hold nothing but attempt-N folders. Anything else stays.
+        if (owned) for (const entry of fs.readdirSync(root)) {
+          const folder = path.join(root, entry);
+          const stat = fs.lstatSync(folder);
+          if (!stat.isDirectory()) continue;
+          const children = fs.readdirSync(folder);
+          if (children.every((child) => /^attempt-\d+$/.test(child) && fs.lstatSync(path.join(folder, child)).isDirectory()))
+            fs.rmSync(folder, { recursive: true, force: true });
+        }
       } else fs.mkdirSync(root, { recursive: true });
       fs.writeFileSync(marker, 'plainwright results\n');
       for (const spec of event.specs) slugFor(spec.file);
@@ -108,13 +126,15 @@ export function artifactsObserver(opts: SuiteOptions, engine?: Engine): RunObser
     async stepEnd(event) {
       const capture = captures.get(event.target);
       if (!ready || !capture) return;
-      for (const match of (event.result.detail ?? '').matchAll(/state:\s+(.+?\.json)(?=\s*(?:\||—|$))/g)) {
+      // Any labelled dump: `state: <file>` (claims), `candidates: <file>` (picks), ...
+      for (const match of (event.result.detail ?? '').matchAll(/\b[a-z]+:\s+(.+?\.json)(?=\s*(?:\||—|$))/g)) {
         const source = match[1];
         if (path.isAbsolute(source) && path.dirname(source) === dumpRoot)
           capture.dumps.push({ source, step: event.index });
       }
       const failed = ['fail', 'error', 'inconclusive'].includes(event.result.status);
-      if (modes.screenshot === 'always' || (modes.screenshot === 'on-failure' && failed)) {
+      // `always` adds final.png at close; step shots stay failure-only (a shot per step costs time on every step).
+      if (modes.screenshot !== 'off' && failed) {
         const file = path.join(capture.dir, `step-${event.index}-${event.result.status}.png`);
         await write(capture, { kind: 'screenshot', path: file, step: event.index }, () => event.target.screenshot(file));
       }
