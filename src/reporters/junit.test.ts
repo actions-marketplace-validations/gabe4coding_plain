@@ -5,13 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { escapeXml, junitReporter, junitXml } from './junit.js';
-import { attempt, run, spec } from './fixtures.js';
+import { attempt, run, spec } from './fixtures.test.js';
 
 function parse(xml: string) {
   assert.equal(XMLValidator.validate(xml), true, 'JUnit must be well-formed XML');
   assert.doesNotMatch(xml, /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/);
   return new XMLParser({ ignoreAttributes: false, parseTagValue: false, parseAttributeValue: false, htmlEntities: true,
-    isArray: (tag) => ['testcase', 'property', 'flakyFailure', 'rerunFailure'].includes(tag) }).parse(xml).testsuites;
+    isArray: (tag) => ['testcase', 'property', 'flakyFailure', 'flakyError', 'rerunFailure', 'rerunError'].includes(tag) }).parse(xml).testsuites;
 }
 
 test('JUnit escapes all XML entities, strips forbidden code points, and preserves valid Unicode', () => {
@@ -80,9 +80,11 @@ test('JUnit retains all failed retries, all attempt artifacts, timings, and aggr
   assert.equal(parsed['@_errors'], '0');
   assert.equal(flaky['@_time'], '3.75');
   assert.equal(flaky.failure, undefined);
-  assert.equal(flaky.flakyFailure.length, 2);
+  // Surefire: a failed earlier attempt is flakyFailure, an errored one flakyError.
+  assert.equal(flaky.flakyFailure.length, 1);
   assert.equal(flaky.flakyFailure[0].stackTrace, 'page detail');
-  assert.equal(flaky.flakyFailure[1].stackTrace, 'Error: timeout');
+  assert.equal(flaky.flakyError.length, 1);
+  assert.equal(flaky.flakyError[0].stackTrace, 'Error: timeout');
   assert.equal(rerun.rerunFailure.length, 1);
   assert.equal(rerun.rerunFailure[0]['@_type'], 'inconclusive');
   assert.equal(rerun.failure['@_type'], 'fail');

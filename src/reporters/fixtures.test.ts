@@ -1,3 +1,4 @@
+// Shared test fixtures; the .test name keeps them out of the plugin runtime (build-plugins skips *.test.js).
 import type { Attempt, RunReport, SpecReport, SuiteOptions } from '../suite-types.js';
 
 export const options: SuiteOptions = { files: ['case.yaml'], workers: 1, retries: 0, bail: 0, lastFailed: false,
