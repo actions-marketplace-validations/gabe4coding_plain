@@ -45,7 +45,7 @@ try {
       .map((match) => match[1]).filter((spec) => !isFile(resolve(dirname(file), spec))).map((spec) => `dist/${name} -> ${spec}`);
   });
   if (missing.length) throw new Error(`runtime has unresolved imports:\n${missing.join('\n')}`);
-  for (const name of ['plainwright.mjs', 'plainwright-computer.mjs', 'plainwright-mobile.mjs']) copyFileSync(join(root, 'bin', name), join(packageDir, 'bin', name));
+  for (const name of ['install-deps.mjs', 'plainwright.mjs', 'plainwright-computer.mjs', 'plainwright-mobile.mjs']) copyFileSync(join(root, 'bin', name), join(packageDir, 'bin', name));
   const packed = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm',
     ['pack', '--ignore-scripts', '--json', '--pack-destination', stage],
     { cwd: packageDir, encoding: 'utf8', shell: process.platform === 'win32', env: { ...process.env, npm_config_cache: join(stage, 'npm-cache') } });

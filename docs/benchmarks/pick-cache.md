@@ -1,6 +1,6 @@
 # Pick cache
 
-The pick cache (`src/core/pick-cache.ts`, [running suites](../running.md#pick-cache)) replays a pick Jev made in
+The pick cache (`src/core/pick-cache.ts`, [running suites](../running.mdx#pick-cache)) replays a pick Jev made in
 the last passing run when the fresh page has the same whole candidate list (values typed into text fields
 aside) and exactly one candidate with the stored description. Two questions: is a replayed pick ever the
 wrong element (safety), and how much does it save on a real suite (cost).

@@ -7,10 +7,8 @@ description: Use when driving a website through the plainwright MCP tools (open,
 
 ## Overview
 
-JSON tool results are available in MCP `structuredContent`, with the existing serialized JSON
-also kept in `content` text blocks for older clients. Prefer `structuredContent` when available.
-MCP tool errors use `isError: true` and a text message; action outcomes (including
-`status: "error"`) remain structured results.
+A tool error (`isError: true` with a text message) means the call itself failed. A step that ran and
+failed is a normal result with `status: "error"`.
 
 Playwright acts, the Jev model decides: it picks the element your words describe and judges whether your
 claim holds against the page's accessibility tree. You never see the page. You write words Jev can answer
@@ -83,7 +81,8 @@ fits several elements toward the one the flow is about; it never overrides the t
 
 ## Writing a claim (expect, wait)
 
-A claim is one fact about something that is visible when the condition holds.
+A claim is one fact about something that is visible when the condition holds. `expect` and `wait` are steps:
+`step {wait: "the results list is visible"}`, or an entry in a `batch`.
 
 - Presence, not absence: `the message "It's gone!" is shown`, not `the checkbox is no longer visible`.
   Absence is hard to prove from a snapshot.
@@ -95,8 +94,8 @@ A claim is one fact about something that is visible when the condition holds.
   is shown` (0.98), where `the footer says 2 items left` stayed at 0.47 (TodoMVC's footer is plain text).
 - Nondeterministic pages: claim what is stable (`a notification bar is shown at the top`), not the random text.
 - `wait` when the thing appears after a delay or animation; `expect` for a settled page.
-- On a large page, scope a wait to where the thing will appear: `wait: {that: "a price is shown", within: "the
-  results list"}`. Every poll then reads that region only. Whole-page waits on a page that keeps changing (ads,
+- On a large page, scope a wait to where the thing will appear: `step {wait: {that: "a price is shown", within:
+  "the results list"}}`. Every poll then reads that region only. Whole-page waits on a page that keeps changing (ads,
   carousels) re-ask on every poll and can cost 100k+ tokens.
 
 ## Snapshot views
@@ -158,7 +157,7 @@ steps-only flows; included steps use the root spec’s env/hooks. Run
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
 `step`/`batch` cannot execute an `include`. Spec runs write a pick cache
 (`*.picks.json` next to each spec and flow): commit it with the specs, and run CI
-with `--picks read` (docs/running.md, "Pick cache").
+with `--picks read` (`docs/running.mdx`, "Pick cache", in the plainwright repository).
 
 ## Safety
 

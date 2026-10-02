@@ -1,31 +1,62 @@
+---
+title: Runnable mobile examples
+description: Run the four mobile example specs on an Android emulator or an iOS simulator, and adapt them for your own app.
+---
+
 # Runnable mobile examples
 
-[android.yaml](android.yaml) and [ios.yaml](ios.yaml) exercise text entry, keyboard dismissal,
-idempotent switch checks, tap, assertions, long press, scrolling and swipe through real Jev.
-Run the commands below from the repository root.
+This folder has four mobile specs. Run all commands from the repository root.
 
-Both use [a setup/teardown hook](../hooks/mobile-fixture.mjs) to build and temporarily install
-the repository's offline native fixture (`dev.plainwright.fixture`). The hook refuses to
-overwrite an existing installation and uninstalls its app after a successful or failed run.
-No separate app project or manual fixture installation is needed. The simulator/emulator and
-Appium must already be running; the hook does not start them.
+| Spec | App | What it does | Cleanup |
+|---|---|---|---|
+| [android.yaml](android.yaml) | The plainwright fixture | Text entry, keyboard, switches, tap, long press, scroll, swipe | The hook uninstalls the fixture. |
+| [ios.yaml](ios.yaml) | The plainwright fixture | The same steps on an iOS simulator | The hook uninstalls the fixture. |
+| [android-contacts.yaml](android-contacts.yaml) | Google Contacts | Creates and checks the contact Alex Example | None. Each run adds a contact. |
+| [ios-calendar.yaml](ios-calendar.yaml) | Apple Calendar | Creates an event and finds it with Search | None. Each run adds an event. |
+
+For Appium, device IDs and the mobile steps, read [Mobile use](../../docs/mobile-use.mdx#setup).
 
 ## Common setup
 
-- Node 22+, npm, `npm ci`, and `npm run build` in this checkout.
-- Appium with the appropriate platform driver installed before starting the server.
-- `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`, configured in the environment, repository `.env`,
-  or `~/.config/plainwright/.env`. Never put a key in YAML.
+1. Install Node 22 or later. On the first run, `bin/plainwright-mobile.mjs` installs the npm dependencies.
+2. Install Appium and the driver for your platform. Install the driver before you start the server.
+3. Boot the emulator or the simulator, and start Appium.
+4. Put `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` in `~/.config/plainwright/.env`. Read [Getting started](../../docs/getting-started.mdx).
+5. Set `PLAINWRIGHT_MOBILE_DEVICE` to the ID of your emulator or simulator.
 
-See [the mobile setup guide](../../docs/mobile-use.md#setup) for installation details.
-The server defaults to `http://127.0.0.1:4723`. Set `PLAINWRIGHT_APPIUM_URL` or pass
-`--server http://127.0.0.1:4725` if yours uses another port.
+Do not put the API key or a personal device ID in the YAML. The specs read the device from `PLAINWRIGHT_MOBILE_DEVICE`.
 
-## Android
+Appium listens on `http://127.0.0.1:4723` by default. If your server uses another address, set
+`PLAINWRIGHT_APPIUM_URL` or add `--server http://127.0.0.1:4725` to the command.
 
-Install Android SDK Platform 36, Build-Tools 36.0.0 and Platform-Tools. Set `ANDROID_HOME` (or
-`ANDROID_SDK_ROOT`) and `JAVA_HOME` to the installed SDK/JDK. Boot an emulator and start Appium
-with its UiAutomator2 driver. Gradle is not needed.
+A run writes a pick cache file next to the spec, for example `examples/mobile/android.picks.json`.
+The next run uses the stored picks, and its step details show `(cached pick)`.
+If you do not want these files in the checkout, add `--picks off` to the command.
+Read [Pick cache](../../docs/running.mdx#pick-cache).
+
+## Fixture examples
+
+`android.yaml` and `ios.yaml` use [a setup and teardown hook](../hooks/mobile-fixture.mjs).
+The hook builds the offline fixture app `dev.plainwright.fixture` and installs it on the device.
+After the run, pass or fail, the hook uninstalls the app. You need no app project.
+The hook does not start the emulator, the simulator or Appium.
+
+The hook stops if `dev.plainwright.fixture` is already installed. This can occur after a run that was stopped before
+its teardown. Uninstall the app, then run again:
+
+```sh
+adb -s emulator-5554 uninstall dev.plainwright.fixture
+xcrun simctl uninstall "$PLAINWRIGHT_MOBILE_DEVICE" dev.plainwright.fixture
+```
+
+### Android
+
+Prepare the Android host:
+
+- Install Android SDK Platform 36, Build-Tools 36.0.0 and Platform-Tools.
+- Set `ANDROID_HOME` (or `ANDROID_SDK_ROOT`) to the SDK folder and `JAVA_HOME` to the JDK folder.
+- Make sure that `zip` is on your `PATH`. You do not need Gradle.
+- Boot an emulator and start Appium with the UiAutomator2 driver.
 
 ```sh
 "$ANDROID_HOME/platform-tools/adb" devices -l
@@ -33,14 +64,19 @@ PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 \
   node bin/plainwright-mobile.mjs --timeout 60000 examples/mobile/android.yaml
 ```
 
-Replace `emulator-5554` with your device's actual serial. `PLAINWRIGHT_ANDROID_BUILD_TOOLS`
-can select a different installed build-tools version; the fixture still uses SDK Platform 36.
+Replace `emulator-5554` with the serial of your device. To use another installed Build-Tools version, set
+`PLAINWRIGHT_ANDROID_BUILD_TOOLS` (for example `35.0.0`). The fixture still uses SDK Platform 36.
 
-## iOS Simulator
+### iOS Simulator
 
-On macOS, install Xcode and an iOS Simulator runtime, complete Xcode's first-launch setup,
-and select Xcode's developer directory. Boot an iPhone simulator and start Appium with its
-XCUITest driver. This fixture is simulator-only and requires no Apple developer account.
+Prepare the macOS host:
+
+- Install Xcode and an iOS 16 or later simulator runtime.
+- Open Xcode one time to complete its first-launch setup.
+- Make sure that `xcode-select -p` shows a folder in Xcode.
+- Boot an iPhone simulator and start Appium with the XCUITest driver.
+
+The fixture works only on a simulator. You do not need an Apple developer account.
 
 ```sh
 xcrun simctl list devices booted
@@ -48,32 +84,60 @@ export PLAINWRIGHT_MOBILE_DEVICE='replace-with-your-booted-simulator-udid'
 node bin/plainwright-mobile.mjs --timeout 240000 examples/mobile/ios.yaml
 ```
 
-The longer timeout allows the first WebDriverAgent build. The YAML taps the keyboard's Done
-key because generic keyboard dismissal is not supported by every iPhone keyboard.
+The first session builds WebDriverAgent, so the command uses a long timeout. The spec taps the Done key of the
+keyboard, because `press: HideKeyboard` does not work with every iPhone keyboard.
 
-## Results and editing
+### Results
 
-Each command prints one JSON result, with `status: "pass"` and 12 passing steps on success,
-and exits 0. Each new run installs a fresh fixture. Copy or edit the YAML to try other supported
-actions. Keep the device environment reference so personal simulator IDs stay out of the repo.
+The command prints one JSON line for the spec, with `status: "pass"` and 12 steps that pass. Then it exits with code `0`.
+Each run installs a new copy of the fixture.
 
-For your own app, replace `app`, remove the fixture hook and supply any required launch
-capabilities. These examples validate native UIKit/Android controls; they do not by themselves
-verify physical iPhones or React Native-specific behavior.
+To use a fixture spec with your own app:
+
+1. Copy the spec and change `app` to your package name or bundle ID.
+2. Remove the `hooks` line. The hook works only with the fixture.
+3. In the Android spec, remove `appium:appActivity: .MobileAndroidFixture`. Add the capabilities that your app needs.
+4. Keep `device: "${env.device}"` and the `env` block, so that your device ID stays out of the file.
+5. Change the steps to match the controls of your app.
+
+These specs test native UIKit and Android controls. They do not test physical iPhones or React Native apps.
 
 ## Recorded app flows
 
-[android-contacts.yaml](android-contacts.yaml) creates and verifies an Alex Example contact in
-Google Contacts. Install that app first, finish onboarding and permissions, and start on its
-contact list in English. The recording assumes the phone field initially contains `+1`.
+`android-contacts.yaml` and `ios-calendar.yaml` were recorded on installed apps. They need a specific start screen.
+They have no cleanup, and the data that they create stays on the device. Use a test device and remove the data
+after you test. Run them with the same command as the fixture examples.
 
-[ios-calendar.yaml](ios-calendar.yaml) creates and verifies a Weekly planning event in Apple
-Calendar. It is a recording with specific starting conditions: English UI, Calendar's main
-view, September 2026 in the date picker, and a new event defaulting to 11:00–12:00. The recording
-selects 22 September but does not set the time. Prepare those defaults or adapt the date/time
-steps for your device; the assertion before Save checks the expected appointment.
+plainwright does not restart an app that is open. A run starts on the screen that the last run left.
 
-Run either file with the same CLI and `PLAINWRIGHT_MOBILE_DEVICE` configuration shown above.
-These two recordings use installed apps and preserve created data, with no fixture hook or
-automatic cleanup. Use dedicated test data and remove the sample contact/event after testing;
-replaying can create duplicates. Use `android.yaml` and `ios.yaml` for repeatable smoke tests.
+### Google Contacts on Android
+
+[android-contacts.yaml](android-contacts.yaml) creates the contact Alex Example and checks the saved details.
+
+Before the first run:
+
+- Install Google Contacts (`com.google.android.contacts`) on the device.
+- Complete the onboarding and accept the permissions.
+- Set the device language to English and open the contact list.
+
+The spec expects that the phone field starts with `+1`. Its first step taps "Navigate up" with `optional: true`,
+so a run can start on the contact page that the last run left. Each run adds one more Alex Example contact.
+
+### Apple Calendar on iOS
+
+[ios-calendar.yaml](ios-calendar.yaml) creates an event on the 15th day of the next month, and then finds it with Search.
+
+Before the first run:
+
+- Use an iOS simulator with the English (UK) locale. The day and month names must match British English.
+- Open Calendar on its main view, with the Add and Search buttons visible.
+
+The hook [ios-calendar.mjs](../hooks/ios-calendar.mjs) makes the test data for each run:
+
+- `title`: an event title that is different for each run, for example `Weekly planning k3x9q`.
+- `day`: the name of the day button in the date picker, for example `Thursday, 15 October`.
+- `date`: the date for the claims, for example `15 October 2026`.
+
+The spec adds the event, opens the date picker, goes to the next month and taps the day. It checks the title and the
+date, saves the event, searches for the title and checks the event in the results.
+The hook does no cleanup. Each run adds one event, but the title is unique, so events from earlier runs never match the search.

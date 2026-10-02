@@ -9,7 +9,7 @@
 //
 // Defaults to every <dir>/*.yaml (examples/) except google-flights (live third-party site) and login-fails
 // (fails by design). Needs a Jev key, like any spec run. Build first (npm run build).
-// --picks is passed to the CLI (pick cache, docs/running.md); a run with it on writes *.picks.json next to the
+// --picks is passed to the CLI (pick cache, docs/running.mdx); a run with it on writes *.picks.json next to the
 // specs, so point --dir at a scratch copy of examples/, never at the repository's. Each run also reports
 // pick/claim calls and tokens (scripts/count-jev.mjs), cached picks and every step's status (JSON report).
 import { spawnSync } from 'node:child_process';

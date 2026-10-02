@@ -1,21 +1,51 @@
+## Validation (mandatory)
+
+Before any pull request, and before you report a change as done, follow the `validating-changes` skill
+(`.claude/skills/validating-changes/SKILL.md`; Codex reads the same file through `.agents/skills/`). Its core is
+`node scripts/validate.mjs`; a `PreToolUse` hook (`.claude/settings.json`, `.codex/hooks.json`,
+`scripts/pr-gate.mjs`) blocks `gh pr create` until that passed on exactly the files of HEAD.
+
+- Evidence that counts: integration tests at a real boundary, the live e2e suite, evals and real agent runs.
+  Unit tests only for pure logic with edge cases.
+- Never weaken a gate to get green (thresholds, expected statuses, `optional`, skipped tests, eval checks).
+- CI is the last gate, not the first: `Test` runs `npm run verify`; `Live` runs the e2e and the claims gate with
+  the `TYPESAFE_API_KEY` secret on pull requests that touch the runtime. Agent evals run only locally.
+
 ## Commands
 
-Build (TypeScript, ESM, `src/` → `dist/`, `tsc` per `tsconfig.json`):
+Build (TypeScript, ESM, `src/` → `dist/`, `tsc` per `tsconfig.json`; strict, plus no unused locals/parameters,
+explicit `override`, no implicit returns):
 
 ```
 npm run build
 ```
 
-Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`):
+Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`; tests of
+`scripts/` are `scripts/*.test.mjs`, run as they are):
 
 ```
-npm test                                                    # build + node --test 'dist/**/*.test.js'
+npm test                                                    # build + node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'
+npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
+npm run check:examples                                      # validate examples/, e2e/ and the doc YAML, per engine
+npm run test:plugins                                        # install each plugin archive in isolation, list MCP tools
+npm run verify                                              # all of the above: the key-free gate CI runs
 node --test dist/browser/runner.test.js                     # one file, after a build
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
 ```
 
 No test in the regular suite needs a Jev API key: the `jev/` and `core/spec` tests exercise pure functions with injected env
 objects, and `browser/runner.test.ts` drives real headless Chromium against `data:text/html` URLs with `goto` steps only.
+
+Live checks (Jev key, build first). No remote site: `e2e/site.mjs` serves the pages on `127.0.0.1` from the runner
+process, and the `e2e/*.yaml` specs reach it through `${env.site}`. A spec tagged `expect-fail` must end `fail`.
+
+```
+node scripts/e2e.mjs [--only forms] [--skip-mcp]            # e2e specs + MCP open/batch/ask/read/save/replay
+node scripts/benchmark-claims.mjs --gate                    # exit 1 on a false pass or a Jev error
+npm run verify:live                                         # build + both of the above
+node scripts/eval-agent.mjs [--agent claude,codex] [--only login]   # graded claude -p / codex exec runs; local only
+node scripts/validate.mjs                                   # the whole loop + the pre-PR stamp
+```
 
 Run a spec, or start the MCP server (`src/cli.ts` dispatches on the first positional):
 
@@ -51,7 +81,7 @@ to a running Chrome (`openPage()` in `src/browser/session.ts` picks one of the t
 
 Suite flags are shared by all three CLIs; native engines require `--workers 1` and default to `jsonl`
 rather than browser `text`. Config comes from cwd `plainwright.config.yaml`/`.yml` or `--config`;
-CLI > existing `PLAINWRIGHT_*` env > config > defaults. MCP ignores suite config. See `docs/running.md`.
+CLI > existing `PLAINWRIGHT_*` env > config > defaults. MCP ignores suite config. See `docs/running.mdx`.
 
 Environment: `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` (`TYPESAFE_API_KEY` wins if both set), or force one with
 `JEV_PROVIDER=typesafe|gateway` (`src/jev/provider.ts`, `selectProvider`). `src/cli.ts` loads `.env` from the cwd, then
@@ -61,7 +91,9 @@ servers no shell environment. Spec runs check for a key just before execution; `
 MCP mode keeps serving and the first Jev call returns the message as a tool error.
 
 `dist/` is committed on purpose — this repo is also a Claude Code plugin and ships its built output
-(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium).
+(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium;
+`bin/plainwright-computer.mjs` and `bin/plainwright-mobile.mjs` lazy-install the same npm deps, no Chromium, via
+`bin/install-deps.mjs`).
 `dist/**/*.test.js` is gitignored. Rebuild before committing a `src/` change so `dist/` matches it.
 
 ## Architecture
@@ -93,7 +125,9 @@ Source layout (tests sit next to their module):
   input order. `src/suite/types.ts` owns attempts/spec/run reports, observers and engine adapters; `flaky` is
   a separate boolean and counts as pass.
 - `src/suite/options.ts` — shared CLI flags, file/directory/`*`/`**` expansion and CLI/env/config/default precedence;
-  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early.
+  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early. One config file
+  serves all three CLIs: `engineConfig` drops values the engine cannot use (browser-only keys, `workers` > 1,
+  `timeout: 0` and a trace mode on native; `server` off mobile) with one stderr note; the same CLI flags are errors.
 - `src/suite/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
   token budget. In-flight attempts finish; cut retries retain their last status; never-started specs are skipped.
 - `src/suite/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection (no or invalid
@@ -106,9 +140,11 @@ Source layout (tests sit next to their module):
 - `src/suite/reporters/` — text/jsonl stdout and JUnit/JSON file observers; one stdout reporter, distinct file paths;
   JSON schema version 1, Surefire retry failure/error elements, all-attempt usage and artifact paths.
 - `src/core/pick-cache.ts` — pick cache (`--picks on|read|off`, config `picks`; MCP never): a sidecar per source file
-  (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target (sha256 when the
-  raw step had `${`), goal, page]`, value the accepted candidate's desc (`value=` dropped only on `editable`
-  text-entry candidates, browser only), frame label, page (origin+path) and a sha1 of the whole normalized list.
+  (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target, goal, page]`,
+  value the accepted candidate's desc (`value=` dropped only on `editable` text-entry candidates, browser only),
+  frame label, page (origin+path) and a sha1 of the whole normalized list plus each element's UI state
+  (checked, selected, pressed, expanded, disabled). When the raw step had `${`, the key's target and page and the
+  stored desc, frame and page are sha256 hashes, so no interpolated data reaches the committed sidecar.
   `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when the list hash is equal and exactly one candidate
   matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks. Loaders put
   `at: {file, index, templated?}` on each parsed step (never from YAML/MCP; `interpolate` and `validate` skip it).
@@ -124,10 +160,13 @@ Source layout (tests sit next to their module):
   settings, profiles cannot load storage state. `runSpec` saves state only after passing steps and teardown.
 - `src/suite/last-run.ts` — atomic cwd `.plainwright/last-run.json`, absolute spec paths and final status/flaky;
   `readLastFailed` returns `undefined` (no or invalid record) or the set of non-pass files; list/validate never replace it.
-- `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `auth`,
+- `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `goal`, `auth`,
   `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
   `auth`/`env` resolve from `process.env` at load time. `interpolate()` (`src/core/interpolate.ts`) replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
-  leaf, is an error.
+  leaf, is an error. Every schema is strict: an unknown key at the top level, in `auth`/`geolocation`/`browser`, in
+  a step or in a step's mapping (`expect: {that, whithin}`) is an error naming the key and the closest known one
+  (`src/core/unknown-key.ts`). Browser, desktop and mobile steps (files and MCP `step`/`batch`) share `stepKind`;
+  `at`/`origin` are reserved for the loader at both levels; `env` and mobile `capabilities` take any keys.
 - `src/browser/candidates.ts` — candidate collection (`scanCandidatesInPage` runs inside the page, so its helpers are nested) (`candidates()`, selector + shadow-DOM walk per step kind, with
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
@@ -175,7 +214,8 @@ Source layout (tests sit next to their module):
   process (`src/core/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks
   between specs and `--workers` can't make hooks interfere. Only JSON crosses the IPC channel. Dataset shape is
   not imposed. See `examples/login-dataset.yaml` + `examples/hooks/login-dataset.mjs`.
-- `src/browser/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `find`,
+- `src/browser/mcp.ts` — MCP server over stdio with one persistent browser session; tools `open`, `step`, `batch` (1–16 known steps
+  in order, stops on the first non-pass), `find`,
   `snapshot` (whole page or `within` a region), `ask` (yes/no claims, `askPage` in `src/browser/judge-page.ts`), `read` (a question answered with
   the page's own lines: Jev picks the first and last line, `src/core/read.ts`; `PLAINWRIGHT_READ=0` hides it), `evaluate` (a JS expression's JSON value), `save`. `snapshot`, `ask`, `read` and
   `evaluate` read without acting and are not recorded. `step`/`batch` results carry `changed` (title/url if changed,
@@ -185,7 +225,6 @@ Source layout (tests sit next to their module):
   so all logging goes to `console.error`.
 - Console noise (`isConsoleNoise` in `src/browser/notes.ts`): CSP/blocked/failed-resource errors and errors from another
   site's script never reach `events` (Jev) and are counted in one note per drain; the page's own errors stay listed.
-- `src/cli.ts` — entry point: loads `.env`, then dispatches to `mcp` or to running each spec file in order.
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop), and
   `plugins/plainwright-mobile/` (mobile), each
   with portable `plugin.json`/`mcp.json`, `.claude-plugin/plugin.json`/`.mcp.json`, a Codex compatibility
@@ -201,10 +240,89 @@ Source layout (tests sit next to their module):
   packages compiled runtime plus the root manifest/lockfile into the same archive for all plugins.
   `scripts/plugin-launcher.mjs` is copied into each plugin and caches the installed runtime by archive hash.
   Never add per-plugin package manifests, symlinks or parent-directory runtime imports.
-- Docs: `README.md` is the quick start; `docs/running.md`, `docs/reporting.md`, `docs/artifacts.md`,
-  `docs/ci.md` cover suites and CI; `docs/spec-reference.md`, `docs/phrasing.md`, `docs/hooks.md`,
-  `docs/agent-mode.md`, `docs/computer-use.md` and `docs/mobile-use.md` are the reference. A change to step kinds, thresholds, MCP tools, env loading or plugin
-  install steps lands in the matching doc too (and in the skill, for thresholds and tool names).
+- Docs: see "Documentation" below for the doc set, the owner of each topic and the writing rules.
+
+## Documentation
+
+User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`. They are for humans first: a developer or
+QA engineer who writes, runs or debugs specs, or uses the plugins with an agent. Contributor detail goes in
+`docs/development.mdx` or in this file, never in a user doc. Out of this set: `docs/benchmarks/**` (dated
+measurement records, kept as `.md`, not rewritten after the fact), the plugin skills (agent-facing; the plugin
+loader needs `.md`) and this file.
+
+When to update: a change to step kinds, spec keys, CLI flags, config keys, defaults, thresholds, statuses, exit
+codes, MCP tools or arguments, env loading, or plugin install steps lands in its owner doc in the same change (and
+in the plugin skill, for thresholds and tool names). Remove a fact from the docs when the code drops it.
+
+One owner per topic. Other docs link to the owner and do not repeat it:
+
+| Topic | Owner |
+|---|---|
+| Landing page: pitch, quick start, one spec, docs table, usage rules (keep it near 100 lines) | `README.md` |
+| Requirements, API key and env files, plugin install (Claude Code, Codex), run from a checkout, env var table | `docs/getting-started.mdx` |
+| Browser spec format, top-level keys, all step kinds, includes, browser context, what Jev sees, placeholders | `docs/spec-reference.mdx` |
+| Writing targets and claims, thresholds, fixing `inconclusive` | `docs/phrasing.mdx` |
+| Hooks | `docs/hooks.mdx` |
+| All CLI flags, config file and keys, precedence, selection, retries, bail, budgets, pick cache, `validate`, exit codes | `docs/running.mdx` |
+| Report formats | `docs/reporting.mdx` |
+| Screenshots, traces, debug dumps | `docs/artifacts.mdx` |
+| GitHub Action (inputs table from `action.yml`), GitLab, Docker | `docs/ci.mdx` |
+| Browser MCP tools, `save`, `changed`, `read`, real browser (profile, channel, CDP) | `docs/agent-mode.mdx` |
+| Snapshot modes | `docs/snapshots.mdx` |
+| Desktop engine: setup, spec and step differences, tools, plan/do | `docs/computer-use.mdx` |
+| Mobile engine: Appium setup, spec and step differences, gestures, tools, discovery | `docs/mobile-use.mdx` |
+| How to run the runnable mobile examples | `examples/mobile/README.md` |
+| Benchmark summary and links to `docs/benchmarks/*.md` | `docs/performance.mdx` |
+| Build, tests, native smoke tests, packaging | `docs/development.mdx` |
+
+A desktop or mobile doc states only what differs from the browser docs and links to them for the rest.
+
+Format: plain MDX that GitHub still renders.
+
+- Each `docs/*.mdx` starts with frontmatter (`title`, one-sentence `description`) and an H1 with the same title.
+  The two `README.md` files have no frontmatter (GitHub shows it as a table) but must still compile as MDX.
+- No JSX components, `import`/`export`, `{/* */}` or `<!-- -->` comments, or `<https://…>` autolinks.
+- In prose, `{`, `}`, `<` and `>` go inside inline code. HTML only where Markdown cannot do it (a centered
+  image), with every tag closed (`<img … />`, `<br />`).
+- Relative links use the `.mdx` name and a GitHub heading slug. Renaming a heading means fixing every link to it
+  (`grep -rn "<file>.mdx#<old-slug>"` over the repo, including the skills and `docs/benchmarks`).
+- `.github/workflows/test.yml` greps `docs/ci.mdx` for the Playwright image tag: keep the tag in that file and in
+  the `Dockerfile` in sync with the lockfile.
+
+Language: ASD-STE100 writing rules (Simplified Technical English), practical level. Technical names are allowed
+(step kinds, flags, tool and file names, product names).
+
+- Instructions: imperative, one instruction per sentence, at most 20 words, condition first ("If X, do Y").
+- Descriptions: at most 25 words per sentence, one topic per sentence, at most 6 sentences per paragraph.
+- Active voice, simple present. "can" for possibility, "must" for a requirement, "do not" for a prohibition.
+- No should/may/might/would/could, contractions, semicolons, e.g./i.e./etc., filler words (just, simply,
+  easily), -ing forms where a plain verb works, or phrasal verbs where one verb exists. Keep the articles.
+- One word for one meaning across all docs: spec (a YAML test file), flow (an included steps-only file), step,
+  target (an element description), claim (a statement for `expect`/`wait`/`ask`), pick, judgment, engine
+  (browser, desktop, mobile; say "desktop", not "computer", except in the package name), and the statuses `pass`,
+  `fail`, `inconclusive`, `error`, `skipped`, `flaky`.
+- Vertical lists for three or more items; numbered lists when order matters. A warning starts with the
+  instruction, then gives the reason.
+
+Content:
+
+- The code is the source of truth. Check every default, limit and behavior in `src/` before you write it. Do not
+  document a planned or guessed behavior.
+- Lead with what the reader wants to do and a short example; reference tables come after.
+- Keep only facts that change what a user does or understands. Leave out function, module and type names (unless
+  the user types them, such as a hook export or a config key), internal constants with no user effect, history
+  ("before", "legacy", "unchanged", "this branch") and benchmark numbers (link the report in `docs/benchmarks/`).
+- Keep the edge cases that give a silent wrong result, for example: `url` is only the base for `goto`, a `wait`
+  never ends `fail`, `save` overwrites with no warning.
+- Every browser example starts with `goto`. Full spec examples must pass `node dist/cli.js validate` (or the
+  `computer`/`mobile` CLI); config examples must pass `--list`.
+
+Check a doc change with `npm run check:docs` (`scripts/check-docs.mjs`, also run in CI): every user doc compiles
+as MDX 3 (GFM + frontmatter), has a `title`/`description` frontmatter whose title is the H1 (`.mdx` files), uses no
+JSX/comments/autolinks, passes the mechanical STE rules (sentences of 25 words or fewer, no modals, contractions,
+semicolons, filler words or Latin abbreviations), and every relative link and anchor resolves, also in
+`CLAUDE.md`, `docs/benchmarks/` and the skills. It does not check facts or word choice: validate the YAML examples
+and read the code for those.
 
 ## Constraints
 
@@ -213,7 +331,10 @@ Source layout (tests sit next to their module):
 - Specs never hold literal credentials: put them in the spec's `env` block as `$VAR` references, used in steps as
   `${env.*}`.
 - `examples/*.yaml` run against public demo sites; `examples/fixtures/` and `examples/hooks/` back the
-  `login-dataset.yaml` example.
+  `login-dataset.yaml` example. They are user demos, checked offline only (`check:examples`).
+- `e2e/` is the live gate: every page it needs lives in `e2e/site.mjs`, never on a remote site, so a failure is
+  plainwright's or Jev's. Phrase its targets and claims so one clear answer exists; when Jev misses on such a page,
+  suspect the product (what Jev is shown) before the wording.
 - Per `plugins/plainwright/skills/using-plainwright/SKILL.md`: test environments only, stop before the last irreversible step
   (payment, booking, sending), never bypass bot protection.
 
@@ -226,7 +347,7 @@ Source layout (tests sit next to their module):
 - `src/computer/spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (ten serialized MCP tools in all), and sequential batch replay, on top of `src/native/`. Desktop specs have `app`, not `url`.
 - `src/computer/planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `src/computer/cli.ts`. Change it only when `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
 - `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates all plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
-- Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.md` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
+- Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.mdx` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
 - `npm run test:computer:mac` is an opt-in native smoke against a disposable Cocoa fixture (Accessibility/Screen Recording permissions required); regular `npm test` uses injected desktop adapters and no model keys. Windows/Linux native parity requires testing on those platforms.
 
 ## Mobile use
@@ -237,9 +358,9 @@ Source layout (tests sit next to their module):
 - iOS tree reads are dominated by XCUITest's `visible` attribute. `AppiumAdapter` revalidates targets from the lookup response (`IOS_FOUND_ATTRIBUTES`, incl. `attribute/visible`), and with `fastTargets` (set by `mobile/cli.ts` and `mobile/mcp.ts`; MCP `find` calls `preferExact`, and `changed` never diffs against an approximate frame: `firstSnapshot` skips them, the previous step's after capture stands in) picks targets from a source without `visible` (`parseMobileTree` `boundsVisibility`, frame `approximate`); `MobileSession.act` keeps such a pick when accepted (>= 0.5, like any pick) and visible, else re-picks from an exact capture (`ms.retargeted`); fast and exact trees picked the same element in 24/24 recorded Calendar asks, with lower confidence on sheets. Claim `within` regions are also picked from the approximate tree (containers only, `NativeSession.region(within, true)`); the first exact look must show a visible node or `HiddenTargetError` re-picks. Reads exclude `accessible` except for click candidates; iOS lookups use class chains (`MobileNode.chain`). Measure with `examples/mobile/ios-calendar.yaml`.
 - `NativeSession.settled()` uses `askSettled` (`core/automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
 - `src/mobile/discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
-- The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.md` and its skill.
+- The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.mdx` and its skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.
-- Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. `npm run test:mobile` is an opt-in device tree/PNG smoke using PLAINWRIGHT_MOBILE_PLATFORM/DEVICE/APP and optional PLAINWRIGHT_APPIUM_URL/CAPABILITIES. Native actions and record/replay need validation on both real platforms before claiming parity.
+- Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. `npm run test:mobile` is an opt-in device tree/PNG smoke using PLAINWRIGHT_MOBILE_PLATFORM/DEVICE/APP and optional PLAINWRIGHT_APPIUM_URL and PLAINWRIGHT_MOBILE_CAPABILITIES. Native actions and record/replay need validation on both real platforms before claiming parity.
 - `npm run test:mobile:android` builds a disposable offline Java fixture with SDK Platform 36 and Build-Tools 36.0.0, installs it on PLAINWRIGHT_MOBILE_DEVICE, validates actions/MCP authoring/saved replay and uninstalls it. Requires ANDROID_HOME, JAVA_HOME and Appium. `-- --live-jev` uses the configured model; default targeting is deterministic. Artifacts stay in a temporary results directory, not the repository.
 - `npm run test:mobile:ios` builds a disposable UIKit fixture with Xcode's simulator SDK, installs it on the booted simulator identified by PLAINWRIGHT_MOBILE_DEVICE, validates actions/MCP recording/replay and uninstalls it. Requires macOS, Xcode, an iOS runtime and Appium with XCUITest. Supports `-- --live-jev` and PLAINWRIGHT_APPIUM_URL; no developer account is needed for this simulator-only test.
 - Runnable mobile YAML lives in `examples/mobile/` so the top-level browser glob remains valid. Its `examples/hooks/mobile-fixture.mjs` hook and both native smoke scripts share `scripts/mobile-fixture.mjs` for fixture installation/cleanup. Example device IDs come from PLAINWRIGHT_MOBILE_DEVICE, never checked-in personal UDIDs.

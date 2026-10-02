@@ -80,7 +80,8 @@ const EVALUATE_DESCRIPTION = 'Run a JavaScript expression in the page and return
     'The expression may be async (a promise is awaited). Read-only by convention: it is not a step, so `save` does not record it.';
 const SAVE_DESCRIPTION = 'Save the steps that passed so far in this session as a YAML spec the batch runner can replay (failed or ' +
     'inconclusive attempts are left out). The `hooks` module given to `open` is written as a relative path, ' +
-    'and ${hooks.*} placeholders are kept as written.';
+    'and ${hooks.*} placeholders are kept as written. `path` is relative to the server\'s working directory; an existing ' +
+    'file there is overwritten without warning. `name` defaults to the session name.';
 /** The browser MCP server: one persistent session, every tool call run one at a time. */
 export async function serveMcp(opts) {
     let session = null;
@@ -247,7 +248,12 @@ export async function serveMcp(opts) {
         });
     }));
     server.registerTool('find', {
-        description: 'Dry run of a step target: tells you what Jev would pick, without acting.',
+        description: 'Dry run of a step target: reports which element Jev would pick for `target`, without acting or recording. ' +
+            '`kind` is the step kind the target is for (click, hover, fill, select, check, upload), or `region` for a `within` ' +
+            'scope; it decides which elements are candidates, so pass the kind of the step you plan to run. Returns `found`, ' +
+            '`confidence`, `detail` (the picked element with its probability, or the reason and top guesses when the pick is ' +
+            'rejected) and `jevTokens`. Use it when a target is unclear and a wrong action would be costly; a known target ' +
+            'needs no `find` before `step`. A css= target resolves without Jev.',
         inputSchema: { kind: CandidateKindSchema, target: z.string() },
     }, ({ kind, target }) => queue(async () => {
         const current = activeSession();
