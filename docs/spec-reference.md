@@ -46,6 +46,16 @@ steps:
 credential stays out of the file. Array contents are not walked for `$VAR` references.
 `geolocation` takes numeric coordinates directly.
 
+**Unknown keys are errors.** A key that is not in this table, not in `auth`, `geolocation` or `browser`,
+or not part of a step's own form (for example `within` on an `expect`) stops loading and `validate`, with
+the key's name and the closest known key when one is near:
+
+```
+invalid spec: checkout.yaml: step 2 "expect": unknown key "whithin"; did you mean "within"?
+```
+
+Step indexes count from 0. `env` takes any keys. Desktop and mobile specs follow the same rule.
+
 ### Browser context
 
 ```yaml

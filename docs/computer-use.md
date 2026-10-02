@@ -141,7 +141,8 @@ steps:
 
 Top-level keys are `name`, `app`, optional `env`, `hooks`, `goal`, `tags` and `timeout`,
 and a nonempty `steps` list (which may include shared flows).
-Unknown top-level keys are rejected so browser settings cannot be silently ignored. Environment
+Unknown top-level and step keys are rejected, with the closest known key when one is near, so a typo
+or a browser setting cannot be silently ignored. Environment
 references and `${env.*}` / `${hooks.*}` interpolation are the browser engine's existing logic.
 Store credentials as `$VAR` references in `env`, or return them from hooks; never record literals.
 MCP supports `${hooks.*}` only and preserves placeholders in `save`.
