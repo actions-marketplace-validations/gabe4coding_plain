@@ -53,14 +53,32 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       run: npx playwright install --with-deps chromium
+    # Trimmed once here, so the run and the upload conditions agree on what counts as empty.
+    - name: Resolve output paths
+      id: paths
+      shell: bash
+      env:
+        PLAINWRIGHT_ACTION_JUNIT: ${{ inputs.junit }}
+        PLAINWRIGHT_ACTION_ARTIFACTS: ${{ inputs.artifacts }}
+      run: |
+        python3 - <<'PY'
+        import os
+
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+            for key in ('junit', 'artifacts'):
+                value = os.environ[f'PLAINWRIGHT_ACTION_{key.upper()}'].strip()
+                if '\n' in value:
+                    raise SystemExit(f'{key}: a path cannot contain a line break')
+                out.write(f'{key}={value}\n')
+        PY
     - name: Run specs
       shell: bash
       env:
         PLAINWRIGHT_ACTION_ARGS: ${{ inputs.args }}
         PLAINWRIGHT_ACTION_SPECS: ${{ inputs.specs }}
         PLAINWRIGHT_ACTION_PICKS: ${{ inputs.picks }}
-        PLAINWRIGHT_ACTION_JUNIT: ${{ inputs.junit }}
-        PLAINWRIGHT_ACTION_ARTIFACTS: ${{ inputs.artifacts }}
+        PLAINWRIGHT_ACTION_JUNIT: ${{ steps.paths.outputs.junit }}
+        PLAINWRIGHT_ACTION_ARTIFACTS: ${{ steps.paths.outputs.artifacts }}
       run: |
         python3 - <<'PY'
         import os
@@ -69,8 +87,8 @@ runs:
         import sys
 
         picks = os.environ['PLAINWRIGHT_ACTION_PICKS'].strip()
-        junit = os.environ['PLAINWRIGHT_ACTION_JUNIT'].strip()
-        artifacts = os.environ['PLAINWRIGHT_ACTION_ARTIFACTS'].strip()
+        junit = os.environ['PLAINWRIGHT_ACTION_JUNIT']
+        artifacts = os.environ['PLAINWRIGHT_ACTION_ARTIFACTS']
         command = [
             'node', f"{os.environ['GITHUB_ACTION_PATH']}/dist/cli.js",
             '--headless', '--reporter', 'text',
@@ -87,15 +105,15 @@ runs:
         sys.exit(subprocess.call(command))
         PY
     - name: Upload JUnit report
-      if: always() && inputs.junit != ''
+      if: always() && steps.paths.outputs.junit != ''
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}-junit
-        path: ${{ inputs.junit }}
+        path: ${{ steps.paths.outputs.junit }}
         if-no-files-found: warn
     - name: Upload failure artifacts
-      if: failure() && inputs.artifacts != ''
+      if: failure() && steps.paths.outputs.artifacts != ''
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.artifacts }}
+        path: ${{ steps.paths.outputs.artifacts }}
