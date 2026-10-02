@@ -14,7 +14,7 @@ This page is for contributors. To use plainwright, start with [getting started](
 npm ci
 npx playwright install chromium
 npm run build    # compile src/ to dist/ and make the plugin runtime archives again
-npm test         # build, then run all tests in dist/**/*.test.js
+npm test         # build, then run the tests in dist/**/*.test.js and scripts/*.test.mjs
 npm run check:docs
 npm run verify   # the key-free gate: tests, docs, examples and plugin install
 ```
@@ -36,6 +36,7 @@ same check. The full writing rules are in `CLAUDE.md`, in the section "Documenta
 - The desktop and mobile sessions, with injected adapters and injected Jev decisions.
 - Mobile requests from real WebdriverIO to a local Appium-protocol fixture, for Android and iOS.
 - MCP recording and replay of the saved specs.
+- The pre-PR hook, in a temporary repository with a git worktree.
 
 These tests do not prove that a real device, simulator or desktop works. For that, use the
 [native smoke tests](#verification).
@@ -61,7 +62,8 @@ At the end, it lists the benchmarks that the changed files need. Compare each on
 the docs. Codex reads the same skill from `.agents/skills/`.
 
 A hook in `.claude/settings.json` and `.codex/hooks.json` stops `gh pr create`. It lets the command run only
-when `scripts/validate.mjs` passed on the same files as HEAD.
+when `scripts/validate.mjs` passed on the same files as HEAD. The hook checks the checkout where the command
+runs, also in a git worktree.
 
 ### Live e2e suite
 
