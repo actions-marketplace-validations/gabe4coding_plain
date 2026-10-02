@@ -185,3 +185,32 @@ test("Save reports the server's error", async ($, on) => {
   expect(toasts).toContain('Save failed: call open first');
   await ui.unmount();
 });
+
+test('a pane held back by a narrow terminal points to the command', async ($, on) => {
+  const toasts: string[] = [];
+  stubTools(on);
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'the terminal is narrower than 144 columns' } }));
+  on('ui.toast', ($: any, e: any) => {
+    toasts.push(e.text);
+    return done();
+  });
+  await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/' });
+  await new Promise((settle) => setTimeout(settle, 10)); // the pane opens without holding the tool result
+  expect(toasts).toEqual(['Run /plainwright-pane to show the plainwright session pane']);
+});
+
+test('a new goal drops the typed spec path, so a new flow does not overwrite the old spec', async ($, on) => {
+  stubTools(on);
+  on('ui.open', placed);
+  on('mcp.call', () => ({ value: mcp({ path: '/work/a.yaml', steps: 1 }) }));
+  on('ui.toast', done);
+  await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/', goal: 'Flow A' });
+  let ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
+  await ui.input({ key: 'save-path', text: 'a.yaml' });
+  expect((await ui.find({ key: 'save-path' }))?.props.value).toBe('a.yaml');
+  await ui.unmount();
+  await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/b', goal: 'Flow B' });
+  ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
+  expect((await ui.find({ key: 'save-path' }))?.props.value).toBe('flow-b.yaml');
+  await ui.unmount();
+});

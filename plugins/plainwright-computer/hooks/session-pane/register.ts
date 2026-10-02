@@ -22,8 +22,10 @@ const specPath = (): string => typedPath?.trim() || saveName(state.goal);
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 const errorText = (result: any): string => result?.content?.find((block: any) => block?.type === 'text')?.text ?? 'unknown error';
 
-async function show($: any): Promise<void> {
-  await $.ui.open({ id: PANE, title: PLUGIN });
+/** Opens the pane; true when it is drawn. One opened unasked waits undrawn below 144 terminal columns. */
+async function show($: any): Promise<boolean> {
+  const opened = await $.ui.open({ id: PANE, title: PLUGIN });
+  return opened?.isPlaced !== false;
 }
 
 /** Asks the plugin's own server to write the passing steps: the same session Claude is driving. */
@@ -65,11 +67,16 @@ export function register(on: any): void {
       const data = payload(outcome);
       if (data) {
         const tool = TOOL.exec(e.tool)![1];
+        const goal = state.goal;
         state = apply(state, ENGINE, tool, e, data);
+        // A new flow gets its own spec name: a path typed for the last one would overwrite that spec.
+        if (tool === 'open' && (ENGINE === 'native' || state.goal !== goal)) typedPath = undefined;
         $.ui.invalidate('ui.render');
         if (tool === 'open' && !shown) {
           shown = true;
-          void show($).catch((error: unknown) => $.ui.toast(`${PLUGIN} pane: ${message(error)}`));
+          void show($)
+            .then((drawn) => drawn || $.ui.toast(`Run /${COMMAND} to show the ${PLUGIN} session pane`))
+            .catch((error: unknown) => $.ui.toast(`${PLUGIN} pane: ${message(error)}`));
         }
       }
     } catch (error) {
