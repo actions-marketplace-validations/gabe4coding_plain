@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'yaml';
 import { z } from 'zod';
-import { expandIncludes } from './include.js';
+import { expandIncludes, splitSource } from './include.js';
 import { checkSpecFeatures } from './spec-features.js';
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
@@ -153,7 +153,11 @@ export function loadSpec(path, opts) {
         auth: raw.auth && resolveEnvBlock(path, 'auth', raw.auth, opts),
         env: resolveEnvBlock(path, 'env', raw.env ?? {}, opts),
         hooks: raw.hooks === undefined ? undefined : resolve(dirname(path), raw.hooks),
-        steps: expandIncludes(raw.steps, path).map((step, i) => withOrigin(step, (s) => parseStep(path, i, s))),
+        steps: expandIncludes(raw.steps, path).map((expanded, i) => {
+            // Errors name the file and index the step was written at, also for included steps.
+            const { step, source } = splitSource(expanded);
+            return withOrigin(step, (s) => parseStep(source?.file ?? path, source?.index ?? i, s));
+        }),
     };
     checkSpecFeatures(spec, path);
     return spec;
@@ -199,5 +203,8 @@ export function loadNativeSpec(file, schema, parseOne, opts) {
     const env = resolveEnvBlock(file, 'env', raw.env, opts);
     checkSpecFeatures(raw, file);
     return { ...raw, dir, hooks: raw.hooks ? resolve(dir, raw.hooks) : undefined,
-        env, steps: expandIncludes(raw.steps, file).map((s, i) => withOrigin(s, (step) => parseOne(step, file, i))) };
+        env, steps: expandIncludes(raw.steps, file).map((expanded, i) => {
+            const { step, source } = splitSource(expanded);
+            return withOrigin(step, (s) => parseOne(s, source?.file ?? file, source?.index ?? i));
+        }) };
 }
