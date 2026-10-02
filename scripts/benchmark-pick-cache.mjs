@@ -5,7 +5,7 @@
 // "unchanged" is the same page again. Three small built-in pages add the changes the saved pages lack: a
 // button identified by its value (Subscribe → Unsubscribe), a newer row that fits the target better, and a
 // dialog over the page. For every target: Jev picks on "before" (the run that wrote the cache); the
-// accepted pick becomes the entry (src/pick-cache.ts makeEntry); the lookup runs on "after" (matchEntry). Every
+// accepted pick becomes the entry (src/core/pick-cache.ts makeEntry); the lookup runs on "after" (matchEntry). Every
 // hit is checked against a fresh Jev pick on "after":
 //   right        the fresh pick accepts the same element
 //   wrong        the fresh pick accepts another element or says none, or the hit is another element
