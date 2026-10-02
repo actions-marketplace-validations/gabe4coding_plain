@@ -62,7 +62,9 @@ servers no shell environment. Spec runs check for a key just before execution; `
 MCP mode keeps serving and the first Jev call returns the message as a tool error.
 
 `dist/` is committed on purpose — this repo is also a Claude Code plugin and ships its built output
-(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium).
+(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium;
+`bin/plainwright-computer.mjs` and `bin/plainwright-mobile.mjs` lazy-install the same npm deps, no Chromium, via
+`bin/install-deps.mjs`).
 `dist/**/*.test.js` is gitignored. Rebuild before committing a `src/` change so `dist/` matches it.
 
 ## Architecture
@@ -94,7 +96,9 @@ Source layout (tests sit next to their module):
   input order. `src/suite/types.ts` owns attempts/spec/run reports, observers and engine adapters; `flaky` is
   a separate boolean and counts as pass.
 - `src/suite/options.ts` — shared CLI flags, file/directory/`*`/`**` expansion and CLI/env/config/default precedence;
-  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early.
+  `--list` and `validate` are key-free. Native concurrency and profile/CDP worker conflicts fail early. One config file
+  serves all three CLIs: `engineConfig` drops values the engine cannot use (browser-only keys, `workers` > 1,
+  `timeout: 0` and a trace mode on native; `server` off mobile) with one stderr note; the same CLI flags are errors.
 - `src/suite/schedule.ts` — worker slots, retries, flaky passes, bail after final non-passes and completed-attempt
   token budget. In-flight attempts finish; cut retries retain their last status; never-started specs are skipped.
 - `src/suite/select.ts` — name/cwd-relative-path regexes, all requested tags, last-failed intersection (no or invalid
@@ -130,7 +134,10 @@ Source layout (tests sit next to their module):
 - `src/core/spec.ts` — `loadSpec()` parses a YAML file into a `Spec` (`name`, `url`, `dialogs`, optional `goal`, `auth`,
   `geolocation`, `env`, `hooks`, `tags`, `timeout`, `browser`, plus expanded `steps`). `$VAR` leaves in
   `auth`/`env` resolve from `process.env` at load time. `interpolate()` (`src/core/interpolate.ts`) replaces `${env.*}`/`${hooks.*}` in any string; any other namespace, or an unresolved
-  leaf, is an error.
+  leaf, is an error. Every schema is strict: an unknown key at the top level, in `auth`/`geolocation`/`browser`, in
+  a step or in a step's mapping (`expect: {that, whithin}`) is an error naming the key and the closest known one
+  (`src/core/unknown-key.ts`). Browser, desktop and mobile steps (files and MCP `step`/`batch`) share `stepKind`;
+  `at`/`origin` are reserved for the loader at both levels; `env` and mobile `capabilities` take any keys.
 - `src/browser/candidates.ts` — candidate collection (`scanCandidatesInPage` runs inside the page, so its helpers are nested) (`candidates()`, selector + shadow-DOM walk per step kind, with
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
@@ -271,8 +278,8 @@ Content:
 - Keep only facts that change what a user does or understands. Leave out function, module and type names (unless
   the user types them, such as a hook export or a config key), internal constants with no user effect, history
   ("before", "legacy", "unchanged", "this branch") and benchmark numbers (link the report in `docs/benchmarks/`).
-- Keep the edge cases that give a silent wrong result, for example: a browser spec ignores unknown keys, `url` is
-  only the base for `goto`, a `wait` never ends `fail`, `save` overwrites with no warning.
+- Keep the edge cases that give a silent wrong result, for example: `url` is only the base for `goto`, a `wait`
+  never ends `fail`, `save` overwrites with no warning.
 - Every browser example starts with `goto`. Full spec examples must pass `node dist/cli.js validate` (or the
   `computer`/`mobile` CLI); config examples must pass `--list`.
 
