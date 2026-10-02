@@ -161,7 +161,10 @@ export function engineConfig(config, engine) {
             drop('timeout', 'timeout: 0');
         const { trace, ...artifacts } = kept.artifacts ?? {};
         if (trace !== undefined && trace !== 'off') {
-            kept.artifacts = artifacts;
+            if (Object.keys(artifacts).length)
+                kept.artifacts = artifacts;
+            else
+                delete kept.artifacts;
             ignored.push(`artifacts.trace: ${trace}`);
         }
     }

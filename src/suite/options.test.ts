@@ -109,7 +109,8 @@ test('one shared config: values an engine cannot use are ignored with one note, 
 
   notes.mock.resetCalls();
   assert.equal(run('mobile').flags.server, 'http://appium');
-  assert.match(notes.mock.calls[0].arguments[0], /^plainwright: mobile ignores .*artifacts\.trace: on-failure$/);
+  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plainwright: mobile ignores these config values: ' +
+    'headless, profile, channel, cdp, timing, workers: 4, timeout: 0, artifacts.trace: on-failure']);
   notes.mock.resetCalls();
   const browser = run('browser', ['--workers', '1', 'case.yaml']);
   assert.equal(browser.flags.headless, true); assert.equal(browser.flags.timeout, '0');
@@ -136,6 +137,8 @@ test('engineConfig keeps shared values, does not change its input and does not r
   assert.deepEqual(engineConfig(input as never, 'mobile'), { config: { artifacts: { dir: 'out' } },
     ignored: ['headless', 'artifacts.trace: always'] });
   assert.deepEqual(input, { headless: true, artifacts: { dir: 'out', trace: 'always' } });
+  assert.deepEqual(engineConfig({ artifacts: { trace: 'on-failure' } } as never, 'desktop'),
+    { config: {}, ignored: ['artifacts.trace: on-failure'] }); // no empty `artifacts` left behind
   const notes = t.mock.method(console, 'error', () => {});
   const { flags } = parsed([], 'desktop', { PLAINWRIGHT_CHANNEL: 'chrome', PLAINWRIGHT_APPIUM_URL: 'http://appium' });
   assert.equal(flags.channel, 'chrome'); // ignored by the desktop session, as before
