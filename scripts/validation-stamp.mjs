@@ -1,34 +1,42 @@
 // The record that scripts/validate.mjs passed on a given file tree, and the check scripts/pr-gate.mjs makes. The
 // stamp holds a git tree hash of the working files (tracked and untracked, ignored files left out), so validating
 // before the commit counts once the commit has exactly those files. It lives in the worktree's git dir: never
-// committed, one per worktree.
+// committed, one per worktree. The read side takes the checkout to look at (default: the process working
+// directory), because a hook can run in another checkout than the one the command targets.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const git = (args, env = process.env) => execFileSync('git', args, { encoding: 'utf8', env }).trim();
-const stampFile = () => git(['rev-parse', '--path-format=absolute', '--git-path', 'plainwright-validated.json']);
+const git = (dir, args, env = process.env) =>
+  execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+const stampFile = (dir) => git(dir, ['rev-parse', '--path-format=absolute', '--git-path', 'plainwright-validated.json']);
 
 /** The tree hash of the working files, from a scratch index so the real index is never touched. */
 export function workingTree() {
-  const dir = mkdtempSync(join(tmpdir(), 'plainwright-stamp-'));
+  const dir = process.cwd();
+  const scratch = mkdtempSync(join(tmpdir(), 'plainwright-stamp-'));
   try {
-    const env = { ...process.env, GIT_INDEX_FILE: join(dir, 'index') };
-    git(['read-tree', 'HEAD'], env);
-    git(['add', '-A'], env);
-    return git(['write-tree'], env);
+    const env = { ...process.env, GIT_INDEX_FILE: join(scratch, 'index') };
+    git(dir, ['read-tree', 'HEAD'], env);
+    git(dir, ['add', '-A'], env);
+    return git(dir, ['write-tree'], env);
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(scratch, { recursive: true, force: true });
   }
 }
 
-export const headTree = () => git(['rev-parse', 'HEAD^{tree}']);
+export const headTree = (dir = process.cwd()) => git(dir, ['rev-parse', 'HEAD^{tree}']);
+
+/** The repository's shared git dir: equal for the main checkout and all its worktrees. */
+export const commonDir = (dir = process.cwd()) =>
+  git(dir, ['rev-parse', '--path-format=absolute', '--git-common-dir']);
 
 export function writeStamp(tree, details) {
-  writeFileSync(stampFile(), JSON.stringify({ tree, at: new Date().toISOString(), ...details }, null, 1) + '\n');
+  const stamp = { tree, at: new Date().toISOString(), ...details };
+  writeFileSync(stampFile(process.cwd()), JSON.stringify(stamp, null, 1) + '\n');
 }
 
-export function readStamp() {
-  try { return JSON.parse(readFileSync(stampFile(), 'utf8')); } catch { return undefined; }
+export function readStamp(dir = process.cwd()) {
+  try { return JSON.parse(readFileSync(stampFile(dir), 'utf8')); } catch { return undefined; }
 }
