@@ -91,7 +91,7 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
   const { values, positionals } = parseArgs({ args, allowPositionals: true, options: ARG_OPTIONS });
   const command = positionals[0] === 'mcp' ? 'mcp' : positionals[0] === 'validate' ? 'validate' : 'run';
   // The MCP server reads no config file and takes no suite options.
-  const config: Config = command === 'mcp' ? {} : readConfig(cwd, values.config) as Config;
+  const { config, ignored } = engineConfig(command === 'mcp' ? {} : readConfig(cwd, values.config) as Config, engine);
   const setting = (key: string, cli: unknown, fallback: unknown): unknown =>
     cli ?? (ENV_FALLBACKS[key] ? env[ENV_FALLBACKS[key]] : undefined) ?? (config as Record<string, unknown>)[key] ?? fallback;
 
@@ -147,7 +147,34 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
   const browserOnly = BROWSER_ONLY_FLAGS.find((name) => values[name] !== undefined);
   if (engine !== 'browser' && browserOnly) throw new Error(`--${browserOnly} is browser-only`);
   if (engine !== 'mobile' && values.server) throw new Error('--server is mobile-only');
+  if (ignored.length) console.error(`plainwright: ${engine} ignores these config values: ${ignored.join(', ')}`);
   return { command, opts, flags };
+}
+
+/**
+ * One config file can serve all three CLIs, so a config value the running engine cannot use is dropped and named in
+ * `ignored` (the caller prints one note). The same value as a CLI flag stays an invocation error. Environment
+ * fallbacks are not config and are not reported.
+ */
+export function engineConfig(config: Config, engine: Engine): { config: Config; ignored: string[] } {
+  const kept: Record<string, unknown> & Config = { ...config };
+  const ignored: string[] = [];
+  const drop = (key: string, shown = key): void => {
+    delete kept[key];
+    ignored.push(shown);
+  };
+  if (engine !== 'browser') {
+    for (const key of BROWSER_ONLY_FLAGS) if (kept[key] !== undefined) drop(key);
+    if (Number(kept.workers) > 1) drop('workers', `workers: ${kept.workers}`);
+    if (kept.timeout !== undefined && Number(kept.timeout) === 0) drop('timeout', 'timeout: 0');
+    const { trace, ...artifacts } = kept.artifacts ?? {};
+    if (trace !== undefined && trace !== 'off') {
+      kept.artifacts = artifacts as Config['artifacts'];
+      ignored.push(`artifacts.trace: ${trace}`);
+    }
+  }
+  if (engine !== 'mobile' && kept.server !== undefined) drop('server');
+  return { config: kept, ignored };
 }
 
 /** `junit:out/junit.xml` → `{ name: 'junit', output: 'out/junit.xml' }`. */

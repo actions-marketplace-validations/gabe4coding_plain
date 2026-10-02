@@ -25,7 +25,9 @@ Traces are browser-only. `on-failure` records the session and retains the trace 
 does not pass; passing traces are discarded. `always` retains traces even for passing attempts.
 Tracing is skipped with one note per run when using `--cdp`, because it would record the user's
 other tabs in the attached context. Screenshots and dumps remain available. For desktop or
-mobile the trace default is `off`; asking for any other trace mode is a configuration error:
+mobile the trace mode is `off`. A trace mode in the config file is ignored there with one note
+([shared config](running.md#desktop-and-mobile-in-the-same-folder)); `--trace` with any other mode is
+an invocation error:
 
 ```sh
 plainwright-computer --artifacts plainwright-results tests/desktop.yaml
