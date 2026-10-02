@@ -7,10 +7,10 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles } from '../dist/jev.js';
-import { readAnswer, readOptions } from '../dist/read.js';
-import { snapshotView } from '../dist/snapshot-view.js';
-import { markUnchecked } from '../dist/page.js';
+import { loadEnvFiles } from '../dist/jev/jev.js';
+import { readAnswer, readOptions } from '../dist/core/read.js';
+import { snapshotView } from '../dist/core/snapshot-view.js';
+import { markUnchecked } from '../dist/browser/page.js';
 
 loadEnvFiles();
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, only: { type: 'string' }, smart: { type: 'boolean', default: false }, labels: { type: 'string', default: 'short' }, dedupe: { type: 'string', default: 'on' }, out: { type: 'string' } } });

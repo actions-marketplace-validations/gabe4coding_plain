@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { loadSpec } from './spec.js';
-import { runSpec, closeSharedBrowser, type RunOptions } from './runner.js';
-import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev.js';
-import { parseSuiteArgs, UsageError } from './options.js';
-import { runSuite } from './suite.js';
-import { validate, formatValidation } from './validate.js';
-import { checkSpecTimeoutFlag } from './spec-features.js';
-import type { SuiteEngine } from './suite-types.js';
+import { loadSpec } from './core/spec.js';
+import { runSpec, closeSharedBrowser, type RunOptions } from './browser/runner.js';
+import { provider, warmUp, loadEnvFiles, MODEL_BY_PROVIDER } from './jev/jev.js';
+import { parseSuiteArgs, UsageError } from './suite/options.js';
+import { runSuite } from './suite/run-suite.js';
+import { validate, formatValidation } from './suite/validate.js';
+import { checkSpecTimeoutFlag } from './core/spec-features.js';
+import type { SuiteEngine } from './suite/types.js';
 
 loadEnvFiles();
 try {
@@ -21,7 +21,7 @@ try {
       console.error(`plainwright: Jev via ${p} (${MODEL_BY_PROVIDER[p]})`);
     } catch (error) { console.error(error instanceof Error ? error.message : String(error)); }
     warmUp();
-    await (await import('./mcp.js')).serveMcp(runOpts);
+    await (await import('./browser/mcp.js')).serveMcp(runOpts);
   } else {
     const engine: SuiteEngine<ReturnType<typeof loadSpec>> = { engine: 'browser', load: loadSpec,
       meta: (spec) => ({ name: spec.name, tags: spec.tags ?? [], timeoutMs: spec.timeout }),

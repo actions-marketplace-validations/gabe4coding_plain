@@ -1,0 +1,323 @@
+import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError } from '../core/automation.js';
+import { decide, loadEnvFiles, warmUp } from '../jev/jev.js';
+import { timedInto, dumpDebug } from '../core/results.js';
+import { withCacheDump } from '../core/pick-cache.js';
+import { readAnswer } from '../core/read.js';
+import { startHooks } from '../core/hooks.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { observerCalls } from '../suite/observe.js';
+import { parseSuiteArgs, UsageError } from '../suite/options.js';
+import { checkSpecTimeoutFlag } from '../core/spec-features.js';
+import { runSuite } from '../suite/run-suite.js';
+import { validate, formatValidation } from '../suite/validate.js';
+const EARLY_WINDOW_MS = 1000;
+const APPEAR_MS = 2000;
+export class NativeSession {
+    adapter;
+    timeout;
+    ai;
+    calls = 0;
+    tokens = 0;
+    /** What the whole flow is for (spec `goal:`, MCP `open {goal}`): every pick sees it, claims never do. */
+    goal;
+    /** This attempt's pick cache (spec runs only, set by runNativeSpec; MCP sessions have none). */
+    picks;
+    /** The step running now: its source and kind key the pick cache. */
+    current;
+    constructor(adapter, timeout = 15000, ai = intelligence) {
+        this.adapter = adapter;
+        this.timeout = timeout;
+        this.ai = ai;
+    }
+    validate(step) { return step; }
+    // Per-step phase timings (capture, jev, act, idle), reset by run() and returned as the result's `ms`.
+    ms = {};
+    timed(phase, fn) { return timedInto(this.ms, phase, fn); }
+    track(tokens) { this.calls++; this.tokens += tokens; }
+    // End of the last step. Seconds later (an agent's turn) the UI is idle, the settled capture is quick,
+    // and an early capture would only add calls (measured: no gain with 5 s between steps).
+    lastStepEnd = 0;
+    /** The first whole-screen capture of the current step, before it acted: `changed` in the MCP step result diffs against it. */
+    firstSnapshot;
+    /** The UI was just driven outside a step (the app was opened): the next step may find it busy. */
+    noteActivity() { this.lastStepEnd = Date.now(); }
+    // Captures the settled UI and asks Jev about it. Where the adapter offers an early capture (Android),
+    // Jev already works on it while the adapter waits for the UI to go idle (askSettled) — only right
+    // after the previous step, when the UI may still be busy.
+    async settled(kind, within, ask, discard, skip, regionPick = false) {
+        const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
+        const early = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
+        const { frame, result, reasked } = await askSettled({
+            early: early && (() => this.timed('capture', () => early(kind, within))),
+            settled: () => this.timed('capture', () => this.adapter.capture(kind, within, regionPick ? { regionPick } : undefined)).then((f) => {
+                if (within === undefined && !f.approximate)
+                    this.firstSnapshot ??= f.snapshot;
+                return f;
+            }),
+            same: sameFrame, ask, discard, skip,
+            waitAnswer: (fn) => this.timed('jev', fn),
+        });
+        if (reasked)
+            this.ms.reasked = (this.ms.reasked ?? 0) + 1;
+        return { frame, result };
+    }
+    async find(kind, targets, regionPick = false) {
+        // A key or click that opens a window returns before the window exists (TextEdit's Command-N):
+        // an empty capture is looked at again for a moment instead of reported as "no candidates".
+        const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
+        // Pick cache key parts: only a step loaded from a file has a source (never an MCP step).
+        const step = this.current, picks = this.picks;
+        const refs = picks && step?.at ? targets.map((target) => ({ at: step.at, kind: step.kind, target, goal: this.goal })) : undefined;
+        for (;;) {
+            const { frame, result } = await this.settled(kind, undefined, (frame) => resolveTargets({ candidates: frame.candidates, state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
+                element: (c) => { const el = frame.elements.get(c.id); if (el === undefined)
+                    throw new Error('Candidate handle missing'); return el; },
+                ...(refs ? { cached: (_target, i) => picks.lookup(refs[i], frame.candidates, frame.snapshot) } : {}),
+            }, targets, this.ai), (rs) => { for (const r of rs)
+                if (r.usedJev)
+                    this.track(r.tokens); }, undefined, regionPick);
+            if (frame.candidates.length === 0 && Date.now() < deadline) {
+                await this.timed('idle', () => new Promise((r) => setTimeout(r, 150)));
+                continue;
+            }
+            for (const r of result)
+                if (r.usedJev)
+                    this.track(r.tokens);
+            // Only the answer kept is recorded: an early capture's answer may have been discarded.
+            if (refs)
+                for (const [i, r] of result.entries()) {
+                    if (r.cached) {
+                        picks.hit(refs[i], frame.snapshot);
+                        this.ms.cached = (this.ms.cached ?? 0) + 1;
+                    }
+                    else if (r.candidate)
+                        picks.accept(refs[i], r.candidate, frame.candidates, frame.snapshot);
+                }
+            return frame.approximate ? result.map((r) => ({ ...r, approximate: true })) : result;
+        }
+    }
+    /**
+     * The element a region description names; throws when Jev finds none. `fast`: the adapter may pick from an
+     * approximate capture (a rejected pick there is asked again from an exact one); the first look inside the
+     * region then confirms it shows something, or throws HiddenTargetError.
+     */
+    async region(within, fast = false) {
+        let [r] = await this.find('region', [within], fast);
+        if (r.approximate && r.element === null) {
+            this.retarget();
+            [r] = await this.find('region', [within]);
+        }
+        if (r.element === null)
+            throw new Error(r.detail);
+        return r.element;
+    }
+    retarget() { this.ms.retargeted = 1; this.adapter.preferExact?.(); }
+    /** Runs `look` inside the region `within` names, picked fast where the adapter can; a covered one is picked once more exactly. */
+    async inRegion(within, look) {
+        if (!within)
+            return look(undefined);
+        const region = await this.region(within, true);
+        try {
+            return await look(region);
+        }
+        catch (error) {
+            if (!(error instanceof HiddenTargetError))
+                throw error;
+            this.retarget();
+            return look(await this.region(within));
+        }
+    }
+    async snapshot(within) {
+        return this.inRegion(within, async (region) => (await this.timed('capture', () => this.adapter.capture('region', region))).snapshot);
+    }
+    /** Judges claims once against the settled UI (or a region of it), without recording or polling: the MCP `ask` tool. */
+    async ask(claims, within) {
+        this.ms = {};
+        const { frame, result } = await this.inRegion(within, (region) => this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens)));
+        this.track(result.tokens);
+        return { snapshot: frame.snapshot, probabilities: result.probabilities, ms: this.ms };
+    }
+    /** The MCP `read` tool: the tree lines that answer `question` (src/read.ts), not recorded. */
+    async read(question, within) {
+        const snapshot = await this.snapshot(within);
+        const result = await readAnswer(snapshot, question, this.ai.ask);
+        this.track(result.tokens);
+        return result;
+    }
+    step(raw) { return this.run(this.parse(raw)); }
+    async run(step) {
+        const start = Date.now();
+        this.ms = {};
+        this.firstSnapshot = undefined;
+        this.current = step;
+        let result;
+        try {
+            const valid = this.validate(step);
+            result = valid.kind === 'expect' || valid.kind === 'wait' ? await this.assert(valid) : await this.act(valid, this.label(valid));
+        }
+        catch (error) {
+            result = { step: this.label(step), status: 'error', detail: error instanceof Error ? error.message : String(error) };
+        }
+        if (step.optional && (result.status === 'error' || result.status === 'inconclusive'))
+            result.status = 'skipped';
+        if (this.ms.cached)
+            result = { ...result, cached: true, detail: result.detail ? `${result.detail} (cached pick)` : '(cached pick)' };
+        this.lastStepEnd = Date.now();
+        return { ...result, ms: { total: this.lastStepEnd - start, ...this.ms } };
+    }
+    async assert(step) {
+        const claims = step.kind === 'expect' ? step.expectations : [step.condition];
+        const deadline = Date.now() + this.timeout;
+        let polls = 0, last = '', probabilities = [], status = 'inconclusive';
+        let snap;
+        // A wait polls its region too: one region pick, then only that part of the tree per poll.
+        let region = step.within ? await this.region(step.within, true) : undefined;
+        do {
+            // Unchanged since a clear "no": asking again buys nothing.
+            let looked;
+            try {
+                looked = await this.settled('region', region, (f) => judgeState(f.snapshot, claims, [], this.ai), (r) => this.track(r.tokens), (f) => JSON.stringify(f.snapshot) === last && status === 'fail');
+            }
+            catch (error) {
+                // A region picked from an approximate capture turned out covered: pick it once more from an exact one.
+                if (!(error instanceof HiddenTargetError) || this.ms.retargeted || !step.within)
+                    throw error;
+                this.retarget();
+                region = await this.region(step.within);
+                continue;
+            }
+            const { frame, result: judged } = looked;
+            snap = frame.snapshot;
+            if (judged) {
+                this.track(judged.tokens);
+                probabilities = judged.probabilities;
+                polls++;
+                const decisions = probabilities.map((p) => decide(p, 'expect'));
+                status = decisions.includes('fail') ? 'fail' : decisions.includes('inconclusive') ? 'inconclusive' : 'pass';
+            }
+            last = JSON.stringify(snap);
+            if (step.kind === 'expect' || status === 'pass' || Date.now() >= deadline || polls >= 8)
+                break;
+            await this.timed('idle', () => new Promise((r) => setTimeout(r, Math.min(250, Math.max(0, deadline - Date.now())))));
+        } while (Date.now() < deadline);
+        if (step.kind === 'wait' && status !== 'pass')
+            status = 'inconclusive';
+        const debug = status === 'pass' ? '' : ` — state: ${dumpDebug(step.kind, { claims, probabilities, state: snap })}`;
+        return { step: this.label(step), status, detail: `p=${probabilities.map((p) => p.toFixed(2)).join(', ')} after ${polls} poll(s)${debug}` };
+    }
+}
+// Same input for Jev (tree text and candidates) and same native handles, so an answer about one frame holds for the other.
+function sameFrame(a, b) {
+    return JSON.stringify(a.snapshot) === JSON.stringify(b.snapshot) && JSON.stringify(a.candidates) === JSON.stringify(b.candidates) &&
+        JSON.stringify([...a.elements]) === JSON.stringify([...b.elements]);
+}
+/** hooks setup → `open` (interpolates, attaches, returns the resolved steps) → steps → teardown → close. */
+export async function runNativeSpec(spec, session, open, observer, info, specTimeout) {
+    const started = performance.now();
+    const { specDeadline } = await import('../suite/spec-timeout.js');
+    const { label } = await import('../core/results.js');
+    const { mobileLabel } = await import('../mobile/spec.js');
+    const deadline = specDeadline(spec.timeout ?? specTimeout, started);
+    const steps = [];
+    const { picks, ...specInfo } = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
+    session.picks = picks;
+    const observe = observerCalls(observer, specInfo);
+    const target = { engine: 'platform' in spec ? 'mobile' : 'desktop', screenshot: async (file) => {
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            fs.writeFileSync(file, await session.adapter.screenshot());
+        } };
+    // The target exists only once `open` has attached it: no observer call sees a native session before that.
+    let opened = false;
+    const record = async (result) => {
+        const index = steps.push(result) - 1;
+        if (opened)
+            await observe('stepEnd', { index, result, target });
+    };
+    let status = 'pass';
+    let hooks;
+    let data = {};
+    let setupDone = false;
+    session.goal = spec.goal;
+    try {
+        if (spec.hooks) {
+            hooks = await startHooks(spec.hooks);
+            if (hooks.has.setup)
+                data = await hooks.setup(spec);
+        }
+        setupDone = true;
+        const runSteps = await open({ env: spec.env, hooks: data });
+        opened = true;
+        await observe('sessionOpen', { target });
+        for (const step of runSteps) {
+            const ran = await deadline.step(() => session.run(step), () => 'platform' in spec
+                ? mobileLabel(step)
+                : label(step));
+            const result = withCacheDump(ran, picks?.endStep(ran.status));
+            await record(result);
+            if (result.status !== 'pass' && result.status !== 'skipped') {
+                status = result.status;
+                break;
+            }
+        }
+    }
+    catch (error) {
+        status = 'error';
+        await record({ step: setupDone ? 'open/interpolate' : 'setup', status, detail: String(error) });
+    }
+    finally {
+        try {
+            if (setupDone && hooks?.has.teardown)
+                await hooks.teardown({ spec, data, result: { status, steps } });
+        }
+        catch (error) {
+            status = 'error';
+            await record({ step: 'teardown', status, detail: String(error) });
+        }
+        finally {
+            hooks?.close();
+            if (opened)
+                await observe('sessionClose', { status, target });
+            try {
+                await session.adapter.close();
+            }
+            catch (error) {
+                status = 'error';
+                steps.push({ step: 'close', status, detail: String(error) });
+            }
+        }
+    }
+    return { name: spec.name, status, steps, jevCalls: session.calls, totalTokens: session.tokens };
+}
+/** The desktop and mobile CLI: `mcp`, or spec files run one after another (one input stream: never concurrently). */
+export async function nativeCli(bin, usage, engineName, main) {
+    loadEnvFiles();
+    try {
+        const { command, opts, flags } = parseSuiteArgs(process.argv.slice(2), engineName);
+        checkSpecTimeoutFlag(opts.specTimeout);
+        const args = { server: flags.server };
+        const timeout = Number(flags.timeout);
+        if (command === 'mcp') {
+            warmUp();
+            return await main.serve(timeout, args);
+        }
+        const engine = { engine: engineName, load: main.load, meta: main.meta,
+            run: (spec, observer, info) => main.run(spec, timeout, args, observer, info, opts.specTimeout), maxWorkers: 1 };
+        if (command === 'validate') {
+            const results = validate(engine, opts.files);
+            const output = formatValidation(results); // ✔ / ✘ / ! lines on stdout
+            if (output)
+                console.log(output);
+            process.exitCode = results.some((result) => result.error) ? 1 : 0;
+        }
+        else {
+            process.exitCode = (await runSuite(engine, opts)).status === 'pass' ? 0 : 1;
+        }
+    }
+    catch (error) {
+        const message = error instanceof UsageError ? `usage: ${bin} [--timeout 15000] ${usage}[suite options] mcp | validate <files...> | <spec.yaml|dir|glob> [more ...]`
+            : error instanceof Error ? error.message : error;
+        console.error(`${bin}: ${message}`);
+        process.exitCode = 2;
+    }
+}

@@ -9,7 +9,7 @@
 // Needs a Jev key. Build first (npm run build).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { loadEnvFiles, pickElements, decide } from '../dist/jev.js';
+import { loadEnvFiles, pickElements, decide } from '../dist/jev/jev.js';
 
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, goal: { type: 'string', default: 'both' }, only: { type: 'string' }, out: { type: 'string' } } });
 loadEnvFiles();
