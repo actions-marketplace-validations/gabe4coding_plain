@@ -78,7 +78,8 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
   // Capture is off until a dir is set; the modes alone change nothing.
   const dir = asString(values.artifacts ?? config.artifacts?.dir);
   const screenshot = mode('screenshot', values.screenshot ?? config.artifacts?.screenshot ?? 'on-failure');
-  const trace = mode('trace', values.trace ?? config.artifacts?.trace ?? 'on-failure');
+  // Desktop/mobile have no trace: default off there, so --artifacts alone works; an explicit mode still errors (lane B).
+  const trace = mode('trace', values.trace ?? config.artifacts?.trace ?? (engine === 'browser' ? 'on-failure' : 'off'));
   if (!dir && (values.screenshot !== undefined || values.trace !== undefined))
     console.error('plainwright: --screenshot and --trace have no effect without --artifacts <dir>');
   const files = expandFiles(paths, cwd);

@@ -104,13 +104,13 @@ test('on-failure screenshots capture failures across all engines, excluding pass
   }
 });
 
-test('always screenshots include every step and final; off removes empty attempts', async (t) => {
+test('always adds final.png to failure-only step shots; off removes empty attempts', async (t) => {
   const dir = temp(t);
   const observer = artifactsObserver(options(dir, 'always'))!;
   await start(observer);
   const artifacts = await attempt(observer, target(), info, 'pass');
-  assert.deepEqual(artifacts.map((a) => path.basename(a.path)), ['step-0-pass.png', 'final.png']);
-  assert.equal(artifacts[1].step, undefined);
+  assert.deepEqual(artifacts.map((a) => path.basename(a.path)), ['final.png']);
+  assert.equal(artifacts[0].step, undefined);
   const off = artifactsObserver(options(dir, 'off'))!;
   await start(off);
   assert.deepEqual(await attempt(off, target()), []);

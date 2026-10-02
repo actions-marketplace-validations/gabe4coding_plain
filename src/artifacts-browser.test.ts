@@ -75,7 +75,7 @@ test('runner marks actual CDP sessions so artifact capture leaves attached conte
   assert.equal(result.status, 'pass');
   assert.ok(attached);
   assert.ok(browser.isConnected());
-  assert.deepEqual(artifacts.map((a) => a.kind), ['screenshot', 'screenshot']);
+  assert.deepEqual(artifacts.map((a) => path.basename(a.path)), ['final.png']); // `always`: failure shots + final
   assert.equal(messages.filter((message) => message.includes('tracing skipped for --cdp')).length, 1);
   assert.ok(!artifacts.some((a) => a.path.endsWith('trace.zip')));
 });

@@ -13,23 +13,23 @@ plainwright --headless --artifacts plainwright-results tests/
 | `--screenshot MODE` | `off`, `on-failure`, `always` | `on-failure` |
 | `--trace MODE` | `off`, `on-failure`, `always` | `on-failure` |
 
-`--screenshot` and `--trace` alone print one warning and do not enable capture. A config file can
-also set `artifacts.dir`, `artifacts.screenshot`, and `artifacts.trace` once config support is
-available. Explicit flags override config values.
+`--screenshot` and `--trace` alone print one warning and do not enable capture. The config file can
+also set `artifacts.dir`, `artifacts.screenshot` and `artifacts.trace`
+([selection and config](selection-and-config.md)); explicit flags override config values.
 
 Screenshots work on browser, desktop, and mobile. `on-failure` captures each step whose status is
-`fail`, `error`, or `inconclusive`; `skipped` steps do not trigger it. `always` captures every step
-and adds `final.png` after teardown while the session is still open. `off` disables screenshots.
+`fail`, `error`, or `inconclusive`; `skipped` steps do not trigger it. `always` does the same and
+adds `final.png` after teardown while the session is still open. `off` disables screenshots.
 
 Traces are browser-only. `on-failure` records the session and retains the trace when the attempt
 does not pass; passing traces are discarded. `always` retains traces even for passing attempts.
 Tracing is skipped with one note per run when using `--cdp`, because it would record the user's
 other tabs in the attached context. Screenshots and dumps remain available. For desktop or
-mobile, use `--trace off`; any other trace mode with capture enabled is a configuration error:
+mobile the trace default is `off`; asking for any other trace mode is a configuration error:
 
 ```sh
-plainwright-computer --artifacts plainwright-results --trace off tests/desktop.yaml
-plainwright-mobile --artifacts plainwright-results --trace off tests/mobile.yaml
+plainwright-computer --artifacts plainwright-results tests/desktop.yaml
+plainwright-mobile --artifacts plainwright-results tests/mobile.yaml
 ```
 
 Jev debug JSON referenced by a step's `detail` is copied from the temporary `plainwright/`
@@ -58,10 +58,17 @@ Artifact entries contain absolute paths and a step index when tied to a step. Em
 folders are removed.
 
 At run start, a missing or empty output directory receives the `.plainwright-results` marker.
-A marked directory is emptied for the new run. A nonempty unmarked directory is left untouched
-and capture is disabled with `<dir> exists and was not created by plainwright`. Symlinked output
-directories and symlinked markers are refused. Use a dedicated output directory; do not put
-unrelated files inside it or add the marker to an existing folder.
+In a marked directory, the spec folders of the previous run (folders that hold only `attempt-N`
+folders) are deleted; any other file or folder is left alone. A nonempty unmarked directory is
+left untouched. The output directory may not be the working directory or one of its parents, the
+home folder, the filesystem root, or a folder that contains a spec being run. Symlinked output
+directories and symlinked markers are refused. In each of these cases capture is disabled for the
+run with one warning and the specs still run, so a CI job gets no artifacts: use a dedicated
+directory such as `plainwright-results`.
+
+Two runs must not share one output directory at the same time (for example a browser and a
+mobile job on one CI machine): the second run clears the first one's previous results. Give each
+job its own directory.
 
 ## Inspect and upload
 

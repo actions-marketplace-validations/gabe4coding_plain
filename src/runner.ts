@@ -245,7 +245,7 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
   try { session = await openSession(spec, opts, track); }
   catch (error) { hooksRunner?.close(); throw error; }
   const target: CaptureTarget = { engine: 'browser', cdp: !!opts.cdp, page: () => session.ctx.page,
-    screenshot: async (file) => { fs.mkdirSync(path.dirname(file), { recursive: true }); await session.ctx.page.screenshot({ path: file }); } };
+    screenshot: async (file) => { fs.mkdirSync(path.dirname(file), { recursive: true }); await session.ctx.page.screenshot({ path: file, timeout: 10_000 }); } }; // capped: a step cut by the spec timeout may still hold the page
   const observe = observerCalls(observer, info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 });
   const record = async (result: StepResult): Promise<void> => {
     const index = steps.push(result) - 1;
