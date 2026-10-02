@@ -113,20 +113,26 @@ function toSnapshot(page, title, aria) {
     const marked = markUnchecked(shortenUrls(aria));
     return { url: page.url(), title, aria: marked.slice(0, ARIA_MAX_CHARS), truncated: marked.length > ARIA_MAX_CHARS };
 }
-/** A cap for an iframe's tree, only reached when the frame swaps its document during the look. */
+/**
+ * The cap of one iframe's tree. It is reached when the body goes away during the look (the ad sync frame removes
+ * its body on load) or a loading frame's parser stays blocked. A tree takes about 10 ms, also a 450 KB ad frame's,
+ * so the cost is only that a frame whose tree takes over 2 s to build is left out.
+ */
 const IFRAME_ARIA_MS = 2_000;
 /**
  * One iframe's tree, or null. An ad frame can remove its body (static.admaster.cc cookieSync.html does), and a
- * `body` locator then waits its whole timeout, 15 s per look, for one that never comes. So check first.
+ * `body` locator then waits its whole timeout, 15 s per look, for one that never comes. A parsed document without
+ * a body gets none later, so it is skipped; only a document still loading can get its body from the parser.
  */
 async function iframeAria(frame) {
     try {
-        if (!(await frame.evaluate(() => document.body !== null)))
+        const state = await frame.evaluate(() => (document.body ? 'body' : document.readyState));
+        if (state !== 'body' && state !== 'loading')
             return null;
         return await frame.locator('body').ariaSnapshot({ timeout: IFRAME_ARIA_MS });
     }
     catch {
-        return null; // detached or cross-origin
+        return null; // detached or cross-origin, or no body within IFRAME_ARIA_MS
     }
 }
 /** The page's accessibility tree, each iframe's tree appended under its own header. An empty iframe has none. */
