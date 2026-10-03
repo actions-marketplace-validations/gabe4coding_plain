@@ -14,6 +14,8 @@ Playwright acts, the Jev model decides: it picks the element your words describe
 claim holds against the page's accessibility tree. You never see the page. You write words Jev can answer
 with one clear yes. The lever is wording, not thresholds.
 
+In Claude Code the plugin also draws a session pane (`/plainwright-pane`) with each step's status and Jev tokens; it does not change any tool result.
+
 ## Two modes, pick one first
 
 **REQUIRED: before the first tool call, Read the file for your mode** (it sits next to this file):

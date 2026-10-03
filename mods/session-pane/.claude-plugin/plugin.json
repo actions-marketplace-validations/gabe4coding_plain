@@ -1,0 +1,6 @@
+{
+  "name": "plainwright-session-pane",
+  "version": "0.0.0",
+  "description": "Development copy of the plainwright session pane mod; scripts/build-plugins.mjs copies its hooks/ into each plugin",
+  "author": { "name": "Gabriele Pavanello" }
+}

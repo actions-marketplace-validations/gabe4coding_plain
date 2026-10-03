@@ -236,6 +236,11 @@ Source layout (tests sit next to their module):
   manifest, its skill, and a generated `runtime.tgz`. Both root marketplaces point at these directories.
   Keep identity/version/description aligned across each plugin's manifests. Browser skill lives at
   `plugins/plainwright/skills/using-plainwright/` (SKILL.md, browsing.md, authoring.md).
+- `mods/session-pane/` — a Claude Code mod (session pane) that observes each plugin's MCP tool results and draws
+  them; `hooks/session-pane/` holds `model.ts` (pure state), `view.ts` (pure tree) and `register.ts` (the only mods
+  API user). `scripts/build-plugins.mjs` copies `hooks/` into each plugin (tests excluded) and writes its
+  `config.ts`; never edit `plugins/*/hooks/`. Not compiled by `tsc`, not in `runtime.tgz`, invisible to Codex.
+  Tests: `npm run test:mods` (needs the `claude` CLI, outside `npm test`).
 - One root `package.json` and lockfile own all dependencies and all CLI binaries. `scripts/build-plugins.mjs`
   packages compiled runtime plus the root manifest/lockfile into the same archive for all plugins.
   `scripts/plugin-launcher.mjs` is copied into each plugin and caches the installed runtime by archive hash.

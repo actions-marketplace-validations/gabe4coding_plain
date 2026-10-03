@@ -228,6 +228,35 @@ These variables work in the browser, desktop and mobile MCP servers:
 The desktop and mobile servers read the env files too late for `PLAINWRIGHT_READ`. For them, set it in the
 environment of the process.
 
+## Session pane in Claude Code
+
+In Claude Code v2.1.287 or later, each plainwright plugin adds a session pane to the terminal and to the Desktop
+Code tab. The pane shows the page or app, the goal of the flow and the total Jev tokens. It also shows one line for
+each step, with its status and its Jev tokens. The status marks are ✓ pass, ✗ fail, ? inconclusive, ! error and
+– skipped.
+
+The pane opens on the first `open` of a session when the terminal has 144 columns or more. In a narrower terminal,
+a notice shows the command. `/plainwright-pane` shows the pane at any width. The desktop and mobile plugins use
+`/plainwright-computer-pane` and `/plainwright-mobile-pane`.
+
+The pane shows the session of the MCP server, not the conversation. After `/clear` or `/resume`, the pane keeps
+its lines, because the server keeps its steps.
+
+- **Save as spec** writes the passing steps to the path in the **Spec** field, with the `save` tool of the server.
+  The default path is a file name from the goal, in the working directory. The browser server saves all passing
+  steps since its first `open`, not only the steps of the current goal.
+- **Copy last failure** copies the last step with the status `fail`, `inconclusive` or `error`, as JSON. The JSON
+  has the step, its detail, its notes, the URL and `changed`.
+
+The pane does not change tool results. Claude reads the same results with the pane or without it. The pane shows
+nothing in `claude -p`, in the VS Code chat panel or in cloud sessions. Codex does not load it.
+
+No setting disables only this pane. You have two options:
+
+- Set `"disableAllHooks": true` in `~/.claude/settings.json`. This disables all installed mods and your settings
+  hooks. The MCP servers and the skills of the plugins continue to load.
+- Start Claude Code with `--safe-mode`. This disables all customizations for one session.
+
 ## Your real browser
 
 By default, each session is a new Chromium with no cookies and no logins. Three options change that:

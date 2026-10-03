@@ -68,6 +68,8 @@ On iOS, snapshots retain explicitly visible descendants of invisible layout cont
 visible form is missing from the snapshot, report a possible adapter/accessibility mismatch;
 do not assume the app exposes no controls or repeatedly tap unrelated navigation controls.
 
+In Claude Code the plugin also draws a session pane (`/plainwright-mobile-pane`) with each step's status and Jev tokens; it does not change any tool result.
+
 ## Act and verify
 
 `step` accepts one YAML-style action as JSON. Describe an unambiguous native control. `find`

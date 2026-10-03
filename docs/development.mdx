@@ -16,6 +16,7 @@ npx playwright install chromium
 npm run build    # compile src/ to dist/ and make the plugin runtime archives again
 npm test         # build, then run the tests in dist/**/*.test.js and scripts/*.test.mjs
 npm run check:docs
+npm run test:mods  # the session pane mod tests (claude plugin test). Needs the claude CLI. Not in npm test
 npm run verify   # the key-free gate: tests, docs, examples and plugin install
 ```
 
@@ -37,6 +38,10 @@ same check. The full writing rules are in `CLAUDE.md`, in the section "Documenta
 - Mobile requests from real WebdriverIO to a local Appium-protocol fixture, for Android and iOS.
 - MCP recording and replay of the saved specs.
 - The pre-PR hook, in a temporary repository with a git worktree.
+
+The session pane mod in `mods/session-pane/` has its own tests. `npm run test:mods` runs them with
+`claude plugin test`. If Anthropic disables installed mods for your account, the command prints a notice and
+returns exit code 0, but no test runs. The build copies the mod into each plugin, without the tests.
 
 These tests do not prove that a real device, simulator or desktop works. For that, use the
 [native smoke tests](#verification).
