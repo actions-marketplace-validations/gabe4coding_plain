@@ -69,6 +69,29 @@ customElements.define('x-consent', class extends HTMLElement {
     this.shadowRoot.querySelector('dialog').showModal();
   }
 });`),
+  // A script dialog, the Shoelace shape: a fixed layer in a shadow root with an overlay over the whole page and a
+  // role=dialog panel, a slotted button named like a background one, and a fade-out when it closes.
+  '/overlay': () => page('Newsletter', `<h1>Newsletter</h1>
+<button onclick="document.querySelector('#result').textContent='Background subscribe'">Subscribe</button>
+<button onclick="document.querySelector('#result').textContent += ', archive opened'">Open the archive</button>
+<p id="result" role="status"></p>
+<x-promo><p>Get the weekly digest.</p><button>Subscribe</button></x-promo>`,
+    `const promo = document.querySelector('x-promo');
+promo.attachShadow({mode:'open'}).innerHTML =
+  '<div class="base" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center">' +
+  '<div style="position:fixed;inset:0;background:#0008"></div>' +
+  '<div role="dialog" aria-modal="true" aria-label="Weekly digest" style="position:relative;background:white;padding:24px"><slot></slot></div></div>';
+promo.querySelector('button').onclick = () => {
+  document.querySelector('#result').textContent = 'Dialog subscribe';
+  const base = promo.shadowRoot.querySelector('.base');
+  base.animate([{ opacity: 1 }, { opacity: 0 }], 400).finished.then(() => promo.remove());
+};`),
+  // An aria-modal cookie bar at the bottom that leaves the page usable: nothing behind it is blocked.
+  '/cookie-bar': () => page('Shop', `<h1>Shop</h1>
+<button onclick="document.querySelector('#result').textContent='Added to cart'">Add to cart</button>
+<p id="result" role="status"></p>
+<div role="dialog" aria-modal="true" aria-label="Cookies" style="position:fixed;left:0;right:0;bottom:0;background:#eee;padding:12px">
+<button>Accept cookies</button></div>`),
   '/login': () => LOGIN(),
   '/login?error': () => LOGIN('<p role="alert">Your password is invalid!</p>'),
   '/secure': () => page('Secure Area', `<h1>Secure Area</h1><p role="status">You logged into a secure area!</p>

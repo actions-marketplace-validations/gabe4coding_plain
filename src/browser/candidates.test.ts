@@ -88,6 +88,43 @@ test('slotted controls take the modal dialog and inertness of the slot they rend
   assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc.split(' context:')[0]), ['button "Accept"']);
 });
 
+test('a script dialog whose fixed layer covers the viewport blocks every control and frame outside the layer', async () => {
+  // The Shoelace shape: a fixed base holding a fixed overlay and the role=dialog panel, in a shadow root, with a
+  // slotted button. A click on the background would hit the overlay.
+  await page.goto(html(`<button>Background</button><iframe srcdoc="<button>Framed</button>"></iframe>
+    <x-dialog><button>No, thanks</button></x-dialog>
+    <script>document.querySelector('x-dialog').attachShadow({mode:'open'}).innerHTML =
+      '<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center">' +
+      '<div style="position:fixed;inset:0;background:#0008"></div>' +
+      '<div role="dialog" aria-modal="true" style="position:relative;background:white;padding:20px"><slot></slot></div></div>'</script>`));
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc.split(' context:')[0]), ['button "No, thanks"']);
+});
+
+test('a script dialog still animating out is looked at again once its animation ends', async () => {
+  await page.goto(html(`<button>Background</button><div id="layer" style="position:fixed;inset:0;background:#0008">
+    <div role="dialog" aria-modal="true" style="background:white"><button>Close</button></div></div>
+    <script>document.querySelector('#layer button').onclick = () => {
+      const layer = document.querySelector('#layer');
+      layer.animate([{ opacity: 1 }, { opacity: 0 }], 400).finished.then(() => layer.remove());
+    }</script>`));
+  await page.locator('#layer button').click();
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['button "Background"']);
+});
+
+test('an aria-modal banner that leaves the page uncovered blocks nothing', async () => {
+  await page.goto(html(`<button>Background</button>
+    <div role="dialog" aria-modal="true" style="position:fixed;left:0;right:0;bottom:0;background:white">
+    <button>Accept cookies</button></div>`));
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc.split(' context:')[0]),
+    ['button "Accept cookies"', 'button "Background"']);
+});
+
+test('the inner part of a clickable shadow host is not a second candidate beside its host', async () => {
+  await page.goto(html(`<x-option role="option" style="cursor:pointer;display:block">Option 2</x-option>
+    <script>document.querySelector('x-option').attachShadow({mode:'open'}).innerHTML='<span><slot></slot></span>'</script>`));
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['x-option[role=option] "Option 2"']);
+});
+
 test('a shadow-root control is named by the text slotted into it', async () => {
   await page.goto(html(`<x-button>Necessary Only</x-button><x-button><i slot="start"></i> Accept All</x-button>
     <script>for (const host of document.querySelectorAll('x-button'))

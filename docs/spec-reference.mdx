@@ -161,6 +161,8 @@ An action step names a **target**: a sentence that Jev resolves to one element. 
 - `fill` supports editable hosts with `contenteditable=""`, `contenteditable="true"` or `contenteditable="plaintext-only"`.
 - Natural-language targets exclude `inert` subtrees and native controls disabled by a fieldset, including controls inside shadow roots and frames.
 - While a native modal dialog is open, targets come only from that dialog. The page and the frames behind it are excluded.
+- A script dialog whose overlay covers the whole page has the same effect. A banner that leaves the page usable, such as a
+  cookie bar at the bottom, excludes nothing.
 - If `scroll: bottom` reports `did not move`, the content scrolls inside an element. Scroll to an element in
   that area. A heading or a paragraph is not a `scroll` target.
 - `drag` moves the mouse in small steps, so native HTML5 drag and drop works.
