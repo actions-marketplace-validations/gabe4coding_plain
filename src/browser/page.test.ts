@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
 import { intelligence } from '../core/automation.js';
 import { candidates, elementById } from './candidates.js';
-import { installSettleObserver, mark, markUnchecked, settle, snapshot, unchangedSince, waitForMutation } from './page.js';
+import { installSettleObserver, mark, markUnchecked, settle, shortenUrls, snapshot, snapshotRegion, unchangedSince, waitForMutation } from './page.js';
 import { holdActivity, mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators } from './locate.js';
 import { settledAsk } from './settled-ask.js';
@@ -380,4 +380,83 @@ test('snapshot: an unchecked checkbox, radio or switch is marked checked=false',
   assert.match(aria, /- radio "b" \[checked\]$/m);
   assert.match(aria, /- switch "Wifi" \[checked=false\]/);
   assert.match(aria, /- checkbox \[checked=mixed\]/);
+});
+
+test('shortenUrls: a link target over 200 characters keeps its part before ? or #; shorter ones and other lines are kept', () => {
+  const query = 'x'.repeat(250);
+  const aria = [
+    '- link "Ad":',
+    `  - /url: https://ads.example/aclk?sa=l&ai=${query}`,
+    `  - /url: "https://ads.example/click#${query}"`,
+    `  - /url: /${'p'.repeat(300)}`,
+    '  - /url: https://example.com/search?q=shoes&page=2',
+    '  - /url: "#"',
+    `- text: /url: https://ads.example/aclk?${query}`,
+  ].join('\n');
+  assert.equal(shortenUrls(aria), [
+    '- link "Ad":',
+    '  - /url: https://ads.example/aclk…',
+    '  - /url: https://ads.example/click…',
+    `  - /url: /${'p'.repeat(199)}…`,
+    '  - /url: https://example.com/search?q=shoes&page=2',
+    '  - /url: "#"',
+    `- text: /url: https://ads.example/aclk?${query}`,
+  ].join('\n'));
+  assert.equal(shortenUrls(shortenUrls(aria)), shortenUrls(aria));
+});
+
+test('snapshot: an iframe with an empty tree gets no section; long link targets are cut; snapshotRegion marks a region', async () => {
+  await page.goto(html(`<p>outside</p><nav><a href="https://ads.example/aclk?sa=l&ai=${'y'.repeat(250)}">Sale</a></nav>` +
+    '<iframe name="empty" srcdoc="<body></body>"></iframe>' +
+    `<iframe name="filled" srcdoc="<button>Inside</button><a href='https://ads.example/aclk?sa=l&ai=${'x'.repeat(250)}'>Ad</a>"></iframe>`));
+  await page.frameLocator('iframe[name=filled]').getByRole('button').waitFor();
+  const snap = await snapshot(page);
+  assert.doesNotMatch(snap.aria, /--- iframe empty ---/);
+  assert.match(snap.aria, /--- iframe filled ---\n- button "Inside"/);
+  assert.equal(snap.region, undefined);
+  assert.match(snap.aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
+  assert.doesNotMatch(snap.aria, /aclk\?sa=l/);
+  const region = await snapshotRegion(page, page.locator('p'));
+  assert.equal(region.region, true);
+  assert.equal(region.aria, '- paragraph: outside');
+  const links = await snapshotRegion(page, page.locator('nav'));
+  assert.match(links.aria, /- \/url: https:\/\/ads\.example\/aclk…$/m);
+});
+
+test('snapshot: an iframe whose document has no body is skipped at once, not waited for', async () => {
+  // Ad sync frames (static.admaster.cc cookieSync.html) remove their body; a `body` locator then waits its whole timeout.
+  const timed = await browser.newPage();
+  timed.setDefaultTimeout(15_000);
+  try {
+    await timed.goto(html(`<p>outside</p><iframe name="bodyless" srcdoc="<script>addEventListener('load', () => document.body.remove())</script>"></iframe>` +
+      '<iframe name="filled" srcdoc="<button>Inside</button>"></iframe>'));
+    await timed.frameLocator('iframe[name=filled]').getByRole('button').waitFor();
+    await timed.frame('bodyless')!.waitForFunction(() => !document.body);
+    const start = performance.now();
+    const snap = await snapshot(timed);
+    assert.ok(performance.now() - start < 2_000, `snapshot took ${Math.round(performance.now() - start)} ms`);
+    assert.match(snap.aria, /^- paragraph: outside/);
+    assert.match(snap.aria, /--- iframe filled ---\n- button "Inside"/);
+    assert.doesNotMatch(snap.aria, /bodyless/);
+  } finally {
+    await timed.close();
+  }
+});
+
+test('snapshot: an iframe still parsing its head gets its body waited for', async () => {
+  const parsing = await browser.newPage();
+  await parsing.route('https://slow.test/head.js', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    await route.fulfill({ contentType: 'text/javascript', body: '' });
+  });
+  try {
+    await parsing.goto(html(`<p>outside</p><iframe name="parsing" srcdoc="<script src='https://slow.test/head.js'></script><button>Late</button>"></iframe>`),
+      { waitUntil: 'domcontentloaded' });
+    await parsing.waitForFunction(() => document.querySelector('iframe')?.contentDocument?.readyState === 'loading');
+    assert.equal(await parsing.frame('parsing')!.evaluate(() => document.body), null);
+    const snap = await snapshot(parsing);
+    assert.match(snap.aria, /--- iframe parsing ---\n- button "Late"/);
+  } finally {
+    await parsing.close();
+  }
 });

@@ -1,26 +1,29 @@
 #!/usr/bin/env node
 // Offline read benchmark: the MCP `read` tool (src/core/read.ts) against `snapshot {mode:"smart", intent}` on saved
-// pages (scripts/read-states/, refresh with capture-read-states.mjs) and questions with known answers
-// (scripts/read-cases.json). A case is right when every expected string is in what the tool returned, or,
-// for a `none` case, when read says not found. Reports Jev tokens and the characters an agent has to read.
+// pages (scripts/read-states/, refresh with capture-read-states.mjs; the ad pages of scripts/claim-states/) and
+// questions with known answers (scripts/read-cases.json). A case is right when every expected string is in what
+// the tool returned, or, for a `none` case, when read says not found. Reports Jev tokens and the characters an
+// agent has to read.
 //   node scripts/benchmark-read.mjs [--runs 1] [--only <page>] [--smart] [--labels short|full] [--dedupe on|off] [--out result.json]
 // Needs a Jev key. Build first (npm run build).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { loadEnvFiles } from '../dist/jev/provider.js';
 import { readAnswer, readOptions } from '../dist/core/read.js';
 import { snapshotView } from '../dist/core/snapshot-view.js';
-import { markUnchecked } from '../dist/browser/page.js';
+import { markUnchecked, shortenUrls } from '../dist/browser/page.js';
 
 loadEnvFiles();
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, only: { type: 'string' }, smart: { type: 'boolean', default: false }, labels: { type: 'string', default: 'short' }, dedupe: { type: 'string', default: 'on' }, out: { type: 'string' } } });
 readOptions.labels = values.labels;
 readOptions.dedupe = values.dedupe === 'on';
 const cases = JSON.parse(readFileSync(new URL('read-cases.json', import.meta.url), 'utf8')).filter((c) => !values.only || c.page === values.only);
-// The same tree a live snapshot() gives now, also for pages saved before a change to it (it is idempotent).
+// The same tree a live snapshot() gives now, also for pages saved before a change to it (both are idempotent).
 const state = (page) => {
-  const snap = JSON.parse(readFileSync(new URL(`read-states/${page}.json`, import.meta.url), 'utf8'));
-  return { ...snap, aria: markUnchecked(snap.aria) };
+  const file = ['read-states', 'claim-states'].map((dir) => new URL(`${dir}/${page}.json`, import.meta.url)).find((u) => existsSync(u));
+  if (!file) throw new Error(`no saved state for page "${page}" in scripts/read-states/ or scripts/claim-states/`);
+  const snap = JSON.parse(readFileSync(file, 'utf8'));
+  return { ...snap, aria: markUnchecked(shortenUrls(snap.aria)) };
 };
 const has = (text, c) => c.none ? false : c.expect.every((e) => text.includes(e));
 

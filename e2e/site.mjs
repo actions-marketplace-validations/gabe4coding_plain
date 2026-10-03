@@ -17,6 +17,16 @@ const LOGIN = (flash = '') => page('Login', `<h1>Login Page</h1>${flash}
   <button type="submit">Login</button>
 </form>`);
 
+const SWAP_ON_DROP = `let dragged;
+for (const box of document.querySelectorAll('[draggable]')) {
+  box.addEventListener('dragstart', () => dragged = box);
+  box.addEventListener('dragover', (e) => e.preventDefault());
+  box.addEventListener('drop', (e) => {
+    e.preventDefault();
+    [dragged.textContent, box.textContent] = [box.textContent, dragged.textContent];
+  });
+}`;
+
 const PAGES = {
   '/login': () => LOGIN(),
   '/login?error': () => LOGIN('<p role="alert">Your password is invalid!</p>'),
@@ -44,8 +54,10 @@ document.querySelector('#q').addEventListener('keydown', (e) => {
   `function out(text) { document.querySelector('#result').textContent = text; }`),
   '/new-window': () => page('New Window', '<h1>New Window</h1>'),
 
+  // The ad sync frame removes its body, like static.admaster.cc's cookieSync.html: a look must not wait for one.
   '/frames': () => page('Frames', `<h1>Frames</h1>
 <iframe title="Comment editor" srcdoc="${`<label>Comment <textarea></textarea></label>`.replaceAll('"', '&quot;')}"></iframe>
+<iframe title="Ad sync" srcdoc="<script>addEventListener('load', () => document.body.remove())</script>"></iframe>
 <shadow-counter></shadow-counter>`,
   `customElements.define('shadow-counter', class extends HTMLElement {
   connectedCallback() {
@@ -66,15 +78,17 @@ document.querySelector('#q').addEventListener('keydown', (e) => {
   <div draggable="true" role="region" aria-label="Column A" style="width:100px;height:100px;border:1px solid">A</div>
   <div draggable="true" role="region" aria-label="Column B" style="width:100px;height:100px;border:1px solid">B</div>
 </div>`,
-  `let dragged;
-for (const box of document.querySelectorAll('[draggable]')) {
-  box.addEventListener('dragstart', () => dragged = box);
-  box.addEventListener('dragover', (e) => e.preventDefault());
-  box.addEventListener('drop', (e) => {
-    e.preventDefault();
-    [dragged.textContent, box.textContent] = [box.textContent, dragged.textContent];
-  });
-}`),
+  SWAP_ON_DROP),
+
+  // Boxes with no role: the tree shows only their letters, `B A`. The ad frame holds a long tracking link.
+  '/boxes': () => page('Drag and Drop page for automation testing practice', `<h1>Drag and Drop</h1>
+<p>Drag box A onto box B, then check the letter in each box.</p>
+<div style="display:flex;gap:20px">
+  <div id="box-a" draggable="true" style="width:100px;height:100px;border:1px solid"><header>A</header></div>
+  <div id="box-b" draggable="true" style="width:100px;height:100px;border:1px solid"><header>B</header></div>
+</div>
+<iframe title="Advertisement" srcdoc="${`<a href="https://ads.example/aclk?sa=l&ai=${'Xy7'.repeat(500)}">Garden tools on sale</a>`.replaceAll('"', '&quot;')}"></iframe>`,
+  SWAP_ON_DROP),
 
   '/waits': () => page('Waits', `<h1>Waits</h1>
 <button onclick="setTimeout(() => document.querySelector('#done').innerHTML = '<h2>Report ready</h2>', 1500)">Build report</button>
