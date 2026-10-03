@@ -90,6 +90,11 @@ test('a batch adds one row per attempted step and gives the batch change to its 
   expect(counts(state)).toEqual({ steps: 2, passed: 1 });
 });
 
+test('a batch result without an index borrows no other step label', async () => {
+  const state = apply(emptyState(), 'browser', 'batch', { steps: [{ click: 'Next' }] }, { results: [{ status: 'pass' }] });
+  expect(state.rows.map((row) => row.label)).toEqual(['step']);
+});
+
 test('reads add a dim row and their tokens; save adds nothing', async () => {
   let state = apply(emptyState(), 'browser', 'ask', { claims: ['a', 'b'] }, { jevTokens: 50 });
   state = apply(state, 'browser', 'read', { question: 'the price' }, { jevTokens: 7 });
