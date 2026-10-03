@@ -365,6 +365,40 @@
    "target": "the Create repository button",
    "goal": "create a new repository about jev",
    "expect": []
+  },
+  {
+   "page": "candidate-editor",
+   "type": "clear",
+   "target": "the Article body textbox",
+   "goal": "write an article",
+   "expect": [
+    1
+   ]
+  },
+  {
+   "page": "candidate-editor",
+   "type": "clear",
+   "target": "the Notes textbox",
+   "goal": "write article notes",
+   "expect": [
+    2
+   ]
+  },
+  {
+   "page": "candidate-dialog",
+   "type": "clear",
+   "target": "the Continue button",
+   "goal": "confirm the dialog choice",
+   "expect": [
+    0
+   ]
+  },
+  {
+   "page": "candidate-dialog",
+   "type": "none",
+   "target": "the Browse product 0 button",
+   "goal": "browse products",
+   "expect": []
   }
  ]
 }

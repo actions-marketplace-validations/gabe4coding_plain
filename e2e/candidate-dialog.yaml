@@ -1,0 +1,8 @@
+name: click the active dialog without inert background controls
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /candidate-dialog
+  - click: the Continue button
+  - expect: the status message says "Dialog selected"

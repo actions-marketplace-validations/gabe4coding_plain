@@ -265,7 +265,9 @@ test('settlePage: waits for a young in-flight fetch even while the DOM is quiet'
   await page.goto('https://example.test/');
   await settlePage(page); // wires request tracking for this page
   await new Promise((r) => setTimeout(r, 400));
+  const requested = page.waitForEvent('request', { predicate: request => request.url().endsWith('/slow') });
   await page.evaluate(() => void fetch('/slow'));
+  await requested;
   const start = Date.now();
   await settlePage(page);
   const elapsed = Date.now() - start;

@@ -1,0 +1,12 @@
+name: fill empty and plaintext-only contenteditable editors
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /candidate-editor
+  - fill: { target: the Article body textbox, value: Research article }
+  - fill: { target: the Notes textbox, value: Research notes }
+  - click: the Save preview button
+  - expect:
+      - 'the Article preview shows "Article body: Research article"'
+      - 'the Article preview shows "Notes: Research notes"'

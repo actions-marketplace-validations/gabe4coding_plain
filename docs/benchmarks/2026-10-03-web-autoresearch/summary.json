@@ -1,0 +1,240 @@
+{
+  "date": "2026-10-03",
+  "baselineCommit": "74079f1b53ba9d70b7cf0d5c5b16be4066923c10",
+  "initialCheckoutCommit": "bcaf395e46937d81f30b87da0ef2c7a2700ddd11",
+  "transport": "Plainwright Web MCP over stdio, official MCP SDK client",
+  "jevModel": "jev-1.13.0",
+  "playwright": "1.63.0",
+  "runsPerArm": 3,
+  "websites": "Four disposable loopback websites (store dialog, account form, article editor, shadow dialog), plus the repository local demo site (login, forms, iframe/shadow).",
+  "before": {
+    "calls": 54,
+    "reportedJevTokens": 56475,
+    "actionResults": {
+      "pass": 15,
+      "inconclusive": 6,
+      "error": 0
+    },
+    "findings": 18
+  },
+  "after": {
+    "calls": 54,
+    "reportedJevTokens": 22653,
+    "actionResults": {
+      "pass": 21,
+      "inconclusive": 0,
+      "error": 0
+    },
+    "findings": 0
+  },
+  "scenarios": {
+    "modal": {
+      "before": {
+        "statuses": [
+          "pass",
+          "pass",
+          "pass"
+        ],
+        "tokens": [
+          11691,
+          11691,
+          11691
+        ],
+        "toolTimeMs": [
+          464,
+          444,
+          465
+        ]
+      },
+      "after": {
+        "statuses": [
+          "pass",
+          "pass",
+          "pass"
+        ],
+        "tokens": [
+          472,
+          472,
+          472
+        ],
+        "toolTimeMs": [
+          439,
+          441,
+          398
+        ]
+      }
+    },
+    "fieldset": {
+      "before": {
+        "statuses": [
+          "pass",
+          "pass",
+          "pass"
+        ],
+        "tokens": [
+          538,
+          538,
+          538
+        ],
+        "toolTimeMs": [
+          711,
+          667,
+          652
+        ]
+      },
+      "after": {
+        "statuses": [
+          "pass",
+          "pass",
+          "pass"
+        ],
+        "tokens": [
+          473,
+          473,
+          473
+        ],
+        "toolTimeMs": [
+          655,
+          644,
+          747
+        ]
+      }
+    },
+    "editor": {
+      "before": {
+        "statuses": [
+          "inconclusive",
+          "inconclusive",
+          "inconclusive"
+        ],
+        "tokens": [
+          459,
+          459,
+          459
+        ],
+        "toolTimeMs": [
+          168,
+          145,
+          200
+        ]
+      },
+      "after": {
+        "statuses": [
+          "pass",
+          "pass",
+          "pass"
+        ],
+        "tokens": [
+          526,
+          526,
+          526
+        ],
+        "toolTimeMs": [
+          681,
+          697,
+          700
+        ]
+      }
+    },
+    "shadow": {
+      "before": {
+        "statuses": [
+          "inconclusive",
+          "inconclusive",
+          "inconclusive"
+        ],
+        "tokens": [
+          513,
+          513,
+          513
+        ],
+        "toolTimeMs": [
+          162,
+          192,
+          206
+        ]
+      },
+      "after": {
+        "statuses": [
+          "pass",
+          "pass",
+          "pass"
+        ],
+        "tokens": [
+          456,
+          456,
+          456
+        ],
+        "toolTimeMs": [
+          418,
+          439,
+          404
+        ]
+      }
+    }
+  },
+  "targetingEval": {
+    "before": {
+      "existingCases": {
+        "on": {
+          "right": 112,
+          "wrong": 1,
+          "inconclusive": 5,
+          "error": 5
+        },
+        "off": {
+          "right": 83,
+          "wrong": 21,
+          "inconclusive": 16,
+          "error": 3
+        }
+      },
+      "newCases": {
+        "right": 0,
+        "wrong": 0,
+        "inconclusive": 0,
+        "error": 0
+      }
+    },
+    "after": {
+      "existingCases": {
+        "on": {
+          "right": 112,
+          "wrong": 0,
+          "inconclusive": 6,
+          "error": 5
+        },
+        "off": {
+          "right": 80,
+          "wrong": 21,
+          "inconclusive": 17,
+          "error": 5
+        }
+      },
+      "newCases": {
+        "right": 24,
+        "wrong": 0,
+        "inconclusive": 0,
+        "error": 0
+      }
+    }
+  },
+  "limitations": [
+    "Public demo websites are not allowed by the configured restricted HTTP destination policy; website experiments were local.",
+    "Times include Jev inference, MCP overhead and action completion; no speed improvement is claimed.",
+    "Token measurements are the MCP-reported counts and exclude startup warm-up calls.",
+    "Existing saved targeting cases had intermittent Jev 401 errors and borderline predictions in both arms. The goal-aware arm retained 112 right results; the arm without goals changed from 83 to 80. Its wrong results remained 21. Candidate snapshots and targeting code for existing cases are unchanged.",
+    "The baseline targeting eval ran on the initial checkout; targeting code and its 41 saved inputs are identical to the fetched latest main.",
+    "Playwright ariaSnapshot omits contenteditable textbox text; exact DOM checks and saved-preview e2e checks verify editor input.",
+    "The required external Codex review was attempted but the network proxy denied chatgpt.com with HTTP CONNECT 403; the diff was manually reviewed."
+  ],
+  "validation": {
+    "command": "node scripts/validate.mjs",
+    "note": "Research results above are separate from the complete repository gate. The chat reports the observed gate result."
+  },
+  "sourceHashes": {
+    "src/browser/candidates.ts": "396a50425f9762a7583da5ebc553722f393408f3c8ca8f6e84c365e01351330e",
+    "src/browser/frames.ts": "c4ea5c4869e748c12093314017451e5b21df1d115a88294b8056da654f0f8758",
+    "scripts/autoresearch-web.mjs": "cc88919967919840c0743fea3e392d49a552027c132472a35a78a3ad313431c8"
+  }
+}
