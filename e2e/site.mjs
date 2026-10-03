@@ -28,6 +28,70 @@ for (const box of document.querySelectorAll('[draggable]')) {
 }`;
 
 const PAGES = {
+  '/candidate-editor': () => page('Article editor', `<h1>Article editor</h1>
+<label>Title <input></label><div contenteditable role="textbox" aria-label="Article body" style="border:1px solid;padding:20px"></div>
+<div contenteditable="plaintext-only" role="textbox" aria-label="Notes" style="border:1px solid;padding:20px"></div>
+<button>Save preview</button><section aria-label="Article preview"><p id="article-preview"></p><p id="notes-preview"></p></section>`,
+    `document.querySelector('button').onclick = () => {
+  document.querySelector('#article-preview').textContent = 'Article body: ' + document.querySelector('[aria-label="Article body"]').textContent;
+  document.querySelector('#notes-preview').textContent = 'Notes: ' + document.querySelector('[aria-label="Notes"]').textContent;
+};`),
+  '/candidate-dialog': () => page('Store dialog', `<h1>Store</h1><main inert>
+${Array.from({ length: 180 }, (_, i) => `<button>Browse product ${i}</button>`).join('')}
+<button onclick="document.querySelector('#result').textContent='Background selected'">Continue</button>
+<div id="inactive-shadow"></div></main>
+<div role="dialog" aria-modal="true"><h2>Confirm choice</h2>
+<button onclick="document.querySelector('#result').textContent='Dialog selected'">Continue</button></div>
+<p id="result" role="status"></p>`,
+    `document.querySelector('#inactive-shadow').attachShadow({mode:'open'}).innerHTML='<button>Continue</button>';`),
+  // A long article, so the tree passes the snapshot cap, then a consent modal at the end of the body: a native
+  // modal dialog in a shadow root whose button labels are slotted. The list items are the Google Flights shape.
+  '/consent': () => page('Travel news', `<h1>Travel news</h1>
+<button onclick="document.querySelector('#result').textContent='Background accepted'">Accept All</button>
+<ul role="listbox" aria-label="City">${['Paris', 'Rome', 'Madrid'].map((city) =>
+    `<li role="option" onclick="document.querySelector('#result').textContent += ', ${city}'">${city}</li>`).join('')}</ul>
+<p id="result" role="status"></p>
+${Array.from({ length: 1200 }, (_, i) => `<p>Story ${i}: the regional rail timetable for the coming season changes on several lines.</p>`).join('')}
+<x-consent><h2 slot="title">We use cookies</h2><x-button data-choice="Necessary only">Necessary Only</x-button>
+<x-button data-choice="All accepted">Accept All</x-button></x-consent>`,
+    `customElements.define('x-button', class extends HTMLElement {
+  connectedCallback() {
+    this.attachShadow({mode:'open'}).innerHTML = '<button><slot></slot></button>';
+    this.shadowRoot.querySelector('button').onclick = () => {
+      document.querySelector('#result').textContent = this.dataset.choice;
+      this.closest('x-consent').shadowRoot.querySelector('dialog').close();
+    };
+  }
+});
+customElements.define('x-consent', class extends HTMLElement {
+  connectedCallback() {
+    this.attachShadow({mode:'open'}).innerHTML = '<dialog aria-label="Cookie consent"><slot name="title"></slot><slot></slot></dialog>';
+    this.shadowRoot.querySelector('dialog').showModal();
+  }
+});`),
+  // A script dialog, the Shoelace shape: a fixed layer in a shadow root with an overlay over the whole page and a
+  // role=dialog panel, a slotted button named like a background one, and a fade-out when it closes.
+  '/overlay': () => page('Newsletter', `<h1>Newsletter</h1>
+<button onclick="document.querySelector('#result').textContent='Background subscribe'">Subscribe</button>
+<button onclick="document.querySelector('#result').textContent += ', archive opened'">Open the archive</button>
+<p id="result" role="status"></p>
+<x-promo><p>Get the weekly digest.</p><button>Subscribe</button></x-promo>`,
+    `const promo = document.querySelector('x-promo');
+promo.attachShadow({mode:'open'}).innerHTML =
+  '<div class="base" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center">' +
+  '<div style="position:fixed;inset:0;background:#0008"></div>' +
+  '<div role="dialog" aria-modal="true" aria-label="Weekly digest" style="position:relative;background:white;padding:24px"><slot></slot></div></div>';
+promo.querySelector('button').onclick = () => {
+  document.querySelector('#result').textContent = 'Dialog subscribe';
+  const base = promo.shadowRoot.querySelector('.base');
+  base.animate([{ opacity: 1 }, { opacity: 0 }], 400).finished.then(() => promo.remove());
+};`),
+  // An aria-modal cookie bar at the bottom that leaves the page usable: nothing behind it is blocked.
+  '/cookie-bar': () => page('Shop', `<h1>Shop</h1>
+<button onclick="document.querySelector('#result').textContent='Added to cart'">Add to cart</button>
+<p id="result" role="status"></p>
+<div role="dialog" aria-modal="true" aria-label="Cookies" style="position:fixed;left:0;right:0;bottom:0;background:#eee;padding:12px">
+<button>Accept cookies</button></div>`),
   '/login': () => LOGIN(),
   '/login?error': () => LOGIN('<p role="alert">Your password is invalid!</p>'),
   '/secure': () => page('Secure Area', `<h1>Secure Area</h1><p role="status">You logged into a secure area!</p>

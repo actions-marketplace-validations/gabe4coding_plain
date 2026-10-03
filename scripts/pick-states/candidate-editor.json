@@ -1,0 +1,25 @@
+{
+  "url": "http://127.0.0.1:45087/candidate-editor",
+  "title": "Article editor",
+  "kind": "fill",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "input label=\"Title\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 1,
+      "desc": "div[role=textbox] aria-label=\"Article body\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 2,
+      "desc": "div[role=textbox] aria-label=\"Notes\"",
+      "frameIndex": 0,
+      "editable": true
+    }
+  ]
+}

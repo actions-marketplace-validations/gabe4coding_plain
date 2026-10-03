@@ -1,0 +1,54 @@
+{
+  "url": "https://shoelace.style/components/select",
+  "title": "Select",
+  "kind": "click",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "a \"Web Awesome\" href=/ context: div heading=\"Shoelace is now !\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 1,
+      "desc": "a \"components\" href=/docs/components/",
+      "frameIndex": 0
+    },
+    {
+      "id": 2,
+      "desc": "a \"themes\" href=/docs/themes/",
+      "frameIndex": 0
+    },
+    {
+      "id": 3,
+      "desc": "a \"utilities\" href=/docs/utilities/",
+      "frameIndex": 0
+    },
+    {
+      "id": 4,
+      "desc": "a \"patterns\" href=/docs/patterns/",
+      "frameIndex": 0
+    },
+    {
+      "id": 5,
+      "desc": "a \"Migrate to Web Awesome!\" href=/docs/resources/migrating-from-shoelace",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 6,
+      "desc": "button[type=button][role=button] \"No, thanks\"",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 7,
+      "desc": "sl-button \"Migrate to Web Awesome!\" href=/docs/resources/migrating-from-shoelace",
+      "frameIndex": 0
+    },
+    {
+      "id": 8,
+      "desc": "sl-button \"No, thanks\"",
+      "frameIndex": 0
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+name: an aria-modal cookie bar that leaves the page usable blocks nothing
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /cookie-bar
+  - click: the Add to cart button
+  - expect: the status message says "Added to cart"

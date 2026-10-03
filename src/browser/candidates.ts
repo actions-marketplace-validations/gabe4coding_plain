@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Page, Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Candidate } from '../core/automation.js';
-import { frameLabel } from './frames.js';
+import { blockersIn, frameLabel, frameIsInert, releaseBlockers, type BlockerCache } from './frames.js';
 
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 export type CandidateKind = z.infer<typeof CandidateKindSchema>;
@@ -15,7 +15,7 @@ const SELECTORS: Record<CandidateKind, string> = {
   // Hover targets are often plain images with no clickable signal.
   [StepKind.hover]: `${CLICK_SELECTOR}, img, svg, figure`,
   [StepKind.fill]: 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), ' +
-    'textarea, [contenteditable=true]',
+    'textarea, [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only]',
   [StepKind.select]: 'select',
   // Toggles that keep their state in aria-pressed/aria-checked count too: `check` reads that state before acting.
   [StepKind.check]: 'input[type=checkbox], input[type=radio], [role=checkbox], [role=radio], [role=switch], [role=menuitemcheckbox], ' +
@@ -36,6 +36,8 @@ interface ScanOptions {
   listsOfThings: boolean;
   /** `upload`: file inputs are usually hidden. */
   skipVisibility: boolean;
+  /** A script dialog's layer over the page (layer.ts): what is outside it is covered. */
+  layer: Element | null;
   max: number;
   startId: number;
 }
@@ -48,11 +50,11 @@ type ScannedCandidate = [desc: string, editable: boolean, state: string];
  * Order before the cap: an open dialog's content first (it blocks the rest), then the page, then nav and footer
  * (link farms); within each layer, selector matches before extras, in DOM order.
  */
-function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max, startId }: ScanOptions):
+function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, max, startId }: ScanOptions):
   ScannedCandidate[] {
   const DIALOG = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
   const PAGE_CHROME = 'nav, footer, [role=navigation], [role=contentinfo]';
-  const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=true], summary, label, [draggable=true]';
+  const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only], summary, label, [draggable=true]';
   const LAYER = { dialog: 0, page: 1, chrome: 2 };
   const MAX_TEXT = 60;
   const LABELABLE = new Set(['INPUT', 'SELECT', 'TEXTAREA', 'METER', 'PROGRESS', 'OUTPUT']);
@@ -70,7 +72,7 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     const style = styleOf(el);
     return style.visibility !== 'hidden' && style.display !== 'none';
   }
-  const enabled = (el: Element) => !(el as HTMLButtonElement).disabled && el.getAttribute('aria-disabled') !== 'true';
+  const enabled = (el: Element) => !el.matches(':disabled') && el.getAttribute('aria-disabled') !== 'true';
   function truncate(text: string, max: number): string {
     const flat = text.trim().replace(/\s+/g, ' ');
     return flat.length > max ? flat.slice(0, max) + '…' : flat;
@@ -87,12 +89,23 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     return truncate(texts.join(' '), MAX_TEXT);
   }
 
+  /** The text a shadow-root element shows through its slots, which innerText leaves out. */
+  function slottedText(node: Node): string {
+    const parts = node instanceof HTMLSlotElement ? node.assignedNodes({ flatten: true }) : Array.from(node.childNodes);
+    return parts.map((child) => child instanceof HTMLSlotElement ? slottedText(child)
+      : child instanceof HTMLElement ? (child.innerText || slottedText(child)) : child.nodeType === Node.TEXT_NODE ? child.textContent : '')
+      .join(' ');
+  }
+
   function describe(el: Element): string {
     const type = el.getAttribute('type');
     const role = el.getAttribute('role');
     const parts = [el.tagName.toLowerCase() + (type ? `[type=${type}]` : '') + (role ? `[role=${role}]` : '')];
-    const text = (el as HTMLElement).innerText ?? el.textContent ?? '';
-    const value = (el as HTMLInputElement).value;
+    const ownText = (el as HTMLElement).innerText ?? el.textContent ?? '';
+    const text = ownText.trim() || !el.querySelector('slot') ? ownText : slottedText(el);
+    // Only form controls have a string value: an <li>'s or a <progress>'s is a number.
+    const rawValue = (el as HTMLInputElement).value;
+    const value = typeof rawValue === 'string' ? rawValue : '';
     if (text && text.trim()) parts.push(`"${truncate(text, MAX_TEXT)}"`);
     else if (value) parts.push(`value="${truncate(value, MAX_TEXT)}"`);
     // An input's own text is empty: its <label> (wrapping or for=) is often the only name it has.
@@ -229,29 +242,64 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     return items.length >= 2 && (el.textContent ?? '').replace(/\s+/g, ' ').trim().length / items.length >= 40;
   }
 
+  /** A pointer inside a pointer is part of one control; a shadow root's top element looks to its host. */
+  function pointerParent(el: Element): boolean {
+    const root = el.getRootNode();
+    const parent = el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+    return parent !== null && isPointer(parent);
+  }
+
   // Sort key: layer * 2, + 1 for an extra.
-  const found: { el: Element; key: number }[] = [];
+  const found: { el: Element; key: number; inModal: boolean }[] = [];
+  // An open showModal() dialog makes everything outside it inert, with no inert attribute to see.
+  let modalOpen = false;
   // The previous scan's tags are removed after the walk: a write between style reads would make each read recompute.
   const staleTags: Element[] = [];
-  function visit(el: Element, layer: number) {
+  // A slotted element renders inside its slot, so it takes the slot's layer, inertness and modal dialog, not its
+  // host's. A host's shadow tree is walked before its children, so each slot is known when its elements come.
+  const slotContext = new Map<Element, [number, boolean, boolean]>();
+  function visit(el: Element, layer: number, inert: boolean, inModal: boolean) {
+    const slotted = el.assignedSlot && slotContext.get(el.assignedSlot);
+    if (slotted) [layer, inert, inModal] = slotted;
     if (el.hasAttribute('data-jev-id')) staleTags.push(el);
+    const modal = el.matches('dialog:modal');
+    modalOpen ||= modal;
+    inModal ||= modal;
+    // showModal() dialogs escape inherited inertness, but an explicit inert on the dialog still applies.
+    inert = (inert && !modal) || el.hasAttribute('inert');
     if (el.matches(DIALOG)) layer = LAYER.dialog;
     else if (layer === LAYER.page && el.matches(PAGE_CHROME)) layer = LAYER.chrome;
-    if (el.matches(selector)) {
-      if (!listsOfThings || !isPlainList(el) || listsThings(el)) found.push({ el, key: layer * 2 });
-    } else if (labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control)) {
-      found.push({ el, key: layer * 2 });
-    } else if (includeExtras && !(el instanceof SVGElement)
-      && (el.matches(EXTRA) || (isPointer(el) && !(el.parentElement && isPointer(el.parentElement))))) {
-      found.push({ el, key: layer * 2 + 1 });
+    if (el instanceof HTMLSlotElement) slotContext.set(el, [layer, inert, inModal]);
+    if (!inert && el.matches(selector)) {
+      if (!listsOfThings || !isPlainList(el) || listsThings(el)) found.push({ el, key: layer * 2, inModal });
+    } else if (!inert && labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control) && enabled(el.control!)) {
+      found.push({ el, key: layer * 2, inModal });
+    } else if (!inert && includeExtras && !(el instanceof SVGElement)
+      && (el.matches(EXTRA) || (isPointer(el) && !pointerParent(el)))) {
+      found.push({ el, key: layer * 2 + 1, inModal });
     }
-    if (el.shadowRoot) for (const child of Array.from(el.shadowRoot.children)) visit(child, layer);
-    for (const child of Array.from(el.children)) visit(child, layer);
+    if (el.shadowRoot) for (const child of Array.from(el.shadowRoot.children)) visit(child, layer, inert, inModal);
+    for (const child of Array.from(el.children)) visit(child, layer, inert, inModal);
   }
-  if (document.body) for (const child of Array.from(document.body.children)) visit(child, LAYER.page);
+  if (document.body) {
+    const inert = document.body.hasAttribute('inert') || document.documentElement.hasAttribute('inert');
+    for (const child of Array.from(document.body.children)) visit(child, LAYER.page, inert, false);
+  }
   for (const el of staleTags) el.removeAttribute('data-jev-id');
 
+  // Flat tree, like the layer: a slotted element is inside the box its slot renders in.
+  function flatParent(el: Element): Element | null {
+    const root = el.getRootNode();
+    return el.assignedSlot ?? el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+  }
+  function inLayer(el: Element): boolean {
+    for (let at: Element | null = el; at; at = flatParent(at)) if (at === layer) return true;
+    return false;
+  }
+
   const kept = found
+    .filter(({ inModal }) => inModal || !modalOpen)
+    .filter(({ el }) => !layer || inLayer(el))
     .filter(({ el }) => (skipVisibility || visible(el)) && enabled(el))
     .sort((a, b) => a.key - b.key) // stable: DOM order within a key
     .map(({ el }) => el)
@@ -297,19 +345,26 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
     skipVisibility: kind === StepKind.upload,
   };
   const found: Candidate[] = [];
+  const blockers: BlockerCache = new Map();
   const frames = page.frames();
-  for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
-    const frame = frames[frameIndex];
-    let scanned: ScannedCandidate[];
-    try {
-      scanned = await frame.evaluate(scanCandidatesInPage, { ...options, max: max - found.length, startId: found.length });
-    } catch {
-      continue; // a detached or cross-origin frame
+  try {
+    for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
+      const frame = frames[frameIndex];
+      let scanned: ScannedCandidate[];
+      try {
+        if (await frameIsInert(frame, blockers)) continue;
+        const layer = (await blockersIn(frame, blockers))?.layer ?? null;
+        scanned = await frame.evaluate(scanCandidatesInPage, { ...options, layer, max: max - found.length, startId: found.length });
+      } catch {
+        continue; // a detached or cross-origin frame
+      }
+      const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
+      for (const [desc, editable, state] of scanned) {
+        found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
+      }
     }
-    const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
-    for (const [desc, editable, state] of scanned) {
-      found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
-    }
+  } finally {
+    await releaseBlockers(blockers);
   }
   return found;
 }

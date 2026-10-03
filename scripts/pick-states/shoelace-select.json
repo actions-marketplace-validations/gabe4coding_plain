@@ -1,0 +1,1762 @@
+{
+  "url": "https://shoelace.style/components/select",
+  "title": "Select",
+  "kind": "click",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "a \"Skip to main content\" id=\"skip-to-main\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 1,
+      "desc": "a title=\"View Shoelace on GitHub\" href=/shoelace-style/shoelace",
+      "frameIndex": 0
+    },
+    {
+      "id": 2,
+      "desc": "a title=\"Follow Shoelace on Twitter\" href=/shoelace_style",
+      "frameIndex": 0
+    },
+    {
+      "id": 3,
+      "desc": "button[type=button][role=button] title=\"Press \\ to toggle\"",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 4,
+      "desc": "a href=/",
+      "frameIndex": 0
+    },
+    {
+      "id": 5,
+      "desc": "a \"Code\" href=/shoelace-style/shoelace",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 6,
+      "desc": "a \"Star\" href=/shoelace-style/shoelace/stargazers",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 7,
+      "desc": "a \"Follow\" href=/shoelace_style",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 8,
+      "desc": "button[type=button] \"Search\" aria-label=\"Search\" title=\"Press / to search\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 9,
+      "desc": "a \"Select\" href=/components/select #1",
+      "frameIndex": 0
+    },
+    {
+      "id": 10,
+      "desc": "a \"Examples\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 11,
+      "desc": "a \"Labels\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 12,
+      "desc": "a \"Help Text\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 13,
+      "desc": "a \"Placeholders\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 14,
+      "desc": "a \"Clearable\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 15,
+      "desc": "a \"Filled Selects\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 16,
+      "desc": "a \"Pill\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 17,
+      "desc": "a \"Disabled\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 18,
+      "desc": "a \"Multiple\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 19,
+      "desc": "a \"Setting Initial Values\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 20,
+      "desc": "a \"Grouping Options\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 21,
+      "desc": "a \"Sizes\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 22,
+      "desc": "a \"Placement\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 23,
+      "desc": "a \"Prefix & Suffix\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 24,
+      "desc": "a \"Custom Tags\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 25,
+      "desc": "a \"Lazy loading options\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 26,
+      "desc": "a \"Importing\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 27,
+      "desc": "a \"Slots\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 28,
+      "desc": "a \"Properties\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 29,
+      "desc": "a \"Events\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 30,
+      "desc": "a \"Methods\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 31,
+      "desc": "a \"Parts\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 32,
+      "desc": "a \"Dependencies\" href=/components/select",
+      "frameIndex": 0
+    },
+    {
+      "id": 33,
+      "desc": "input[type=text][role=combobox] #1",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 34,
+      "desc": "input[type=text] #1",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 35,
+      "desc": "button[type=button] \"SOURCE\" #1 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 36,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #1 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 37,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #1 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 38,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #1 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 39,
+      "desc": "a \"form controls\" href=/getting-started/form-controls context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 40,
+      "desc": "a aria-label=\"Direct link to \"Examples\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 41,
+      "desc": "a aria-label=\"Direct link to \"Labels\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 42,
+      "desc": "input[type=text][role=combobox] #2",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 43,
+      "desc": "input[type=text] #2",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 44,
+      "desc": "button[type=button] \"SOURCE\" #2 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 45,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #2 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 46,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #2 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 47,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #2 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 48,
+      "desc": "a aria-label=\"Direct link to \"Help Text\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 49,
+      "desc": "input[type=text][role=combobox] #3",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 50,
+      "desc": "input[type=text] #3",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 51,
+      "desc": "button[type=button] \"SOURCE\" #3 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 52,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #3 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 53,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #3 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 54,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #3 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 55,
+      "desc": "a aria-label=\"Direct link to \"Placeholders\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 56,
+      "desc": "input[type=text][role=combobox] placeholder=\"Select one\"",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 57,
+      "desc": "input[type=text] #4",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 58,
+      "desc": "button[type=button] \"SOURCE\" #4 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 59,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #4 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 60,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #4 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 61,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #4 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 62,
+      "desc": "a aria-label=\"Direct link to \"Clearable\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 63,
+      "desc": "input[type=text][role=combobox] value=\"Option 1\"",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 64,
+      "desc": "input[type=text] value=\"option-1\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 65,
+      "desc": "button[type=button] aria-label=\"Clear entry\" #1",
+      "frameIndex": 0
+    },
+    {
+      "id": 66,
+      "desc": "button[type=button] \"SOURCE\" #5 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 67,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #5 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 68,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #5 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 69,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #5 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 70,
+      "desc": "a aria-label=\"Direct link to \"Filled Selects\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 71,
+      "desc": "input[type=text][role=combobox] #4",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 72,
+      "desc": "input[type=text] #5",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 73,
+      "desc": "button[type=button] \"SOURCE\" #6 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 74,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #6 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 75,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #6 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 76,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #6 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 77,
+      "desc": "a aria-label=\"Direct link to \"Pill\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 78,
+      "desc": "input[type=text][role=combobox] #5",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 79,
+      "desc": "input[type=text] #6",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 80,
+      "desc": "button[type=button] \"SOURCE\" #7 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 81,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #7 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 82,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #7 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 83,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #7 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 84,
+      "desc": "a aria-label=\"Direct link to \"Disabled\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 85,
+      "desc": "button[type=button] \"SOURCE\" #8 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 86,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #8 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 87,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #8 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 88,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #8 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 89,
+      "desc": "a aria-label=\"Direct link to \"Multiple\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 90,
+      "desc": "input[type=text][role=combobox] value=\"3 options selected\"",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 91,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #1",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 92,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #2",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 93,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #3",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 94,
+      "desc": "input[type=text] value=\"option-1, option-2, option-3\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 95,
+      "desc": "button[type=button] aria-label=\"Clear entry\" #2",
+      "frameIndex": 0
+    },
+    {
+      "id": 96,
+      "desc": "button[type=button] \"SOURCE\" #9 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 97,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #9 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 98,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #9 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 99,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #9 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 100,
+      "desc": "a aria-label=\"Direct link to \"Setting Initial Values\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 101,
+      "desc": "input[type=text][role=combobox] value=\"2 options selected\" #1",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 102,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #4",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 103,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #5",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 104,
+      "desc": "input[type=text] value=\"option-1, option-2\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 105,
+      "desc": "button[type=button] aria-label=\"Clear entry\" #3",
+      "frameIndex": 0
+    },
+    {
+      "id": 106,
+      "desc": "button[type=button] \"SOURCE\" #10 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 107,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #10 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 108,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #10 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 109,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #10 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 110,
+      "desc": "a aria-label=\"Direct link to \"Grouping Options\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 111,
+      "desc": "input[type=text][role=combobox] #6",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 112,
+      "desc": "input[type=text] #7",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 113,
+      "desc": "button[type=button] \"SOURCE\" #11 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 114,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #11 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 115,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #11 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 116,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #11 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 117,
+      "desc": "a aria-label=\"Direct link to \"Sizes\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 118,
+      "desc": "input[type=text][role=combobox] placeholder=\"Small\" #1",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 119,
+      "desc": "input[type=text] #8",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 120,
+      "desc": "input[type=text][role=combobox] placeholder=\"Medium\" #1",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 121,
+      "desc": "input[type=text] #9",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 122,
+      "desc": "input[type=text][role=combobox] placeholder=\"Large\" #1",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 123,
+      "desc": "input[type=text] #10",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 124,
+      "desc": "button[type=button] \"SOURCE\" #12 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 125,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #12 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 126,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #12 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 127,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #12 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 128,
+      "desc": "a aria-label=\"Direct link to \"Placement\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 129,
+      "desc": "input[type=text][role=combobox] #7",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 130,
+      "desc": "input[type=text] #11",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 131,
+      "desc": "button[type=button] \"SOURCE\" #13 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 132,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #13 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 133,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #13 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 134,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #13 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 135,
+      "desc": "a aria-label=\"Direct link to \"Prefix & Suffix\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 136,
+      "desc": "input[type=text][role=combobox] placeholder=\"Small\" #2",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 137,
+      "desc": "input[type=text] #12",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 138,
+      "desc": "input[type=text][role=combobox] placeholder=\"Medium\" #2",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 139,
+      "desc": "input[type=text] #13",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 140,
+      "desc": "input[type=text][role=combobox] placeholder=\"Large\" #2",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 141,
+      "desc": "input[type=text] #14",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 142,
+      "desc": "button[type=button] \"SOURCE\" #14 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 143,
+      "desc": "button[type=button] \"HTML\" title=\"Show HTML code\" #14 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 144,
+      "desc": "button[type=button] \"REACT\" title=\"Show React code\" #14 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 145,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #14 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 146,
+      "desc": "a aria-label=\"Direct link to \"Custom Tags\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 147,
+      "desc": "a \"Lit Template\" href=/docs/templates/overview/ context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 148,
+      "desc": "a \"HTMLElement\" href=/en-US/docs/Web/API/HTMLElement context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 149,
+      "desc": "a \"parts\" href=/getting-started/customizing/ context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 150,
+      "desc": "a \"::part()\" href=/en-US/docs/Web/CSS/::part context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 151,
+      "desc": "input[type=text][role=combobox] value=\"2 options selected\" placeholder=\"Select one\"",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 152,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #6",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 153,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #7",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 154,
+      "desc": "input[type=text] value=\"email, phone\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 155,
+      "desc": "button[type=button] aria-label=\"Clear entry\" #4",
+      "frameIndex": 0
+    },
+    {
+      "id": 156,
+      "desc": "button[type=button] \"SOURCE\" #15 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 157,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #15 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 158,
+      "desc": "a aria-label=\"Direct link to \"Lazy loading options\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 159,
+      "desc": "input[type=text][role=combobox] #8",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 160,
+      "desc": "input[type=text] #15",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 161,
+      "desc": "button[type=button][role=button] \"Add “foo” option\" #1",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 162,
+      "desc": "input[type=text][role=combobox] #9",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 163,
+      "desc": "input[type=text] #16",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 164,
+      "desc": "button[type=button][role=button] \"Add “foo” option\" #2",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 165,
+      "desc": "input[type=text][role=combobox] value=\"2 options selected\" #2",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 166,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #8",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 167,
+      "desc": "button[type=button][role=button] aria-label=\"Remove\" #9",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 168,
+      "desc": "input[type=text] value=\"bar, baz\"",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 169,
+      "desc": "button[type=button][role=button] \"Add “foo” option\" #3",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 170,
+      "desc": "input[type=text][role=combobox] value=\"No options selected\"",
+      "frameIndex": 0,
+      "editable": true,
+      "state": "aria-expanded=false aria-disabled=false"
+    },
+    {
+      "id": 171,
+      "desc": "input[type=text] #17",
+      "frameIndex": 0,
+      "editable": true
+    },
+    {
+      "id": 172,
+      "desc": "button[type=button][role=button] \"Add “foo” option\" #4",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 173,
+      "desc": "button[type=reset][role=button] \"Reset\"",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 174,
+      "desc": "button[type=submit][role=button] \"Show FormData\"",
+      "frameIndex": 0,
+      "state": "aria-disabled=false"
+    },
+    {
+      "id": 175,
+      "desc": "button[type=button] \"SOURCE\" #16 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-expanded=false"
+    },
+    {
+      "id": 176,
+      "desc": "button[type=button] title=\"Edit on CodePen\" #16 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 177,
+      "desc": "a aria-label=\"Direct link to \"Importing\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 178,
+      "desc": "a \"cherry pick\" href=/getting-started/installation context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 179,
+      "desc": "sl-tab[role=tab] \"Script\" id=\"sl-tab-1\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-selected=false aria-disabled=false"
+    },
+    {
+      "id": 180,
+      "desc": "sl-tab[role=tab] \"Import\" id=\"sl-tab-2\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-selected=false aria-disabled=false"
+    },
+    {
+      "id": 181,
+      "desc": "sl-tab[role=tab] \"Bundler\" id=\"sl-tab-3\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-selected=false aria-disabled=false"
+    },
+    {
+      "id": 182,
+      "desc": "sl-tab[role=tab] \"React\" id=\"sl-tab-4\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0,
+      "state": "aria-selected=false aria-disabled=false"
+    },
+    {
+      "id": 183,
+      "desc": "a aria-label=\"Direct link to \"Slots\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 184,
+      "desc": "a \"using slots\" href=/getting-started/usage context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 185,
+      "desc": "a aria-label=\"Direct link to \"Properties\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 186,
+      "desc": "a \"finished updating\" href=/getting-started/usage context: tr text=\"updateComplete A read-only promise that resolves when the component has .\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 187,
+      "desc": "a \"attributes and properties\" href=/getting-started/usage context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 188,
+      "desc": "a aria-label=\"Direct link to \"Events\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 189,
+      "desc": "a \"events\" href=/getting-started/usage context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 190,
+      "desc": "a aria-label=\"Direct link to \"Methods\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 191,
+      "desc": "a \"methods\" href=/getting-started/usage context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 192,
+      "desc": "a aria-label=\"Direct link to \"Parts\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 193,
+      "desc": "a \"customizing CSS parts\" href=/getting-started/customizing/ context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 194,
+      "desc": "a aria-label=\"Direct link to \"Dependencies\"\" href=/components/select context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 195,
+      "desc": "sl-button title=\"Press \\ to toggle\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 196,
+      "desc": "sl-button \"Code\" href=/shoelace-style/shoelace",
+      "frameIndex": 0
+    },
+    {
+      "id": 197,
+      "desc": "sl-button \"Star\" href=/shoelace-style/shoelace/stargazers",
+      "frameIndex": 0
+    },
+    {
+      "id": 198,
+      "desc": "sl-button \"Follow\" href=/shoelace_style",
+      "frameIndex": 0
+    },
+    {
+      "id": 199,
+      "desc": "div #1",
+      "frameIndex": 0
+    },
+    {
+      "id": 200,
+      "desc": "label \"Select one\" id=\"label\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 201,
+      "desc": "div #2",
+      "frameIndex": 0
+    },
+    {
+      "id": 202,
+      "desc": "label \"Experience\" id=\"label\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 203,
+      "desc": "div #3",
+      "frameIndex": 0
+    },
+    {
+      "id": 204,
+      "desc": "div #4",
+      "frameIndex": 0
+    },
+    {
+      "id": 205,
+      "desc": "div #5",
+      "frameIndex": 0
+    },
+    {
+      "id": 206,
+      "desc": "div #6",
+      "frameIndex": 0
+    },
+    {
+      "id": 207,
+      "desc": "div #7",
+      "frameIndex": 0
+    },
+    {
+      "id": 208,
+      "desc": "label \"Select a Few\" id=\"label\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 209,
+      "desc": "div \"Option 1 Option 2 Option 3\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 210,
+      "desc": "div \"Option 1 Option 2\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 211,
+      "desc": "div #8",
+      "frameIndex": 0
+    },
+    {
+      "id": 212,
+      "desc": "div #9",
+      "frameIndex": 0
+    },
+    {
+      "id": 213,
+      "desc": "div #10",
+      "frameIndex": 0
+    },
+    {
+      "id": 214,
+      "desc": "div #11",
+      "frameIndex": 0
+    },
+    {
+      "id": 215,
+      "desc": "div #12",
+      "frameIndex": 0
+    },
+    {
+      "id": 216,
+      "desc": "div \"New\" #1",
+      "frameIndex": 0
+    },
+    {
+      "id": 217,
+      "desc": "sl-icon name=\"house\" #1 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 218,
+      "desc": "sl-badge \"New\" #1 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 219,
+      "desc": "div \"New\" #2",
+      "frameIndex": 0
+    },
+    {
+      "id": 220,
+      "desc": "sl-icon name=\"house\" #2 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 221,
+      "desc": "sl-badge \"New\" #2 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 222,
+      "desc": "div \"New\" #3",
+      "frameIndex": 0
+    },
+    {
+      "id": 223,
+      "desc": "sl-icon name=\"house\" #3 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 224,
+      "desc": "sl-badge \"New\" #3 context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 225,
+      "desc": "div \"Email Phone\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 226,
+      "desc": "label \"Single select (with existing options)\" id=\"label\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 227,
+      "desc": "div #13",
+      "frameIndex": 0
+    },
+    {
+      "id": 228,
+      "desc": "sl-button[type=button] \"Add “foo” option\" #1",
+      "frameIndex": 0
+    },
+    {
+      "id": 229,
+      "desc": "label \"Single select (with no existing options)\" id=\"label\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 230,
+      "desc": "div #14",
+      "frameIndex": 0
+    },
+    {
+      "id": 231,
+      "desc": "sl-button[type=button] \"Add “foo” option\" #2",
+      "frameIndex": 0
+    },
+    {
+      "id": 232,
+      "desc": "label \"Multiple Select (with existing options)\" id=\"label\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 233,
+      "desc": "div \"Bar Baz\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 234,
+      "desc": "sl-button[type=button] \"Add “foo” option\" #3",
+      "frameIndex": 0
+    },
+    {
+      "id": 235,
+      "desc": "label \"Multiple Select (with no existing options)\" id=\"label\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 236,
+      "desc": "div #15",
+      "frameIndex": 0
+    },
+    {
+      "id": 237,
+      "desc": "sl-button[type=button] \"Add “foo” option\" #4",
+      "frameIndex": 0
+    },
+    {
+      "id": 238,
+      "desc": "sl-button[type=reset] \"Reset\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 239,
+      "desc": "sl-button[type=submit] \"Show FormData\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 240,
+      "desc": "div \"Script\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 241,
+      "desc": "div \"Import\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 242,
+      "desc": "div \"Bundler\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 243,
+      "desc": "div \"React\" context: div heading=\"Examples Labels Help Text Placeholders Clearable\" text=\"Selects allow you to choose items from a menu of predefined options. Option 1 Option 2 Option 3 Option 4 Option 5 Option 6 This component works with standard <f…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 244,
+      "desc": "a \"Home\" href=/",
+      "frameIndex": 0
+    },
+    {
+      "id": 245,
+      "desc": "a \"Installation\" href=/getting-started/installation",
+      "frameIndex": 0
+    },
+    {
+      "id": 246,
+      "desc": "a \"Usage\" href=/getting-started/usage",
+      "frameIndex": 0
+    },
+    {
+      "id": 247,
+      "desc": "a \"Themes\" href=/getting-started/themes",
+      "frameIndex": 0
+    },
+    {
+      "id": 248,
+      "desc": "a \"Customizing\" href=/getting-started/customizing",
+      "frameIndex": 0
+    },
+    {
+      "id": 249,
+      "desc": "a \"Form Controls\" href=/getting-started/form-controls",
+      "frameIndex": 0
+    },
+    {
+      "id": 250,
+      "desc": "a \"Localization\" href=/getting-started/localization",
+      "frameIndex": 0
+    },
+    {
+      "id": 251,
+      "desc": "a \"React\" href=/frameworks/react",
+      "frameIndex": 0
+    },
+    {
+      "id": 252,
+      "desc": "a \"Vue\" href=/frameworks/vue",
+      "frameIndex": 0
+    },
+    {
+      "id": 253,
+      "desc": "a \"Angular\" href=/frameworks/angular",
+      "frameIndex": 0
+    },
+    {
+      "id": 254,
+      "desc": "a \"Svelte\" href=/frameworks/svelte",
+      "frameIndex": 0
+    },
+    {
+      "id": 255,
+      "desc": "a \"Community\" href=/resources/community",
+      "frameIndex": 0
+    },
+    {
+      "id": 256,
+      "desc": "a \"Help & Support\" href=/shoelace-style/shoelace/discussions",
+      "frameIndex": 0
+    },
+    {
+      "id": 257,
+      "desc": "a \"Accessibility\" href=/resources/accessibility",
+      "frameIndex": 0
+    },
+    {
+      "id": 258,
+      "desc": "a \"Contributing\" href=/resources/contributing",
+      "frameIndex": 0
+    },
+    {
+      "id": 259,
+      "desc": "a \"Changelog\" href=/resources/changelog",
+      "frameIndex": 0
+    },
+    {
+      "id": 260,
+      "desc": "a \"Alert\" href=/components/alert",
+      "frameIndex": 0
+    },
+    {
+      "id": 261,
+      "desc": "a \"Animated Image\" href=/components/animated-image",
+      "frameIndex": 0
+    },
+    {
+      "id": 262,
+      "desc": "a \"Animation\" href=/components/animation",
+      "frameIndex": 0
+    },
+    {
+      "id": 263,
+      "desc": "a \"Avatar\" href=/components/avatar",
+      "frameIndex": 0
+    },
+    {
+      "id": 264,
+      "desc": "a \"Badge\" href=/components/badge",
+      "frameIndex": 0
+    },
+    {
+      "id": 265,
+      "desc": "a \"Breadcrumb\" href=/components/breadcrumb",
+      "frameIndex": 0
+    },
+    {
+      "id": 266,
+      "desc": "a \"Breadcrumb Item\" href=/components/breadcrumb-item",
+      "frameIndex": 0
+    },
+    {
+      "id": 267,
+      "desc": "a \"Button\" href=/components/button",
+      "frameIndex": 0
+    },
+    {
+      "id": 268,
+      "desc": "a \"Button Group\" href=/components/button-group",
+      "frameIndex": 0
+    },
+    {
+      "id": 269,
+      "desc": "a \"Card\" href=/components/card",
+      "frameIndex": 0
+    },
+    {
+      "id": 270,
+      "desc": "a \"Carousel\" href=/components/carousel",
+      "frameIndex": 0
+    },
+    {
+      "id": 271,
+      "desc": "a \"Carousel Item\" href=/components/carousel-item",
+      "frameIndex": 0
+    },
+    {
+      "id": 272,
+      "desc": "a \"Checkbox\" href=/components/checkbox",
+      "frameIndex": 0
+    },
+    {
+      "id": 273,
+      "desc": "a \"Color Picker\" href=/components/color-picker",
+      "frameIndex": 0
+    },
+    {
+      "id": 274,
+      "desc": "a \"Copy Button\" href=/components/copy-button",
+      "frameIndex": 0
+    },
+    {
+      "id": 275,
+      "desc": "a \"Details\" href=/components/details",
+      "frameIndex": 0
+    },
+    {
+      "id": 276,
+      "desc": "a \"Dialog\" href=/components/dialog",
+      "frameIndex": 0
+    },
+    {
+      "id": 277,
+      "desc": "a \"Divider\" href=/components/divider",
+      "frameIndex": 0
+    },
+    {
+      "id": 278,
+      "desc": "a \"Drawer\" href=/components/drawer",
+      "frameIndex": 0
+    },
+    {
+      "id": 279,
+      "desc": "a \"Dropdown\" href=/components/dropdown",
+      "frameIndex": 0
+    },
+    {
+      "id": 280,
+      "desc": "a \"Format Bytes\" href=/components/format-bytes",
+      "frameIndex": 0
+    },
+    {
+      "id": 281,
+      "desc": "a \"Format Date\" href=/components/format-date",
+      "frameIndex": 0
+    },
+    {
+      "id": 282,
+      "desc": "a \"Format Number\" href=/components/format-number",
+      "frameIndex": 0
+    },
+    {
+      "id": 283,
+      "desc": "a \"Icon\" href=/components/icon",
+      "frameIndex": 0
+    },
+    {
+      "id": 284,
+      "desc": "a \"Icon Button\" href=/components/icon-button",
+      "frameIndex": 0
+    },
+    {
+      "id": 285,
+      "desc": "a \"Image Comparer\" href=/components/image-comparer",
+      "frameIndex": 0
+    },
+    {
+      "id": 286,
+      "desc": "a \"Include\" href=/components/include",
+      "frameIndex": 0
+    },
+    {
+      "id": 287,
+      "desc": "a \"Input\" href=/components/input",
+      "frameIndex": 0
+    },
+    {
+      "id": 288,
+      "desc": "a \"Menu\" href=/components/menu",
+      "frameIndex": 0
+    },
+    {
+      "id": 289,
+      "desc": "a \"Menu Item\" href=/components/menu-item",
+      "frameIndex": 0
+    },
+    {
+      "id": 290,
+      "desc": "a \"Menu Label\" href=/components/menu-label",
+      "frameIndex": 0
+    },
+    {
+      "id": 291,
+      "desc": "a \"Mutation Observer\" href=/components/mutation-observer",
+      "frameIndex": 0
+    },
+    {
+      "id": 292,
+      "desc": "a \"Option\" href=/components/option",
+      "frameIndex": 0
+    },
+    {
+      "id": 293,
+      "desc": "a \"Popup\" href=/components/popup",
+      "frameIndex": 0
+    },
+    {
+      "id": 294,
+      "desc": "a \"Progress Bar\" href=/components/progress-bar",
+      "frameIndex": 0
+    },
+    {
+      "id": 295,
+      "desc": "a \"Progress Ring\" href=/components/progress-ring",
+      "frameIndex": 0
+    },
+    {
+      "id": 296,
+      "desc": "a \"QR Code\" href=/components/qr-code",
+      "frameIndex": 0
+    },
+    {
+      "id": 297,
+      "desc": "a \"Radio\" href=/components/radio",
+      "frameIndex": 0
+    },
+    {
+      "id": 298,
+      "desc": "a \"Radio Button\" href=/components/radio-button",
+      "frameIndex": 0
+    },
+    {
+      "id": 299,
+      "desc": "a \"Radio Group\" href=/components/radio-group",
+      "frameIndex": 0
+    },
+    {
+      "id": 300,
+      "desc": "a \"Range\" href=/components/range",
+      "frameIndex": 0
+    },
+    {
+      "id": 301,
+      "desc": "a \"Rating\" href=/components/rating",
+      "frameIndex": 0
+    },
+    {
+      "id": 302,
+      "desc": "a \"Relative Time\" href=/components/relative-time",
+      "frameIndex": 0
+    },
+    {
+      "id": 303,
+      "desc": "a \"Resize Observer\" href=/components/resize-observer",
+      "frameIndex": 0
+    },
+    {
+      "id": 304,
+      "desc": "a \"Select\" href=/components/select #2",
+      "frameIndex": 0
+    },
+    {
+      "id": 305,
+      "desc": "a \"Skeleton\" href=/components/skeleton",
+      "frameIndex": 0
+    },
+    {
+      "id": 306,
+      "desc": "a \"Spinner\" href=/components/spinner",
+      "frameIndex": 0
+    },
+    {
+      "id": 307,
+      "desc": "a \"Split Panel\" href=/components/split-panel",
+      "frameIndex": 0
+    },
+    {
+      "id": 308,
+      "desc": "a \"Switch\" href=/components/switch",
+      "frameIndex": 0
+    },
+    {
+      "id": 309,
+      "desc": "a \"Tab\" href=/components/tab",
+      "frameIndex": 0
+    },
+    {
+      "id": 310,
+      "desc": "a \"Tab Group\" href=/components/tab-group",
+      "frameIndex": 0
+    },
+    {
+      "id": 311,
+      "desc": "a \"Tab Panel\" href=/components/tab-panel",
+      "frameIndex": 0
+    },
+    {
+      "id": 312,
+      "desc": "a \"Tag\" href=/components/tag",
+      "frameIndex": 0
+    },
+    {
+      "id": 313,
+      "desc": "a \"Textarea\" href=/components/textarea",
+      "frameIndex": 0
+    },
+    {
+      "id": 314,
+      "desc": "a \"Tooltip\" href=/components/tooltip",
+      "frameIndex": 0
+    },
+    {
+      "id": 315,
+      "desc": "a \"Tree\" href=/components/tree",
+      "frameIndex": 0
+    },
+    {
+      "id": 316,
+      "desc": "a \"Tree Item\" href=/components/tree-item",
+      "frameIndex": 0
+    },
+    {
+      "id": 317,
+      "desc": "a \"Visually Hidden\" href=/components/visually-hidden",
+      "frameIndex": 0
+    },
+    {
+      "id": 318,
+      "desc": "a \"Typography\" href=/tokens/typography",
+      "frameIndex": 0
+    },
+    {
+      "id": 319,
+      "desc": "a \"Color\" href=/tokens/color",
+      "frameIndex": 0
+    },
+    {
+      "id": 320,
+      "desc": "a \"Spacing\" href=/tokens/spacing",
+      "frameIndex": 0
+    },
+    {
+      "id": 321,
+      "desc": "a \"Elevation\" href=/tokens/elevation",
+      "frameIndex": 0
+    },
+    {
+      "id": 322,
+      "desc": "a \"Border Radius\" href=/tokens/border-radius",
+      "frameIndex": 0
+    },
+    {
+      "id": 323,
+      "desc": "a \"Transition\" href=/tokens/transition",
+      "frameIndex": 0
+    },
+    {
+      "id": 324,
+      "desc": "a \"Z-index\" href=/tokens/z-index",
+      "frameIndex": 0
+    },
+    {
+      "id": 325,
+      "desc": "a \"More Tokens\" href=/tokens/more",
+      "frameIndex": 0
+    },
+    {
+      "id": 326,
+      "desc": "a \"Integrating with Astro\" href=/tutorials/integrating-with-astro",
+      "frameIndex": 0
+    },
+    {
+      "id": 327,
+      "desc": "a \"Integrating with Laravel\" href=/tutorials/integrating-with-laravel",
+      "frameIndex": 0
+    },
+    {
+      "id": 328,
+      "desc": "a \"Integrating with NextJS\" href=/tutorials/integrating-with-nextjs",
+      "frameIndex": 0
+    },
+    {
+      "id": 329,
+      "desc": "a \"Integrating with Rails\" href=/tutorials/integrating-with-rails",
+      "frameIndex": 0
+    }
+  ]
+}

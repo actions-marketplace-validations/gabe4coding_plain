@@ -1,0 +1,9 @@
+name: a script dialog covering the page, then the page after it fades out
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /overlay
+  - click: the Subscribe button
+  - click: the Open the archive button
+  - expect: the status message says "Dialog subscribe, archive opened"

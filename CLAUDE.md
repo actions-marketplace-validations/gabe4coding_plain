@@ -171,7 +171,19 @@ Source layout (tests sit next to their module):
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
   nav/footer, so a cookie banner appended at the end of the body is never cut.
-- `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
+  Empty and plaintext-only `contenteditable` hosts are fill targets. The walk excludes explicit `inert`
+  subtrees across shadow roots, with the native modal-dialog exemption; `frameIsInert` in `frames.ts` checks
+  embedding ancestors. `:disabled` respects fieldsets and their first legend exemption, also for hidden-toggle labels.
+  An open `dialog:modal` (also in a shadow root) leaves only its own descendants, and `frameIsInert` drops frames
+  outside it; it asks each parent document once per scan whether it has any `inert` or modal dialog at all, and
+  skips the per-frame ancestor look when it has neither. A script dialog's layer (`blockingLayer` in `layer.ts`: what the
+  viewport's corners and center hit sits in one fixed box holding a visible open dialog) excludes candidates and frames
+  outside it too; a layer still animating is looked at again when its animations end (`settledLayer`, at most 1 s).
+  A shadow root's top element looks to its host in the pointer-inside-pointer rule (`pointerParent`). Slotted elements take their slot's layer, inertness and modal dialog (`slotContext`), and a control
+  whose text comes only through slots is named by `slottedText`. `describe()` uses `value` only when it is a string
+  (an `<li>`'s is a number; one throw empties the whole frame's scan, since `candidates()` swallows frame errors).
+- `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; over the cap, each
+  open dialog the cut drops is appended whole under `--- open dialog ---` (`openDialogs`, at most half the cap); an unchecked
   checkable control gets `[checked=false]`, `markUnchecked`; empty iframes get no section; a parsed iframe document
   with no body (an ad sync frame) is skipped at once, since a `body` locator would wait out the action timeout, and
   one still loading gets its body waited for; an iframe's tree is capped at 2 s; a region snapshot is
@@ -182,7 +194,7 @@ Source layout (tests sit next to their module):
   both label iframes with `frameLabel()` (`src/browser/frames.ts`).
 - `src/jev/` — provider selection (`provider.ts`) and the `ask()` call to either backend (`ask.ts`); `pickElements()` (`pick.ts`) (one Choice per
   target; ≤254 candidates per request, more are split into equal chunks asked in parallel and merged by
-  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim, `judge.ts`); `decide()` (`decide.ts`): a claim passes at p ≥ 0.9, fails at
+  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; when two or more chunks of one pick are each sure of a different element, `pickElements` asks one runoff question over only those finalists and keeps its answer; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim, `judge.ts`); `decide()` (`decide.ts`): a claim passes at p ≥ 0.9, fails at
   p ≤ 0.1, else `inconclusive`; a pick is accepted when (`confidence` if TypeSafe returned one, else
   `probability`) ≥ 0.5 and the answer isn't `none`. A rejected pick or non-passing claim dumps the exact state
   to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/core/results.ts`). A pick's state carries the flow's `goal`
@@ -213,7 +225,7 @@ Source layout (tests sit next to their module):
   A setup error yields a single `setup` step and `error`, with no teardown; a teardown error always makes the
   run `error`. `src/suite/spec-timeout.ts` bounds steps by the remaining attempt budget; opening/setup consume it,
   cleanup is allowed to finish afterward. Optional steps cannot skip a spec timeout. Steps go through
-  `runStepSafely` (`src/browser/steps.ts`), shared with `src/browser/mcp.ts`: errors become results, optional misses become `skipped`.
+  `runStepSafely` (`src/browser/steps.ts`), shared with `src/browser/mcp.ts`: errors become results (a Playwright call log is cut to its first line plus the last line that gives a reason, `actionError`), optional misses become `skipped`.
 - Hooks contract: an ES module next to the spec (`hooks:`, resolved relative to the spec file) with optional
   `setup({spec})` (its return becomes `${hooks.*}`) and `teardown({spec, data, result})`, run in its own child
   process (`src/core/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks

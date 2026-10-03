@@ -1,0 +1,1636 @@
+{
+  "runs": 3,
+  "cli": "/workspace/plainwright/dist/cli.js",
+  "report": [
+    {
+      "run": 1,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/login"
+      },
+      "ms": 144,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/login",
+        "title": "Login",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "fill": {
+              "target": "the Username field",
+              "value": "tomsmith"
+            }
+          },
+          {
+            "fill": {
+              "target": "the Password field",
+              "value": "SuperSecretPassword!"
+            }
+          },
+          {
+            "click": "the Login button"
+          },
+          {
+            "expect": "the Secure Area heading is shown"
+          }
+        ]
+      },
+      "ms": 1436,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ input label=\"Username\" name=\"username\" (p=0.99 c=0.99)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/login",
+            "jevTokens": 531
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ input[type=password] label=\"Password\" name=\"password\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/login",
+            "jevTokens": 543
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "→ button[type=submit] \"Login\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/secure",
+            "jevTokens": 718
+          },
+          {
+            "index": 3,
+            "status": "pass",
+            "detail": "p=0.98 @ http://127.0.0.1:40553/secure",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/secure",
+            "jevTokens": 380
+          }
+        ],
+        "completed": 4,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/secure",
+        "jevTokens": 2172,
+        "changed": {
+          "title": "Secure Area",
+          "url": "http://127.0.0.1:40553/secure",
+          "added": [
+            "  - heading \"Secure Area\" [level=1]",
+            "  - status: You logged into a secure area!",
+            "  - link \"Logout\":",
+            "    - /url: /login"
+          ],
+          "addedOmitted": 0,
+          "removed": 6
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/forms"
+      },
+      "ms": 17,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/forms",
+        "title": "Forms",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "select": {
+              "target": "the Size dropdown",
+              "value": "Large"
+            }
+          },
+          {
+            "check": "the Cheese checkbox"
+          },
+          {
+            "fill": {
+              "target": "the Search field",
+              "value": "research"
+            }
+          },
+          {
+            "press": "Enter"
+          },
+          {
+            "wait": "Results for research is visible"
+          }
+        ]
+      },
+      "ms": 1228,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ select \"Please select Small Large\" label=\"Size\" (p=0.98 c=0.97)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 470
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ input[type=checkbox] value=\"on\" label=\"Cheese\" context: form name=\"Toppings\" (p=1.00 c=1.00) now checked",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 589
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "→ input label=\"Search\" id=\"q\" (p=0.99 c=0.98)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 466
+          },
+          {
+            "index": 3,
+            "status": "pass",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 0
+          },
+          {
+            "index": 4,
+            "status": "pass",
+            "detail": "p=0.96 after 1 poll(s)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 469
+          }
+        ],
+        "completed": 5,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/forms",
+        "jevTokens": 1994,
+        "changed": {
+          "added": [
+            "    - option \"Please select\"",
+            "    - option \"Large\" [selected]",
+            "    - checkbox \"Cheese\" [checked]",
+            "  - textbox \"Search\": research",
+            "  - paragraph: Results for research"
+          ],
+          "addedOmitted": 0,
+          "removed": 5
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/frames"
+      },
+      "ms": 20,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/frames",
+        "title": "Frames",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "fill": {
+              "target": "the Comment textarea",
+              "value": "research"
+            }
+          },
+          {
+            "click": "the Add one button"
+          },
+          {
+            "expect": "Count: 1 is shown"
+          }
+        ]
+      },
+      "ms": 990,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ [iframe srcdoc] textarea label=\"Comment\" (p=0.98 c=0.97)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 471
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ button \"Add one\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 592
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "p=0.98 @ http://127.0.0.1:40553/frames",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 395
+          }
+        ],
+        "completed": 3,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/frames",
+        "jevTokens": 1458,
+        "changed": {
+          "added": [
+            "  - paragraph: \"Count: 1\"",
+            "- textbox \"Comment\": research"
+          ],
+          "addedOmitted": 0,
+          "removed": 2
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "modal",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:32799"
+      },
+      "ms": 16,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:32799/",
+        "title": "modal",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "modal",
+      "name": "step",
+      "args": {
+        "step": {
+          "click": "the Continue button"
+        }
+      },
+      "ms": 439,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ button \"Continue\" context: dialog heading=\"Confirm choice\" (p=1.00 c=1.00)",
+        "notes": [],
+        "url": "http://127.0.0.1:32799/",
+        "jevTokens": 472,
+        "changed": {
+          "added": [
+            "- status: DIALOG"
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "modal",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 2,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Store\nBrowse product 0Browse product 1Browse product 2Browse product 3Browse product 4Browse product 5Browse product 6Browse product 7Browse product 8Browse product 9Browse product 10Browse product 11Browse product 12Browse product 13Browse product 14Browse product 15Browse product 16Browse product 17Browse product 18Browse product 19Browse product 20Browse product 21Browse product 22Browse product 23Browse product 24Browse product 25Browse product 26Browse product 27Browse product 28Browse product 29Browse product 30Browse product 31Browse product 32Browse product 33Browse product 34Browse product 35Browse product 36Browse product 37Browse product 38Browse product 39Browse product 40Browse product 41Browse product 42Browse product 43Browse product 44Browse product 45Browse product 46Browse product 47Browse product 48Browse product 49Browse product 50Browse product 51Browse product 52Browse product 53Browse product 54Browse product 55Browse product 56Browse product 57Browse product 58Browse product 59Browse product 60Browse product 61Browse product 62Browse product 63Browse product 64Browse product 65Browse product 66Browse product 67Browse product 68Browse product 69Browse product 70Browse product 71Browse product 72Browse product 73Browse product 74Browse product 75Browse product 76Browse product 77Browse product 78Browse product 79Browse product 80Browse product 81Browse product 82Browse product 83Browse product 84Browse product 85Browse product 86Browse product 87Browse product 88Browse product 89Browse product 90Browse product 91Browse product 92Browse product 93Browse product 94Browse product 95Browse product 96Browse product 97Browse product 98Browse product 99Browse product 100Browse product 101Browse product 102Browse product 103Browse product 104Browse product 105Browse product 106Browse product 107Browse product 108Browse product 109Browse product 110Browse product 111Browse product 112Browse product 113Browse product 114Browse product 115Browse product 116Browse product 117Browse product 118Browse product 119Browse product 120Browse product 121Browse product 122Browse product 123Browse product 124Browse product 125Browse product 126Browse product 127Browse product 128Browse product 129Browse product 130Browse product 131Browse product 132Browse product 133Browse product 134Browse product 135Browse product 136Browse product 137Browse product 138Browse product 139Browse product 140Browse product 141Browse product 142Browse product 143Browse product 144Browse product 145Browse product 146Browse product 147Browse product 148Browse product 149Browse product 150Browse product 151Browse product 152Browse product 153Browse product 154Browse product 155Browse product 156Browse product 157Browse product 158Browse product 159Browse product 160Browse product 161Browse product 162Browse product 163Browse product 164Browse product 165Browse product 166Browse product 167Browse product 168Browse product 169Browse product 170Browse product 171Browse product 172Browse product 173Browse product 174Browse product 175Browse product 176Browse product 177Browse product 178Browse product 179 Continue\nConfirm choice\nContinue\n\nDIALOG",
+          "values": [],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:32799/"
+      }
+    },
+    {
+      "run": 1,
+      "site": "fieldset",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:38351"
+      },
+      "ms": 15,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:38351/",
+        "title": "fieldset",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "fieldset",
+      "name": "step",
+      "args": {
+        "step": {
+          "fill": {
+            "target": "the enabled Email field",
+            "value": "research"
+          }
+        }
+      },
+      "ms": 655,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ input[type=email] label=\"Email\" id=\"enabled\" (p=1.00 c=0.99)",
+        "notes": [],
+        "url": "http://127.0.0.1:38351/",
+        "jevTokens": 473,
+        "changed": {
+          "added": [
+            "- textbox \"Email\": research"
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "fieldset",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Account\nEmail Save\nEmail",
+          "values": [
+            {
+              "id": "disabled",
+              "value": ""
+            },
+            {
+              "id": "enabled",
+              "value": "research"
+            }
+          ],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:38351/"
+      }
+    },
+    {
+      "run": 1,
+      "site": "editor",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:42035"
+      },
+      "ms": 10,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:42035/",
+        "title": "editor",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "editor",
+      "name": "step",
+      "args": {
+        "step": {
+          "fill": {
+            "target": "the Article body textbox",
+            "value": "research"
+          }
+        }
+      },
+      "ms": 681,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ div[role=textbox] aria-label=\"Article body\" (p=0.96 c=0.94)",
+        "notes": [],
+        "url": "http://127.0.0.1:42035/",
+        "jevTokens": 526,
+        "changed": {
+          "added": [],
+          "addedOmitted": 0,
+          "removed": 0
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "editor",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Article editor\nTitle\nresearch",
+          "values": [
+            {
+              "id": "",
+              "value": ""
+            },
+            {
+              "id": "",
+              "value": "research"
+            }
+          ],
+          "tagged": 2
+        },
+        "url": "http://127.0.0.1:42035/"
+      }
+    },
+    {
+      "run": 1,
+      "site": "shadow",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:42445"
+      },
+      "ms": 13,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:42445/",
+        "title": "shadow",
+        "notes": []
+      }
+    },
+    {
+      "run": 1,
+      "site": "shadow",
+      "name": "step",
+      "args": {
+        "step": {
+          "click": "the Continue button"
+        }
+      },
+      "ms": 418,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ button \"Continue\" (p=1.00 c=0.99)",
+        "notes": [],
+        "url": "http://127.0.0.1:42445/",
+        "jevTokens": 456,
+        "changed": {
+          "added": [
+            "- button \"Done\""
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 1,
+      "site": "shadow",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Shadow dialog\nDone",
+          "values": [],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:42445/"
+      }
+    },
+    {
+      "run": 2,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/login"
+      },
+      "ms": 13,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/login",
+        "title": "Login",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "fill": {
+              "target": "the Username field",
+              "value": "tomsmith"
+            }
+          },
+          {
+            "fill": {
+              "target": "the Password field",
+              "value": "SuperSecretPassword!"
+            }
+          },
+          {
+            "click": "the Login button"
+          },
+          {
+            "expect": "the Secure Area heading is shown"
+          }
+        ]
+      },
+      "ms": 1487,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ input label=\"Username\" name=\"username\" (p=0.99 c=0.99)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/login",
+            "jevTokens": 531
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ input[type=password] label=\"Password\" name=\"password\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/login",
+            "jevTokens": 543
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "→ button[type=submit] \"Login\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/secure",
+            "jevTokens": 718
+          },
+          {
+            "index": 3,
+            "status": "pass",
+            "detail": "p=0.98 @ http://127.0.0.1:40553/secure",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/secure",
+            "jevTokens": 380
+          }
+        ],
+        "completed": 4,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/secure",
+        "jevTokens": 2172,
+        "changed": {
+          "title": "Secure Area",
+          "url": "http://127.0.0.1:40553/secure",
+          "added": [
+            "  - heading \"Secure Area\" [level=1]",
+            "  - status: You logged into a secure area!",
+            "  - link \"Logout\":",
+            "    - /url: /login"
+          ],
+          "addedOmitted": 0,
+          "removed": 6
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/forms"
+      },
+      "ms": 12,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/forms",
+        "title": "Forms",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "select": {
+              "target": "the Size dropdown",
+              "value": "Large"
+            }
+          },
+          {
+            "check": "the Cheese checkbox"
+          },
+          {
+            "fill": {
+              "target": "the Search field",
+              "value": "research"
+            }
+          },
+          {
+            "press": "Enter"
+          },
+          {
+            "wait": "Results for research is visible"
+          }
+        ]
+      },
+      "ms": 1310,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ select \"Please select Small Large\" label=\"Size\" (p=0.99 c=0.97)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 470
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ input[type=checkbox] value=\"on\" label=\"Cheese\" context: form name=\"Toppings\" (p=1.00 c=1.00) now checked",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 589
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "→ input label=\"Search\" id=\"q\" (p=1.00 c=0.99)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 466
+          },
+          {
+            "index": 3,
+            "status": "pass",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 0
+          },
+          {
+            "index": 4,
+            "status": "pass",
+            "detail": "p=0.95 after 1 poll(s)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 469
+          }
+        ],
+        "completed": 5,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/forms",
+        "jevTokens": 1994,
+        "changed": {
+          "added": [
+            "    - option \"Please select\"",
+            "    - option \"Large\" [selected]",
+            "    - checkbox \"Cheese\" [checked]",
+            "  - textbox \"Search\": research",
+            "  - paragraph: Results for research"
+          ],
+          "addedOmitted": 0,
+          "removed": 5
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/frames"
+      },
+      "ms": 23,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/frames",
+        "title": "Frames",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "fill": {
+              "target": "the Comment textarea",
+              "value": "research"
+            }
+          },
+          {
+            "click": "the Add one button"
+          },
+          {
+            "expect": "Count: 1 is shown"
+          }
+        ]
+      },
+      "ms": 989,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ [iframe srcdoc] textarea label=\"Comment\" (p=0.99 c=0.97)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 471
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ button \"Add one\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 592
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "p=0.98 @ http://127.0.0.1:40553/frames",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 395
+          }
+        ],
+        "completed": 3,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/frames",
+        "jevTokens": 1458,
+        "changed": {
+          "added": [
+            "  - paragraph: \"Count: 1\"",
+            "- textbox \"Comment\": research"
+          ],
+          "addedOmitted": 0,
+          "removed": 2
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "modal",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:32799"
+      },
+      "ms": 14,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:32799/",
+        "title": "modal",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "modal",
+      "name": "step",
+      "args": {
+        "step": {
+          "click": "the Continue button"
+        }
+      },
+      "ms": 441,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ button \"Continue\" context: dialog heading=\"Confirm choice\" (p=1.00 c=1.00)",
+        "notes": [],
+        "url": "http://127.0.0.1:32799/",
+        "jevTokens": 472,
+        "changed": {
+          "added": [
+            "- status: DIALOG"
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "modal",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 2,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Store\nBrowse product 0Browse product 1Browse product 2Browse product 3Browse product 4Browse product 5Browse product 6Browse product 7Browse product 8Browse product 9Browse product 10Browse product 11Browse product 12Browse product 13Browse product 14Browse product 15Browse product 16Browse product 17Browse product 18Browse product 19Browse product 20Browse product 21Browse product 22Browse product 23Browse product 24Browse product 25Browse product 26Browse product 27Browse product 28Browse product 29Browse product 30Browse product 31Browse product 32Browse product 33Browse product 34Browse product 35Browse product 36Browse product 37Browse product 38Browse product 39Browse product 40Browse product 41Browse product 42Browse product 43Browse product 44Browse product 45Browse product 46Browse product 47Browse product 48Browse product 49Browse product 50Browse product 51Browse product 52Browse product 53Browse product 54Browse product 55Browse product 56Browse product 57Browse product 58Browse product 59Browse product 60Browse product 61Browse product 62Browse product 63Browse product 64Browse product 65Browse product 66Browse product 67Browse product 68Browse product 69Browse product 70Browse product 71Browse product 72Browse product 73Browse product 74Browse product 75Browse product 76Browse product 77Browse product 78Browse product 79Browse product 80Browse product 81Browse product 82Browse product 83Browse product 84Browse product 85Browse product 86Browse product 87Browse product 88Browse product 89Browse product 90Browse product 91Browse product 92Browse product 93Browse product 94Browse product 95Browse product 96Browse product 97Browse product 98Browse product 99Browse product 100Browse product 101Browse product 102Browse product 103Browse product 104Browse product 105Browse product 106Browse product 107Browse product 108Browse product 109Browse product 110Browse product 111Browse product 112Browse product 113Browse product 114Browse product 115Browse product 116Browse product 117Browse product 118Browse product 119Browse product 120Browse product 121Browse product 122Browse product 123Browse product 124Browse product 125Browse product 126Browse product 127Browse product 128Browse product 129Browse product 130Browse product 131Browse product 132Browse product 133Browse product 134Browse product 135Browse product 136Browse product 137Browse product 138Browse product 139Browse product 140Browse product 141Browse product 142Browse product 143Browse product 144Browse product 145Browse product 146Browse product 147Browse product 148Browse product 149Browse product 150Browse product 151Browse product 152Browse product 153Browse product 154Browse product 155Browse product 156Browse product 157Browse product 158Browse product 159Browse product 160Browse product 161Browse product 162Browse product 163Browse product 164Browse product 165Browse product 166Browse product 167Browse product 168Browse product 169Browse product 170Browse product 171Browse product 172Browse product 173Browse product 174Browse product 175Browse product 176Browse product 177Browse product 178Browse product 179 Continue\nConfirm choice\nContinue\n\nDIALOG",
+          "values": [],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:32799/"
+      }
+    },
+    {
+      "run": 2,
+      "site": "fieldset",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:38351"
+      },
+      "ms": 14,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:38351/",
+        "title": "fieldset",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "fieldset",
+      "name": "step",
+      "args": {
+        "step": {
+          "fill": {
+            "target": "the enabled Email field",
+            "value": "research"
+          }
+        }
+      },
+      "ms": 644,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ input[type=email] label=\"Email\" id=\"enabled\" (p=1.00 c=0.99)",
+        "notes": [],
+        "url": "http://127.0.0.1:38351/",
+        "jevTokens": 473,
+        "changed": {
+          "added": [
+            "- textbox \"Email\": research"
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "fieldset",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Account\nEmail Save\nEmail",
+          "values": [
+            {
+              "id": "disabled",
+              "value": ""
+            },
+            {
+              "id": "enabled",
+              "value": "research"
+            }
+          ],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:38351/"
+      }
+    },
+    {
+      "run": 2,
+      "site": "editor",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:42035"
+      },
+      "ms": 14,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:42035/",
+        "title": "editor",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "editor",
+      "name": "step",
+      "args": {
+        "step": {
+          "fill": {
+            "target": "the Article body textbox",
+            "value": "research"
+          }
+        }
+      },
+      "ms": 697,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ div[role=textbox] aria-label=\"Article body\" (p=0.99 c=0.98)",
+        "notes": [],
+        "url": "http://127.0.0.1:42035/",
+        "jevTokens": 526,
+        "changed": {
+          "added": [],
+          "addedOmitted": 0,
+          "removed": 0
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "editor",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Article editor\nTitle\nresearch",
+          "values": [
+            {
+              "id": "",
+              "value": ""
+            },
+            {
+              "id": "",
+              "value": "research"
+            }
+          ],
+          "tagged": 2
+        },
+        "url": "http://127.0.0.1:42035/"
+      }
+    },
+    {
+      "run": 2,
+      "site": "shadow",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:42445"
+      },
+      "ms": 14,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:42445/",
+        "title": "shadow",
+        "notes": []
+      }
+    },
+    {
+      "run": 2,
+      "site": "shadow",
+      "name": "step",
+      "args": {
+        "step": {
+          "click": "the Continue button"
+        }
+      },
+      "ms": 439,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ button \"Continue\" (p=1.00 c=0.99)",
+        "notes": [],
+        "url": "http://127.0.0.1:42445/",
+        "jevTokens": 456,
+        "changed": {
+          "added": [
+            "- button \"Done\""
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 2,
+      "site": "shadow",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Shadow dialog\nDone",
+          "values": [],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:42445/"
+      }
+    },
+    {
+      "run": 3,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/login"
+      },
+      "ms": 13,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/login",
+        "title": "Login",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "fill": {
+              "target": "the Username field",
+              "value": "tomsmith"
+            }
+          },
+          {
+            "fill": {
+              "target": "the Password field",
+              "value": "SuperSecretPassword!"
+            }
+          },
+          {
+            "click": "the Login button"
+          },
+          {
+            "expect": "the Secure Area heading is shown"
+          }
+        ]
+      },
+      "ms": 1439,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ input label=\"Username\" name=\"username\" (p=1.00 c=0.99)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/login",
+            "jevTokens": 531
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ input[type=password] label=\"Password\" name=\"password\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/login",
+            "jevTokens": 543
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "→ button[type=submit] \"Login\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/secure",
+            "jevTokens": 718
+          },
+          {
+            "index": 3,
+            "status": "pass",
+            "detail": "p=0.99 @ http://127.0.0.1:40553/secure",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/secure",
+            "jevTokens": 380
+          }
+        ],
+        "completed": 4,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/secure",
+        "jevTokens": 2172,
+        "changed": {
+          "title": "Secure Area",
+          "url": "http://127.0.0.1:40553/secure",
+          "added": [
+            "  - heading \"Secure Area\" [level=1]",
+            "  - status: You logged into a secure area!",
+            "  - link \"Logout\":",
+            "    - /url: /login"
+          ],
+          "addedOmitted": 0,
+          "removed": 6
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/forms"
+      },
+      "ms": 13,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/forms",
+        "title": "Forms",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "select": {
+              "target": "the Size dropdown",
+              "value": "Large"
+            }
+          },
+          {
+            "check": "the Cheese checkbox"
+          },
+          {
+            "fill": {
+              "target": "the Search field",
+              "value": "research"
+            }
+          },
+          {
+            "press": "Enter"
+          },
+          {
+            "wait": "Results for research is visible"
+          }
+        ]
+      },
+      "ms": 1238,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ select \"Please select Small Large\" label=\"Size\" (p=0.99 c=0.97)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 470
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ input[type=checkbox] value=\"on\" label=\"Cheese\" context: form name=\"Toppings\" (p=1.00 c=1.00) now checked",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 589
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "→ input label=\"Search\" id=\"q\" (p=1.00 c=0.99)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 466
+          },
+          {
+            "index": 3,
+            "status": "pass",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 0
+          },
+          {
+            "index": 4,
+            "status": "pass",
+            "detail": "p=0.95 after 1 poll(s)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/forms",
+            "jevTokens": 469
+          }
+        ],
+        "completed": 5,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/forms",
+        "jevTokens": 1994,
+        "changed": {
+          "added": [
+            "    - option \"Please select\"",
+            "    - option \"Large\" [selected]",
+            "    - checkbox \"Cheese\" [checked]",
+            "  - textbox \"Search\": research",
+            "  - paragraph: Results for research"
+          ],
+          "addedOmitted": 0,
+          "removed": 5
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "demo",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:40553/frames"
+      },
+      "ms": 18,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:40553/frames",
+        "title": "Frames",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "demo",
+      "name": "batch",
+      "args": {
+        "steps": [
+          {
+            "fill": {
+              "target": "the Comment textarea",
+              "value": "research"
+            }
+          },
+          {
+            "click": "the Add one button"
+          },
+          {
+            "expect": "Count: 1 is shown"
+          }
+        ]
+      },
+      "ms": 985,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "results": [
+          {
+            "index": 0,
+            "status": "pass",
+            "detail": "→ [iframe srcdoc] textarea label=\"Comment\" (p=0.99 c=0.97)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 471
+          },
+          {
+            "index": 1,
+            "status": "pass",
+            "detail": "→ button \"Add one\" (p=1.00 c=1.00)",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 592
+          },
+          {
+            "index": 2,
+            "status": "pass",
+            "detail": "p=0.97 @ http://127.0.0.1:40553/frames",
+            "notes": [],
+            "url": "http://127.0.0.1:40553/frames",
+            "jevTokens": 395
+          }
+        ],
+        "completed": 3,
+        "remaining": 0,
+        "stoppedAt": null,
+        "url": "http://127.0.0.1:40553/frames",
+        "jevTokens": 1458,
+        "changed": {
+          "added": [
+            "  - paragraph: \"Count: 1\"",
+            "- textbox \"Comment\": research"
+          ],
+          "addedOmitted": 0,
+          "removed": 2
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "modal",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:32799"
+      },
+      "ms": 14,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:32799/",
+        "title": "modal",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "modal",
+      "name": "step",
+      "args": {
+        "step": {
+          "click": "the Continue button"
+        }
+      },
+      "ms": 398,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ button \"Continue\" context: dialog heading=\"Confirm choice\" (p=1.00 c=0.99)",
+        "notes": [],
+        "url": "http://127.0.0.1:32799/",
+        "jevTokens": 472,
+        "changed": {
+          "added": [
+            "- status: DIALOG"
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "modal",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 2,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Store\nBrowse product 0Browse product 1Browse product 2Browse product 3Browse product 4Browse product 5Browse product 6Browse product 7Browse product 8Browse product 9Browse product 10Browse product 11Browse product 12Browse product 13Browse product 14Browse product 15Browse product 16Browse product 17Browse product 18Browse product 19Browse product 20Browse product 21Browse product 22Browse product 23Browse product 24Browse product 25Browse product 26Browse product 27Browse product 28Browse product 29Browse product 30Browse product 31Browse product 32Browse product 33Browse product 34Browse product 35Browse product 36Browse product 37Browse product 38Browse product 39Browse product 40Browse product 41Browse product 42Browse product 43Browse product 44Browse product 45Browse product 46Browse product 47Browse product 48Browse product 49Browse product 50Browse product 51Browse product 52Browse product 53Browse product 54Browse product 55Browse product 56Browse product 57Browse product 58Browse product 59Browse product 60Browse product 61Browse product 62Browse product 63Browse product 64Browse product 65Browse product 66Browse product 67Browse product 68Browse product 69Browse product 70Browse product 71Browse product 72Browse product 73Browse product 74Browse product 75Browse product 76Browse product 77Browse product 78Browse product 79Browse product 80Browse product 81Browse product 82Browse product 83Browse product 84Browse product 85Browse product 86Browse product 87Browse product 88Browse product 89Browse product 90Browse product 91Browse product 92Browse product 93Browse product 94Browse product 95Browse product 96Browse product 97Browse product 98Browse product 99Browse product 100Browse product 101Browse product 102Browse product 103Browse product 104Browse product 105Browse product 106Browse product 107Browse product 108Browse product 109Browse product 110Browse product 111Browse product 112Browse product 113Browse product 114Browse product 115Browse product 116Browse product 117Browse product 118Browse product 119Browse product 120Browse product 121Browse product 122Browse product 123Browse product 124Browse product 125Browse product 126Browse product 127Browse product 128Browse product 129Browse product 130Browse product 131Browse product 132Browse product 133Browse product 134Browse product 135Browse product 136Browse product 137Browse product 138Browse product 139Browse product 140Browse product 141Browse product 142Browse product 143Browse product 144Browse product 145Browse product 146Browse product 147Browse product 148Browse product 149Browse product 150Browse product 151Browse product 152Browse product 153Browse product 154Browse product 155Browse product 156Browse product 157Browse product 158Browse product 159Browse product 160Browse product 161Browse product 162Browse product 163Browse product 164Browse product 165Browse product 166Browse product 167Browse product 168Browse product 169Browse product 170Browse product 171Browse product 172Browse product 173Browse product 174Browse product 175Browse product 176Browse product 177Browse product 178Browse product 179 Continue\nConfirm choice\nContinue\n\nDIALOG",
+          "values": [],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:32799/"
+      }
+    },
+    {
+      "run": 3,
+      "site": "fieldset",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:38351"
+      },
+      "ms": 13,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:38351/",
+        "title": "fieldset",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "fieldset",
+      "name": "step",
+      "args": {
+        "step": {
+          "fill": {
+            "target": "the enabled Email field",
+            "value": "research"
+          }
+        }
+      },
+      "ms": 747,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ input[type=email] label=\"Email\" id=\"enabled\" (p=1.00 c=0.99)",
+        "notes": [],
+        "url": "http://127.0.0.1:38351/",
+        "jevTokens": 473,
+        "changed": {
+          "added": [
+            "- textbox \"Email\": research"
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "fieldset",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Account\nEmail Save\nEmail",
+          "values": [
+            {
+              "id": "disabled",
+              "value": ""
+            },
+            {
+              "id": "enabled",
+              "value": "research"
+            }
+          ],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:38351/"
+      }
+    },
+    {
+      "run": 3,
+      "site": "editor",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:42035"
+      },
+      "ms": 12,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:42035/",
+        "title": "editor",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "editor",
+      "name": "step",
+      "args": {
+        "step": {
+          "fill": {
+            "target": "the Article body textbox",
+            "value": "research"
+          }
+        }
+      },
+      "ms": 700,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ div[role=textbox] aria-label=\"Article body\" (p=0.99 c=0.98)",
+        "notes": [],
+        "url": "http://127.0.0.1:42035/",
+        "jevTokens": 526,
+        "changed": {
+          "added": [],
+          "addedOmitted": 0,
+          "removed": 0
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "editor",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 1,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Article editor\nTitle\nresearch",
+          "values": [
+            {
+              "id": "",
+              "value": ""
+            },
+            {
+              "id": "",
+              "value": "research"
+            }
+          ],
+          "tagged": 2
+        },
+        "url": "http://127.0.0.1:42035/"
+      }
+    },
+    {
+      "run": 3,
+      "site": "shadow",
+      "name": "open",
+      "args": {
+        "url": "http://127.0.0.1:42445"
+      },
+      "ms": 13,
+      "isError": false,
+      "data": {
+        "url": "http://127.0.0.1:42445/",
+        "title": "shadow",
+        "notes": []
+      }
+    },
+    {
+      "run": 3,
+      "site": "shadow",
+      "name": "step",
+      "args": {
+        "step": {
+          "click": "the Continue button"
+        }
+      },
+      "ms": 404,
+      "isError": false,
+      "data": {
+        "status": "pass",
+        "detail": "→ button \"Continue\" (p=1.00 c=1.00)",
+        "notes": [],
+        "url": "http://127.0.0.1:42445/",
+        "jevTokens": 456,
+        "changed": {
+          "added": [
+            "- button \"Done\""
+          ],
+          "addedOmitted": 0,
+          "removed": 1
+        }
+      }
+    },
+    {
+      "run": 3,
+      "site": "shadow",
+      "name": "evaluate",
+      "args": {
+        "js": "({\n  text: document.body.innerText,\n  values: [...document.querySelectorAll('input,[contenteditable]')].map(e => ({id: e.id, value: e.value ?? e.textContent})),\n  tagged: [...document.querySelectorAll('[data-jev-id]')].length\n})"
+      },
+      "ms": 2,
+      "isError": false,
+      "data": {
+        "value": {
+          "text": "Shadow dialog\nDone",
+          "values": [],
+          "tagged": 1
+        },
+        "url": "http://127.0.0.1:42445/"
+      }
+    }
+  ],
+  "problems": []
+}
