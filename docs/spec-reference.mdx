@@ -158,6 +158,8 @@ An action step names a **target**: a sentence that Jev resolves to one element. 
 - `check` and `uncheck` read the state first and click only if it must change. If the click does not change
   the state, the step is `error`. For a chip or button that shows no state, use `click`.
 - `upload` paths are relative to the spec file, also in a [reusable flow](#reusable-flows).
+- `fill` supports editable hosts with `contenteditable=""`, `contenteditable="true"` or `contenteditable="plaintext-only"`.
+- Natural-language targets exclude `inert` subtrees and native controls disabled by a fieldset, including controls inside shadow roots and frames.
 - If `scroll: bottom` reports `did not move`, the content scrolls inside an element. Scroll to an element in
   that area. A heading or a paragraph is not a `scroll` target.
 - `drag` moves the mouse in small steps, so native HTML5 drag and drop works.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { StepKind } from '../core/step-kind.js';
-import { frameLabel } from './frames.js';
+import { frameLabel, frameIsInert } from './frames.js';
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 const CLICK_SELECTOR = 'a, button, input, select, textarea, [role=button], [role=link], [role=tab], [role=menuitem], [role=checkbox], ' +
     '[role=radio], [role=option], [role=listbox] li, [role=menuitemradio], [onclick]';
@@ -9,7 +9,7 @@ const SELECTORS = {
     // Hover targets are often plain images with no clickable signal.
     [StepKind.hover]: `${CLICK_SELECTOR}, img, svg, figure`,
     [StepKind.fill]: 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), ' +
-        'textarea, [contenteditable=true]',
+        'textarea, [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only]',
     [StepKind.select]: 'select',
     // Toggles that keep their state in aria-pressed/aria-checked count too: `check` reads that state before acting.
     [StepKind.check]: 'input[type=checkbox], input[type=radio], [role=checkbox], [role=radio], [role=switch], [role=menuitemcheckbox], ' +
@@ -28,7 +28,7 @@ const SELECTORS = {
 function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max, startId }) {
     const DIALOG = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
     const PAGE_CHROME = 'nav, footer, [role=navigation], [role=contentinfo]';
-    const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=true], summary, label, [draggable=true]';
+    const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only], summary, label, [draggable=true]';
     const LAYER = { dialog: 0, page: 1, chrome: 2 };
     const MAX_TEXT = 60;
     const LABELABLE = new Set(['INPUT', 'SELECT', 'TEXTAREA', 'METER', 'PROGRESS', 'OUTPUT']);
@@ -47,7 +47,7 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
         const style = styleOf(el);
         return style.visibility !== 'hidden' && style.display !== 'none';
     }
-    const enabled = (el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    const enabled = (el) => !el.matches(':disabled') && el.getAttribute('aria-disabled') !== 'true';
     function truncate(text, max) {
         const flat = text.trim().replace(/\s+/g, ' ');
         return flat.length > max ? flat.slice(0, max) + '…' : flat;
@@ -225,33 +225,37 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     const found = [];
     // The previous scan's tags are removed after the walk: a write between style reads would make each read recompute.
     const staleTags = [];
-    function visit(el, layer) {
+    function visit(el, layer, inert) {
         if (el.hasAttribute('data-jev-id'))
             staleTags.push(el);
+        // showModal() dialogs escape inherited inertness, but an explicit inert on the dialog still applies.
+        inert = (inert && !el.matches('dialog:modal')) || el.hasAttribute('inert');
         if (el.matches(DIALOG))
             layer = LAYER.dialog;
         else if (layer === LAYER.page && el.matches(PAGE_CHROME))
             layer = LAYER.chrome;
-        if (el.matches(selector)) {
+        if (!inert && el.matches(selector)) {
             if (!listsOfThings || !isPlainList(el) || listsThings(el))
                 found.push({ el, key: layer * 2 });
         }
-        else if (labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control)) {
+        else if (!inert && labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control) && enabled(el.control)) {
             found.push({ el, key: layer * 2 });
         }
-        else if (includeExtras && !(el instanceof SVGElement)
+        else if (!inert && includeExtras && !(el instanceof SVGElement)
             && (el.matches(EXTRA) || (isPointer(el) && !(el.parentElement && isPointer(el.parentElement))))) {
             found.push({ el, key: layer * 2 + 1 });
         }
         if (el.shadowRoot)
             for (const child of Array.from(el.shadowRoot.children))
-                visit(child, layer);
+                visit(child, layer, inert);
         for (const child of Array.from(el.children))
-            visit(child, layer);
+            visit(child, layer, inert);
     }
-    if (document.body)
+    if (document.body) {
+        const inert = document.body.hasAttribute('inert') || document.documentElement.hasAttribute('inert');
         for (const child of Array.from(document.body.children))
-            visit(child, LAYER.page);
+            visit(child, LAYER.page, inert);
+    }
     for (const el of staleTags)
         el.removeAttribute('data-jev-id');
     const kept = found
@@ -303,6 +307,8 @@ export async function candidates(page, kind, max) {
         const frame = frames[frameIndex];
         let scanned;
         try {
+            if (await frameIsInert(frame))
+                continue;
             scanned = await frame.evaluate(scanCandidatesInPage, { ...options, max: max - found.length, startId: found.length });
         }
         catch {

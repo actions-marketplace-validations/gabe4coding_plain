@@ -82,6 +82,20 @@ from the process of the runner. Thus a failure comes from plainwright or Jev, no
 
 To run one spec, use `node scripts/e2e.mjs --only forms`.
 
+### Browser exploration
+
+Run measured MCP flows against disposable local sites with a Jev key:
+
+```sh
+node scripts/autoresearch-web.mjs --runs 3 --out /tmp/research.json
+```
+
+The report records each call, its elapsed time, Jev tokens and independent DOM checks.
+The flows cover login, forms, frames, editors, inert backgrounds and disabled fieldsets.
+An unexpected result makes the command fail.
+Use `--cli /path/to/dist/cli.js` for a baseline build.
+Use `--observe` to record findings without a failed exit status.
+
 ### Agent evals
 
 `node scripts/eval-agent.mjs` gives tasks on the local site to a real `claude -p` agent and a real `codex exec`

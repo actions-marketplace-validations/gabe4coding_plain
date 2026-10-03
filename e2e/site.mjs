@@ -28,6 +28,22 @@ for (const box of document.querySelectorAll('[draggable]')) {
 }`;
 
 const PAGES = {
+  '/candidate-editor': () => page('Article editor', `<h1>Article editor</h1>
+<label>Title <input></label><div contenteditable role="textbox" aria-label="Article body" style="border:1px solid;padding:20px"></div>
+<div contenteditable="plaintext-only" role="textbox" aria-label="Notes" style="border:1px solid;padding:20px"></div>
+<button>Save preview</button><section aria-label="Article preview"><p id="article-preview"></p><p id="notes-preview"></p></section>`,
+    `document.querySelector('button').onclick = () => {
+  document.querySelector('#article-preview').textContent = 'Article body: ' + document.querySelector('[aria-label="Article body"]').textContent;
+  document.querySelector('#notes-preview').textContent = 'Notes: ' + document.querySelector('[aria-label="Notes"]').textContent;
+};`),
+  '/candidate-dialog': () => page('Store dialog', `<h1>Store</h1><main inert>
+${Array.from({ length: 180 }, (_, i) => `<button>Browse product ${i}</button>`).join('')}
+<button onclick="document.querySelector('#result').textContent='Background selected'">Continue</button>
+<div id="inactive-shadow"></div></main>
+<div role="dialog" aria-modal="true"><h2>Confirm choice</h2>
+<button onclick="document.querySelector('#result').textContent='Dialog selected'">Continue</button></div>
+<p id="result" role="status"></p>`,
+    `document.querySelector('#inactive-shadow').attachShadow({mode:'open'}).innerHTML='<button>Continue</button>';`),
   '/login': () => LOGIN(),
   '/login?error': () => LOGIN('<p role="alert">Your password is invalid!</p>'),
   '/secure': () => page('Secure Area', `<h1>Secure Area</h1><p role="status">You logged into a secure area!</p>

@@ -171,6 +171,9 @@ Source layout (tests sit next to their module):
   cursor-pointer/tabindex extras for `click`/`hover`; for `check` also `aria-pressed` toggles and labels of
   sizeless checkboxes). Candidates are ordered in layers before the cap: dialog content, then the page, then
   nav/footer, so a cookie banner appended at the end of the body is never cut.
+  Empty and plaintext-only `contenteditable` hosts are fill targets. The walk excludes explicit `inert`
+  subtrees across shadow roots, with the native modal-dialog exemption; `frameIsInert` in `frames.ts` checks
+  embedding ancestors. `:disabled` respects fieldsets and their first legend exemption, also for hidden-toggle labels.
 - `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
   checkable control gets `[checked=false]`, `markUnchecked`; empty iframes get no section; a parsed iframe document
   with no body (an ad sync frame) is skipped at once, since a `body` locator would wait out the action timeout, and
