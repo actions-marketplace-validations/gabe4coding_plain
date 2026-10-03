@@ -17,6 +17,7 @@
     "check:examples": "node scripts/check-examples.mjs",
     "test:plugins": "node scripts/smoke-plugins.mjs",
     "verify": "npm test && npm run check:docs && npm run check:examples && npm run test:plugins",
+    "test:mods": "claude plugin test mods/session-pane",
     "verify:live": "npm run build && node scripts/e2e.mjs && node scripts/benchmark-claims.mjs --gate",
     "example": "npm run build && node dist/cli.js examples/*.yaml",
     "test:computer:mac": "npm run build && node scripts/smoke-computer-macos.mjs",
