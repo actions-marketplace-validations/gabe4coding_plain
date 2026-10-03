@@ -115,7 +115,8 @@ export function apply(state: State, engine: Engine, tool: string, args: Data, da
   if (tool === 'batch') {
     const steps = Array.isArray(args.steps) ? args.steps : [];
     const results = Array.isArray(data.results) ? (data.results as Data[]) : [];
-    return withSteps(state, results.map((result) => ({ ...result, step: steps[num(result.index)] })), data.changed);
+    const stepAt = (index: unknown) => (typeof index === 'number' ? steps[index] : undefined);
+    return withSteps(state, results.map((result) => ({ ...result, step: stepAt(result.index) })), data.changed);
   }
   const read = READS[tool];
   if (!read) return state;

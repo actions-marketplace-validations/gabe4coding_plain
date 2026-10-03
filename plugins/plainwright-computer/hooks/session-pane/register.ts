@@ -68,6 +68,7 @@ export function register(on: any): void {
       if (data) {
         const tool = TOOL.exec(e.tool)![1];
         const goal = state.goal;
+        // The event is the tool input: its arguments are fields of `e` beside `tool` (url, step, steps, claims, ...).
         state = apply(state, ENGINE, tool, e, data);
         // A new flow gets its own spec name: a path typed for the last one would overwrite that spec.
         if (tool === 'open' && (ENGINE === 'native' || state.goal !== goal)) typedPath = undefined;
