@@ -12,28 +12,32 @@ export function frameLabel(frame) {
 }
 /**
  * A child frame inherits inertness from its embedding element, including shadow hosts and outer frames. An open
- * showModal() dialog that does not contain the embedding element makes it inert too.
+ * showModal() dialog that does not contain the embedding element makes it inert too. `blockers` keeps, for one
+ * scan, what each document holds: most hold neither, and their frames then need no look at their ancestors.
  */
-export async function frameIsInert(frame) {
+export async function frameIsInert(frame, blockers = new Map()) {
     for (let parent = frame.parentFrame(); parent; frame = parent, parent = frame.parentFrame()) {
+        const found = await blockersIn(parent, blockers);
+        if (found && !found.inert && !found.modal)
+            continue;
         const element = await frame.frameElement();
         try {
-            const inert = await element.evaluate((node) => {
+            const ancestry = await element.evaluate((node) => {
                 if (!(node instanceof Element))
-                    return false;
+                    return 'outside';
                 for (let el = node; el;) {
                     if (el.hasAttribute('inert'))
-                        return true;
+                        return 'inert';
                     if (el.matches('dialog:modal'))
-                        return false;
+                        return 'in modal';
                     const root = el.getRootNode();
                     el = el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
                 }
-                const modalIn = (root) => root.querySelector('dialog:modal') !== null ||
-                    Array.from(root.querySelectorAll('*')).some((child) => child.shadowRoot !== null && modalIn(child.shadowRoot));
-                return modalIn(node.ownerDocument);
+                return 'outside';
             });
-            if (inert)
+            if (ancestry === 'inert')
+                return true;
+            if (ancestry === 'outside' && (found?.modal ?? false))
                 return true;
         }
         finally {
@@ -41,4 +45,24 @@ export async function frameIsInert(frame) {
         }
     }
     return false;
+}
+/** null when the document cannot be read: its frames are then looked at one by one. */
+function blockersIn(frame, blockers) {
+    let found = blockers.get(frame);
+    if (!found) {
+        found = frame.evaluate(() => {
+            const result = { inert: false, modal: false };
+            const walk = (root) => {
+                result.inert ||= root.querySelector('[inert]') !== null;
+                result.modal ||= root.querySelector('dialog:modal') !== null;
+                for (const child of Array.from(root.querySelectorAll('*')))
+                    if (child.shadowRoot)
+                        walk(child.shadowRoot);
+            };
+            walk(document);
+            return result;
+        }).catch(() => null);
+        blockers.set(frame, found);
+    }
+    return found;
 }

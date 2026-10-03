@@ -325,12 +325,13 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
     skipVisibility: kind === StepKind.upload,
   };
   const found: Candidate[] = [];
+  const blockers: Parameters<typeof frameIsInert>[1] = new Map();
   const frames = page.frames();
   for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
     const frame = frames[frameIndex];
     let scanned: ScannedCandidate[];
     try {
-      if (await frameIsInert(frame)) continue;
+      if (await frameIsInert(frame, blockers)) continue;
       scanned = await frame.evaluate(scanCandidatesInPage, { ...options, max: max - found.length, startId: found.length });
     } catch {
       continue; // a detached or cross-origin frame
