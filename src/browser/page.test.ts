@@ -265,7 +265,9 @@ test('settlePage: waits for a young in-flight fetch even while the DOM is quiet'
   await page.goto('https://example.test/');
   await settlePage(page); // wires request tracking for this page
   await new Promise((r) => setTimeout(r, 400));
+  const requested = page.waitForEvent('request', { predicate: request => request.url().endsWith('/slow') });
   await page.evaluate(() => void fetch('/slow'));
+  await requested;
   const start = Date.now();
   await settlePage(page);
   const elapsed = Date.now() - start;
@@ -459,4 +461,32 @@ test('snapshot: an iframe still parsing its head gets its body waited for', asyn
   } finally {
     await parsing.close();
   }
+});
+
+test('snapshot: an open dialog at the end of a page over the cap is kept whole; a short page gets no extra section', async () => {
+  const long = Array.from({ length: 2500 }, (_, i) => `<p>Paragraph number ${i} of a long article body</p>`).join('');
+  // The page's own Dismiss button must not pass for the dialog's tree.
+  await page.goto(html(`<main><button>Dismiss</button>${long}</main><div role="dialog" aria-label="Sign-in offer"><button>Dismiss</button></div>
+    <div role="dialog" aria-label="Closed" hidden><button>Gone</button></div>`));
+  const snap = await snapshot(page);
+  assert.equal(snap.truncated, true);
+  assert.ok(snap.aria.length <= 60_000);
+  assert.ok(snap.aria.startsWith('- main:'));
+  assert.ok(snap.aria.endsWith('\n--- open dialog ---\n- dialog "Sign-in offer":\n  - button "Dismiss"'), snap.aria.slice(-200));
+  assert.ok(!snap.aria.includes('Gone'));
+  await page.goto(html('<p>Short</p><div role="dialog" aria-label="Sign-in offer"><button>Dismiss</button></div>'));
+  assert.ok(!(await snapshot(page)).aria.includes('--- open dialog ---'));
+});
+
+test('snapshot: room made for a cut dialog never drops another dialog that fit in the page part', async () => {
+  const long = Array.from({ length: 1000 }, (_, i) => `<p>Paragraph number ${i} of a long article body</p>`).join('');
+  const rows = Array.from({ length: 60 }, (_, i) => `<button>Option ${i} of the offer list</button>`).join('');
+  // The first dialog ends near 59k characters, inside the cap; the room for the cut second one would drop it.
+  await page.goto(html(`<main>${long}</main><div role="dialog" aria-label="Fits"><button>Keep me</button></div>
+    <div role="dialog" aria-label="Offer">${rows}</div>`));
+  const snap = await snapshot(page);
+  assert.equal(snap.truncated, true);
+  assert.ok(snap.aria.length <= 60_000);
+  assert.ok(snap.aria.includes('button "Keep me"'));
+  assert.ok(snap.aria.includes('button "Option 59 of the offer list"'));
 });

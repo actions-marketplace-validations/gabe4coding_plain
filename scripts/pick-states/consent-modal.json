@@ -1,0 +1,17 @@
+{
+  "url": "http://127.0.0.1:57413/consent",
+  "title": "Travel news",
+  "kind": "click",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "button \"Necessary Only\" context: x-consent heading=\"We use cookies\" text=\"Necessary Only Accept All\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 1,
+      "desc": "button \"Accept All\" context: x-consent heading=\"We use cookies\" text=\"Necessary Only Accept All\"",
+      "frameIndex": 0
+    }
+  ]
+}

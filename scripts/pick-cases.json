@@ -365,6 +365,125 @@
    "target": "the Create repository button",
    "goal": "create a new repository about jev",
    "expect": []
+  },
+  {
+   "page": "candidate-editor",
+   "type": "clear",
+   "target": "the Article body textbox",
+   "goal": "write an article",
+   "expect": [
+    1
+   ]
+  },
+  {
+   "page": "candidate-editor",
+   "type": "clear",
+   "target": "the Notes textbox",
+   "goal": "write article notes",
+   "expect": [
+    2
+   ]
+  },
+  {
+   "page": "candidate-dialog",
+   "type": "clear",
+   "target": "the Continue button",
+   "goal": "confirm the dialog choice",
+   "expect": [
+    0
+   ]
+  },
+  {
+   "page": "candidate-dialog",
+   "type": "none",
+   "target": "the Browse product 0 button",
+   "goal": "browse products",
+   "expect": []
+  },
+  {
+   "page": "consent-modal",
+   "type": "clear",
+   "target": "the Necessary Only button",
+   "goal": "refuse optional cookies",
+   "expect": [
+    0
+   ]
+  },
+  {
+   "page": "consent-modal",
+   "type": "conflict",
+   "target": "the Accept All button",
+   "goal": "refuse optional cookies",
+   "expect": [
+    1
+   ]
+  },
+  {
+   "page": "consent-modal",
+   "type": "none",
+   "target": "the Rome option in the City list",
+   "goal": "choose a city",
+   "expect": []
+  },
+  {
+   "page": "webawesome-consent",
+   "type": "clear",
+   "target": "the button that rejects the optional cookies",
+   "goal": "read the dialog docs",
+   "expect": [
+    3
+   ]
+  },
+  {
+   "page": "webawesome-consent",
+   "type": "clear",
+   "target": "the Accept All button in the cookie dialog",
+   "goal": "read the dialog docs",
+   "expect": [
+    4
+   ]
+  },
+  {
+   "page": "webawesome-consent",
+   "type": "none",
+   "target": "the Components link in the sidebar",
+   "goal": "read the dialog docs",
+   "expect": []
+  },
+  {
+   "page": "shoelace-select",
+   "type": "clear",
+   "target": "the empty \"Select one\" combobox under the \"Examples\" heading (not the one showing \"2 options selected\")",
+   "goal": "choose an option in a select",
+   "expect": [
+    56
+   ]
+  },
+  {
+   "page": "shoelace-select",
+   "type": "clear",
+   "target": "the combobox that shows \"No options selected\"",
+   "goal": "choose an option in a select",
+   "expect": [
+    170
+   ]
+  },
+  {
+   "page": "shoelace-dialog",
+   "type": "clear",
+   "target": "the button that closes the \"Shoelace is now Web Awesome!\" dialog",
+   "goal": "read the select docs",
+   "expect": [
+    6,
+    8
+   ]
+  },
+  {
+   "page": "shoelace-dialog",
+   "type": "none",
+   "target": "the \"Select one\" combobox under the \"Examples\" heading",
+   "goal": "read the select docs",
+   "expect": []
   }
  ]
 }

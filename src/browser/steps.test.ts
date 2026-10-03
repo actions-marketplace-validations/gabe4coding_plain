@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
-import { runStep } from './steps.js';
+import { runStep, runStepSafely } from './steps.js';
 import { type StepContext } from './context.js';
 import { parseStep } from '../core/spec.js';
 
@@ -88,4 +88,11 @@ test('a page with no candidates yet is looked at again for up to 2 s before "no 
     if (keys.t !== undefined) process.env.TYPESAFE_API_KEY = keys.t;
     if (keys.g !== undefined) process.env.AI_GATEWAY_API_KEY = keys.g;
   }
+});
+
+test('an action error keeps the first line and the reason from Playwright\'s call log, not every retry', async () => {
+  await page.goto(html('<button>Save</button><div id="cover" style="position:fixed;inset:0"></div>'));
+  const result = await runStepSafely(ctx, parseStep('t', 0, { click: 'css=button' }));
+  assert.equal(result.status, 'error');
+  assert.match(result.detail ?? '', /^locator\.click: Timeout \d+ms exceeded\. <div id="cover"[^\n]*> intercepts pointer events$/);
 });

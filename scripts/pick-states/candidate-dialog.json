@@ -1,0 +1,12 @@
+{
+  "url": "http://127.0.0.1:45087/candidate-dialog",
+  "title": "Store dialog",
+  "kind": "click",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "button \"Continue\" context: dialog heading=\"Confirm choice\"",
+      "frameIndex": 0
+    }
+  ]
+}

@@ -1,0 +1,4006 @@
+[
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the new link in the top bar",
+  "goal": "see the newest stories on Hacker News",
+  "expect": [
+   2
+  ],
+  "outcome": "inconclusive",
+  "id": 2,
+  "score": 0.42,
+  "tokens": 25040
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the new link in the top bar",
+  "goal": "see the newest stories on Hacker News",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.7,
+  "tokens": 25054
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the comments link of the first story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.98,
+  "tokens": 25041
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the comments link of the first story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.95,
+  "tokens": 25059
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the comments link",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "wrong",
+  "id": 4,
+  "score": 0.68,
+  "tokens": 25036
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the comments link",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.81,
+  "tokens": 25055
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the story title link",
+  "goal": "open the story about the cursed fonts",
+  "expect": [
+   18
+  ],
+  "outcome": "wrong",
+  "id": 11,
+  "score": 0.78,
+  "tokens": 25038
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the story title link",
+  "goal": "open the story about the cursed fonts",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.9,
+  "tokens": 25052
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the upvote arrow",
+  "goal": "upvote the Whiteboard story",
+  "expect": [
+   31
+  ],
+  "outcome": "wrong",
+  "id": 10,
+  "score": 0.82,
+  "tokens": 25039
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the upvote arrow",
+  "goal": "upvote the Whiteboard story",
+  "expect": [
+   31
+  ],
+  "outcome": "right",
+  "id": 31,
+  "score": 0.92,
+  "tokens": 25055
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the login link",
+  "goal": "read the discussion about Goodbye Google",
+  "expect": [
+   9
+  ],
+  "outcome": "right",
+  "id": 9,
+  "score": 0.97,
+  "tokens": 25036
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the login link",
+  "goal": "read the discussion about Goodbye Google",
+  "expect": [
+   9
+  ],
+  "outcome": "right",
+  "id": 9,
+  "score": 0.97,
+  "tokens": 25051
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the comments link of the second story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.91,
+  "tokens": 25041
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the comments link of the second story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.82,
+  "tokens": 25059
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "none",
+  "target": "the Settings link",
+  "goal": "change my Hacker News settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 25036
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "none",
+  "target": "the Settings link",
+  "goal": "change my Hacker News settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.96,
+  "tokens": 25048
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Sort by button",
+  "goal": "find the most starred repositories about jev",
+  "expect": [
+   37
+  ],
+  "outcome": "right",
+  "id": 37,
+  "score": 0.99,
+  "tokens": 11055
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Sort by button",
+  "goal": "find the most starred repositories about jev",
+  "expect": [
+   37
+  ],
+  "outcome": "right",
+  "id": 37,
+  "score": 0.98,
+  "tokens": 11070
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Repositories filter",
+  "goal": "find repositories about jev",
+  "expect": [
+   7
+  ],
+  "outcome": "right",
+  "id": 7,
+  "score": 0.91,
+  "tokens": 11056
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Repositories filter",
+  "goal": "find repositories about jev",
+  "expect": [
+   7
+  ],
+  "outcome": "right",
+  "id": 7,
+  "score": 0.84,
+  "tokens": 11068
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the Star button",
+  "goal": "star the yibie/awesome-jev list",
+  "expect": [
+   74
+  ],
+  "outcome": "wrong",
+  "id": 41,
+  "score": 0.87,
+  "tokens": 11054
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the Star button",
+  "goal": "star the yibie/awesome-jev list",
+  "expect": [
+   74
+  ],
+  "outcome": "right",
+  "id": 74,
+  "score": 0.86,
+  "tokens": 11073
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the repository link",
+  "goal": "open the SemIf-OpenJev repository",
+  "expect": [
+   75
+  ],
+  "outcome": "wrong",
+  "id": 39,
+  "score": 0.8,
+  "tokens": 11054
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the repository link",
+  "goal": "open the SemIf-OpenJev repository",
+  "expect": [
+   75
+  ],
+  "outcome": "right",
+  "id": 75,
+  "score": 0.88,
+  "tokens": 11070
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Sign in link",
+  "goal": "find the top repositories about jev",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.98,
+  "tokens": 11054
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Sign in link",
+  "goal": "find the top repositories about jev",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.95,
+  "tokens": 11068
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Python language filter",
+  "goal": "find the top TypeScript repositories about jev",
+  "expect": [
+   13
+  ],
+  "outcome": "right",
+  "id": 13,
+  "score": 0.97,
+  "tokens": 11055
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Python language filter",
+  "goal": "find the top TypeScript repositories about jev",
+  "expect": [
+   13
+  ],
+  "outcome": "right",
+  "id": 13,
+  "score": 0.95,
+  "tokens": 11073
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "clear",
+  "target": "the Issues tab",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   255
+  ],
+  "outcome": "right",
+  "id": 255,
+  "score": 0.98,
+  "tokens": 42341
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "clear",
+  "target": "the Issues tab",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   255
+  ],
+  "outcome": "right",
+  "id": 255,
+  "score": 1,
+  "tokens": 42371
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the releases link",
+  "goal": "see the latest Playwright release",
+  "expect": [
+   218,
+   191
+  ],
+  "outcome": "inconclusive",
+  "id": 218,
+  "score": 0.45,
+  "tokens": 42342
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the releases link",
+  "goal": "see the latest Playwright release",
+  "expect": [
+   218,
+   191
+  ],
+  "outcome": "right",
+  "id": 218,
+  "score": 0.81,
+  "tokens": 42369
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the website link",
+  "goal": "open the Playwright documentation website",
+  "expect": [
+   193
+  ],
+  "outcome": "inconclusive",
+  "id": null,
+  "score": 0.71,
+  "tokens": 42339
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the website link",
+  "goal": "open the Playwright documentation website",
+  "expect": [
+   193
+  ],
+  "outcome": "right",
+  "id": 193,
+  "score": 0.58,
+  "tokens": 42371
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "conflict",
+  "target": "the Code button",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   15,
+   254
+  ],
+  "outcome": "inconclusive",
+  "id": 15,
+  "score": 0.495,
+  "tokens": 42342
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "conflict",
+  "target": "the Code button",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   15,
+   254
+  ],
+  "outcome": "inconclusive",
+  "id": 15,
+  "score": 0.485,
+  "tokens": 42372
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "none",
+  "target": "the repository Settings tab",
+  "goal": "change the repository settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 42341
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "none",
+  "target": "the repository Settings tab",
+  "goal": "change the repository settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 42363
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "clear",
+  "target": "the Closed issues link",
+  "goal": "see the closed issues",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 1,
+  "tokens": 22127
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "clear",
+  "target": "the Closed issues link",
+  "goal": "see the closed issues",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 1,
+  "tokens": 22138
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the first issue",
+  "goal": "read the VS Code Test Explorer bug",
+  "expect": [
+   24
+  ],
+  "outcome": "right",
+  "id": 24,
+  "score": 0.85,
+  "tokens": 22126
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the first issue",
+  "goal": "read the VS Code Test Explorer bug",
+  "expect": [
+   24
+  ],
+  "outcome": "right",
+  "id": 24,
+  "score": 0.9,
+  "tokens": 22140
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the issue title link",
+  "goal": "read the bug about connectOverCDP",
+  "expect": [
+   33
+  ],
+  "outcome": "wrong",
+  "id": 24,
+  "score": 0.76,
+  "tokens": 22127
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the issue title link",
+  "goal": "read the bug about connectOverCDP",
+  "expect": [
+   33
+  ],
+  "outcome": "right",
+  "id": 33,
+  "score": 0.98,
+  "tokens": 22144
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Labels filter button",
+  "goal": "find issues opened by Yury Semikhatsky",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.99,
+  "tokens": 22127
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Labels filter button",
+  "goal": "find issues opened by Yury Semikhatsky",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.99,
+  "tokens": 22144
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Author filter button",
+  "goal": "find issues with the browser-chromium label",
+  "expect": [
+   17
+  ],
+  "outcome": "right",
+  "id": 17,
+  "score": 1,
+  "tokens": 22127
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Author filter button",
+  "goal": "find issues with the browser-chromium label",
+  "expect": [
+   17
+  ],
+  "outcome": "right",
+  "id": 17,
+  "score": 1,
+  "tokens": 22143
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "turing-click",
+  "type": "clear",
+  "target": "the Search button",
+  "goal": "search Wikipedia for Enigma",
+  "expect": [
+   3
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "turing-click",
+  "type": "clear",
+  "target": "the Search button",
+  "goal": "search Wikipedia for Enigma",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.96,
+  "tokens": 142360
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "turing-click",
+  "type": "vague",
+  "target": "the Maida Vale link",
+  "goal": "learn where Alan Turing was born",
+  "expect": [
+   14,
+   119,
+   120,
+   143
+  ],
+  "outcome": "right",
+  "id": 14,
+  "score": 0.97,
+  "tokens": 142311
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "turing-click",
+  "type": "vague",
+  "target": "the Maida Vale link",
+  "goal": "learn where Alan Turing was born",
+  "expect": [
+   14,
+   119,
+   120,
+   143
+  ],
+  "outcome": "right",
+  "id": 14,
+  "score": 0.96,
+  "tokens": 142381
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "wikimain-click",
+  "type": "clear",
+  "target": "the search box",
+  "goal": "search Wikipedia for Alan Turing",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.98,
+  "tokens": 35284
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "wikimain-click",
+  "type": "clear",
+  "target": "the search box",
+  "goal": "search Wikipedia for Alan Turing",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.98,
+  "tokens": 35310
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the first result's title link",
+  "goal": "open the book page of The Left Hand of Darkness",
+  "expect": [
+   41,
+   39
+  ],
+  "outcome": "right",
+  "id": 41,
+  "score": 0.55,
+  "tokens": 49691
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the first result's title link",
+  "goal": "open the book page of The Left Hand of Darkness",
+  "expect": [
+   41,
+   39
+  ],
+  "outcome": "right",
+  "id": 41,
+  "score": 0.68,
+  "tokens": 49723
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the author link",
+  "goal": "see other books by Ursula K. Le Guin",
+  "expect": [
+   42
+  ],
+  "outcome": "inconclusive",
+  "id": 42,
+  "score": 0.455,
+  "tokens": 49685
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the author link",
+  "goal": "see other books by Ursula K. Le Guin",
+  "expect": [
+   42
+  ],
+  "outcome": "right",
+  "id": 42,
+  "score": 0.94,
+  "tokens": 49717
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the editions link",
+  "goal": "see all editions of The Left Hand of Darkness",
+  "expect": [
+   48
+  ],
+  "outcome": "right",
+  "id": 48,
+  "score": 0.91,
+  "tokens": 49685
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the editions link",
+  "goal": "see all editions of The Left Hand of Darkness",
+  "expect": [
+   48
+  ],
+  "outcome": "right",
+  "id": 48,
+  "score": 0.92,
+  "tokens": 49717
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "conflict",
+  "target": "the Log In link",
+  "goal": "find the first published year of The Left Hand of Darkness",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.99,
+  "tokens": 49685
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "conflict",
+  "target": "the Log In link",
+  "goal": "find the first published year of The Left Hand of Darkness",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.98,
+  "tokens": 49721
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "todo-check",
+  "type": "vague",
+  "target": "the checkbox",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   2
+  ],
+  "outcome": "inconclusive",
+  "id": null,
+  "score": 0.54,
+  "tokens": 736
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "todo-check",
+  "type": "vague",
+  "target": "the checkbox",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.74,
+  "tokens": 753
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "todo-check",
+  "type": "conflict",
+  "target": "the Toggle Todo checkbox of buy milk",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 1,
+  "tokens": 741
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "todo-check",
+  "type": "conflict",
+  "target": "the Toggle Todo checkbox of buy milk",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.96,
+  "tokens": 758
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "todo-click",
+  "type": "clear",
+  "target": "the Active filter link",
+  "goal": "see only the todos still to do",
+  "expect": [
+   11
+  ],
+  "outcome": "right",
+  "id": 11,
+  "score": 1,
+  "tokens": 1323
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "todo-click",
+  "type": "clear",
+  "target": "the Active filter link",
+  "goal": "see only the todos still to do",
+  "expect": [
+   11
+  ],
+  "outcome": "right",
+  "id": 11,
+  "score": 1,
+  "tokens": 1337
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "todo-click",
+  "type": "none",
+  "target": "the Clear completed button",
+  "goal": "remove the completed todos",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 1322
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "todo-click",
+  "type": "none",
+  "target": "the Clear completed button",
+  "goal": "remove the completed todos",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 1333
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "login-click",
+  "type": "clear",
+  "target": "the Login button",
+  "goal": "log in as tomsmith",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 1,
+  "tokens": 696
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "login-click",
+  "type": "clear",
+  "target": "the Login button",
+  "goal": "log in as tomsmith",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 1,
+  "tokens": 709
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "login-click",
+  "type": "none",
+  "target": "the Forgot password link",
+  "goal": "reset my password",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 697
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "login-click",
+  "type": "none",
+  "target": "the Forgot password link",
+  "goal": "reset my password",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 707
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "login-fill",
+  "type": "vague",
+  "target": "the text field",
+  "goal": "log in: type the password",
+  "expect": [
+   1
+  ],
+  "outcome": "wrong",
+  "id": 0,
+  "score": 0.96,
+  "tokens": 512
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "login-fill",
+  "type": "vague",
+  "target": "the text field",
+  "goal": "log in: type the password",
+  "expect": [
+   1
+  ],
+  "outcome": "inconclusive",
+  "id": 0,
+  "score": 0.32,
+  "tokens": 525
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "login-fill",
+  "type": "conflict",
+  "target": "the username field",
+  "goal": "log in: type the password",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 512
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "login-fill",
+  "type": "conflict",
+  "target": "the username field",
+  "goal": "log in: type the password",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.96,
+  "tokens": 525
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Next page button",
+  "goal": "see more repositories about jev",
+  "expect": [
+   105
+  ],
+  "outcome": "right",
+  "id": 105,
+  "score": 0.99,
+  "tokens": 11056
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Next page button",
+  "goal": "see more repositories about jev",
+  "expect": [
+   105
+  ],
+  "outcome": "right",
+  "id": 105,
+  "score": 0.99,
+  "tokens": 11069
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "none",
+  "target": "the Create repository button",
+  "goal": "create a new repository about jev",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 11054
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "none",
+  "target": "the Create repository button",
+  "goal": "create a new repository about jev",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 11068
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Article body textbox",
+  "goal": "write an article",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.99,
+  "tokens": 596
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Article body textbox",
+  "goal": "write an article",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.99,
+  "tokens": 606
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Notes textbox",
+  "goal": "write article notes",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.99,
+  "tokens": 595
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Notes textbox",
+  "goal": "write article notes",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.99,
+  "tokens": 605
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "candidate-dialog",
+  "type": "clear",
+  "target": "the Continue button",
+  "goal": "confirm the dialog choice",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 477
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "candidate-dialog",
+  "type": "clear",
+  "target": "the Continue button",
+  "goal": "confirm the dialog choice",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 488
+ },
+ {
+  "run": 0,
+  "mode": "off",
+  "page": "candidate-dialog",
+  "type": "none",
+  "target": "the Browse product 0 button",
+  "goal": "browse products",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.86,
+  "tokens": 480
+ },
+ {
+  "run": 0,
+  "mode": "on",
+  "page": "candidate-dialog",
+  "type": "none",
+  "target": "the Browse product 0 button",
+  "goal": "browse products",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.51,
+  "tokens": 489
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the new link in the top bar",
+  "goal": "see the newest stories on Hacker News",
+  "expect": [
+   2
+  ],
+  "outcome": "inconclusive",
+  "id": 2,
+  "score": 0.35,
+  "tokens": 25040
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the new link in the top bar",
+  "goal": "see the newest stories on Hacker News",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.68,
+  "tokens": 25054
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the comments link of the first story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.98,
+  "tokens": 25041
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the comments link of the first story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.95,
+  "tokens": 25059
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the comments link",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "wrong",
+  "id": 4,
+  "score": 0.72,
+  "tokens": 25036
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the comments link",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.76,
+  "tokens": 25055
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the story title link",
+  "goal": "open the story about the cursed fonts",
+  "expect": [
+   18
+  ],
+  "outcome": "wrong",
+  "id": 11,
+  "score": 0.73,
+  "tokens": 25038
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the story title link",
+  "goal": "open the story about the cursed fonts",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.85,
+  "tokens": 25052
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the upvote arrow",
+  "goal": "upvote the Whiteboard story",
+  "expect": [
+   31
+  ],
+  "outcome": "wrong",
+  "id": 10,
+  "score": 0.81,
+  "tokens": 25039
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the upvote arrow",
+  "goal": "upvote the Whiteboard story",
+  "expect": [
+   31
+  ],
+  "outcome": "right",
+  "id": 31,
+  "score": 0.91,
+  "tokens": 25055
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the login link",
+  "goal": "read the discussion about Goodbye Google",
+  "expect": [
+   9
+  ],
+  "outcome": "right",
+  "id": 9,
+  "score": 0.97,
+  "tokens": 25036
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the login link",
+  "goal": "read the discussion about Goodbye Google",
+  "expect": [
+   9
+  ],
+  "outcome": "right",
+  "id": 9,
+  "score": 0.95,
+  "tokens": 25051
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the comments link of the second story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.91,
+  "tokens": 25041
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the comments link of the second story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.79,
+  "tokens": 25059
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "none",
+  "target": "the Settings link",
+  "goal": "change my Hacker News settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.97,
+  "tokens": 25036
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "none",
+  "target": "the Settings link",
+  "goal": "change my Hacker News settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.97,
+  "tokens": 25048
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Sort by button",
+  "goal": "find the most starred repositories about jev",
+  "expect": [
+   37
+  ],
+  "outcome": "right",
+  "id": 37,
+  "score": 0.99,
+  "tokens": 11055
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Sort by button",
+  "goal": "find the most starred repositories about jev",
+  "expect": [
+   37
+  ],
+  "outcome": "right",
+  "id": 37,
+  "score": 0.98,
+  "tokens": 11070
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Repositories filter",
+  "goal": "find repositories about jev",
+  "expect": [
+   7
+  ],
+  "outcome": "right",
+  "id": 7,
+  "score": 0.92,
+  "tokens": 11056
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Repositories filter",
+  "goal": "find repositories about jev",
+  "expect": [
+   7
+  ],
+  "outcome": "right",
+  "id": 7,
+  "score": 0.89,
+  "tokens": 11068
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the Star button",
+  "goal": "star the yibie/awesome-jev list",
+  "expect": [
+   74
+  ],
+  "outcome": "wrong",
+  "id": 41,
+  "score": 0.88,
+  "tokens": 11054
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the Star button",
+  "goal": "star the yibie/awesome-jev list",
+  "expect": [
+   74
+  ],
+  "outcome": "right",
+  "id": 74,
+  "score": 0.84,
+  "tokens": 11073
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the repository link",
+  "goal": "open the SemIf-OpenJev repository",
+  "expect": [
+   75
+  ],
+  "outcome": "wrong",
+  "id": 39,
+  "score": 0.85,
+  "tokens": 11054
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the repository link",
+  "goal": "open the SemIf-OpenJev repository",
+  "expect": [
+   75
+  ],
+  "outcome": "right",
+  "id": 75,
+  "score": 0.86,
+  "tokens": 11070
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Sign in link",
+  "goal": "find the top repositories about jev",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.98,
+  "tokens": 11054
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Sign in link",
+  "goal": "find the top repositories about jev",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.94,
+  "tokens": 11068
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Python language filter",
+  "goal": "find the top TypeScript repositories about jev",
+  "expect": [
+   13
+  ],
+  "outcome": "right",
+  "id": 13,
+  "score": 0.96,
+  "tokens": 11055
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Python language filter",
+  "goal": "find the top TypeScript repositories about jev",
+  "expect": [
+   13
+  ],
+  "outcome": "right",
+  "id": 13,
+  "score": 0.95,
+  "tokens": 11073
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "clear",
+  "target": "the Issues tab",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   255
+  ],
+  "outcome": "right",
+  "id": 255,
+  "score": 0.98,
+  "tokens": 42341
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "clear",
+  "target": "the Issues tab",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   255
+  ],
+  "outcome": "right",
+  "id": 255,
+  "score": 1,
+  "tokens": 42371
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the releases link",
+  "goal": "see the latest Playwright release",
+  "expect": [
+   218,
+   191
+  ],
+  "outcome": "inconclusive",
+  "id": 218,
+  "score": 0.445,
+  "tokens": 42342
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the releases link",
+  "goal": "see the latest Playwright release",
+  "expect": [
+   218,
+   191
+  ],
+  "outcome": "right",
+  "id": 218,
+  "score": 0.85,
+  "tokens": 42369
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the website link",
+  "goal": "open the Playwright documentation website",
+  "expect": [
+   193
+  ],
+  "outcome": "inconclusive",
+  "id": null,
+  "score": 0.68,
+  "tokens": 42339
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the website link",
+  "goal": "open the Playwright documentation website",
+  "expect": [
+   193
+  ],
+  "outcome": "right",
+  "id": 193,
+  "score": 0.6,
+  "tokens": 42371
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "conflict",
+  "target": "the Code button",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   15,
+   254
+  ],
+  "outcome": "inconclusive",
+  "id": 15,
+  "score": 0.495,
+  "tokens": 42342
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "conflict",
+  "target": "the Code button",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   15,
+   254
+  ],
+  "outcome": "inconclusive",
+  "id": 15,
+  "score": 0.485,
+  "tokens": 42372
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "none",
+  "target": "the repository Settings tab",
+  "goal": "change the repository settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 42341
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "none",
+  "target": "the repository Settings tab",
+  "goal": "change the repository settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 42363
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "clear",
+  "target": "the Closed issues link",
+  "goal": "see the closed issues",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 1,
+  "tokens": 22127
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "clear",
+  "target": "the Closed issues link",
+  "goal": "see the closed issues",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 1,
+  "tokens": 22138
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the first issue",
+  "goal": "read the VS Code Test Explorer bug",
+  "expect": [
+   24
+  ],
+  "outcome": "right",
+  "id": 24,
+  "score": 0.8,
+  "tokens": 22126
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the first issue",
+  "goal": "read the VS Code Test Explorer bug",
+  "expect": [
+   24
+  ],
+  "outcome": "right",
+  "id": 24,
+  "score": 0.89,
+  "tokens": 22140
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the issue title link",
+  "goal": "read the bug about connectOverCDP",
+  "expect": [
+   33
+  ],
+  "outcome": "wrong",
+  "id": 24,
+  "score": 0.67,
+  "tokens": 22127
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the issue title link",
+  "goal": "read the bug about connectOverCDP",
+  "expect": [
+   33
+  ],
+  "outcome": "right",
+  "id": 33,
+  "score": 0.98,
+  "tokens": 22144
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Labels filter button",
+  "goal": "find issues opened by Yury Semikhatsky",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.99,
+  "tokens": 22127
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Labels filter button",
+  "goal": "find issues opened by Yury Semikhatsky",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.99,
+  "tokens": 22144
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Author filter button",
+  "goal": "find issues with the browser-chromium label",
+  "expect": [
+   17
+  ],
+  "outcome": "right",
+  "id": 17,
+  "score": 1,
+  "tokens": 22127
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Author filter button",
+  "goal": "find issues with the browser-chromium label",
+  "expect": [
+   17
+  ],
+  "outcome": "right",
+  "id": 17,
+  "score": 1,
+  "tokens": 22143
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "turing-click",
+  "type": "clear",
+  "target": "the Search button",
+  "goal": "search Wikipedia for Enigma",
+  "expect": [
+   3
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "turing-click",
+  "type": "clear",
+  "target": "the Search button",
+  "goal": "search Wikipedia for Enigma",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.98,
+  "tokens": 142360
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "turing-click",
+  "type": "vague",
+  "target": "the Maida Vale link",
+  "goal": "learn where Alan Turing was born",
+  "expect": [
+   14,
+   119,
+   120,
+   143
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "turing-click",
+  "type": "vague",
+  "target": "the Maida Vale link",
+  "goal": "learn where Alan Turing was born",
+  "expect": [
+   14,
+   119,
+   120,
+   143
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "wikimain-click",
+  "type": "clear",
+  "target": "the search box",
+  "goal": "search Wikipedia for Alan Turing",
+  "expect": [
+   2
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "wikimain-click",
+  "type": "clear",
+  "target": "the search box",
+  "goal": "search Wikipedia for Alan Turing",
+  "expect": [
+   2
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the first result's title link",
+  "goal": "open the book page of The Left Hand of Darkness",
+  "expect": [
+   41,
+   39
+  ],
+  "outcome": "right",
+  "id": 41,
+  "score": 0.57,
+  "tokens": 49691
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the first result's title link",
+  "goal": "open the book page of The Left Hand of Darkness",
+  "expect": [
+   41,
+   39
+  ],
+  "outcome": "right",
+  "id": 41,
+  "score": 0.62,
+  "tokens": 49723
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the author link",
+  "goal": "see other books by Ursula K. Le Guin",
+  "expect": [
+   42
+  ],
+  "outcome": "inconclusive",
+  "id": 42,
+  "score": 0.455,
+  "tokens": 49685
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the author link",
+  "goal": "see other books by Ursula K. Le Guin",
+  "expect": [
+   42
+  ],
+  "outcome": "right",
+  "id": 42,
+  "score": 0.95,
+  "tokens": 49717
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the editions link",
+  "goal": "see all editions of The Left Hand of Darkness",
+  "expect": [
+   48
+  ],
+  "outcome": "right",
+  "id": 48,
+  "score": 0.9,
+  "tokens": 49685
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the editions link",
+  "goal": "see all editions of The Left Hand of Darkness",
+  "expect": [
+   48
+  ],
+  "outcome": "right",
+  "id": 48,
+  "score": 0.92,
+  "tokens": 49717
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "conflict",
+  "target": "the Log In link",
+  "goal": "find the first published year of The Left Hand of Darkness",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.99,
+  "tokens": 49685
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "conflict",
+  "target": "the Log In link",
+  "goal": "find the first published year of The Left Hand of Darkness",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.97,
+  "tokens": 49721
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "todo-check",
+  "type": "vague",
+  "target": "the checkbox",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   2
+  ],
+  "outcome": "inconclusive",
+  "id": null,
+  "score": 0.56,
+  "tokens": 736
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "todo-check",
+  "type": "vague",
+  "target": "the checkbox",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.81,
+  "tokens": 753
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "todo-check",
+  "type": "conflict",
+  "target": "the Toggle Todo checkbox of buy milk",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 1,
+  "tokens": 741
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "todo-check",
+  "type": "conflict",
+  "target": "the Toggle Todo checkbox of buy milk",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.96,
+  "tokens": 758
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "todo-click",
+  "type": "clear",
+  "target": "the Active filter link",
+  "goal": "see only the todos still to do",
+  "expect": [
+   11
+  ],
+  "outcome": "right",
+  "id": 11,
+  "score": 1,
+  "tokens": 1323
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "todo-click",
+  "type": "clear",
+  "target": "the Active filter link",
+  "goal": "see only the todos still to do",
+  "expect": [
+   11
+  ],
+  "outcome": "right",
+  "id": 11,
+  "score": 1,
+  "tokens": 1337
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "todo-click",
+  "type": "none",
+  "target": "the Clear completed button",
+  "goal": "remove the completed todos",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 1322
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "todo-click",
+  "type": "none",
+  "target": "the Clear completed button",
+  "goal": "remove the completed todos",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.97,
+  "tokens": 1333
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "login-click",
+  "type": "clear",
+  "target": "the Login button",
+  "goal": "log in as tomsmith",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 1,
+  "tokens": 696
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "login-click",
+  "type": "clear",
+  "target": "the Login button",
+  "goal": "log in as tomsmith",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 1,
+  "tokens": 709
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "login-click",
+  "type": "none",
+  "target": "the Forgot password link",
+  "goal": "reset my password",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 697
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "login-click",
+  "type": "none",
+  "target": "the Forgot password link",
+  "goal": "reset my password",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 707
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "login-fill",
+  "type": "vague",
+  "target": "the text field",
+  "goal": "log in: type the password",
+  "expect": [
+   1
+  ],
+  "outcome": "wrong",
+  "id": 0,
+  "score": 0.96,
+  "tokens": 512
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "login-fill",
+  "type": "vague",
+  "target": "the text field",
+  "goal": "log in: type the password",
+  "expect": [
+   1
+  ],
+  "outcome": "inconclusive",
+  "id": 0,
+  "score": 0.17,
+  "tokens": 525
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "login-fill",
+  "type": "conflict",
+  "target": "the username field",
+  "goal": "log in: type the password",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 512
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "login-fill",
+  "type": "conflict",
+  "target": "the username field",
+  "goal": "log in: type the password",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.96,
+  "tokens": 525
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Next page button",
+  "goal": "see more repositories about jev",
+  "expect": [
+   105
+  ],
+  "outcome": "right",
+  "id": 105,
+  "score": 0.99,
+  "tokens": 11056
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Next page button",
+  "goal": "see more repositories about jev",
+  "expect": [
+   105
+  ],
+  "outcome": "right",
+  "id": 105,
+  "score": 0.99,
+  "tokens": 11069
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "none",
+  "target": "the Create repository button",
+  "goal": "create a new repository about jev",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 11054
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "none",
+  "target": "the Create repository button",
+  "goal": "create a new repository about jev",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 1,
+  "tokens": 11068
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Article body textbox",
+  "goal": "write an article",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.99,
+  "tokens": 596
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Article body textbox",
+  "goal": "write an article",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.99,
+  "tokens": 606
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Notes textbox",
+  "goal": "write article notes",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.99,
+  "tokens": 595
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Notes textbox",
+  "goal": "write article notes",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.99,
+  "tokens": 605
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "candidate-dialog",
+  "type": "clear",
+  "target": "the Continue button",
+  "goal": "confirm the dialog choice",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 477
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "candidate-dialog",
+  "type": "clear",
+  "target": "the Continue button",
+  "goal": "confirm the dialog choice",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 488
+ },
+ {
+  "run": 1,
+  "mode": "off",
+  "page": "candidate-dialog",
+  "type": "none",
+  "target": "the Browse product 0 button",
+  "goal": "browse products",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.83,
+  "tokens": 480
+ },
+ {
+  "run": 1,
+  "mode": "on",
+  "page": "candidate-dialog",
+  "type": "none",
+  "target": "the Browse product 0 button",
+  "goal": "browse products",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.59,
+  "tokens": 489
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the new link in the top bar",
+  "goal": "see the newest stories on Hacker News",
+  "expect": [
+   2
+  ],
+  "outcome": "inconclusive",
+  "id": 2,
+  "score": 0.38,
+  "tokens": 25040
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the new link in the top bar",
+  "goal": "see the newest stories on Hacker News",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.65,
+  "tokens": 25054
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the comments link of the first story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.98,
+  "tokens": 25041
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "clear",
+  "target": "the comments link of the first story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.95,
+  "tokens": 25059
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the comments link",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "wrong",
+  "id": 4,
+  "score": 0.74,
+  "tokens": 25036
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the comments link",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 0.71,
+  "tokens": 25055
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the story title link",
+  "goal": "open the story about the cursed fonts",
+  "expect": [
+   18
+  ],
+  "outcome": "wrong",
+  "id": 11,
+  "score": 0.75,
+  "tokens": 25038
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the story title link",
+  "goal": "open the story about the cursed fonts",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.88,
+  "tokens": 25052
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the upvote arrow",
+  "goal": "upvote the Whiteboard story",
+  "expect": [
+   31
+  ],
+  "outcome": "wrong",
+  "id": 10,
+  "score": 0.83,
+  "tokens": 25039
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "vague",
+  "target": "the upvote arrow",
+  "goal": "upvote the Whiteboard story",
+  "expect": [
+   31
+  ],
+  "outcome": "right",
+  "id": 31,
+  "score": 0.92,
+  "tokens": 25055
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the login link",
+  "goal": "read the discussion about Goodbye Google",
+  "expect": [
+   9
+  ],
+  "outcome": "right",
+  "id": 9,
+  "score": 0.96,
+  "tokens": 25036
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the login link",
+  "goal": "read the discussion about Goodbye Google",
+  "expect": [
+   9
+  ],
+  "outcome": "right",
+  "id": 9,
+  "score": 0.96,
+  "tokens": 25051
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the comments link of the second story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.89,
+  "tokens": 25041
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "conflict",
+  "target": "the comments link of the second story",
+  "goal": "read the discussion about F-Droid 2.0",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.8,
+  "tokens": 25059
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "hn-click",
+  "type": "none",
+  "target": "the Settings link",
+  "goal": "change my Hacker News settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 25036
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "hn-click",
+  "type": "none",
+  "target": "the Settings link",
+  "goal": "change my Hacker News settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.96,
+  "tokens": 25048
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Sort by button",
+  "goal": "find the most starred repositories about jev",
+  "expect": [
+   37
+  ],
+  "outcome": "right",
+  "id": 37,
+  "score": 0.99,
+  "tokens": 11055
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Sort by button",
+  "goal": "find the most starred repositories about jev",
+  "expect": [
+   37
+  ],
+  "outcome": "right",
+  "id": 37,
+  "score": 0.98,
+  "tokens": 11070
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Repositories filter",
+  "goal": "find repositories about jev",
+  "expect": [
+   7
+  ],
+  "outcome": "right",
+  "id": 7,
+  "score": 0.9,
+  "tokens": 11056
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Repositories filter",
+  "goal": "find repositories about jev",
+  "expect": [
+   7
+  ],
+  "outcome": "right",
+  "id": 7,
+  "score": 0.88,
+  "tokens": 11068
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the Star button",
+  "goal": "star the yibie/awesome-jev list",
+  "expect": [
+   74
+  ],
+  "outcome": "wrong",
+  "id": 41,
+  "score": 0.88,
+  "tokens": 11054
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the Star button",
+  "goal": "star the yibie/awesome-jev list",
+  "expect": [
+   74
+  ],
+  "outcome": "right",
+  "id": 74,
+  "score": 0.86,
+  "tokens": 11073
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the repository link",
+  "goal": "open the SemIf-OpenJev repository",
+  "expect": [
+   75
+  ],
+  "outcome": "wrong",
+  "id": 39,
+  "score": 0.83,
+  "tokens": 11054
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "vague",
+  "target": "the repository link",
+  "goal": "open the SemIf-OpenJev repository",
+  "expect": [
+   75
+  ],
+  "outcome": "right",
+  "id": 75,
+  "score": 0.89,
+  "tokens": 11070
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Sign in link",
+  "goal": "find the top repositories about jev",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.98,
+  "tokens": 11054
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Sign in link",
+  "goal": "find the top repositories about jev",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.95,
+  "tokens": 11068
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Python language filter",
+  "goal": "find the top TypeScript repositories about jev",
+  "expect": [
+   13
+  ],
+  "outcome": "right",
+  "id": 13,
+  "score": 0.97,
+  "tokens": 11055
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "conflict",
+  "target": "the Python language filter",
+  "goal": "find the top TypeScript repositories about jev",
+  "expect": [
+   13
+  ],
+  "outcome": "right",
+  "id": 13,
+  "score": 0.95,
+  "tokens": 11073
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "clear",
+  "target": "the Issues tab",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   255
+  ],
+  "outcome": "right",
+  "id": 255,
+  "score": 0.98,
+  "tokens": 42341
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "clear",
+  "target": "the Issues tab",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   255
+  ],
+  "outcome": "right",
+  "id": 255,
+  "score": 1,
+  "tokens": 42371
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the releases link",
+  "goal": "see the latest Playwright release",
+  "expect": [
+   218,
+   191
+  ],
+  "outcome": "right",
+  "id": 218,
+  "score": 0.88,
+  "tokens": 42342
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the releases link",
+  "goal": "see the latest Playwright release",
+  "expect": [
+   218,
+   191
+  ],
+  "outcome": "right",
+  "id": 218,
+  "score": 0.87,
+  "tokens": 42369
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the website link",
+  "goal": "open the Playwright documentation website",
+  "expect": [
+   193
+  ],
+  "outcome": "inconclusive",
+  "id": null,
+  "score": 0.74,
+  "tokens": 42339
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "vague",
+  "target": "the website link",
+  "goal": "open the Playwright documentation website",
+  "expect": [
+   193
+  ],
+  "outcome": "right",
+  "id": 193,
+  "score": 0.59,
+  "tokens": 42371
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "conflict",
+  "target": "the Code button",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   15,
+   254
+  ],
+  "outcome": "inconclusive",
+  "id": 15,
+  "score": 0.495,
+  "tokens": 42342
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "conflict",
+  "target": "the Code button",
+  "goal": "read the open issues of Playwright",
+  "expect": [
+   15,
+   254
+  ],
+  "outcome": "inconclusive",
+  "id": 15,
+  "score": 0.485,
+  "tokens": 42372
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghrepo-click",
+  "type": "none",
+  "target": "the repository Settings tab",
+  "goal": "change the repository settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 42341
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghrepo-click",
+  "type": "none",
+  "target": "the repository Settings tab",
+  "goal": "change the repository settings",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 42363
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "clear",
+  "target": "the Closed issues link",
+  "goal": "see the closed issues",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 1,
+  "tokens": 22127
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "clear",
+  "target": "the Closed issues link",
+  "goal": "see the closed issues",
+  "expect": [
+   16
+  ],
+  "outcome": "right",
+  "id": 16,
+  "score": 1,
+  "tokens": 22138
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the first issue",
+  "goal": "read the VS Code Test Explorer bug",
+  "expect": [
+   24
+  ],
+  "outcome": "right",
+  "id": 24,
+  "score": 0.86,
+  "tokens": 22126
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the first issue",
+  "goal": "read the VS Code Test Explorer bug",
+  "expect": [
+   24
+  ],
+  "outcome": "right",
+  "id": 24,
+  "score": 0.84,
+  "tokens": 22140
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the issue title link",
+  "goal": "read the bug about connectOverCDP",
+  "expect": [
+   33
+  ],
+  "outcome": "wrong",
+  "id": 24,
+  "score": 0.69,
+  "tokens": 22127
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "vague",
+  "target": "the issue title link",
+  "goal": "read the bug about connectOverCDP",
+  "expect": [
+   33
+  ],
+  "outcome": "right",
+  "id": 33,
+  "score": 0.98,
+  "tokens": 22144
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Labels filter button",
+  "goal": "find issues opened by Yury Semikhatsky",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.99,
+  "tokens": 22127
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Labels filter button",
+  "goal": "find issues opened by Yury Semikhatsky",
+  "expect": [
+   18
+  ],
+  "outcome": "right",
+  "id": 18,
+  "score": 0.99,
+  "tokens": 22144
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Author filter button",
+  "goal": "find issues with the browser-chromium label",
+  "expect": [
+   17
+  ],
+  "outcome": "right",
+  "id": 17,
+  "score": 1,
+  "tokens": 22127
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghissues-click",
+  "type": "conflict",
+  "target": "the Author filter button",
+  "goal": "find issues with the browser-chromium label",
+  "expect": [
+   17
+  ],
+  "outcome": "right",
+  "id": 17,
+  "score": 1,
+  "tokens": 22143
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "turing-click",
+  "type": "clear",
+  "target": "the Search button",
+  "goal": "search Wikipedia for Enigma",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.99,
+  "tokens": 142300
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "turing-click",
+  "type": "clear",
+  "target": "the Search button",
+  "goal": "search Wikipedia for Enigma",
+  "expect": [
+   3
+  ],
+  "outcome": "right",
+  "id": 3,
+  "score": 0.98,
+  "tokens": 142360
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "turing-click",
+  "type": "vague",
+  "target": "the Maida Vale link",
+  "goal": "learn where Alan Turing was born",
+  "expect": [
+   14,
+   119,
+   120,
+   143
+  ],
+  "outcome": "right",
+  "id": 14,
+  "score": 0.95,
+  "tokens": 142311
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "turing-click",
+  "type": "vague",
+  "target": "the Maida Vale link",
+  "goal": "learn where Alan Turing was born",
+  "expect": [
+   14,
+   119,
+   120,
+   143
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "wikimain-click",
+  "type": "clear",
+  "target": "the search box",
+  "goal": "search Wikipedia for Alan Turing",
+  "expect": [
+   2
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "wikimain-click",
+  "type": "clear",
+  "target": "the search box",
+  "goal": "search Wikipedia for Alan Turing",
+  "expect": [
+   2
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the first result's title link",
+  "goal": "open the book page of The Left Hand of Darkness",
+  "expect": [
+   41,
+   39
+  ],
+  "outcome": "right",
+  "id": 41,
+  "score": 0.63,
+  "tokens": 49689
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the first result's title link",
+  "goal": "open the book page of The Left Hand of Darkness",
+  "expect": [
+   41,
+   39
+  ],
+  "outcome": "error",
+  "error": "AuthenticationError: 401 Cannot authenticate with the server. Please check your API key and try again.",
+  "tokens": 0
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the author link",
+  "goal": "see other books by Ursula K. Le Guin",
+  "expect": [
+   42
+  ],
+  "outcome": "inconclusive",
+  "id": 42,
+  "score": 0.46,
+  "tokens": 49685
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the author link",
+  "goal": "see other books by Ursula K. Le Guin",
+  "expect": [
+   42
+  ],
+  "outcome": "right",
+  "id": 42,
+  "score": 0.94,
+  "tokens": 49717
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the editions link",
+  "goal": "see all editions of The Left Hand of Darkness",
+  "expect": [
+   48
+  ],
+  "outcome": "right",
+  "id": 48,
+  "score": 0.91,
+  "tokens": 49685
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "vague",
+  "target": "the editions link",
+  "goal": "see all editions of The Left Hand of Darkness",
+  "expect": [
+   48
+  ],
+  "outcome": "right",
+  "id": 48,
+  "score": 0.91,
+  "tokens": 49717
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ol-click",
+  "type": "conflict",
+  "target": "the Log In link",
+  "goal": "find the first published year of The Left Hand of Darkness",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.99,
+  "tokens": 49685
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ol-click",
+  "type": "conflict",
+  "target": "the Log In link",
+  "goal": "find the first published year of The Left Hand of Darkness",
+  "expect": [
+   23
+  ],
+  "outcome": "right",
+  "id": 23,
+  "score": 0.97,
+  "tokens": 49721
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "todo-check",
+  "type": "vague",
+  "target": "the checkbox",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   2
+  ],
+  "outcome": "inconclusive",
+  "id": null,
+  "score": 0.57,
+  "tokens": 736
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "todo-check",
+  "type": "vague",
+  "target": "the checkbox",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.78,
+  "tokens": 753
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "todo-check",
+  "type": "conflict",
+  "target": "the Toggle Todo checkbox of buy milk",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 1,
+  "tokens": 741
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "todo-check",
+  "type": "conflict",
+  "target": "the Toggle Todo checkbox of buy milk",
+  "goal": "mark the todo 'call the bank' as done",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.97,
+  "tokens": 758
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "todo-click",
+  "type": "clear",
+  "target": "the Active filter link",
+  "goal": "see only the todos still to do",
+  "expect": [
+   11
+  ],
+  "outcome": "right",
+  "id": 11,
+  "score": 1,
+  "tokens": 1323
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "todo-click",
+  "type": "clear",
+  "target": "the Active filter link",
+  "goal": "see only the todos still to do",
+  "expect": [
+   11
+  ],
+  "outcome": "right",
+  "id": 11,
+  "score": 1,
+  "tokens": 1337
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "todo-click",
+  "type": "none",
+  "target": "the Clear completed button",
+  "goal": "remove the completed todos",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.98,
+  "tokens": 1322
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "todo-click",
+  "type": "none",
+  "target": "the Clear completed button",
+  "goal": "remove the completed todos",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.97,
+  "tokens": 1333
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "login-click",
+  "type": "clear",
+  "target": "the Login button",
+  "goal": "log in as tomsmith",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 1,
+  "tokens": 696
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "login-click",
+  "type": "clear",
+  "target": "the Login button",
+  "goal": "log in as tomsmith",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 1,
+  "tokens": 709
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "login-click",
+  "type": "none",
+  "target": "the Forgot password link",
+  "goal": "reset my password",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 697
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "login-click",
+  "type": "none",
+  "target": "the Forgot password link",
+  "goal": "reset my password",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 707
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "login-fill",
+  "type": "vague",
+  "target": "the text field",
+  "goal": "log in: type the password",
+  "expect": [
+   1
+  ],
+  "outcome": "wrong",
+  "id": 0,
+  "score": 0.96,
+  "tokens": 512
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "login-fill",
+  "type": "vague",
+  "target": "the text field",
+  "goal": "log in: type the password",
+  "expect": [
+   1
+  ],
+  "outcome": "inconclusive",
+  "id": 0,
+  "score": 0.24,
+  "tokens": 525
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "login-fill",
+  "type": "conflict",
+  "target": "the username field",
+  "goal": "log in: type the password",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 1,
+  "tokens": 512
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "login-fill",
+  "type": "conflict",
+  "target": "the username field",
+  "goal": "log in: type the password",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.95,
+  "tokens": 525
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Next page button",
+  "goal": "see more repositories about jev",
+  "expect": [
+   105
+  ],
+  "outcome": "right",
+  "id": 105,
+  "score": 0.99,
+  "tokens": 11056
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "clear",
+  "target": "the Next page button",
+  "goal": "see more repositories about jev",
+  "expect": [
+   105
+  ],
+  "outcome": "right",
+  "id": 105,
+  "score": 0.99,
+  "tokens": 11069
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "ghsearch-click",
+  "type": "none",
+  "target": "the Create repository button",
+  "goal": "create a new repository about jev",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 11054
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "ghsearch-click",
+  "type": "none",
+  "target": "the Create repository button",
+  "goal": "create a new repository about jev",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.99,
+  "tokens": 11068
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Article body textbox",
+  "goal": "write an article",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 0.99,
+  "tokens": 596
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Article body textbox",
+  "goal": "write an article",
+  "expect": [
+   1
+  ],
+  "outcome": "right",
+  "id": 1,
+  "score": 1,
+  "tokens": 606
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Notes textbox",
+  "goal": "write article notes",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.99,
+  "tokens": 595
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "candidate-editor",
+  "type": "clear",
+  "target": "the Notes textbox",
+  "goal": "write article notes",
+  "expect": [
+   2
+  ],
+  "outcome": "right",
+  "id": 2,
+  "score": 0.99,
+  "tokens": 605
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "candidate-dialog",
+  "type": "clear",
+  "target": "the Continue button",
+  "goal": "confirm the dialog choice",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 477
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "candidate-dialog",
+  "type": "clear",
+  "target": "the Continue button",
+  "goal": "confirm the dialog choice",
+  "expect": [
+   0
+  ],
+  "outcome": "right",
+  "id": 0,
+  "score": 0.99,
+  "tokens": 488
+ },
+ {
+  "run": 2,
+  "mode": "off",
+  "page": "candidate-dialog",
+  "type": "none",
+  "target": "the Browse product 0 button",
+  "goal": "browse products",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.89,
+  "tokens": 480
+ },
+ {
+  "run": 2,
+  "mode": "on",
+  "page": "candidate-dialog",
+  "type": "none",
+  "target": "the Browse product 0 button",
+  "goal": "browse products",
+  "expect": [],
+  "outcome": "right",
+  "id": null,
+  "score": 0.61,
+  "tokens": 489
+ }
+]

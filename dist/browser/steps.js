@@ -22,10 +22,24 @@ export async function runStepSafely(ctx, step, prepare = (s) => s) {
         result = await runStep(ctx, prepare(step));
     }
     catch (error) {
-        result = { step: label(step), status: 'error', detail: errorMessage(error) };
+        result = { step: label(step), status: 'error', detail: actionError(error) };
     }
     const missed = result.status === 'inconclusive' || result.status === 'error';
     return step.optional && missed ? { ...result, status: 'skipped' } : result;
+}
+/** Call log lines that every attempt repeats and that never say why the action failed. */
+const ROUTINE_LOG = /^(\d+ × )?(waiting for|waiting \d+ms|retrying|attempting|scrolling into view|done scrolling|element is visible, enabled and stable|locator resolved to|navigating to)/;
+/**
+ * A Playwright error without its call log, which repeats every retry (60 lines for one covered button): the first
+ * line, plus the last log line that gives a reason, such as the element that intercepts pointer events.
+ */
+function actionError(error) {
+    const [head, log] = errorMessage(error).split('\nCall log:\n');
+    if (log === undefined)
+        return head;
+    const reason = log.split('\n').map((line) => line.trim().replace(/^- /, ''))
+        .filter((line) => line && !ROUTINE_LOG.test(line)).at(-1);
+    return reason ? `${head.trim()} ${reason.slice(0, 300)}` : head.trim();
 }
 /** Runs one step; the result's `ms` holds its phase timings and `total`. */
 export async function runStep(ctx, step) {
