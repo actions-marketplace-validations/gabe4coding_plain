@@ -87,12 +87,23 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     return truncate(texts.join(' '), MAX_TEXT);
   }
 
+  /** The text a shadow-root element shows through its slots, which innerText leaves out. */
+  function slottedText(node: Node): string {
+    const parts = node instanceof HTMLSlotElement ? node.assignedNodes({ flatten: true }) : Array.from(node.childNodes);
+    return parts.map((child) => child instanceof HTMLSlotElement ? slottedText(child)
+      : child instanceof HTMLElement ? (child.innerText || slottedText(child)) : child.nodeType === Node.TEXT_NODE ? child.textContent : '')
+      .join(' ');
+  }
+
   function describe(el: Element): string {
     const type = el.getAttribute('type');
     const role = el.getAttribute('role');
     const parts = [el.tagName.toLowerCase() + (type ? `[type=${type}]` : '') + (role ? `[role=${role}]` : '')];
-    const text = (el as HTMLElement).innerText ?? el.textContent ?? '';
-    const value = (el as HTMLInputElement).value;
+    const ownText = (el as HTMLElement).innerText ?? el.textContent ?? '';
+    const text = ownText.trim() || !el.querySelector('slot') ? ownText : slottedText(el);
+    // Only form controls have a string value: an <li>'s or a <progress>'s is a number.
+    const rawValue = (el as HTMLInputElement).value;
+    const value = typeof rawValue === 'string' ? rawValue : '';
     if (text && text.trim()) parts.push(`"${truncate(text, MAX_TEXT)}"`);
     else if (value) parts.push(`value="${truncate(value, MAX_TEXT)}"`);
     // An input's own text is empty: its <label> (wrapping or for=) is often the only name it has.
@@ -230,33 +241,45 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
   }
 
   // Sort key: layer * 2, + 1 for an extra.
-  const found: { el: Element; key: number }[] = [];
+  const found: { el: Element; key: number; inModal: boolean }[] = [];
+  // An open showModal() dialog makes everything outside it inert, with no inert attribute to see.
+  let modalOpen = false;
   // The previous scan's tags are removed after the walk: a write between style reads would make each read recompute.
   const staleTags: Element[] = [];
-  function visit(el: Element, layer: number, inert: boolean) {
+  // A slotted element renders inside its slot, so it takes the slot's layer, inertness and modal dialog, not its
+  // host's. A host's shadow tree is walked before its children, so each slot is known when its elements come.
+  const slotContext = new Map<Element, [number, boolean, boolean]>();
+  function visit(el: Element, layer: number, inert: boolean, inModal: boolean) {
+    const slotted = el.assignedSlot && slotContext.get(el.assignedSlot);
+    if (slotted) [layer, inert, inModal] = slotted;
     if (el.hasAttribute('data-jev-id')) staleTags.push(el);
+    const modal = el.matches('dialog:modal');
+    modalOpen ||= modal;
+    inModal ||= modal;
     // showModal() dialogs escape inherited inertness, but an explicit inert on the dialog still applies.
-    inert = (inert && !el.matches('dialog:modal')) || el.hasAttribute('inert');
+    inert = (inert && !modal) || el.hasAttribute('inert');
     if (el.matches(DIALOG)) layer = LAYER.dialog;
     else if (layer === LAYER.page && el.matches(PAGE_CHROME)) layer = LAYER.chrome;
+    if (el instanceof HTMLSlotElement) slotContext.set(el, [layer, inert, inModal]);
     if (!inert && el.matches(selector)) {
-      if (!listsOfThings || !isPlainList(el) || listsThings(el)) found.push({ el, key: layer * 2 });
+      if (!listsOfThings || !isPlainList(el) || listsThings(el)) found.push({ el, key: layer * 2, inModal });
     } else if (!inert && labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control) && enabled(el.control!)) {
-      found.push({ el, key: layer * 2 });
+      found.push({ el, key: layer * 2, inModal });
     } else if (!inert && includeExtras && !(el instanceof SVGElement)
       && (el.matches(EXTRA) || (isPointer(el) && !(el.parentElement && isPointer(el.parentElement))))) {
-      found.push({ el, key: layer * 2 + 1 });
+      found.push({ el, key: layer * 2 + 1, inModal });
     }
-    if (el.shadowRoot) for (const child of Array.from(el.shadowRoot.children)) visit(child, layer, inert);
-    for (const child of Array.from(el.children)) visit(child, layer, inert);
+    if (el.shadowRoot) for (const child of Array.from(el.shadowRoot.children)) visit(child, layer, inert, inModal);
+    for (const child of Array.from(el.children)) visit(child, layer, inert, inModal);
   }
   if (document.body) {
     const inert = document.body.hasAttribute('inert') || document.documentElement.hasAttribute('inert');
-    for (const child of Array.from(document.body.children)) visit(child, LAYER.page, inert);
+    for (const child of Array.from(document.body.children)) visit(child, LAYER.page, inert, false);
   }
   for (const el of staleTags) el.removeAttribute('data-jev-id');
 
   const kept = found
+    .filter(({ inModal }) => inModal || !modalOpen)
     .filter(({ el }) => (skipVisibility || visible(el)) && enabled(el))
     .sort((a, b) => a.key - b.key) // stable: DOM order within a key
     .map(({ el }) => el)

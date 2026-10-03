@@ -1,0 +1,37 @@
+{
+  "url": "https://webawesome.com/docs/components/dialog",
+  "title": "Dialog | Web Awesome",
+  "kind": "click",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "a \"privacy\" href=/privacy context: wa-dialog heading=\"We Have Cookies…\" text=\"We use cookies to make webawesome.com work better by storing limited information about your usage. We value your , so we won't use them for evil or ask you to j…\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 1,
+      "desc": "a \"we won't use them for evil\" href=/FortAwesome/Security-Docs-and-Attestation/blob/main/Web_Awesome_Cookie_Info.md context: wa-dialog heading=\"We Have Cookies…\" text=\"We use cookies to make webawesome.com work better by storing limited information about your usage. We value your privacy , so or ask you to join the dark side. …\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 2,
+      "desc": "button[type=button][role=button] \"Customize\" context: wa-dialog heading=\"We Have Cookies…\" text=\"We use cookies to make webawesome.com work better by storing limited information about your usage. We value your privacy , so we won't use them for evil or ask …\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 3,
+      "desc": "button[type=button][role=button] \"Necessary Only\" context: wa-dialog heading=\"We Have Cookies…\" text=\"We use cookies to make webawesome.com work better by storing limited information about your usage. We value your privacy , so we won't use them for evil or ask …\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 4,
+      "desc": "button[type=button][role=button] \"Accept All\" context: wa-dialog heading=\"We Have Cookies…\" text=\"We use cookies to make webawesome.com work better by storing limited information about your usage. We value your privacy , so we won't use them for evil or ask …\"",
+      "frameIndex": 0
+    },
+    {
+      "id": 5,
+      "desc": "wa-icon name=\"cookie-bite\" context: wa-dialog heading=\"We Have Cookies…\" text=\"We use cookies to make webawesome.com work better by storing limited information about your usage. We value your privacy , so we won't use them for evil or ask …\"",
+      "frameIndex": 0
+    }
+  ]
+}

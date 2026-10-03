@@ -7,7 +7,10 @@ export function frameLabel(frame: Frame): string {
   try { return new URL(frame.url()).pathname || frame.url(); } catch { return frame.url(); }
 }
 
-/** A child frame inherits inertness from its embedding element, including shadow hosts and outer frames. */
+/**
+ * A child frame inherits inertness from its embedding element, including shadow hosts and outer frames. An open
+ * showModal() dialog that does not contain the embedding element makes it inert too.
+ */
 export async function frameIsInert(frame: Frame): Promise<boolean> {
   for (let parent = frame.parentFrame(); parent; frame = parent, parent = frame.parentFrame()) {
     const element = await frame.frameElement();
@@ -20,7 +23,9 @@ export async function frameIsInert(frame: Frame): Promise<boolean> {
           const root = el.getRootNode();
           el = el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
         }
-        return false;
+        const modalIn = (root: Document | ShadowRoot): boolean => root.querySelector('dialog:modal') !== null ||
+          Array.from(root.querySelectorAll('*')).some((child) => child.shadowRoot !== null && modalIn(child.shadowRoot));
+        return modalIn(node.ownerDocument);
       });
       if (inert) return true;
     } finally {

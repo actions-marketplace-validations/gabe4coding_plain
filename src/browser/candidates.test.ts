@@ -32,6 +32,13 @@ test('fill finds empty and plaintext-only editable hosts and Playwright can fill
   assert.equal(await page.locator('[aria-label=Locked]').innerText(), '');
 });
 
+test('elements whose value property is not a string, such as list items, do not empty the scan', async () => {
+  await page.goto(html(`<ul role="listbox"><li role="option">Paris</li><li role="option" value="3">Rome</li></ul>
+    <progress value="0.5" tabindex="0"></progress>`));
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc),
+    ['li[role=option] "Paris"', 'li[role=option] "Rome"', 'progress']);
+});
+
 test('inert controls do not consume the cap, including shadow descendants; removing inert restores them', async () => {
   await page.goto(html(`<main inert>${'<button>Continue</button>'.repeat(300)}<div id="shadow"></div></main>
     <button onclick="this.textContent='Done'">Continue</button>
@@ -52,6 +59,40 @@ test('native modal dialogs escape inherited inertness but keep their own explici
   assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['button "Continue"']);
   await page.locator('dialog').evaluate(el => el.setAttribute('inert', ''));
   assert.deepEqual(await candidates(page, 'click', 254), []);
+});
+
+test('an open modal dialog, also in a shadow root, blocks every control and frame outside it', async () => {
+  await page.goto(html(`<button>Background</button><iframe srcdoc="<button>Framed</button>"></iframe><div id="host"></div>
+    <script>document.querySelector('#host').attachShadow({mode:'open'}).innerHTML='<dialog><button>Close</button></dialog>'</script>`));
+  const dialog = page.locator('#host dialog');
+  await dialog.evaluate(el => (el as HTMLDialogElement).showModal());
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['button "Close"']);
+  await dialog.evaluate(el => (el as HTMLDialogElement).close());
+  await dialog.evaluate(el => (el as HTMLDialogElement).show());
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc),
+    ['button "Close"', 'button "Background"', '[iframe srcdoc] button "Framed"']);
+  await page.setContent('<button>Background</button><iframe srcdoc="<button>Framed</button>"></iframe><dialog><button>Close</button></dialog>');
+  await page.locator('dialog').evaluate(el => (el as HTMLDialogElement).showModal());
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['button "Close"']);
+});
+
+test('slotted controls take the modal dialog and inertness of the slot they render in', async () => {
+  await page.goto(html(`<button>Background</button>
+    <x-dialog id="consent"><button>Accept</button></x-dialog><x-panel><button>Behind</button></x-panel>
+    <script>
+      document.querySelector('x-dialog').attachShadow({mode:'open'}).innerHTML='<dialog><slot></slot></dialog>';
+      document.querySelector('x-panel').attachShadow({mode:'open'}).innerHTML='<div inert><slot></slot></div>';
+    </script>`));
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['button "Background"']);
+  await page.locator('#consent dialog').evaluate(el => (el as HTMLDialogElement).showModal());
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc.split(' context:')[0]), ['button "Accept"']);
+});
+
+test('a shadow-root control is named by the text slotted into it', async () => {
+  await page.goto(html(`<x-button>Necessary Only</x-button><x-button><i slot="start"></i> Accept All</x-button>
+    <script>for (const host of document.querySelectorAll('x-button'))
+      host.attachShadow({mode:'open'}).innerHTML='<button><slot name="start"></slot><slot></slot></button>'</script>`));
+  assert.deepEqual((await candidates(page, 'click', 254)).map(c => c.desc), ['button "Necessary Only"', 'button "Accept All"']);
 });
 
 test('inert embedding elements suppress candidates in nested and shadow-hosted frames', async () => {

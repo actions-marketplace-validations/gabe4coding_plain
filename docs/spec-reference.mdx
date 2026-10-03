@@ -160,6 +160,7 @@ An action step names a **target**: a sentence that Jev resolves to one element. 
 - `upload` paths are relative to the spec file, also in a [reusable flow](#reusable-flows).
 - `fill` supports editable hosts with `contenteditable=""`, `contenteditable="true"` or `contenteditable="plaintext-only"`.
 - Natural-language targets exclude `inert` subtrees and native controls disabled by a fieldset, including controls inside shadow roots and frames.
+- While a native modal dialog is open, targets come only from that dialog. The page and the frames behind it are excluded.
 - If `scroll: bottom` reports `did not move`, the content scrolls inside an element. Scroll to an element in
   that area. A heading or a paragraph is not a `scroll` target.
 - `drag` moves the mouse in small steps, so native HTML5 drag and drop works.
@@ -269,7 +270,8 @@ can act on. It also gets the page URL and title, the date and the spec `goal`. A
 Jev does not get the accessibility tree for a pick. The list puts an open dialog first, then the page, then
 `nav` and `footer`, then each iframe with the prefix `[iframe <label>]` (see [iframes](snapshots.mdx#iframes)).
 For `click` and `hover`, clickable cards, labels and elements with `tabindex` follow the real controls.
-plainwright also looks inside open shadow roots. Identical descriptions get `#1`, `#2` in page order.
+plainwright also looks inside open shadow roots. A control in a shadow root gets the text of its slotted content.
+Identical descriptions get `#1`, `#2` in page order.
 
 Over about 1000 candidates, plainwright drops the last ones (iframes, `nav` and `footer` first). On such a
 page, use `within` or `css=`.
@@ -279,7 +281,8 @@ page, use `within` or `css=`.
 For `expect` and `wait`, Jev gets the accessibility snapshot of the settled page, with the tree of each
 iframe, and the page URL and title. With `within`, Jev gets only the tree of that region and the page title,
 without the URL. plainwright cuts the snapshot at 60,000 characters, and the step detail then shows
-`(aria truncated at 60k chars)`.
+`(aria truncated at 60k chars)`. If the cut removes an open dialog, plainwright adds the full tree of that
+dialog at the end, under `--- open dialog ---`.
 
 A link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200 characters,
 followed by `…`. These long targets are usually ad and tracking links. Thus a claim about a long query string

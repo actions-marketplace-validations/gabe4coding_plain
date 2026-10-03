@@ -62,6 +62,13 @@ test('iframe identity and row ancestry survive excerpt selection', async () => {
   assert.match(view.observed!.aria, /--- iframe Payments ---\n- table:\n  - row "Order 27":\n    - button "Pay"/);
 });
 
+test('an open dialog kept past the cap is its own region, not part of the page block before it', async () => {
+  const view = await snapshotView(snap('- main:\n  - paragraph: Story 575\n--- open dialog ---\n- dialog "Cookie consent":\n  - button "Necessary Only"', true),
+    { mode: 'compact', maxChars: 90 });
+  assert.ok('observed' in view);
+  assert.match(view.observed!.aria, /--- open dialog ---\n- dialog "Cookie consent":\n  - button "Necessary Only"/);
+});
+
 test('tiny budgets never cut labels and explicitly report omitted critical evidence', async () => {
   const view = await snapshotView(snap('- alert: "Important long message"', true), { mode: 'compact', maxChars: 3 });
   assert.ok('observed' in view);
