@@ -174,7 +174,12 @@ Source layout (tests sit next to their module):
   Empty and plaintext-only `contenteditable` hosts are fill targets. The walk excludes explicit `inert`
   subtrees across shadow roots, with the native modal-dialog exemption; `frameIsInert` in `frames.ts` checks
   embedding ancestors. `:disabled` respects fieldsets and their first legend exemption, also for hidden-toggle labels.
-- `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; an unchecked
+  An open `dialog:modal` (also in a shadow root) leaves only its own descendants, and `frameIsInert` drops frames
+  outside it. Slotted elements take their slot's layer, inertness and modal dialog (`slotContext`), and a control
+  whose text comes only through slots is named by `slottedText`. `describe()` uses `value` only when it is a string
+  (an `<li>`'s is a number; one throw empties the whole frame's scan, since `candidates()` swallows frame errors).
+- `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; over the cap, each
+  open dialog the cut drops is appended whole under `--- open dialog ---` (`openDialogs`, at most half the cap); an unchecked
   checkable control gets `[checked=false]`, `markUnchecked`; empty iframes get no section; a parsed iframe document
   with no body (an ad sync frame) is skipped at once, since a `body` locator would wait out the action timeout, and
   one still loading gets its body waited for; an iframe's tree is capped at 2 s; a region snapshot is
@@ -216,7 +221,7 @@ Source layout (tests sit next to their module):
   A setup error yields a single `setup` step and `error`, with no teardown; a teardown error always makes the
   run `error`. `src/suite/spec-timeout.ts` bounds steps by the remaining attempt budget; opening/setup consume it,
   cleanup is allowed to finish afterward. Optional steps cannot skip a spec timeout. Steps go through
-  `runStepSafely` (`src/browser/steps.ts`), shared with `src/browser/mcp.ts`: errors become results, optional misses become `skipped`.
+  `runStepSafely` (`src/browser/steps.ts`), shared with `src/browser/mcp.ts`: errors become results (a Playwright call log is cut to its first line plus the last line that gives a reason, `actionError`), optional misses become `skipped`.
 - Hooks contract: an ES module next to the spec (`hooks:`, resolved relative to the spec file) with optional
   `setup({spec})` (its return becomes `${hooks.*}`) and `teardown({spec, data, result})`, run in its own child
   process (`src/core/hooks-child.ts`, forked by `startHooks`) — one per spec run, so module-level state never leaks

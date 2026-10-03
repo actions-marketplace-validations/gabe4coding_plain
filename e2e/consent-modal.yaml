@@ -1,0 +1,10 @@
+name: a slotted consent modal at the end of a long page, then a list option
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: /consent
+  - expect: a cookie consent dialog with a "Necessary Only" button is shown
+  - click: the Necessary Only button
+  - click: the Rome option in the City list
+  - expect: the status message says "Necessary only, Rome"

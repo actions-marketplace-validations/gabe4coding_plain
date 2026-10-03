@@ -46,7 +46,8 @@ A raw snapshot has `url`, `title`, `aria` and `truncated`, plus `region` when yo
 `jevTokens` or `ms` fields, also when Jev found the region.
 
 plainwright captures at most 60,000 characters of the tree. `truncated: true` means that the capture or the
-`maxChars` limit cut the text.
+`maxChars` limit cut the text. If the capture cuts an open dialog, the full tree of that dialog comes at the
+end, under `--- open dialog ---`.
 
 ## Compact mode
 

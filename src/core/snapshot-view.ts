@@ -71,7 +71,8 @@ export function parseAriaTree(snap: Snapshot) {
 
   for (const text of snap.aria.split('\n')) {
     if (!text.trim()) continue;
-    const isFrameStart = /^--- iframe /.test(text);
+    // An iframe's tree and an open dialog the cap would cut (page.ts) come under their own header.
+    const isFrameStart = /^--- (iframe |open dialog ---)/.test(text);
     const indent = isFrameStart ? -1 : text.length - text.trimStart().length;
     while (openAncestors.length && openAncestors.at(-1)!.indent >= indent) openAncestors.pop();
     const parent = openAncestors.at(-1)?.index;

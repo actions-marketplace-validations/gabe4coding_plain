@@ -134,10 +134,44 @@ export function shortenUrls(aria: string): string {
   });
 }
 
-/** Long link targets are cut (shortenUrls) before the 60k cap, so ad links do not push page content out. */
-function toSnapshot(page: Page, title: string, aria: string): Snapshot {
+/**
+ * Long link targets are cut (shortenUrls) before the 60k cap, so ad links do not push page content out. An open
+ * dialog the cap would cut is added whole after the page's tree, which is cut shorter to make room: a site often
+ * appends its popup at the end of the body, where a long page leaves it out.
+ */
+function toSnapshot(page: Page, title: string, aria: string, dialogs: string[] = []): Snapshot {
   const marked = markUnchecked(shortenUrls(aria));
-  return { url: page.url(), title, aria: marked.slice(0, ARIA_MAX_CHARS), truncated: marked.length > ARIA_MAX_CHARS };
+  const head = marked.slice(0, ARIA_MAX_CHARS);
+  // A dialog nested in the page's tree is indented there: whole trees are compared without the indentation.
+  const flat = (tree: string) => tree.split('\n').map((line) => line.trim()).join('\n');
+  const trees = dialogs.map((dialog) => markUnchecked(shortenUrls(dialog))).filter(Boolean)
+    .filter((dialog, i, all) => !all.some((other, j) => j !== i && other.length > dialog.length && flat(other).includes(flat(dialog))));
+  // Room for the added dialogs shortens the page part, which can cut a dialog that fit: check against the kept part.
+  let kept = head;
+  let tail = '';
+  for (let changed = true; changed;) {
+    const flatKept = flat(kept);
+    const next = trees.filter((dialog) => !flatKept.includes(flat(dialog)))
+      .map((dialog) => `\n--- open dialog ---\n${dialog}`).join('').slice(0, MAX_DIALOG_CHARS);
+    changed = next.length > tail.length;
+    if (changed) tail = next;
+    kept = head.slice(0, ARIA_MAX_CHARS - tail.length);
+  }
+  return { url: page.url(), title, aria: kept + tail, truncated: marked.length > ARIA_MAX_CHARS };
+}
+
+/** Open dialogs, also in shadow roots; hidden ones have no tree to keep. */
+const OPEN_DIALOG = 'dialog[open], [role=dialog], [role=alertdialog], [aria-modal=true]';
+const MAX_DIALOGS = 4;
+const MAX_DIALOG_CHARS = ARIA_MAX_CHARS / 2;
+
+async function openDialogs(page: Page): Promise<string[]> {
+  try {
+    const dialogs = await page.locator(OPEN_DIALOG).filter({ visible: true }).all();
+    return await Promise.all(dialogs.slice(0, MAX_DIALOGS).map((dialog) => dialog.ariaSnapshot({ timeout: IFRAME_ARIA_MS }).catch(() => '')));
+  } catch {
+    return []; // the page navigated during the look
+  }
 }
 
 /**
@@ -171,7 +205,9 @@ export async function snapshot(page: Page): Promise<Snapshot> {
     Promise.all(iframes.map(iframeAria)),
   ]);
   const iframeSections = iframes.map((frame, i) => iframeArias[i] ? `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}` : '');
-  return toSnapshot(page, title, bodyAria + iframeSections.join(''));
+  const aria = bodyAria + iframeSections.join('');
+  const snap = toSnapshot(page, title, aria);
+  return snap.truncated ? toSnapshot(page, title, aria, await openDialogs(page)) : snap;
 }
 
 /** snapshot() of one region, for `within`. */

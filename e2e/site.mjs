@@ -44,6 +44,31 @@ ${Array.from({ length: 180 }, (_, i) => `<button>Browse product ${i}</button>`).
 <button onclick="document.querySelector('#result').textContent='Dialog selected'">Continue</button></div>
 <p id="result" role="status"></p>`,
     `document.querySelector('#inactive-shadow').attachShadow({mode:'open'}).innerHTML='<button>Continue</button>';`),
+  // A long article, so the tree passes the snapshot cap, then a consent modal at the end of the body: a native
+  // modal dialog in a shadow root whose button labels are slotted. The list items are the Google Flights shape.
+  '/consent': () => page('Travel news', `<h1>Travel news</h1>
+<button onclick="document.querySelector('#result').textContent='Background accepted'">Accept All</button>
+<ul role="listbox" aria-label="City">${['Paris', 'Rome', 'Madrid'].map((city) =>
+    `<li role="option" onclick="document.querySelector('#result').textContent += ', ${city}'">${city}</li>`).join('')}</ul>
+<p id="result" role="status"></p>
+${Array.from({ length: 1200 }, (_, i) => `<p>Story ${i}: the regional rail timetable for the coming season changes on several lines.</p>`).join('')}
+<x-consent><h2 slot="title">We use cookies</h2><x-button data-choice="Necessary only">Necessary Only</x-button>
+<x-button data-choice="All accepted">Accept All</x-button></x-consent>`,
+    `customElements.define('x-button', class extends HTMLElement {
+  connectedCallback() {
+    this.attachShadow({mode:'open'}).innerHTML = '<button><slot></slot></button>';
+    this.shadowRoot.querySelector('button').onclick = () => {
+      document.querySelector('#result').textContent = this.dataset.choice;
+      this.closest('x-consent').shadowRoot.querySelector('dialog').close();
+    };
+  }
+});
+customElements.define('x-consent', class extends HTMLElement {
+  connectedCallback() {
+    this.attachShadow({mode:'open'}).innerHTML = '<dialog aria-label="Cookie consent"><slot name="title"></slot><slot></slot></dialog>';
+    this.shadowRoot.querySelector('dialog').showModal();
+  }
+});`),
   '/login': () => LOGIN(),
   '/login?error': () => LOGIN('<p role="alert">Your password is invalid!</p>'),
   '/secure': () => page('Secure Area', `<h1>Secure Area</h1><p role="status">You logged into a secure area!</p>
