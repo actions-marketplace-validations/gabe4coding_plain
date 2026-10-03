@@ -326,12 +326,13 @@ export async function candidates(page, kind, max) {
         skipVisibility: kind === StepKind.upload,
     };
     const found = [];
+    const blockers = new Map();
     const frames = page.frames();
     for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
         const frame = frames[frameIndex];
         let scanned;
         try {
-            if (await frameIsInert(frame))
+            if (await frameIsInert(frame, blockers))
                 continue;
             scanned = await frame.evaluate(scanCandidatesInPage, { ...options, max: max - found.length, startId: found.length });
         }

@@ -175,7 +175,8 @@ Source layout (tests sit next to their module):
   subtrees across shadow roots, with the native modal-dialog exemption; `frameIsInert` in `frames.ts` checks
   embedding ancestors. `:disabled` respects fieldsets and their first legend exemption, also for hidden-toggle labels.
   An open `dialog:modal` (also in a shadow root) leaves only its own descendants, and `frameIsInert` drops frames
-  outside it. Slotted elements take their slot's layer, inertness and modal dialog (`slotContext`), and a control
+  outside it; it asks each parent document once per scan whether it has any `inert` or modal dialog at all, and
+  skips the per-frame ancestor look when it has neither. Slotted elements take their slot's layer, inertness and modal dialog (`slotContext`), and a control
   whose text comes only through slots is named by `slottedText`. `describe()` uses `value` only when it is a string
   (an `<li>`'s is a number; one throw empties the whole frame's scan, since `candidates()` swallows frame errors).
 - `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; over the cap, each
