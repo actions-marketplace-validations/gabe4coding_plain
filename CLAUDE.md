@@ -176,7 +176,10 @@ Source layout (tests sit next to their module):
   embedding ancestors. `:disabled` respects fieldsets and their first legend exemption, also for hidden-toggle labels.
   An open `dialog:modal` (also in a shadow root) leaves only its own descendants, and `frameIsInert` drops frames
   outside it; it asks each parent document once per scan whether it has any `inert` or modal dialog at all, and
-  skips the per-frame ancestor look when it has neither. Slotted elements take their slot's layer, inertness and modal dialog (`slotContext`), and a control
+  skips the per-frame ancestor look when it has neither. A script dialog's layer (`blockingLayer` in `layer.ts`: what the
+  viewport's corners and center hit sits in one fixed box holding a visible open dialog) excludes candidates and frames
+  outside it too; a layer still animating is looked at again when its animations end (`settledLayer`, at most 1 s).
+  A shadow root's top element looks to its host in the pointer-inside-pointer rule (`pointerParent`). Slotted elements take their slot's layer, inertness and modal dialog (`slotContext`), and a control
   whose text comes only through slots is named by `slottedText`. `describe()` uses `value` only when it is a string
   (an `<li>`'s is a number; one throw empties the whole frame's scan, since `candidates()` swallows frame errors).
 - `src/browser/page.ts` — accessibility snapshot (`snapshot()`/`snapshotRegion()`, 60k-char cap; over the cap, each
@@ -191,7 +194,7 @@ Source layout (tests sit next to their module):
   both label iframes with `frameLabel()` (`src/browser/frames.ts`).
 - `src/jev/` — provider selection (`provider.ts`) and the `ask()` call to either backend (`ask.ts`); `pickElements()` (`pick.ts`) (one Choice per
   target; ≤254 candidates per request, more are split into equal chunks asked in parallel and merged by
-  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim, `judge.ts`); `decide()` (`decide.ts`): a claim passes at p ≥ 0.9, fails at
+  `mergePicks()`; a request over the token limit (`isTooLong`, 400 or 422 `max_tokens_exceeded`) is halved the same way, which splits the score when two chunks disagree; when two or more chunks of one pick are each sure of a different element, `pickElements` asks one runoff question over only those finalists and keeps its answer; ceiling `MAX_CANDIDATES` = 1016); `judge()` (one Noul per claim, `judge.ts`); `decide()` (`decide.ts`): a claim passes at p ≥ 0.9, fails at
   p ≤ 0.1, else `inconclusive`; a pick is accepted when (`confidence` if TypeSafe returned one, else
   `probability`) ≥ 0.5 and the answer isn't `none`. A rejected pick or non-passing claim dumps the exact state
   to `$TMPDIR/plainwright/*.json` (`dumpDebug` in `src/core/results.ts`). A pick's state carries the flow's `goal`

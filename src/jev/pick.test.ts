@@ -20,6 +20,34 @@ test('pickElements halves a request that is over the token limit and merges the 
   assert.deepEqual(sizes, [8, 4, 4, 2, 2, 2, 2]);
 });
 
+test('pickElements: two chunks each sure of a different element are settled by one question over both', async () => {
+  const candidates = Array.from({ length: 300 }, (_, id) => ({ id, desc: id === 56 ? 'empty select' : id === 200 ? 'select, no options' : `link ${id}` }));
+  const asked: number[][] = [];
+  const ask = async (cands: { id: number }[], instructions: string[]) => {
+    asked.push(cands.map((c) => c.id));
+    const ids = cands.map((c) => c.id);
+    const sure = ids.length === 2 ? 56 : ids.includes(56) ? 56 : 200;
+    const p = ids.length === 2 ? 0.93 : 0.9;
+    return instructions.map(() => ({ id: sure, probability: p, confidence: p, probabilities: { [sure]: p, none: 1 - p }, tokens: 10 }));
+  };
+  const [result] = await pickElements(candidates, ['the empty select'], { url: 'u', title: 't' }, ask as never);
+  assert.deepEqual(asked.at(-1), [56, 200]);
+  assert.equal(asked.length, 3);
+  assert.equal(result.id, 56);
+  assert.equal(result.probability, 0.93);
+  assert.equal(result.tokens, 30);
+  assert.equal(decide(result.confidence!, 'pick'), 'pass');
+});
+
+test('pickElements: a runoff that finds neither finalist stays none', async () => {
+  const candidates = Array.from({ length: 300 }, (_, id) => ({ id, desc: `link ${id}` }));
+  const ask = async (cands: { id: number }[], instructions: string[]) => instructions.map(() => cands.length === 2
+    ? { id: null, probability: 0.8, confidence: 0.8, probabilities: { none: 0.8 }, tokens: 1 }
+    : { id: cands[0].id, probability: 0.9, confidence: 0.9, probabilities: { [cands[0].id]: 0.9, none: 0.1 }, tokens: 1 });
+  const [result] = await pickElements(candidates, ['the link'], { url: 'u', title: 't' }, ask as never);
+  assert.equal(result.id, null);
+});
+
 const pick = (id: number | null, p: number, probabilities: Record<string, number>, tokens = 0): PickResult => ({
   id,
   probability: p,

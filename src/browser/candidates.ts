@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { Page, Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Candidate } from '../core/automation.js';
-import { frameLabel, frameIsInert } from './frames.js';
+import { blockersIn, frameLabel, frameIsInert, releaseBlockers, type BlockerCache } from './frames.js';
 
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 export type CandidateKind = z.infer<typeof CandidateKindSchema>;
@@ -36,6 +36,8 @@ interface ScanOptions {
   listsOfThings: boolean;
   /** `upload`: file inputs are usually hidden. */
   skipVisibility: boolean;
+  /** A script dialog's layer over the page (layer.ts): what is outside it is covered. */
+  layer: Element | null;
   max: number;
   startId: number;
 }
@@ -48,7 +50,7 @@ type ScannedCandidate = [desc: string, editable: boolean, state: string];
  * Order before the cap: an open dialog's content first (it blocks the rest), then the page, then nav and footer
  * (link farms); within each layer, selector matches before extras, in DOM order.
  */
-function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max, startId }: ScanOptions):
+function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, max, startId }: ScanOptions):
   ScannedCandidate[] {
   const DIALOG = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
   const PAGE_CHROME = 'nav, footer, [role=navigation], [role=contentinfo]';
@@ -240,6 +242,13 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     return items.length >= 2 && (el.textContent ?? '').replace(/\s+/g, ' ').trim().length / items.length >= 40;
   }
 
+  /** A pointer inside a pointer is part of one control; a shadow root's top element looks to its host. */
+  function pointerParent(el: Element): boolean {
+    const root = el.getRootNode();
+    const parent = el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+    return parent !== null && isPointer(parent);
+  }
+
   // Sort key: layer * 2, + 1 for an extra.
   const found: { el: Element; key: number; inModal: boolean }[] = [];
   // An open showModal() dialog makes everything outside it inert, with no inert attribute to see.
@@ -266,7 +275,7 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     } else if (!inert && labelsOfToggles && el instanceof HTMLLabelElement && isHiddenToggle(el.control) && enabled(el.control!)) {
       found.push({ el, key: layer * 2, inModal });
     } else if (!inert && includeExtras && !(el instanceof SVGElement)
-      && (el.matches(EXTRA) || (isPointer(el) && !(el.parentElement && isPointer(el.parentElement))))) {
+      && (el.matches(EXTRA) || (isPointer(el) && !pointerParent(el)))) {
       found.push({ el, key: layer * 2 + 1, inModal });
     }
     if (el.shadowRoot) for (const child of Array.from(el.shadowRoot.children)) visit(child, layer, inert, inModal);
@@ -278,8 +287,19 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
   }
   for (const el of staleTags) el.removeAttribute('data-jev-id');
 
+  // Flat tree, like the layer: a slotted element is inside the box its slot renders in.
+  function flatParent(el: Element): Element | null {
+    const root = el.getRootNode();
+    return el.assignedSlot ?? el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+  }
+  function inLayer(el: Element): boolean {
+    for (let at: Element | null = el; at; at = flatParent(at)) if (at === layer) return true;
+    return false;
+  }
+
   const kept = found
     .filter(({ inModal }) => inModal || !modalOpen)
+    .filter(({ el }) => !layer || inLayer(el))
     .filter(({ el }) => (skipVisibility || visible(el)) && enabled(el))
     .sort((a, b) => a.key - b.key) // stable: DOM order within a key
     .map(({ el }) => el)
@@ -325,21 +345,26 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
     skipVisibility: kind === StepKind.upload,
   };
   const found: Candidate[] = [];
-  const blockers: Parameters<typeof frameIsInert>[1] = new Map();
+  const blockers: BlockerCache = new Map();
   const frames = page.frames();
-  for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
-    const frame = frames[frameIndex];
-    let scanned: ScannedCandidate[];
-    try {
-      if (await frameIsInert(frame, blockers)) continue;
-      scanned = await frame.evaluate(scanCandidatesInPage, { ...options, max: max - found.length, startId: found.length });
-    } catch {
-      continue; // a detached or cross-origin frame
+  try {
+    for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
+      const frame = frames[frameIndex];
+      let scanned: ScannedCandidate[];
+      try {
+        if (await frameIsInert(frame, blockers)) continue;
+        const layer = (await blockersIn(frame, blockers))?.layer ?? null;
+        scanned = await frame.evaluate(scanCandidatesInPage, { ...options, layer, max: max - found.length, startId: found.length });
+      } catch {
+        continue; // a detached or cross-origin frame
+      }
+      const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
+      for (const [desc, editable, state] of scanned) {
+        found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
+      }
     }
-    const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
-    for (const [desc, editable, state] of scanned) {
-      found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
-    }
+  } finally {
+    await releaseBlockers(blockers);
   }
   return found;
 }

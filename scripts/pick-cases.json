@@ -449,6 +449,41 @@
    "target": "the Components link in the sidebar",
    "goal": "read the dialog docs",
    "expect": []
+  },
+  {
+   "page": "shoelace-select",
+   "type": "clear",
+   "target": "the empty \"Select one\" combobox under the \"Examples\" heading (not the one showing \"2 options selected\")",
+   "goal": "choose an option in a select",
+   "expect": [
+    56
+   ]
+  },
+  {
+   "page": "shoelace-select",
+   "type": "clear",
+   "target": "the combobox that shows \"No options selected\"",
+   "goal": "choose an option in a select",
+   "expect": [
+    170
+   ]
+  },
+  {
+   "page": "shoelace-dialog",
+   "type": "clear",
+   "target": "the button that closes the \"Shoelace is now Web Awesome!\" dialog",
+   "goal": "read the select docs",
+   "expect": [
+    6,
+    8
+   ]
+  },
+  {
+   "page": "shoelace-dialog",
+   "type": "none",
+   "target": "the \"Select one\" combobox under the \"Examples\" heading",
+   "goal": "read the select docs",
+   "expect": []
   }
  ]
 }

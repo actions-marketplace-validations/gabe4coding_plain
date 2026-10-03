@@ -2,12 +2,25 @@ import { ask, choiceChunks, isTooLong, MAX_CHOICE_OPTIONS } from './ask.js';
 import { decide } from './decide.js';
 /** At most four parallel requests per pick. Candidates are ordered so that a cut drops nav and footer links first. */
 export const MAX_CANDIDATES = MAX_CHOICE_OPTIONS * 4;
-/** One answer per instruction. Past MAX_CHOICE_OPTIONS, equal chunks are asked in parallel and merged. */
+/**
+ * One answer per instruction. Past MAX_CHOICE_OPTIONS, equal chunks are asked in parallel and merged. When two
+ * or more chunks are each sure of a different element, no chunk saw the others' choice: one more question over
+ * only those finalists settles it, as one question over all candidates would have.
+ */
 export async function pickElements(candidates, instructions, page, askChunk = pickChunk) {
     if (candidates.length <= MAX_CHOICE_OPTIONS)
         return pickSplittingWhenTooLong(candidates, instructions, page, askChunk);
-    return mergePicks(await Promise.all(choiceChunks(candidates).map((chunk) => pickSplittingWhenTooLong(chunk, instructions, page, askChunk))));
+    const perChunk = await Promise.all(choiceChunks(candidates).map((chunk) => pickSplittingWhenTooLong(chunk, instructions, page, askChunk)));
+    return Promise.all(mergePicks(perChunk).map(async (merged, i) => {
+        const finalists = new Set(perChunk.map((results) => results[i])
+            .filter((answer) => answer.id !== null && decide(score(answer), 'pick') === 'pass').map((answer) => answer.id));
+        if (finalists.size < 2)
+            return merged;
+        const [runoff] = await pickSplittingWhenTooLong(candidates.filter((candidate) => finalists.has(candidate.id)), [instructions[i]], page, askChunk);
+        return { ...runoff, tokens: merged.tokens + runoff.tokens };
+    }));
 }
+const score = (result) => result.confidence ?? result.probability;
 /** Long descriptions can put even a short list over the token limit: then each half is asked, and merged. */
 async function pickSplittingWhenTooLong(candidates, instructions, page, askChunk) {
     try {
@@ -57,11 +70,10 @@ async function pickChunk(candidates, instructions, page) {
 /**
  * Merges per-chunk answers into one result per instruction. Ids are unique across chunks, so the probability
  * maps combine; `none` comes from the winning chunk. When several chunks are each sure of a different element,
- * the score is split between them, as one question over all candidates would have done: the pick then stays
- * below acceptance and the detail shows every guess.
+ * the score is split between them, so the pick stays below acceptance and the detail shows every guess; a split
+ * from chunking is then settled by pickElements' runoff.
  */
 export function mergePicks(perChunk) {
-    const score = (result) => result.confidence ?? result.probability;
     const tokens = perChunk.reduce((sum, results) => sum + results[0].tokens, 0);
     return perChunk[0].map((_, i) => {
         const answers = perChunk.map((results) => results[i]);

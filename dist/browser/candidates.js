@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { StepKind } from '../core/step-kind.js';
-import { frameLabel, frameIsInert } from './frames.js';
+import { blockersIn, frameLabel, frameIsInert, releaseBlockers } from './frames.js';
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 const CLICK_SELECTOR = 'a, button, input, select, textarea, [role=button], [role=link], [role=tab], [role=menuitem], [role=checkbox], ' +
     '[role=radio], [role=option], [role=listbox] li, [role=menuitemradio], [onclick]';
@@ -25,7 +25,7 @@ const SELECTORS = {
  * Order before the cap: an open dialog's content first (it blocks the rest), then the page, then nav and footer
  * (link farms); within each layer, selector matches before extras, in DOM order.
  */
-function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, max, startId }) {
+function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, max, startId }) {
     const DIALOG = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
     const PAGE_CHROME = 'nav, footer, [role=navigation], [role=contentinfo]';
     const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only], summary, label, [draggable=true]';
@@ -231,6 +231,12 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
         const items = Array.from(el.children).filter((child) => child.tagName === 'LI');
         return items.length >= 2 && (el.textContent ?? '').replace(/\s+/g, ' ').trim().length / items.length >= 40;
     }
+    /** A pointer inside a pointer is part of one control; a shadow root's top element looks to its host. */
+    function pointerParent(el) {
+        const root = el.getRootNode();
+        const parent = el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+        return parent !== null && isPointer(parent);
+    }
     // Sort key: layer * 2, + 1 for an extra.
     const found = [];
     // An open showModal() dialog makes everything outside it inert, with no inert attribute to see.
@@ -265,7 +271,7 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
             found.push({ el, key: layer * 2, inModal });
         }
         else if (!inert && includeExtras && !(el instanceof SVGElement)
-            && (el.matches(EXTRA) || (isPointer(el) && !(el.parentElement && isPointer(el.parentElement))))) {
+            && (el.matches(EXTRA) || (isPointer(el) && !pointerParent(el)))) {
             found.push({ el, key: layer * 2 + 1, inModal });
         }
         if (el.shadowRoot)
@@ -281,8 +287,20 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     }
     for (const el of staleTags)
         el.removeAttribute('data-jev-id');
+    // Flat tree, like the layer: a slotted element is inside the box its slot renders in.
+    function flatParent(el) {
+        const root = el.getRootNode();
+        return el.assignedSlot ?? el.parentElement ?? (root instanceof ShadowRoot ? root.host : null);
+    }
+    function inLayer(el) {
+        for (let at = el; at; at = flatParent(at))
+            if (at === layer)
+                return true;
+        return false;
+    }
     const kept = found
         .filter(({ inModal }) => inModal || !modalOpen)
+        .filter(({ el }) => !layer || inLayer(el))
         .filter(({ el }) => (skipVisibility || visible(el)) && enabled(el))
         .sort((a, b) => a.key - b.key) // stable: DOM order within a key
         .map(({ el }) => el)
@@ -328,21 +346,27 @@ export async function candidates(page, kind, max) {
     const found = [];
     const blockers = new Map();
     const frames = page.frames();
-    for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
-        const frame = frames[frameIndex];
-        let scanned;
-        try {
-            if (await frameIsInert(frame, blockers))
-                continue;
-            scanned = await frame.evaluate(scanCandidatesInPage, { ...options, max: max - found.length, startId: found.length });
+    try {
+        for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
+            const frame = frames[frameIndex];
+            let scanned;
+            try {
+                if (await frameIsInert(frame, blockers))
+                    continue;
+                const layer = (await blockersIn(frame, blockers))?.layer ?? null;
+                scanned = await frame.evaluate(scanCandidatesInPage, { ...options, layer, max: max - found.length, startId: found.length });
+            }
+            catch {
+                continue; // a detached or cross-origin frame
+            }
+            const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
+            for (const [desc, editable, state] of scanned) {
+                found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
+            }
         }
-        catch {
-            continue; // a detached or cross-origin frame
-        }
-        const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
-        for (const [desc, editable, state] of scanned) {
-            found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
-        }
+    }
+    finally {
+        await releaseBlockers(blockers);
     }
     return found;
 }
