@@ -19,3 +19,6 @@ mods/*/.claude-plugin/types/
 mods/*/tsconfig.json
 plugins/*/.claude-plugin/types/
 plugins/*/tsconfig.json
+
+# Design specs and implementation plans written while developing a change: local working notes, not part of the repo.
+docs/superpowers/
