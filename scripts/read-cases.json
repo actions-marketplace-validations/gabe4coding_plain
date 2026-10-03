@@ -16,6 +16,10 @@
   {"page": "ghrepo", "question": "What share of the code is TypeScript?", "expect": ["91.9%"]},
   {"page": "ghrepo", "question": "What is the latest release version?", "expect": ["v1.63.0"]},
   {"page": "ghrepo", "question": "How many stars does the repository have?", "expect": ["96.7k"]},
+  {"page": "ad-login-ok", "question": "What message does the page show after the login?", "expect": ["You logged into a secure area!"]},
+  {"page": "ad-dropdown", "question": "Which option is selected in the simple dropdown?", "expect": ["Option 2"]},
+  {"page": "ad-checkboxes", "question": "What is the version in the page footer?", "expect": ["e64cd80e"]},
+  {"page": "ad-dragged", "question": "What is the main heading of the page?", "expect": ["Drag and Drop page for Automation Testing Practice"]},
   {"page": "books", "question": "What is the ISBN of Sharp Objects?", "none": true},
   {"page": "tables", "question": "What is John Smith's phone number?", "none": true}
 ]

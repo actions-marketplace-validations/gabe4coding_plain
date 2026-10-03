@@ -1,0 +1,9 @@
+name: a region claim that does not hold fails
+url: ${env.site}
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+tags: [expect-fail]
+steps:
+  - goto: /boxes
+  # No drag: box A still shows A.
+  - expect: { that: the letter "B" is shown, within: "css=#box-a" }

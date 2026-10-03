@@ -19,7 +19,14 @@ export const CandidateSchema = z.object({
 });
 export type Candidate = z.infer<typeof CandidateSchema>;
 
-export const SnapshotSchema = z.object({ url: z.string(), title: z.string(), aria: z.string(), truncated: z.boolean() });
+export const SnapshotSchema = z.object({
+  url: z.string(),
+  title: z.string(),
+  aria: z.string(),
+  truncated: z.boolean(),
+  /** The tree of one region (`within`), not of the whole page. */
+  region: z.boolean().optional(),
+});
 export type Snapshot = z.infer<typeof SnapshotSchema>;
 
 /** One native capture: what Jev sees, plus the adapter's handle for each candidate id. */
@@ -131,12 +138,17 @@ export async function askSettled<F, R>(options: {
 
 const MIN_ARIA_TO_HALVE = 4000;
 
-/** Judges claims against a snapshot. A state over the token limit is cut in half until it fits. */
+/**
+ * Judges claims against a snapshot. A state over the token limit is cut in half until it fits. A region goes
+ * without the page URL: with it, Jev doubts a claim that a short region tree plainly shows. Without the title
+ * too, it doubts claims phrased in the page's terms (docs/benchmarks/claims.md).
+ */
 export async function judgeState(snap: Snapshot, claims: string[], events: string[] = [], ai = intelligence) {
   let aria = snap.aria;
+  const page = snap.region ? { title: snap.title } : { url: snap.url, title: snap.title };
   for (;;) {
     try {
-      const result = await ai.judge({ url: snap.url, title: snap.title, aria, events }, claims);
+      const result = await ai.judge({ ...page, aria, events }, claims);
       if (result.probabilities.length !== claims.length) throw new Error('Jev returned fewer judgments than claims');
       return result;
     } catch (error) {

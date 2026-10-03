@@ -275,8 +275,14 @@ page, use `within` or `css=`.
 ### For a claim
 
 For `expect` and `wait`, Jev gets the accessibility snapshot of the settled page, with the tree of each
-iframe. With `within`, Jev gets only the tree of that region. plainwright cuts the snapshot at 60,000
-characters, and the step detail then shows `(aria truncated at 60k chars)`.
+iframe, and the page URL and title. With `within`, Jev gets only the tree of that region and the page title,
+without the URL. plainwright cuts the snapshot at 60,000 characters, and the step detail then shows
+`(aria truncated at 60k chars)`.
+
+A link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200 characters,
+followed by `…`. These long targets are usually ad and tracking links. Thus a claim about a long query string
+cannot pass. Claim the link text instead. Agent mode gets the same short form (see
+[long link targets](snapshots.mdx#long-link-targets)).
 
 Jev also gets the last 30 page events, which the tree does not show:
 
