@@ -41,7 +41,7 @@ const site = await startSite();
 // `budget` is the most plainwright tool calls a good run needs, with room for one look too many.
 const TASKS = {
   reference: {
-    prompt: `Open ${site.url}/spatial-reference. Fill the field immediately below the Shipping heading with "Upper entry", click Move heading, then fill the field immediately below the Shipping heading with "Lower entry". Use a natural-language target relative to the heading for both fills. Tell me the exact status message shown.`,
+    prompt: `Open ${site.url}/spatial-reference. Fill the field immediately below the Shipping heading with "Upper entry", click Move heading, then fill the field immediately below the Shipping heading with "Lower entry". Use a natural-language target relative to the heading for both fills. Then read the status message on the page. End with one line that quotes that status message word for word, not a description of which field took which fill.`,
     answer: /Upper field:\s*Upper entry;\s*Lower field:\s*Lower entry/i, budget: 8, referenceFill: true,
   },
   spatial: {

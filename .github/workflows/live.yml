@@ -1,20 +1,10 @@
 name: Live
 
 # Real Jev picks and judgments, against the local site in e2e/ and saved pages: no remote site in the loop.
+# The ruleset on main requires the `live` check, so the workflow runs on every pull request and always reports;
+# the "Check what changed" step skips the slow checks when no file matched by RUNTIME changed.
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    paths:
-      - src/**
-      - bin/**
-      - tsconfig.json
-      - e2e/**
-      - scripts/e2e.mjs
-      - scripts/benchmark-claims.mjs
-      - scripts/claim-cases.json
-      - scripts/claim-states/**
-      - scripts/read-states/**
-      - package-lock.json
-      - .github/workflows/live.yml
   workflow_dispatch:
 
 permissions:
@@ -34,17 +24,31 @@ jobs:
       TMPDIR: /tmp
       # A pull request from a fork gets no secrets: skip there, fail everywhere else.
       FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository && github.event_name == 'pull_request' }}
+      # The files that can change a live result: the runtime, the e2e suite and the eval data.
+      RUNTIME: '^(src/|bin/|e2e/|scripts/claim-states/|scripts/read-states/|tsconfig\.json$|package-lock\.json$|scripts/e2e\.mjs$|scripts/benchmark-claims\.mjs$|scripts/claim-cases\.json$|\.github/workflows/live\.yml$)'
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check what changed
+        id: changes
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != 'pull_request' ]]; then echo "runtime=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "$BASE...$HEAD" | grep -Eq "$RUNTIME"; then echo "runtime=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo 'No runtime, e2e or eval data change: live checks skipped.'
       - name: Check the Jev key
         id: key
+        if: steps.changes.outputs.runtime == 'true'
         shell: bash
         run: |
           if [[ -n "$TYPESAFE_API_KEY" ]]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           if [[ "$FORK" == 'true' ]]; then echo '::warning::No TYPESAFE_API_KEY on a fork pull request: live checks skipped.'; exit 0; fi
           echo '::error::Set the TYPESAFE_API_KEY repository secret: the live checks need it.' >&2
           exit 1
-      - uses: actions/checkout@v4
-        if: steps.key.outputs.run == 'true'
       - uses: actions/setup-node@v4
         if: steps.key.outputs.run == 'true'
         with:
