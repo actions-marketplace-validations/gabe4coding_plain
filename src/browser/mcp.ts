@@ -20,7 +20,7 @@ import { runStep, runStepSafely } from './steps.js';
 import { resolveOne } from './locate.js';
 import { askPage } from './judge-page.js';
 import { settlePage } from './activity.js';
-import { snapshot, snapshotRegion } from './page.js';
+import { snapshot, snapshotRegion, inPasswordField } from './page.js';
 import { CandidateKindSchema } from './candidates.js';
 import { prepareEvidence } from './evidence.js';
 
@@ -70,14 +70,16 @@ const OPEN_DESCRIPTION =
   'element the flow is about, while the target\'s words still win when they disagree. Claims never see it. ' +
   'Kept until an `open` passes another goal; `save` writes it into the spec.';
 
-const BATCH_DESCRIPTION = 'Run 1–16 already-known steps in order in one browser tool call (call open first). ' +
+const BATCH_DESCRIPTION = 'Run 1–16 steps in order in one browser tool call (call open first). ' +
   'Use the same one-action objects as step, e.g. {steps:[{fill:{target:"the Name field",value:"Alex"}},' +
-  '{fill:{target:"the Email field",value:"alex@example.test"}},{click:"Save"}]}. ' +
-  'All syntax and hook placeholders are checked before acting. Each action resolves fresh targets after the previous action. ' +
+  '{click:"Add address"},{fill:{target:"the Street field under the new Address heading",value:"1 Main St"}},{click:"Save"}]}. ' +
+  'All syntax and hook placeholders are checked before acting. ' +
+  'Each target is a description resolved when its action runs, after the previous action, so it may name an element ' +
+  'that an earlier action in the batch adds, moves or reveals. ' +
   'Stops on the first non-pass, including optional steps returning skipped; later steps are not attempted. ' +
   'Returns status, indexed results with per-step tokens/URL/notes, completed (passing steps), remaining, stoppedAt (zero-based or null), and total jevTokens. ' +
   'Passing steps are recorded individually for save; completed actions are not rolled back. ' +
-  'Batch only actions whose targets and values are already known. When the next action depends on reading a result, end the batch and inspect it first.' +
+  'Batch every action you can write now. End the batch only when choosing the next action or its value needs a result you have not read yet.' +
   CHANGES_NOTE.replace('the action', 'the whole batch');
 
 const SNAPSHOT_DESCRIPTION =
@@ -94,7 +96,9 @@ const SAVE_DESCRIPTION =
   'Save the steps that passed so far in this session as a YAML spec the batch runner can replay (failed or ' +
   'inconclusive attempts are left out). The `hooks` module given to `open` is written as a relative path, ' +
   'and ${hooks.*} placeholders are kept as written. `path` is relative to the server\'s working directory; an existing ' +
-  'file there is overwritten without warning. `name` defaults to the session name.';
+  'file there is overwritten without warning. `name` defaults to the session name. A value typed into a password ' +
+  'field is never written: the step gets ${env.password} and the spec an `env` block, {password: $PASSWORD} ' +
+  '(password2 and $PASSWORD_2 for a second value); the result lists that block. Set the variables before replay.';
 
 type PageCapture = { title: string; url: string; aria: string };
 
@@ -109,6 +113,8 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   const spec: Spec = { name: 'plain session', url: '', dir: process.cwd(), dialogs: 'accept', steps: [] };
   /** The steps that passed, as written: what `save` writes. */
   const transcript: Record<string, unknown>[] = [];
+  /** Each value typed into a password field, with the `env` key that `save` writes in its place. */
+  const secretKeys = new Map<string, string>();
   /** Every step result, pass or not: what teardown sees. */
   const results: StepResult[] = [];
   let totalTokens = 0;
@@ -163,7 +169,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     const before = totalTokens;
     const result = await runStepSafely(current.ctx, parsed, (resolved) => withPlaceholders(resolved));
     results.push(result);
-    if (result.status === 'pass') transcript.push(step); // as written, placeholders kept for `save`
+    if (result.status === 'pass') transcript.push(await asSaved(step, parsed)); // placeholders kept for `save`
     return {
       status: result.status,
       detail: result.detail,
@@ -171,6 +177,21 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       url: current.ctx.page.url(),
       jevTokens: totalTokens - before,
     };
+  }
+
+  /**
+   * The step as written, except a literal typed into a password field, or a value that was typed into one before
+   * (a confirm field of type text): that becomes an `${env.*}` placeholder. A value with a placeholder stays.
+   */
+  async function asSaved(step: Record<string, unknown>, parsed: Step): Promise<Record<string, unknown>> {
+    if (parsed.kind !== StepKind.fill || parsed.value.includes('${')) return step;
+    let key = secretKeys.get(parsed.value);
+    if (!key) {
+      if (!(await inPasswordField(activeSession().ctx.page, parsed.value).catch(() => false))) return step;
+      key = secretKeys.size ? `password${secretKeys.size + 1}` : 'password';
+      secretKeys.set(parsed.value, key);
+    }
+    return { ...step, fill: { ...(step.fill as Record<string, unknown>), value: `\${env.${key}}` } };
   }
 
   /** The page before an action, for `changed`; null when that is off or the page cannot be read. */
@@ -344,8 +365,11 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     const hooksPath = hooksFile && relative(dirname(filePath), hooksFile);
     const hooks = hooksPath ? { hooks: hooksPath.startsWith('.') ? hooksPath : './' + hooksPath } : {};
     const goal = spec.goal ? { goal: spec.goal } : {};
-    writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...goal, ...hooks, steps: transcript }));
-    return ok({ path: filePath, steps: transcript.length });
+    // password: $PASSWORD, password2: $PASSWORD_2, ...
+    const secrets = [...secretKeys.values()].map((key, i) => [key, i ? `$PASSWORD_${i + 1}` : '$PASSWORD']);
+    const env = secrets.length ? { env: Object.fromEntries(secrets) } : {};
+    writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...goal, ...hooks, ...env, steps: transcript }));
+    return ok({ path: filePath, steps: transcript.length, ...env });
   }));
 
   let shuttingDown = false;
