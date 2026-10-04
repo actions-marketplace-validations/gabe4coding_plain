@@ -9,7 +9,11 @@ export const MAX_LAYOUT_ELEMENTS = 254;
 export const MAX_LAYOUT_CHARS = 24_000;
 export const LAYOUT_TRUNCATED = 'Layout truncated: do not infer absence or extremes across omitted elements.';
 
-/** Qualitative neighbors expose measured order without asking Jev to infer it from tree order or arithmetic. */
+/**
+ * Qualitative neighbors expose measured order without asking Jev to infer it from tree order or arithmetic. Only
+ * the nearest element per direction with perpendicular overlap is named: the raw bounds stay in the layout for the
+ * other relations.
+ */
 export function neighborRelations(items: LayoutItem[]): string[] {
   const relations = new Set<string>();
   for (const item of items) {

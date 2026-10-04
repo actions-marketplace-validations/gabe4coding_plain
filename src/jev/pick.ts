@@ -21,6 +21,10 @@ export interface PickPage {
   url: string;
   title: string;
   goal?: string;
+  /**
+   * Read-only layout on a spatial route: it shows references a target names that are not candidates. Every chunk
+   * and the runoff receive it.
+   */
   layout?: string;
   /** The coordinate space of candidate bounds; the browser's main viewport when absent. */
   coordinates?: string;

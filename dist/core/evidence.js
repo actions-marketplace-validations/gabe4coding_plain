@@ -1,7 +1,7 @@
 /**
  * Evidence routing shared by the browser, desktop and mobile engines: which prompts need rendered geometry
  * (src/jev/evidence.ts). Groups are queued per spec or batch and classified in one request when a step first needs
- * an answer; each group keeps its own route.
+ * an answer; each group keeps its own route. A group queued after that (a later MCP `step`) gets its own request.
  */
 export const evidenceRoutes = () => ({ pending: new Map(), decided: new Map() });
 const NO_DESCRIPTION = new Set(['goto', 'press', 'mouse']);

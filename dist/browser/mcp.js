@@ -83,7 +83,11 @@ const SAVE_DESCRIPTION = 'Save the steps that passed so far in this session as a
     'inconclusive attempts are left out). The `hooks` module given to `open` is written as a relative path, ' +
     'and ${hooks.*} placeholders are kept as written. `path` is relative to the server\'s working directory; an existing ' +
     'file there is overwritten without warning. `name` defaults to the session name.';
-/** The browser MCP server: one persistent session, every tool call run one at a time. */
+/**
+ * The browser MCP server: one persistent session, every tool call run one at a time. Only `open` and passing
+ * `step`/`batch` steps reach the transcript; `find`, `snapshot`, `ask`, `read` and `evaluate` only read. stdout is
+ * the JSON-RPC channel, so every log line goes to console.error.
+ */
 export async function serveMcp(opts) {
     let session = null;
     const sessionOpts = { ...opts, handleSignals: false };

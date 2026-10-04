@@ -9,7 +9,8 @@ interface TeardownArgs<S> { spec: S; data: Record<string, unknown>; result: { st
 
 /**
  * What a hooks module may export; both are optional. Hooks run in their own child process, so their arguments
- * are JSON only: no `page`.
+ * are JSON only: no `page`. What `setup` returns is any JSON object (no dataset shape imposed); its leaves are
+ * the spec's `${hooks.*}` placeholders and teardown's `data`.
  */
 export interface HooksModule<S extends HookSpec = Spec> {
   setup?: (args: { spec: S }) => unknown;

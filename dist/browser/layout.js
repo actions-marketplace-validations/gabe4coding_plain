@@ -2,6 +2,7 @@ import { joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations } 
 import { frameLabel } from './frames.js';
 const MAX_LAYOUT_TEXT = 120;
 const MAX_LAYOUT_NODES = 10_000;
+/** An iframe capture that fails or outlasts this (detached, navigating) becomes one "unavailable" line. */
 const IFRAME_LAYOUT_MS = 2_000;
 function edges(box) {
     return { left: box.x, top: box.y, right: box.x + box.width, bottom: box.y + box.height };
@@ -66,7 +67,11 @@ export async function spatialCandidates(page, candidates) {
     }));
     return observed.filter((candidate) => candidate !== null);
 }
-/** Returns actual elements: no DOM attributes are written, and handles retain identity during a layout change. */
+/**
+ * Returns actual elements: no DOM attributes are written, and handles retain identity during a layout change.
+ * Walks the rendered tree: a slot's assigned elements, a shadow root's children in place of the host's light
+ * children, so `visited` lists each slotted element once.
+ */
 function layoutElements(root, limits) {
     const found = [];
     for (let ancestor = root; ancestor;) {
@@ -103,6 +108,11 @@ function layoutElements(root, limits) {
     }
     return { elements: found, truncated: false };
 }
+/**
+ * `desc` keeps native values and the accessible name apart from the rendered text. Transparent descendants count in a
+ * content-derived name but not in the rendered text; `name` states both when they differ, so a name never passes
+ * for visible text. A collapsed select shows only its displayed selection and value.
+ */
 async function describeElement(element, maxText) {
     return element.evaluate((el, max) => {
         const role = el.getAttribute('role');
@@ -113,6 +123,7 @@ async function describeElement(element, maxText) {
         for (const label of el.labels ?? []) {
             const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
             for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                // A wrapping label's name excludes the control's own subtree.
                 if (!el.contains(node))
                     labelParts.push(node.textContent ?? '');
             }
@@ -207,6 +218,7 @@ async function captureLayout(root, label, remaining, timeout) {
 }
 /** Bounded spatial evidence for a page or exactly one region, including its open shadow roots. */
 export async function layoutSnapshot(page, within) {
+    // A region's frame goes through the same embedding visibility check as a whole page's frames.
     let regionFrame;
     if (within) {
         const handles = await within.elementHandles();

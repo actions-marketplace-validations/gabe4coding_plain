@@ -9,12 +9,19 @@ function compileFlagRegex(pattern: string | undefined, flag: string): RegExp | u
   catch (error) { throw new Error(`${flag}: invalid regex ${JSON.stringify(pattern)}: ${errorMessage(error)}`); }
 }
 
-/** Keeps only the specs that did not pass in the last run; `undefined` (no usable last run) keeps them all. */
+/**
+ * Keeps only the specs that did not pass in the last run; `undefined` (no usable last run) keeps them all, an empty
+ * set (no failures) keeps none.
+ */
 export function filterLastFailed<S>(specs: Loaded<S>[], failed: Set<string> | undefined): Loaded<S>[] {
   if (failed === undefined) return specs;
   return specs.filter(({ file }) => failed.has(path.resolve(file)));
 }
 
+/**
+ * `--grep`/`--grep-invert` test the spec name and its cwd-relative path; a spec must carry every requested tag;
+ * `--last-failed` then intersects with the last run's non-passes.
+ */
 export function select<S>(specs: Loaded<S>[], opts: SuiteOptions): Loaded<S>[] {
   const include = compileFlagRegex(opts.grep, '--grep');
   const exclude = compileFlagRegex(opts.grepInvert, '--grep-invert');

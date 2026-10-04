@@ -91,6 +91,7 @@ export async function askSettled(options) {
     return { frame, result, reasked };
 }
 const MIN_ARIA_TO_HALVE = 4000;
+/** Sent with every layout: names, values, visibility and relations must all hold for the same elements. */
 const SPATIAL_CLAIM_RULES = 'A spatial claim requires all its named text, current values, displayed selections, visibility and spatial relations to hold for the same elements. If any named text, value or selection differs, or required visible text belongs to an invisible element, the entire claim is false. A correct spatial relation alone does not make a claim with a mismatched name or value true. An available unselected option in the accessibility tree is not displayed by a collapsed select. Read the rendered evidence for physical position and visibility.';
 /**
  * Judges claims against a snapshot. A state over the token limit is cut in half until it fits. A region goes
