@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BadRequestError } from '@typesafe-ai/sdk';
 import { decide } from './decide.js';
-import { mergePicks, pickElements, type PickResult } from './pick.js';
+import { mergePicks, pickElements, type PickPage, type PickResult } from './pick.js';
 
 test('pickElements halves a request that is over the token limit and merges the answers', async () => {
   const candidates = Array.from({ length: 8 }, (_, id) => ({ id, desc: `button ${id}` }));
@@ -46,6 +46,22 @@ test('pickElements: a runoff that finds neither finalist stays none', async () =
     : { id: cands[0].id, probability: 0.9, confidence: 0.9, probabilities: { [cands[0].id]: 0.9, none: 0.1 }, tokens: 1 });
   const [result] = await pickElements(candidates, ['the link'], { url: 'u', title: 't' }, ask as never);
   assert.equal(result.id, null);
+});
+
+test('reference geometry remains available in candidate chunks, token-limit splits and the finalist runoff', async () => {
+  const candidates = Array.from({ length: 300 }, (_, id) => ({ id, desc: `field ${id}` }));
+  const state = { url: 'u', title: 't', layout: 'Shipping heading bounds={"top":80,"bottom":100}' };
+  const sizes: number[] = [];
+  const ask = async (cands: { id: number }[], _instructions: string[], page: PickPage) => {
+    assert.equal(page.layout, state.layout);
+    sizes.push(cands.length);
+    if (cands.length > 100) throw new BadRequestError(400, { detail: { error_type: 'max_tokens_exceeded' } }, new Headers(), 'Bad Request');
+    return [{ id: cands[0].id, probability: 1, confidence: 1, probabilities: { [cands[0].id]: 1 }, tokens: 1 }];
+  };
+  await pickElements(candidates, ['the field below Shipping'], state, ask as never);
+  assert.ok(sizes.includes(150));
+  assert.ok(sizes.includes(75));
+  assert.ok(sizes.includes(2));
 });
 
 const pick = (id: number | null, p: number, probabilities: Record<string, number>, tokens = 0): PickResult => ({

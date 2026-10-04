@@ -1,0 +1,32 @@
+{
+  "url": "http://127.0.0.1/spatial-reference",
+  "title": "Spatial references",
+  "kind": "fill",
+  "candidates": [
+    {
+      "id": 0,
+      "desc": "input aria-label=\"Upper field\" context: section name=\"Address fields\" heading=\"Shipping\"",
+      "frameIndex": 0,
+      "editable": true,
+      "bounds": {
+        "left": 8,
+        "top": 159.875,
+        "right": 161,
+        "bottom": 180.875
+      }
+    },
+    {
+      "id": 1,
+      "desc": "input aria-label=\"Lower field\" context: section name=\"Address fields\" heading=\"Shipping\"",
+      "frameIndex": 0,
+      "editable": true,
+      "bounds": {
+        "left": 8,
+        "top": 319.875,
+        "right": 161,
+        "bottom": 340.875
+      }
+    }
+  ],
+  "layout": "Rendered bounds in main viewport CSS pixels: x increases right, y increases down.\nUse bounds for spatial claims. Tree order is not visual order. Missing required geometry is insufficient evidence.\nThe first quoted string in each element row is current visible text; an empty string has no visible text. label is the accessible name and value is the current form value. A claimed name or value and its spatial relation must all match the same elements.\nThe accessibility tree can contain invisible text. A label is an accessible name, not proof of visible text. For claims about visible text, use the quoted rendered text.\nmain: h1 \"Spatial references\" bounds={\"left\":8,\"top\":21.4375,\"right\":1272,\"bottom\":58.4375}\nmain: section \"Shipping\" label=\"Address fields\" bounds={\"left\":8,\"top\":79.875,\"right\":1272,\"bottom\":429.875}\nmain: h2 \"Shipping\" bounds={\"left\":8,\"top\":239.875,\"right\":100.078125,\"bottom\":267.875}\nmain: input[type=text] \"\" label=\"Upper field\" value=\"\" bounds={\"left\":8,\"top\":159.875,\"right\":161,\"bottom\":180.875}\nmain: input[type=text] \"\" label=\"Lower field\" value=\"\" bounds={\"left\":8,\"top\":319.875,\"right\":161,\"bottom\":340.875}\nmain: button \"Move heading\" bounds={\"left\":8,\"top\":429.875,\"right\":107.75,\"bottom\":450.875}\nmain: p[role=status] \"Upper field: ; Lower field:\" bounds={\"left\":8,\"top\":466.875,\"right\":1272,\"bottom\":484.875}\nMeasured neighbors (nearest with perpendicular overlap; other relations still use bounds):\nmain: heading \"Spatial references\" is above main: section \"Address fields\".\nmain: section \"Address fields\" is below main: heading \"Spatial references\".\nmain: section \"Address fields\" is above main: button \"Move heading\".\nmain: heading \"Shipping\" is below main: field \"Upper field\".\nmain: heading \"Shipping\" is above main: field \"Lower field\".\nmain: field \"Upper field\" is below main: heading \"Spatial references\".\nmain: field \"Upper field\" is above main: heading \"Shipping\".\nmain: field \"Lower field\" is below main: heading \"Shipping\".\nmain: field \"Lower field\" is above main: button \"Move heading\".\nmain: button \"Move heading\" is below main: section \"Address fields\".\nmain: button \"Move heading\" is above main: status \"Upper field: ; Lower field:\".\nmain: status \"Upper field: ; Lower field:\" is below main: button \"Move heading\"."
+}

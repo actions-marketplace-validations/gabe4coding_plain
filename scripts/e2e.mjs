@@ -112,6 +112,11 @@ async function agentSession(saved) {
     await call('open', { url: `${site.url}/boxes` }); // after save: not part of the replayed spec
     const { aria } = await call('snapshot', {});
     if (!aria.includes('- /url: https://ads.example/aclk…') || aria.includes('Xy7Xy7')) return `snapshot did not cut the long ad link: ${aria}`;
+    await call('open', { url: `${site.url}/spatial` });
+    const spatial = await call('ask', { claims: ['the button on the left is B and the button on the right is A',
+      'the button on the left is A and the button on the right is B'] });
+    const spatialAnswers = spatial.answers.map((answer) => answer.answer).join(',');
+    if (spatialAnswers !== 'yes,no') return `spatial ask answered ${spatialAnswers}, expected yes,no`;
   } finally {
     await client.close();
   }

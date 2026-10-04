@@ -6,20 +6,23 @@ import type { StepSource } from './spec.js';
 import { dumpDebug, errorMessage, type StepResult } from './results.js';
 
 /*
- * Pick cache (docs/running.mdx "Pick cache"): a target Jev picked in a passing run is replayed without a Jev call
- * while the page's whole candidate list is unchanged (typed text aside) and exactly one candidate has the stored
+ * Pick cache (docs/running.mdx "Pick cache"): a high-confidence pick in a passing run is replayed without a Jev
+ * call while the page's whole candidate list is unchanged (typed text aside) and exactly one candidate has the stored
  * description. Jev decided once; code only reuses that decision on a strict match. One sidecar per source file
  * (`login.yaml` → `login.picks.json`), committed next to the specs. A retry never reads; a failed attempt
  * evicts the entries it used.
  */
-export const PICK_FILE_VERSION = 1;
+export const PICK_FILE_VERSION = 2;
+/** Reusing a decision across runs needs more certainty than acting once (0.5). */
+const PICK_CACHE_ACCEPT_AT = 0.9;
 /**
  * Bump whenever a candidate description changes (src/browser/candidates.ts or a native adapter).
  * 2: `value=` is ignored only on editable candidates; every entry has the list hash.
  * 3: the list hash also covers each element's UI state (checked, selected, pressed, expanded, disabled).
  * 4: a labelable control's description carries its `<label>` text (`label="…"`).
+ * 5: spatial candidates and reference elements carry rendered geometry in the list hash.
  */
-export const DESC_FORMAT = 4;
+export const DESC_FORMAT = 5;
 
 export const PICKS_MODES = ['on', 'read', 'off'] as const;
 export type PicksMode = typeof PICKS_MODES[number];
@@ -27,7 +30,7 @@ export type PicksMode = typeof PICKS_MODES[number];
 /** What identifies one pick, together with the page: the step's source and kind, the interpolated target, the goal. */
 export interface PickRef { at: StepSource; kind: string; target: string; goal?: string }
 export interface PickEntry { desc: string; frame: string; page: string; list: string }
-export interface PickState { url: string; title: string }
+export interface PickState { url: string; title: string; layout?: string }
 
 export const sidecarPath = (file: string): string => {
   const { dir, name } = path.parse(file);
@@ -50,9 +53,11 @@ export const normalizeDesc = (c: Candidate): string => (c.editable ? c.desc.repl
 const frameOf = (desc: string): string => /^\[iframe ([^\]]*)\] /.exec(desc)?.[1] ?? '';
 /** ` #n`: one of several identical descriptions, by DOM order. When the list changes it names another row. */
 const hasOrdinal = (desc: string): boolean => / #\d+(?= context: |$)/.test(desc);
-/** The whole candidate list, typed text aside, plus each element's UI state: a flipped toggle is a change. */
-export const listHash = (candidates: Candidate[]): string =>
-  createHash('sha1').update(candidates.map((c) => `${normalizeDesc(c)}${c.state ? `\u0000${c.state}` : ''}`).join('\n')).digest('hex');
+/** Candidate identity, state and bounds, plus spatial references when requested. */
+export const listHash = (candidates: Candidate[], layout?: string): string =>
+  createHash('sha1').update(candidates.map((c) => `${normalizeDesc(c)}${c.state ? `\u0000${c.state}` : ''}` +
+    (c.bounds ? `\u0000${JSON.stringify(c.bounds)}` : '')).join('\n') +
+    (layout === undefined ? '' : `\u0000layout\u0000${layout}`)).digest('hex');
 
 /** Origin and path; query and hash ignored. A desktop URL holds the process id, so the app name stands in. */
 export function pageOf(state: PickState): string {
@@ -64,19 +69,20 @@ export function pageOf(state: PickState): string {
 }
 
 /** The entry an accepted pick becomes, or null when it must never be stored. */
-export function makeEntry(candidate: Candidate, candidates: Candidate[], state: PickState, templated?: boolean): PickEntry | null {
+export function makeEntry(candidate: Candidate, candidates: Candidate[], state: PickState, score: number, templated?: boolean): PickEntry | null {
+  if (!Number.isFinite(score) || score < PICK_CACHE_ACCEPT_AT || score > 1) return null;
   if (hasOrdinal(candidate.desc)) return null;
   const desc = normalizeDesc(candidate);
   // Unique on this page, or the same page would already miss (two text fields that differ only by value).
   if (candidates.filter((c) => normalizeDesc(c) === desc).length !== 1) return null;
   return { desc: hashIfTemplated(desc, templated), frame: hashIfTemplated(frameOf(candidate.desc), templated), page: hashIfTemplated(pageOf(state), templated),
-    list: listHash(candidates) };
+    list: listHash(candidates, state.layout) };
 }
 
 /** The one candidate a stored entry matches on this page, or undefined: same page, the same whole candidate
  *  list (a new row that fits the target better is a change), and exactly one equal desc in the same frame. */
 export function matchEntry(entry: PickEntry, candidates: Candidate[], state: PickState, templated?: boolean): Candidate | undefined {
-  if (hashIfTemplated(pageOf(state), templated) !== entry.page || listHash(candidates) !== entry.list) return undefined;
+  if (hashIfTemplated(pageOf(state), templated) !== entry.page || listHash(candidates, state.layout) !== entry.list) return undefined;
   const found = candidates.filter((c) => hashIfTemplated(normalizeDesc(c), templated) === entry.desc && hashIfTemplated(frameOf(c.desc), templated) === entry.frame);
   return found.length === 1 ? found[0] : undefined;
 }
@@ -246,11 +252,11 @@ export class PickAttempt {
     if (entry && !this.closed) this.currentStepHits.set(usedKey(ref, page), { ref, page, entry });
   }
 
-  /** Jev's accepted pick, stored if this step and this attempt pass and its description matches strictly. */
-  accept(ref: PickRef, candidate: Candidate, candidates: Candidate[], state: PickState): void {
+  /** Jev's high-confidence pick, stored if this step and this attempt pass and its description matches strictly. */
+  accept(ref: PickRef, candidate: Candidate, candidates: Candidate[], state: PickState, score: number): void {
     if (!this.writes || this.closed) return;
     const page = pageOf(state);
-    this.currentStepPending.set(usedKey(ref, page), { ref, page, entry: makeEntry(candidate, candidates, state, ref.at.templated) });
+    this.currentStepPending.set(usedKey(ref, page), { ref, page, entry: makeEntry(candidate, candidates, state, score, ref.at.templated) });
   }
 
   /** Ends a step; returns a dump of the cached picks this attempt used when the step did not pass. */

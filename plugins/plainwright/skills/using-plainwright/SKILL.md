@@ -31,6 +31,7 @@ The rules below apply to both.
 
 - A pick is accepted when Jev's confidence is ≥ 0.5 and the answer is not `none`. Otherwise the step is
   `inconclusive` and `detail` lists the top guesses with their probabilities.
+- Spec runs store reusable picks only at confidence ≥ 0.9 (probability fallback). Marginal accepted picks ask Jev again next run.
 - A claim passes at p ≥ 0.9, fails at p ≤ 0.1, and is `inconclusive` in between. `optional: true` turns an
   inconclusive or error step into `skipped`.
 - `ask {claims, within?}` judges 1–16 claims in one Jev call without acting or recording: each is `yes`
@@ -48,9 +49,16 @@ The rules below apply to both.
   - Scope with `within` to cut noise; `css=` regions never miss, but must
     match exactly one element (several matches return `found: false` with the count). Ask "The browser console reported an
     error" on its own when console errors matter.
-  - Plain boxes have no role: the tree shows only their text in page order (`B A`), so "the first box shows B"
-    stays unsure. Ask each box with its own `within`; use `css=` when position is the only way to name it
-    (a pick has no layout, so "the first box" can pick the wrong one).
+  - Use explicit spatial relations: "the button B is left of the button A". Browser targets and claims that
+    need layout get rendered bounds in main viewport coordinates, including iframe controls and plain boxes
+    with text. "First" alone does not distinguish list order from visual order; say "leftmost" or "topmost".
+    Spatial picks also get reference geometry: "the field immediately below the Shipping heading" can refer
+    to a heading outside the fill candidates. Reference captures and spatial claims collect at most 254 elements.
+    If claim layout is truncated, scope with `within`.
+    Bounds do not prove color or image appearance. `snapshot` still returns the accessibility tree.
+    Specs and MCP batches classify their known targets and claims together in one request. Repeated prompt
+    groups reuse the classification; new interactive prompts need another request.
+    A request over the model limit splits into smaller requests.
   - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plainwright/*.json`; the path
   is in `detail`.

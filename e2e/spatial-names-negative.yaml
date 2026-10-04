@@ -1,0 +1,10 @@
+name: Native control names do not prove DOM order is visual order
+tags: [expect-fail]
+url: ${env.site}/spatial-names
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-names
+  - expect:
+      that: the button A is to the left of the button B
+      within: the Native button pair section

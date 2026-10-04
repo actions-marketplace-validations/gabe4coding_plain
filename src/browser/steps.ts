@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import type { Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Step } from '../core/spec.js';
@@ -11,6 +12,7 @@ import { mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators, resolveOne } from './locate.js';
 import { judgeClaims, judgeRegion, judgeSettled, type Observed } from './judge-page.js';
 import { sleep, timed, type StepContext } from './context.js';
+import { prepareEvidence } from './evidence.js';
 
 type StepOf<K extends Step['kind']> = Extract<Step, { kind: K }>;
 
@@ -43,7 +45,7 @@ const ROUTINE_LOG = /^(\d+ × )?(waiting for|waiting \d+ms|retrying|attempting|s
  * line, plus the last log line that gives a reason, such as the element that intercepts pointer events.
  */
 function actionError(error: unknown): string {
-  const [head, log] = errorMessage(error).split('\nCall log:\n');
+  const [head, log] = stripVTControlCharacters(errorMessage(error)).split('\nCall log:\n');
   if (log === undefined) return head;
   const reason = log.split('\n').map((line) => line.trim().replace(/^- /, ''))
     .filter((line) => line && !ROUTINE_LOG.test(line)).at(-1);
@@ -54,6 +56,7 @@ function actionError(error: unknown): string {
 export async function runStep(ctx: StepContext, step: Step): Promise<StepResult> {
   ctx.ms = {};
   ctx.step = step;
+  prepareEvidence(ctx, [step]);
   const start = Date.now();
   if (!settlesFirst(step)) await timed(ctx, 'settle', () => waitHold(ctx.page));
   const result = await runKind(ctx, step);

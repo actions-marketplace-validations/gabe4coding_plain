@@ -21,6 +21,7 @@ import { loadEnvFiles } from '../dist/jev/provider.js';
 import { decide } from '../dist/jev/decide.js';
 import { judgeState } from '../dist/core/automation.js';
 import { markUnchecked, shortenUrls } from '../dist/browser/page.js';
+import { evidenceForGroups } from '../dist/jev/evidence.js';
 
 const { values } = parseArgs({ options: { gate: { type: 'boolean', default: false }, runs: { type: 'string', default: '1' }, group: { type: 'string', default: 'single' }, only: { type: 'string' }, out: { type: 'string' }, compare: { type: 'string' } } });
 if (!['single', 'page'].includes(values.group)) throw new Error('--group must be single or page');
@@ -62,9 +63,19 @@ for (let run = 0; run < Number(values.runs); run++) {
 
 const outcomeOf = (c, decision) => decision === c.expect ? 'right' : decision === 'inconclusive' ? 'inconclusive'
   : decision === 'pass' ? 'falsePass' : 'falseFail';
+const routed = cases.filter((c) => c.evidence);
+const routes = [];
+for (let run = 0; run < Number(values.runs); run++) {
+  routes.push((await evidenceForGroups(routed.map((c) => [c.claim]))).spatial);
+}
 const results = (await mapLimit(calls, 6, async ({ run, cases: group }) => {
   const t = Date.now();
   try {
+    for (const c of group.filter((c) => c.evidence)) {
+      if (routes[run][routed.indexOf(c)] !== (c.evidence === 'spatial')) {
+        throw new Error(`${c.evidence} claim routed with incorrect evidence`);
+      }
+    }
     const { probabilities, tokens } = await judgeState(page(group[0].page), group.map((c) => c.claim), group[0].events);
     const ms = Date.now() - t;
     return group.map((c, i) => {

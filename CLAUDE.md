@@ -108,12 +108,14 @@ Source layout (tests sit next to their module):
 - `src/cli.ts` — the browser CLI entry (`plainwright`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
 - `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`, `step-kind.ts`),
   the shared targeting/judging boundary (`automation.ts`), results and labels (`results.ts`), hooks (`hooks.ts`,
-  `hooks-child.ts`), the pick cache, `read`, snapshot views, `changed` diffs and MCP result helpers.
+  `hooks-child.ts`), the pick cache, `read`, snapshot views, `changed` diffs and MCP result helpers, plus the
+  spatial evidence shared by all engines: prompt routes (`evidence.ts`) and layout text (`layout.ts`).
 - `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
   `isTooLong`, `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
 - `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`), `steps.ts`
   (step handlers), `activity.ts` (settling, request tracking, `mayNavigate`), `settled-ask.ts`, `locate.ts` (targets),
-  `judge-page.ts` (claims), `candidates.ts`, `page.ts` (snapshots, DOM clock), `notes.ts` (console noise), `mcp.ts`.
+  `judge-page.ts` (claims), `candidates.ts`, `page.ts` (snapshots, DOM clock), `evidence.ts` (observation routing),
+  `layout.ts` (read-only rendered bounds), `notes.ts` (console noise), `mcp.ts`.
 - `src/native/` — the shared desktop/mobile core (`session.ts`, `run-spec.ts`, `cli.ts`, `mcp.ts`).
 - `src/computer/` and `src/mobile/` — each platform's `adapter.ts`, `spec.ts`, `session.ts`, `mcp.ts`, `cli.ts`
   (plus `computer/planner.ts`, `mobile/tree.ts`, `mobile/discovery.ts`).
@@ -143,7 +145,8 @@ Source layout (tests sit next to their module):
   (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target, goal, page]`,
   value the accepted candidate's desc (`value=` dropped only on `editable` text-entry candidates, browser only),
   frame label, page (origin+path) and a sha1 of the whole normalized list plus each element's UI state
-  (checked, selected, pressed, expanded, disabled). When the raw step had `${`, the key's target and page and the
+  (checked, selected, pressed, expanded, disabled). Picks are stored only at confidence (probability fallback) ≥ 0.9;
+  acting still accepts ≥ 0.5. File version 2 rejects older entries. When the raw step had `${`, the key's target and page and the
   stored desc, frame and page are sha256 hashes, so no interpolated data reaches the committed sidecar.
   `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when the list hash is equal and exactly one candidate
   matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks. Loaders put
@@ -218,7 +221,26 @@ Source layout (tests sit next to their module):
   aria-checked/aria-pressed) and click only when it must change (`setChecked`); `scroll: top|bottom` (and spoken
   forms, `scrollEdge`) scrolls `document.scrollingElement` and reports the distance. A scan with no candidates is
   retried for up to 2 s (`APPEAR_MS` in `locate.ts`, a page still redirecting after `open`). `wait: {that, within}` picks the region
-  once and polls only its tree (`judgeRegion` in `judge-page.ts`).
+  once and polls only its tree (`judgeRegion` in `judge-page.ts`). Browser targets and claims use one cached Jev
+  Choice per distinct prompt group (`jev/evidence.ts`) to request semantic or spatial evidence. Spec runs and MCP
+  batches queue interpolated groups (`core/evidence.ts`, per session in `browser/evidence.ts`) and classify them in one request at the first model
+  step; a model token-limit rejection bisects groups while preserving answer order and per-request usage.
+  Standalone scoped claims queue the claim and region together. Later interactive groups request their own
+  classification. Entered values, files, keys and navigation URLs are excluded from the routing state. Uncertain routes
+  collect layout too. Spatial candidates carry main-viewport CSS-pixel bounds, covered by the pick-cache list hash.
+  Picks also receive the read-only layout for non-candidate references, retained across chunks and runoff; its
+  hash invalidates a cached pick when a reference moves even if the candidate list stays equal;
+  spatial claims add a bounded read-only layout capture (254 text elements/controls, scoped by `within`). Spatial
+  observations always repeat after settling, since CSS can move elements without a DOM mutation. Scoped claims
+  also repeat: a shadow-root mutation is outside the main-document observer. Layout walks the rendered slot
+  content once, retains native values and accessible names, and isolates transient iframe failures with a 2 s cap.
+  Transparent descendants contribute to content-derived accessible names but not rendered text; neighbor names
+  state both when they differ, so a name does not masquerade as visible text.
+  Collapsed selects expose only their displayed selection and current value; wrapping label names exclude the control subtree.
+  Frame geometry checks embedding visibility through every parent frame, including scoped captures.
+  Spatial judgments receive explicit conjunction rules: names, values, visibility and relations must all hold for the same elements.
+  Measured nearest-neighbor relations with perpendicular overlap give Jev qualitative order without relying on
+  tree order or coordinate arithmetic; the bounded layout retains the raw rectangles for other relations.
 - `src/browser/runner.ts` — `runSpec()`: fork the hooks child first (fails fast, before the browser opens) → open a
   session → `setup()` → interpolate `url`/`steps` with `{env, hooks: data}` → run steps → `teardown()` in
   `finally` → close the child → close the session. `Status` is `pass | fail | inconclusive | error | skipped`.
@@ -359,7 +381,7 @@ and read the code for those.
 
 - `src/core/automation.ts` is the shared generic target adapter, candidate/snapshot types, pick acceptance and judgment retry logic. Browser, desktop and mobile paths use it. `src/core/results.ts` shares labels/status/debug output.
 - `src/core/hooks.ts` owns the generic isolated hook runner (`startHooks`) and `placeholderPaths`, used by all three MCP servers.
-- `src/native/` is the shared desktop/mobile core: `NativeSession` (`session.ts`; Jev targeting via `askSettled`, expect/wait polling, phase timing; subclasses implement `parse`, `label` and `act`), `runNativeSpec` (`run-spec.ts`; hooks → open → steps → teardown → close) and `nativeCli` (`cli.ts`). `src/native/mcp.ts` (`createNativeServer`, `serveNative`) holds the shared step/find/snapshot/ask/read/screenshot/save/close tools; each platform registers its own open and discovery tools first. As in the browser: `step` results carry `changed` (diffed against the step's own first whole-screen capture, `NativeSession.firstSnapshot`; press/swipe/mouse capture first), picks see `goal` (`open {goal}`, spec `goal:`), and `read` answers with tree lines.
+- `src/native/` is the shared desktop/mobile core: `NativeSession` (`session.ts`; Jev targeting via `askSettled`, expect/wait polling, phase timing; subclasses implement `parse`, `label` and `act`), `runNativeSpec` (`run-spec.ts`; hooks → open → steps → teardown → close) and `nativeCli` (`cli.ts`). `src/native/mcp.ts` (`createNativeServer`, `serveNative`) holds the shared step/find/snapshot/ask/read/screenshot/save/close tools; each platform registers its own open and discovery tools first. As in the browser: `step` results carry `changed` (diffed against the step's own first whole-screen capture, `NativeSession.firstSnapshot`; press/swipe/mouse capture first), picks see `goal` (`open {goal}`, spec `goal:`), and `read` answers with tree lines. Spatial evidence too: `NativeSession` queues prompt groups per spec (`runNativeSpec`) and per step, and routes them through `core/evidence.ts` (injected intelligence without `ask` never routes); a spatial capture (`CaptureOptions.spatial`, also on `captureEarly`) gives candidates `bounds`, the snapshot a `layout` (`nativeLayout` in `core/layout.ts`: named elements, measured neighbors, 254 rows, 24k chars) and the frame its `coordinates`, which picks name instead of the browser's CSS pixels. Desktop reads xa11y `bounds` only in a spatial capture; mobile parses Android `bounds` and iOS `x`/`y`/`width`/`height`; a spatial iOS capture is never fast, since the fast tree would measure covered elements as visible references. The mobile and macOS smoke fixtures hold an Alpha/Beta pair whose tree order is the reverse of its visual order.
 - `src/computer/adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports). `captureTree` (unit-tested with fake nodes) skips control parts (text, groups, images, table cells) inside a candidate, names unnamed candidates by their inner text, drops the single-window/application context and shortens long values; `click` inside a `web_area` is a pointer click, elsewhere the accessibility press when the element offers one (else a pointer click).
 - `src/computer/spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (ten serialized MCP tools in all), and sequential batch replay, on top of `src/native/`. Desktop specs have `app`, not `url`.
 - `src/computer/planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `src/computer/cli.ts`. Change it only when `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
@@ -374,6 +396,7 @@ and read the code for those.
 - `src/mobile/spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide mobile parsing, actions, the discovery/`open` tools (eleven serialized tools in all), and sequential replay, on top of `src/native/`.
 - iOS tree reads are dominated by XCUITest's `visible` attribute. `AppiumAdapter` revalidates targets from the lookup response (`IOS_FOUND_ATTRIBUTES`, incl. `attribute/visible`), and with `fastTargets` (set by `mobile/cli.ts` and `mobile/mcp.ts`; MCP `find` calls `preferExact`, and `changed` never diffs against an approximate frame: `firstSnapshot` skips them, the previous step's after capture stands in) picks targets from a source without `visible` (`parseMobileTree` `boundsVisibility`, frame `approximate`); `MobileSession.act` keeps such a pick when accepted (>= 0.5, like any pick) and visible, else re-picks from an exact capture (`ms.retargeted`); fast and exact trees picked the same element in 24/24 recorded Calendar asks, with lower confidence on sheets. Claim `within` regions are also picked from the approximate tree (containers only, `NativeSession.region(within, true)`); the first exact look must show a visible node or `HiddenTargetError` re-picks. Reads exclude `accessible` except for click candidates; iOS lookups use class chains (`MobileNode.chain`). Measure with `examples/mobile/ios-calendar.yaml`.
 - `NativeSession.settled()` uses `askSettled` (`core/automation.ts`): within 1 s of the previous step (or `noteActivity()` after open), Android reads a quick tree (`AppiumAdapter.captureEarly`, `waitForIdleTimeout` 0 for one read, then restored) and Jev works on it while the idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked (`ms.reasked`). iOS returns null (no gain measured). The pre-action identity revalidation is unchanged.
+- iOS keyboard: XCUITest does not wait for the keyboard. On iOS 27 it stays below the screen (`visible="false"`) for ~1-1.5 s after `elementSendKeys` returns, so the next capture had no keys. `AppiumAdapter.keyboardShown()` runs after an iOS `fill` and after a click on a text-entry role (`IOS_TEXT_ENTRY`): it polls the `**/XCUIElementTypeKeyboard` class-chain lookup (its `attribute/visible`, ~60 ms per lookup) until visible or absent, at most `KEYBOARD_MS` (3 s, capped by the action timeout). The return key is `XCUIElementTypeButton` name `Done`, label `done` (drawn as a checkmark).
 - `src/mobile/discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
 - The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.mdx` and its skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.

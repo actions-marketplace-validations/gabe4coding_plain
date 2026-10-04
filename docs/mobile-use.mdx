@@ -232,6 +232,8 @@ A hook `setup` runs before the session opens. `teardown` also runs when the open
 Step rules:
 
 - `fill` on an iOS picker wheel selects the value and does not clear the control. Use the format that the control shows.
+- On iOS, a `fill` or a `tap` on a text field ends when the keyboard is on the screen, after at most 3 seconds.
+  The next step can then tap a keyboard key, for example the return key.
 - `check` and `uncheck` read Android `checked` or the iOS switch `value`. An unknown or mixed state is an error.
 - `scroll` needs a direction (`up`, `down`, `left` or `right`) before the container. The direction moves the content.
   One gesture does not always reach the end. `scroll: top` and `scroll: bottom` are not supported.
@@ -259,6 +261,11 @@ Jev reads the native UI tree as text: the names, types, values and states of the
 - A React Native parent that you can tap gets the label of its children.
 - Hidden and disabled controls are not candidates for an action.
 - Jev does not see React internals, selectors or pixels. A custom canvas control needs accessibility support in the app.
+- A target or a claim about a physical position, such as `the left button`, also gets the bounds of the elements.
+  The rules are the same as in the browser ([what Jev can see](spec-reference.mdx#for-a-pick)).
+  Android bounds are in screen pixels, iOS bounds in screen points.
+  On iOS, such a target reads the complete tree, which takes more time than other targets.
+  The layout lists at most 254 elements that have a name or a value.
 
 ### Before an action
 

@@ -1,0 +1,9 @@
+name: Spatial dropdown evidence uses its label and displayed selection
+url: ${env.site}/spatial-controls
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-controls
+  - expect: the Plan dropdown displays Monthly to the left of the Continue button
+  - select: {target: the Plan dropdown to the left of Continue, value: annual}
+  - expect: the Plan dropdown displays Annual to the left of the Continue button

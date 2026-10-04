@@ -22,6 +22,7 @@ import { askPage } from './judge-page.js';
 import { settlePage } from './activity.js';
 import { snapshot, snapshotRegion } from './page.js';
 import { CandidateKindSchema } from './candidates.js';
+import { prepareEvidence } from './evidence.js';
 
 const STEP_DESCRIPTION = `Run one step in the persistent browser session (call \`open\` first).
 
@@ -235,7 +236,8 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     const current = activeSession();
     const parsed = steps.map((step, i) => parseStep('mcp batch', i, step));
     // Every placeholder is checked first: a bad later step must not leave the batch half done.
-    for (const step of parsed) withPlaceholders(step, 'mcp batch');
+    const resolved = parsed.map((step) => withPlaceholders(step, 'mcp batch'));
+    prepareEvidence(current.ctx, resolved);
     const before = totalTokens;
     const page = await look();
     const outcomes = [];

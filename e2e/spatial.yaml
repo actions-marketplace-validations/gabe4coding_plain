@@ -1,0 +1,18 @@
+name: Spatial prompts follow rendered geometry
+url: ${env.site}/spatial
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial
+  - expect: the button on the left is B and the button on the right is A
+  - expect: the letter Y is to the left of the letter X
+  - expect:
+      that: the button B is to the left of the button A
+      within: the Button pair section
+  - click: the button immediately to the left of A
+  - expect: the status message says B clicked
+  - click: the button on the right
+  - wait:
+      that: the button A is to the left of the button B
+      within: the Button pair section
+  - expect: the status message says A clicked

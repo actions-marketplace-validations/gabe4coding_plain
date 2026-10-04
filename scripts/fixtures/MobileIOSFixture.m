@@ -6,6 +6,7 @@
 @property(nonatomic, strong) UISwitch *previewEnabled;
 @property(nonatomic, strong) UILabel *preview;
 @property(nonatomic, strong) UILabel *details;
+@property(nonatomic, strong) UILabel *chosen;
 @end
 
 @implementation FixtureController
@@ -50,12 +51,27 @@
     self.details = [[UILabel alloc] initWithFrame:CGRectMake(24, 312, width, 48)];
     self.details.text = @"Details hidden";
     [scroll addSubview:self.details];
+    // Spatial targets: Alpha comes first in the tree but is drawn on the right of Beta.
+    CGFloat half = (width - 16) / 2;
+    for (NSString *title in @[@"Alpha", @"Beta"]) {
+        UIButton *choice = [UIButton buttonWithType:UIButtonTypeSystem];
+        choice.frame = CGRectMake([title isEqualToString:@"Alpha"] ? 40 + half : 24, 368, half, 48);
+        [choice setTitle:title forState:UIControlStateNormal];
+        [choice addTarget:self action:@selector(choose:) forControlEvents:UIControlEventTouchUpInside];
+        [scroll addSubview:choice];
+    }
+    self.chosen = [[UILabel alloc] initWithFrame:CGRectMake(24, 424, width, 48)];
+    self.chosen.text = @"Chosen: none";
+    [scroll addSubview:self.chosen];
     for (int i = 1; i <= 25; i++) {
-        UILabel *row = [[UILabel alloc] initWithFrame:CGRectMake(24, 368 + (i - 1) * 48, width, 48)];
+        UILabel *row = [[UILabel alloc] initWithFrame:CGRectMake(24, 480 + (i - 1) * 48, width, 48)];
         row.text = [NSString stringWithFormat:@"Fixture row %d", i];
         [scroll addSubview:row];
     }
-    scroll.contentSize = CGSizeMake(self.view.bounds.size.width, 368 + 25 * 48);
+    scroll.contentSize = CGSizeMake(self.view.bounds.size.width, 480 + 25 * 48);
+}
+- (void)choose:(UIButton *)sender {
+    self.chosen.text = [@"Chosen: " stringByAppendingString:sender.currentTitle];
 }
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     [textField resignFirstResponder];

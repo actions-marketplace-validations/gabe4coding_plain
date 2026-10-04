@@ -1,0 +1,8 @@
+name: DOM order does not prove rendered order
+tags: [expect-fail]
+url: ${env.site}/spatial
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial
+  - expect: the button on the left is A and the button on the right is B

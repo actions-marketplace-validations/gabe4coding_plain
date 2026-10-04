@@ -41,6 +41,7 @@ export async function runNativeSpec(spec, session, open, observer, info, specTim
         }
         setupDone = true;
         const runSteps = await open({ env: spec.env, hooks: data });
+        session.prepareEvidence(runSteps);
         opened = true;
         await observe('sessionOpen', { target });
         for (const step of runSteps) {

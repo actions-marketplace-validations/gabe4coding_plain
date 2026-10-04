@@ -17,7 +17,7 @@ export async function settledAsk(ctx, question) {
     const settled = await timed(ctx, 'settle', () => settlePage(page));
     let state = first;
     // The mark covers the main document only: look again when iframes exist, or when a popup became the active page.
-    const mayHaveChanged = ctx.page !== page || !unchangedSince(before, settled) || page.frames().length > 1;
+    const mayHaveChanged = question.reobserve || ctx.page !== page || !unchangedSince(before, settled) || page.frames().length > 1;
     if (mayHaveChanged) {
         const again = await observe();
         if (!same(first, again))

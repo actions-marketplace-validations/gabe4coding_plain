@@ -1,7 +1,8 @@
 import type { App, Element } from '@crowecawcaw/xa11y';
 import type { Candidate, Frame } from '../core/automation.js';
 import { MAX_CANDIDATES } from '../jev/pick.js';
-import type { NativeAdapter } from '../native/session.js';
+import type { CaptureOptions, NativeAdapter } from '../native/session.js';
+import { MAX_LAYOUT_ELEMENTS, nativeLayout, type Bounds, type LayoutItem } from '../core/layout.js';
 
 export type ComputerKind = 'click' | 'fill' | 'check' | 'hover' | 'region' | 'scroll';
 export type ComputerAction = 'click' | 'fill' | 'check' | 'uncheck' | 'hover' | 'dblclick' | 'rightclick' | 'scroll';
@@ -27,7 +28,10 @@ export function matchesKind(el: KindFields, kind: ComputerKind): boolean {
 }
 
 type AccessibleNode = Pick<Element, 'role' | 'name' | 'value' | 'visible' | 'enabled' | 'editable' | 'checked' | 'selected' | 'focused' |
-  'actions' | 'focusable' | 'modal'> & { children(): Promise<AccessibleNode[]> };
+  'actions' | 'focusable' | 'modal'> & { readonly bounds?: Element['bounds']; children(): Promise<AccessibleNode[]> };
+
+/** xa11y bounds are desktop coordinates: points on macOS, physical pixels on Windows. */
+export const DESKTOP_COORDINATES = 'desktop screen coordinates';
 
 const TEXT_ROLE = /^(static_text|text)$/;
 /** Parts of a control, not controls of their own: inside a candidate they are no candidates (a row's cells too). */
@@ -41,7 +45,7 @@ const MAX_TREE_CHARS = 60000;
 const MAX_DEPTH = 32;
 
 interface CapturedTree<T> {
-  snapshot: { aria: string; truncated: boolean };
+  snapshot: { aria: string; truncated: boolean; layout?: string };
   candidates: Candidate[];
   elements: Map<number, T>;
   /** Candidates inside a web view (Electron apps, embedded browsers). */
@@ -55,8 +59,10 @@ interface CapturedTree<T> {
  * inside one, such as a row's button, still is), and an unnamed candidate is described by the text inside it.
  * The context leaves out "in application X" always and "in window X" when the app has one window.
  */
-export async function captureTree<T extends AccessibleNode>(root: T, kind: ComputerKind, timeout: number): Promise<CapturedTree<T>> {
+export async function captureTree<T extends AccessibleNode>(root: T, kind: ComputerKind, timeout: number,
+  { spatial = false } = {}): Promise<CapturedTree<T>> {
   const candidates: Candidate[] = [];
+  const layout: LayoutItem[] = [];
   const elements = new Map<number, T>();
   const inWebView = new Set<T>();
   const lines: string[] = [];
@@ -85,11 +91,18 @@ export async function captureTree<T extends AccessibleNode>(root: T, kind: Compu
     lines.push(line.slice(0, MAX_TREE_CHARS - chars));
     chars += line.length;
 
+    const candidate = matchesKind(el, kind) && !(inCandidate && PART_ROLE.test(el.role));
+    // One accessibility read, only in a spatial capture and only for a node that is listed.
+    const bounds = spatial && el.visible && (candidate || el.name || el.value) ? edges(el.bounds) : undefined;
+    // One row past the cap tells nativeLayout() the layout was cut.
+    if (bounds && (el.name || el.value) && layout.length <= MAX_LAYOUT_ELEMENTS) {
+      layout.push({ description: shortDesc, name: named, bounds });
+    }
     let id: number | undefined;
-    if (matchesKind(el, kind) && !(inCandidate && PART_ROLE.test(el.role))) {
+    if (candidate) {
       if (candidates.length < MAX_CANDIDATES) {
         id = candidates.length;
-        candidates.push({ id, desc: `${shortDesc}${context ? ` in ${context}` : ''}` });
+        candidates.push({ id, desc: `${shortDesc}${context ? ` in ${context}` : ''}`, ...(bounds ? { bounds } : {}) });
         elements.set(id, el);
         if (inWeb) inWebView.add(el);
       } else {
@@ -122,7 +135,13 @@ export async function captureTree<T extends AccessibleNode>(root: T, kind: Compu
     return text;
   };
   await walk(root, 0, '', false);
-  return { snapshot: { aria: lines.join(''), truncated }, candidates, elements, inWebView };
+  const snapshot = { aria: lines.join(''), truncated, ...(spatial ? { layout: nativeLayout(layout, DESKTOP_COORDINATES, truncated) } : {}) };
+  return { snapshot, candidates, elements, inWebView };
+}
+
+function edges(rect: Element['bounds'] | undefined): Bounds | undefined {
+  if (!rect || !(rect.width > 0) || !(rect.height > 0)) return undefined;
+  return { left: rect.x, top: rect.y, right: rect.x + rect.width, bottom: rect.y + rect.height };
 }
 
 /** The desktop through xa11y, imported on first use: browser runs and MCP discovery need no native binaries. */
@@ -169,11 +188,12 @@ export class Xa11yAdapter implements ComputerAdapter<Element> {
     return { name: app.name, pid: app.pid };
   }
 
-  async capture(kind: ComputerKind, within?: Element): Promise<Frame<Element>> {
+  async capture(kind: ComputerKind, within?: Element, { spatial = false }: CaptureOptions = {}): Promise<Frame<Element>> {
     const app = this.attachedApp();
-    const { inWebView, ...frame } = await captureTree(within ?? app.asElement(), kind, this.timeout);
+    const { inWebView, ...frame } = await captureTree(within ?? app.asElement(), kind, this.timeout, { spatial });
     for (const el of inWebView) this.webViewElements.add(el);
-    return { ...frame, snapshot: { url: `desktop://${app.pid ?? encodeURIComponent(app.name)}`, title: app.name, ...frame.snapshot } };
+    return { ...frame, snapshot: { url: `desktop://${app.pid ?? encodeURIComponent(app.name)}`, title: app.name, ...frame.snapshot },
+      ...(spatial ? { coordinates: DESKTOP_COORDINATES } : {}) };
   }
 
   /** Input simulation, only while the attached app is still in front. */
