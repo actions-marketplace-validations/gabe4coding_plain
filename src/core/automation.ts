@@ -163,7 +163,7 @@ export async function judgeState(snap: Snapshot, claims: string[], events: strin
     } catch (error) {
       if (!isTooLong(error) || aria.length < MIN_ARIA_TO_HALVE) throw error;
       aria = aria.slice(0, Math.floor(aria.length / 2));
-      console.error(`plainwright: state too long for the model, aria cut to ${aria.length} chars — scope the expect with \`within\` for precision`);
+      console.error(`plain: state too long for the model, aria cut to ${aria.length} chars — scope the expect with \`within\` for precision`);
     }
   }
 }

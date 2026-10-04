@@ -2,7 +2,7 @@
   "date": "2026-10-03",
   "baselineCommit": "74079f1b53ba9d70b7cf0d5c5b16be4066923c10",
   "initialCheckoutCommit": "bcaf395e46937d81f30b87da0ef2c7a2700ddd11",
-  "transport": "Plainwright Web MCP over stdio, official MCP SDK client",
+  "transport": "Plain Web MCP over stdio, official MCP SDK client",
   "jevModel": "jev-1.13.0",
   "playwright": "1.63.0",
   "runsPerArm": 3,

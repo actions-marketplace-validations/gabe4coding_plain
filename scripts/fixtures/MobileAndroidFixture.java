@@ -1,4 +1,4 @@
-package dev.plainwright.fixture;
+package dev.plain.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -21,7 +21,7 @@ public class MobileAndroidFixture extends Activity {
         content.setPadding(32, 100, 32, 80);
         scroll.addView(content);
         TextView title = new TextView(this);
-        title.setText("Plainwright Android Fixture");
+        title.setText("Plain Android Fixture");
         title.setTextSize(22);
         content.addView(title);
         EditText message = new EditText(this);

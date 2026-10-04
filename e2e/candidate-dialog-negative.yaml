@@ -2,7 +2,7 @@ name: an inert background action does not run
 url: ${env.site}
 tags: [expect-fail]
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /candidate-dialog
   - click: the Continue button

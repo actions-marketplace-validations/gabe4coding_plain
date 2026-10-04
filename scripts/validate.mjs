@@ -26,7 +26,7 @@ const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' })
 
 // What an agent sees of the browser engine: tool shapes, results and the skill that teaches them.
 const AGENT_SURFACE = [/^src\/browser\/mcp\.ts$/, /^src\/core\/(mcp-result|read|aria-changes|snapshot-view)\.ts$/,
-  /^plugins\/plainwright\/skills\//];
+  /^plugins\/plain\/skills\//];
 // Area evals: a change here can make Jev's answers or the step time worse without failing a gate.
 const AREA_EVALS = [
   [/^src\/(jev\/(pick|describe|ask)|browser\/(candidates|locate)|core\/automation)\.ts$/,

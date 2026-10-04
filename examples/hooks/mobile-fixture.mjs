@@ -4,7 +4,7 @@ import { fixtureApp, installMobileFixture } from '../../scripts/mobile-fixture.m
 let uninstall;
 
 export function setup({ spec }) {
-  assert.equal(spec.app, fixtureApp, 'This hook only manages the disposable Plainwright fixture');
+  assert.equal(spec.app, fixtureApp, 'This hook only manages the disposable Plain fixture');
   uninstall = installMobileFixture(spec.platform, spec.env.device);
 }
 

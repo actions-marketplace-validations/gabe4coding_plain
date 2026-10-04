@@ -116,6 +116,6 @@ test('rows are capped at MAX_ROWS, oldest dropped', async () => {
 
 test('saveName makes a file name from the goal', async () => {
   expect(saveName('Read the F-Droid 2.0 discussion!')).toBe('read-the-f-droid-2-0-discussion.yaml');
-  expect(saveName(undefined)).toBe('plainwright-session.yaml');
-  expect(saveName('???')).toBe('plainwright-session.yaml');
+  expect(saveName(undefined)).toBe('plain-session.yaml');
+  expect(saveName('???')).toBe('plain-session.yaml');
 });

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Agent benchmark: a real `claude -p` agent does six public browsing tasks through this repo's MCP server,
-// with `changed` in step/batch results off (PLAINWRIGHT_CHANGES=0) and on. Reports tool calls, agent tokens,
+// with `changed` in step/batch results off (PLAIN_CHANGES=0) and on. Reports tool calls, agent tokens,
 // cost and time per task, and each final answer (check them by eye). Costs Claude usage.
 //
 //   node scripts/benchmark-agent.mjs [--runs 1] [--model sonnet] [--only <task,task>] [--changed both|on|off] [--read both|on|off]
-//                                    [--cli <path to cli.js or bin/plainwright.mjs>] [--out result.json]
+//                                    [--cli <path to cli.js or bin/plain.mjs>] [--out result.json]
 // --cli compares another build (an installed plugin version) on the same tasks.
 //
 // Needs the `claude` CLI and a Jev key. Build first (npm run build).
@@ -20,8 +20,8 @@ const CLI = values.cli ?? fileURLToPath(new URL('../dist/cli.js', import.meta.ur
 // --read both|on|off compares the `read` tool instead (changed stays on): off hides the tool and its skill lines.
 const flag = values.read ?? values.changed;
 const modes = flag === 'both' ? [false, true] : [flag === 'on'];
-const env = (on) => values.read ? { PLAINWRIGHT_CHANGES: '1', PLAINWRIGHT_READ: on ? '1' : '0' } : { PLAINWRIGHT_CHANGES: on ? '1' : '0' };
-const SKILL = new URL('../plugins/plainwright/skills/using-plainwright/', import.meta.url);
+const env = (on) => values.read ? { PLAIN_CHANGES: '1', PLAIN_READ: on ? '1' : '0' } : { PLAIN_CHANGES: on ? '1' : '0' };
+const SKILL = new URL('../plugins/plain/skills/using-plain/', import.meta.url);
 const TASKS = {
   hn: 'Open https://news.ycombinator.com, click the "new" link in the top bar, and tell me the title of the first story on that page.',
   wiki: 'Open https://en.wikipedia.org, search for Alan Turing using the search box, open his article, and tell me his date of birth.',
@@ -38,7 +38,7 @@ const TASKS = {
 const READ_TASKS = ['hn', 'wiki', 'gh', 'ol', 'books', 'tables', 'repo'];
 // yahoo is the console-noise task (an ad-heavy page): run it with --only yahoo.
 const tasks = values.only ? values.only.split(',') : values.read ? READ_TASKS : Object.keys(TASKS).filter((t) => !['yahoo', 'books', 'tables', 'repo'].includes(t));
-const dir = mkdtempSync(join(tmpdir(), 'plainwright-agent-bench-'));
+const dir = mkdtempSync(join(tmpdir(), 'plain-agent-bench-'));
 // The skill as the agent gets it from the plugin: SKILL.md without front matter, then the browsing mode.
 const skill = readFileSync(new URL('SKILL.md', SKILL), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '') + '\n' + readFileSync(new URL('browsing.md', SKILL), 'utf8');
 for (const on of [false, true]) {

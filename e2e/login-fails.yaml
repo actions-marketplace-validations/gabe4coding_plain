@@ -1,8 +1,8 @@
-# Must end `fail`: a pass here is a false pass, the worst bug plainwright can ship.
+# Must end `fail`: a pass here is a false pass, the worst bug plain can ship.
 name: a wrong password does not log in
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 hooks: ./hooks/user.mjs
 tags: [expect-fail]
 steps:

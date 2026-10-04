@@ -1,13 +1,13 @@
 ---
-name: Plainwright
+name: Plain
 description: >-
-  Run Plainwright YAML specs with JUnit reporting and failure artifacts
+  Run Plain YAML specs with JUnit reporting and failure artifacts
 inputs:
   specs:
     description: Space-separated spec files, directories, or globs
     required: true
   args:
-    description: Extra Plainwright CLI flags
+    description: Extra Plain CLI flags
     required: false
     default: ''
   picks:
@@ -21,20 +21,20 @@ inputs:
       JUnit XML output path, uploaded on every run; empty disables the
       JUnit reporter and its upload
     required: false
-    default: plainwright-results/junit.xml
+    default: plain-results/junit.xml
   artifacts:
     description: >-
       Directory for screenshots and traces, uploaded when the run fails;
       empty disables capture and the upload
     required: false
-    default: plainwright-results
+    default: plain-results
   artifact-name:
     description: >-
       Name of the uploaded failure artifact; the JUnit report is uploaded as
       <artifact-name>-junit. Both must be unique in the workflow run
       (in a matrix, give each job its own name)
     required: false
-    default: plainwright-results
+    default: plain-results
   node-version:
     description: Node.js version
     required: false
@@ -46,14 +46,14 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
     # The npm release of the version in the action's package.json, so the action ref and the runtime agree.
-    - name: Install Plainwright
+    - name: Install Plain
       id: install
       shell: bash
       run: |
-        prefix="$RUNNER_TEMP/plainwright"
+        prefix="$RUNNER_TEMP/plain"
         package="$(node -p "const p = require(process.argv[1]); p.name + '@' + p.version" "$GITHUB_ACTION_PATH/package.json")"
         if ! npm install --prefix "$prefix" --no-audit --no-fund --no-save "$package"; then
-          echo "::error::Cannot install $package from npm. The Publish workflow of gabe4coding/plainwright publishes a version after it reaches main. Pin the action to a release tag (v<version>), or wait for that workflow." >&2
+          echo "::error::Cannot install $package from npm. The Publish workflow of gabe4coding/plain publishes a version after it reaches main. Pin the action to a release tag (v<version>), or wait for that workflow." >&2
           exit 1
         fi
         echo "bin=$prefix/node_modules/.bin" >> "$GITHUB_OUTPUT"
@@ -65,15 +65,15 @@ runs:
       id: paths
       shell: bash
       env:
-        PLAINWRIGHT_ACTION_JUNIT: ${{ inputs.junit }}
-        PLAINWRIGHT_ACTION_ARTIFACTS: ${{ inputs.artifacts }}
+        PLAIN_ACTION_JUNIT: ${{ inputs.junit }}
+        PLAIN_ACTION_ARTIFACTS: ${{ inputs.artifacts }}
       run: |
         python3 - <<'PY'
         import os
 
         with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
             for key in ('junit', 'artifacts'):
-                value = os.environ[f'PLAINWRIGHT_ACTION_{key.upper()}'].strip()
+                value = os.environ[f'PLAIN_ACTION_{key.upper()}'].strip()
                 if '\n' in value:
                     raise SystemExit(f'{key}: a path cannot contain a line break')
                 out.write(f'{key}={value}\n')
@@ -81,12 +81,12 @@ runs:
     - name: Run specs
       shell: bash
       env:
-        PLAINWRIGHT_ACTION_BIN: ${{ steps.install.outputs.bin }}
-        PLAINWRIGHT_ACTION_ARGS: ${{ inputs.args }}
-        PLAINWRIGHT_ACTION_SPECS: ${{ inputs.specs }}
-        PLAINWRIGHT_ACTION_PICKS: ${{ inputs.picks }}
-        PLAINWRIGHT_ACTION_JUNIT: ${{ steps.paths.outputs.junit }}
-        PLAINWRIGHT_ACTION_ARTIFACTS: ${{ steps.paths.outputs.artifacts }}
+        PLAIN_ACTION_BIN: ${{ steps.install.outputs.bin }}
+        PLAIN_ACTION_ARGS: ${{ inputs.args }}
+        PLAIN_ACTION_SPECS: ${{ inputs.specs }}
+        PLAIN_ACTION_PICKS: ${{ inputs.picks }}
+        PLAIN_ACTION_JUNIT: ${{ steps.paths.outputs.junit }}
+        PLAIN_ACTION_ARTIFACTS: ${{ steps.paths.outputs.artifacts }}
       run: |
         python3 - <<'PY'
         import os
@@ -94,11 +94,11 @@ runs:
         import subprocess
         import sys
 
-        picks = os.environ['PLAINWRIGHT_ACTION_PICKS'].strip()
-        junit = os.environ['PLAINWRIGHT_ACTION_JUNIT']
-        artifacts = os.environ['PLAINWRIGHT_ACTION_ARTIFACTS']
+        picks = os.environ['PLAIN_ACTION_PICKS'].strip()
+        junit = os.environ['PLAIN_ACTION_JUNIT']
+        artifacts = os.environ['PLAIN_ACTION_ARTIFACTS']
         command = [
-            f"{os.environ['PLAINWRIGHT_ACTION_BIN']}/plainwright",
+            f"{os.environ['PLAIN_ACTION_BIN']}/plain",
             '--headless', '--reporter', 'text',
         ]
         if picks:
@@ -108,8 +108,8 @@ runs:
         if artifacts:
             command += ['--artifacts', artifacts]
         # Extra args come after the action's flags, so a --picks in args wins.
-        command += shlex.split(os.environ['PLAINWRIGHT_ACTION_ARGS'])
-        command += shlex.split(os.environ['PLAINWRIGHT_ACTION_SPECS'])
+        command += shlex.split(os.environ['PLAIN_ACTION_ARGS'])
+        command += shlex.split(os.environ['PLAIN_ACTION_SPECS'])
         sys.exit(subprocess.call(command))
         PY
     - name: Upload JUnit report

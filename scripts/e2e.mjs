@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Live end-to-end gate: the real CLI and the real MCP server, with real Jev picks and judgments, against the local
-// site in e2e/site.mjs (no remote site, so a failure is plainwright's or Jev's, never the network's).
+// site in e2e/site.mjs (no remote site, so a failure is plain's or Jev's, never the network's).
 //
 // 1. Specs: runs e2e/*.yaml in one suite run and checks each final status. A spec tagged `expect-fail` must end
 //    `fail` (a pass there is a false pass); every other spec must pass. A pass on a retry counts, and is listed.
@@ -27,12 +27,12 @@ const { values } = parseArgs({ options: {
 } });
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cli = join(root, 'dist/cli.js');
-const scratch = mkdtempSync(join(tmpdir(), 'plainwright-e2e-'));
+const scratch = mkdtempSync(join(tmpdir(), 'plain-e2e-'));
 const problems = [];
 const notes = [];
 
 const site = await startSite();
-const env = { ...process.env, PLAINWRIGHT_E2E_SITE: site.url };
+const env = { ...process.env, PLAIN_E2E_SITE: site.url };
 // Async on purpose: the site is served from this process, so a sync child would block every request it makes.
 // --picks off: every pick goes to Jev (a cached pick would test the cache, not Jev), and no sidecar is written.
 const runCli = (args) => new Promise((done, fail) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', ...args], { cwd: root, env, stdio: 'inherit' })
@@ -88,7 +88,7 @@ async function checkAgentPath(attempts) {
 
 /** One agent-style session; resolves to undefined when every check holds, else to what went wrong. */
 async function agentSession(saved) {
-  const client = new Client({ name: 'plainwright-e2e', version: '1' });
+  const client = new Client({ name: 'plain-e2e', version: '1' });
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [cli, '--headless', 'mcp'], env, stderr: 'inherit' }));
   const call = async (name, args) => {
     const result = await client.callTool({ name, arguments: args });

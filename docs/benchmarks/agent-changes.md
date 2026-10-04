@@ -1,8 +1,8 @@
 # Agent cost with `changed` in step results
 
-`scripts/benchmark-agent.mjs` runs a real agent (`claude -p`, Sonnet 5, the plainwright skill and browsing
+`scripts/benchmark-agent.mjs` runs a real agent (`claude -p`, Sonnet 5, the plain skill and browsing
 mode as system prompt, only this repo's MCP server) on six public read-only tasks, with `changed` off
-(`PLAINWRIGHT_CHANGES=0`) and on. `changed` lists what the action did to the page: title/URL if they
+(`PLAIN_CHANGES=0`) and on. `changed` lists what the action did to the page: title/URL if they
 changed, the new accessibility-tree lines (1,500 characters) and the removed count.
 
 ## Result (2026-09-25, 3 runs per task and mode, 36 runs, all answers correct)

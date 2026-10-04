@@ -14,7 +14,7 @@ const [mode] = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
 if (mode === 'plan' || mode === 'do') {
   await planOrDo(mode);
 } else {
-  await nativeCli('plainwright-computer', 'plan|do "<sentence>" | ', 'desktop', {
+  await nativeCli('plain-computer', 'plan|do "<sentence>" | ', 'desktop', {
     serve: async (timeout) => (await import('./mcp.js')).serveComputerMcp(timeout), // the MCP SDK loads only when serving
     load: loadComputerSpec,
     meta: (spec) => ({ name: spec.name, tags: spec.tags ?? [], timeoutMs: spec.timeout }),
@@ -35,7 +35,7 @@ async function planOrDo(mode: 'plan' | 'do') {
       yes: { type: 'boolean', default: false },
     } });
     const text = positionals.slice(1).join(' ').trim();
-    if (!text) throw new Error(`usage: plainwright-computer ${mode} [--app NAME] [--yes] [--timeout 15000] "<sentence>"`);
+    if (!text) throw new Error(`usage: plain-computer ${mode} [--app NAME] [--yes] [--timeout 15000] "<sentence>"`);
     const { plan } = await import('./planner.js');
     const { items, tokens } = await plan(text);
     if (mode === 'plan') {
@@ -48,7 +48,7 @@ async function planOrDo(mode: 'plan' | 'do') {
     console.log(JSON.stringify({ ...result, planTokens: tokens }));
     process.exitCode = result.status === 'pass' ? 0 : 1;
   } catch (error) {
-    console.error(`plainwright-computer ${mode}: ${errorMessage(error)}`);
+    console.error(`plain-computer ${mode}: ${errorMessage(error)}`);
     process.exitCode = 2;
   }
 }

@@ -62,12 +62,12 @@ function parse(stdout) {
 
 const runs = [];
 for (let i = 0; i < Number(values.runs); i++) {
-  const scratch = mkdtempSync(path.join(tmpdir(), 'plainwright-bench-'));
+  const scratch = mkdtempSync(path.join(tmpdir(), 'plain-bench-'));
   const json = path.join(scratch, 'report.json'), count = path.join(scratch, 'count.json');
   const start = Date.now();
   const res = spawnSync('node', ['--import', counter, values.cli, '--headless', '--timing', '--reporter', 'text', '--reporter', `json:${json}`,
     ...(values.picks ? ['--picks', values.picks] : []), ...specs],
-  { encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PLAINWRIGHT_BENCH_COUNT: count, PLAINWRIGHT_BENCH_DIST: path.dirname(path.resolve(values.cli)) } });
+  { encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PLAIN_BENCH_COUNT: count, PLAIN_BENCH_DIST: path.dirname(path.resolve(values.cli)) } });
   let jev = {};
   try { jev = JSON.parse(readFileSync(count, 'utf8')); } catch {}
   const run = { wall: Date.now() - start, ...parse(res.stdout), jev, ...outcome(json) };

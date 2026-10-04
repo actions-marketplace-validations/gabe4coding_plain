@@ -112,4 +112,4 @@ jobs:
             process.exit(1);
           }
           JS
-          "$prefix/node_modules/.bin/plainwright" validate examples/todo.yaml
+          "$prefix/node_modules/.bin/plain" validate examples/todo.yaml

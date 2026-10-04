@@ -2,8 +2,8 @@
 // Agent eval: real `claude -p` and `codex exec` agents do tasks on the local e2e site (e2e/site.mjs) through this
 // checkout's browser MCP server, with this checkout's plugin skill. Each run is graded, not read by eye:
 //   - the answer:   the final message must contain what the page shows (or, for `refused`, must not claim a login);
-//   - the tools:    the page is reached only through this checkout's plainwright (a shell may run its CLI, never
-//                   curl the page), no tool call failed or named a missing tool, and the plainwright call count
+//   - the tools:    the page is reached only through this checkout's plain (a shell may run its CLI, never
+//                   curl the page), no tool call failed or named a missing tool, and the plain call count
 //                   stays inside the task's budget;
 //   - the artifact: for `record`, the spec the agent saved must pass when the CLI runs it.
 // Local only (it costs Claude and Codex usage), never in CI. Each agent runs isolated from the user's setup:
@@ -33,12 +33,12 @@ const { values } = parseArgs({ options: {
 } });
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const cli = join(root, 'dist/cli.js');
-const SKILL_DIR = join(root, 'plugins/plainwright/skills/using-plainwright');
+const SKILL_DIR = join(root, 'plugins/plain/skills/using-plain');
 const MAX_BUDGET_USD = '2';
-const scratch = mkdtempSync(join(tmpdir(), 'plainwright-agent-eval-'));
+const scratch = mkdtempSync(join(tmpdir(), 'plain-agent-eval-'));
 const site = await startSite();
 
-// `budget` is the most plainwright tool calls a good run needs, with room for one look too many.
+// `budget` is the most plain tool calls a good run needs, with room for one look too many.
 const TASKS = {
   reference: {
     prompt: `Open ${site.url}/spatial-reference. Fill the field immediately below the Shipping heading with "Upper entry", click Move heading, then fill the field immediately below the Shipping heading with "Lower entry". Use a natural-language target relative to the heading for both fills. Then read the status message on the page. End with one line that quotes that status message word for word, not a description of which field took which fill.`,
@@ -65,7 +65,7 @@ const TASKS = {
     answer: /report ready/i, budget: 7,
   },
   record: {
-    prompt: (dir) => `Write a plainwright end-to-end test: at ${site.url}/login, log in as ${USER.name} with password ` +
+    prompt: (dir) => `Use plain to write an end-to-end test: at ${site.url}/login, log in as ${USER.name} with password ` +
       `${USER.pass}, and check that the Secure Area is shown. Save it as ${join(dir, 'login.yaml')}.`,
     answer: /login\.yaml/, budget: 10, saves: 'login.yaml',
   },
@@ -74,13 +74,13 @@ const TASKS = {
 const skill = ['SKILL.md', 'browsing.md', 'authoring.md']
   .map((file) => readFileSync(join(SKILL_DIR, file), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '')).join('\n\n');
 const skillFile = join(scratch, 'skill.md');
-// The skill runs the CLI as the published `npx -y -p @gabe4coding/plain@<version> plainwright`; the eval tests the checkout, so it says
+// The skill runs the CLI as the published `npx -y -p @gabe4coding/plain@<version> plain`; the eval tests the checkout, so it says
 // which command stands in for it.
-writeFileSync(skillFile, `# The plainwright skill (its files are below; you do not need to read them)\n\n` +
-  `The plainwright MCP tools are already running as the \`pw\` server: use them for the browser. For the CLI ` +
-  `commands the skill names (validate, replay), run \`node ${join(root, 'bin/plainwright.mjs')}\` in place of ` +
-  `\`npx -y -p @gabe4coding/plain@<version> plainwright\`.\n\n${skill}`);
-const env = { ...process.env, PLAINWRIGHT_E2E_SITE: site.url };
+writeFileSync(skillFile, `# The plain skill (its files are below; you do not need to read them)\n\n` +
+  `The plain MCP tools are already running as the \`pw\` server: use them for the browser. For the CLI ` +
+  `commands the skill names (validate, replay), run \`node ${join(root, 'bin/plain.mjs')}\` in place of ` +
+  `\`npx -y -p @gabe4coding/plain@<version> plain\`.\n\n${skill}`);
+const env = { ...process.env, PLAIN_E2E_SITE: site.url };
 const server = { command: process.execPath, args: [cli, '--headless', 'mcp'] };
 
 const AGENTS = { claude: runClaude, codex: runCodex };
@@ -123,11 +123,11 @@ rmSync(scratch, { recursive: true, force: true });
 async function grade(spec, outcome, dir) {
   if (outcome.failed) return [`the agent did not finish: ${outcome.failed}`];
   const problems = [];
-  const plainwright = outcome.calls.filter((c) => c.server === 'pw');
+  const plain = outcome.calls.filter((c) => c.server === 'pw');
   if (!spec.answer.test(outcome.answer)) problems.push(`answer lacks ${spec.answer}: "${outcome.answer.slice(0, 160)}"`);
   if (spec.notAnswer?.test(outcome.answer)) problems.push(`answer claims ${spec.notAnswer}, which the page never showed`);
-  if (!plainwright.some((c) => c.tool === 'open')) problems.push('never called the plainwright open tool');
-  const steps = plainwright.flatMap((call) => call.tool === 'step' ? [call.args?.step] : call.tool === 'batch' ? call.args?.steps ?? [] : []);
+  if (!plain.some((c) => c.tool === 'open')) problems.push('never called the plain open tool');
+  const steps = plain.flatMap((call) => call.tool === 'step' ? [call.args?.step] : call.tool === 'batch' ? call.args?.steps ?? [] : []);
   if (spec.spatialClick) {
     if (!steps.some((step) => typeof step?.click === 'string' && !step.click.startsWith('css=') && /left/i.test(step.click))) {
       problems.push('never clicked with a natural-language spatial target');
@@ -141,17 +141,17 @@ async function grade(spec, outcome, dir) {
     }
   }
   // A shell may look around or run this checkout's CLI (the authoring skill replays specs that way), but the page
-  // itself is reached only through plainwright, and only this checkout's plainwright.
+  // itself is reached only through plain, and only this checkout's plain.
   const shell = outcome.calls.filter((c) => c.server === 'shell');
   const offPage = shell.filter((c) => c.tool.includes(new URL(site.url).host) && !c.tool.includes(root));
-  if (offPage.length) problems.push(`reached the page outside plainwright: ${offPage.map((c) => c.tool).join('; ')}`);
-  const installed = shell.filter((c) => /plugins\/cache\/[^/ ]*plainwright/.test(c.tool));
-  if (installed.length) problems.push(`used an installed plainwright, not this checkout: ${installed.map((c) => c.tool).join('; ')}`);
+  if (offPage.length) problems.push(`reached the page outside plain: ${offPage.map((c) => c.tool).join('; ')}`);
+  const installed = shell.filter((c) => /plugins\/cache\/[^/ ]*plain/.test(c.tool));
+  if (installed.length) problems.push(`used an installed plain, not this checkout: ${installed.map((c) => c.tool).join('; ')}`);
   const foreign = outcome.calls.filter((c) => c.server !== 'pw' && c.server !== 'shell');
   if (foreign.length) problems.push(`used other tools: ${foreign.map((c) => c.tool).join(', ')}`);
-  const failed = plainwright.filter((c) => c.error);
+  const failed = plain.filter((c) => c.error);
   if (failed.length) problems.push(`failed tool calls (a missing tool counts): ${failed.map((c) => `${c.tool}: ${c.error}`.slice(0, 120)).join('; ')}`);
-  if (plainwright.length > spec.budget) problems.push(`${plainwright.length} plainwright calls, budget ${spec.budget}`);
+  if (plain.length > spec.budget) problems.push(`${plain.length} plain calls, budget ${spec.budget}`);
   if (spec.saves) {
     const saved = join(dir, spec.saves);
     if (!existsSync(saved)) problems.push(`no spec saved at ${spec.saves}`);
@@ -191,7 +191,7 @@ function runClaude(prompt, dir) {
           else if (call?.server === 'pw' && ['step', 'batch'].includes(call.tool)) {
             try {
               const { status } = JSON.parse(text);
-              if (status && status !== 'pass') call.error = `plainwright returned ${status}`;
+              if (status && status !== 'pass') call.error = `plain returned ${status}`;
             } catch { /* Non-JSON results still use the client's is_error flag. */ }
           }
         }
@@ -205,14 +205,14 @@ function runClaude(prompt, dir) {
 }
 
 function runCodex(prompt, dir) {
-  // An empty Codex home: no user plugins or apps (an installed plainwright would shadow this checkout), hooks or memories.
+  // An empty Codex home: no user plugins or apps (an installed plain would shadow this checkout), hooks or memories.
   const home = join(dir, 'codex-home');
   const userHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
   mkdirSync(home);
   symlinkSync(join(userHome, 'auth.json'), join(home, 'auth.json'));
   const toml = (value) => JSON.stringify(value);
   writeFileSync(join(home, 'config.toml'), [
-    // The account's apps and remote plugins add hundreds of tools, and the agent then misses plainwright's.
+    // The account's apps and remote plugins add hundreds of tools, and the agent then misses plain's.
     '[features]',
     'apps = false',
     'plugins = false',
@@ -225,7 +225,7 @@ function runCodex(prompt, dir) {
     // Several agents start a browser at once: the default 10 s start budget is too short.
     'startup_timeout_sec = 120',
     '[mcp_servers.pw.env]',
-    `PLAINWRIGHT_E2E_SITE = ${toml(site.url)}`,
+    `PLAIN_E2E_SITE = ${toml(site.url)}`,
     ...['TYPESAFE_API_KEY', 'AI_GATEWAY_API_KEY', 'JEV_PROVIDER'].filter((name) => env[name])
       .map((name) => `${name} = ${toml(env[name])}`),
   ].join('\n') + '\n', { mode: 0o600 });
@@ -238,7 +238,7 @@ function runCodex(prompt, dir) {
     for (const { type, item, error } of events) {
       if (type === 'item.completed' && item.type === 'mcp_tool_call') {
         const status = item.result?.structured_content?.status;
-        const failed = item.error?.message ?? (status && status !== 'pass' ? `plainwright returned ${status}` : undefined);
+        const failed = item.error?.message ?? (status && status !== 'pass' ? `plain returned ${status}` : undefined);
         calls.push({ server: item.server, tool: item.tool, args: item.arguments, ...(failed ? { error: failed } : {}) });
       }
       if (type === 'item.completed' && item.type === 'command_execution') calls.push({ server: 'shell', tool: item.command });
@@ -274,7 +274,7 @@ function lastLine(text) {
 }
 
 function report() {
-  console.log('\nagent   task     result  calls  shell  time   cost     plainwright tools');
+  console.log('\nagent   task     result  calls  shell  time   cost     plain tools');
   for (const r of results.sort((a, b) => a.agent.localeCompare(b.agent) || a.task.localeCompare(b.task) || a.run - b.run)) {
     const tools = r.calls.filter((c) => c.server === 'pw').map((c) => c.tool).join(' ');
     const shell = r.calls.filter((c) => c.server === 'shell').length;

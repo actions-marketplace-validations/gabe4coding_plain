@@ -32,8 +32,8 @@ export function select<S>(specs: Loaded<S>[], opts: SuiteOptions): Loaded<S>[] {
   // runSuite keeps load errors separately and always reports them, regardless of selection.
   if (opts.lastFailed) {
     const failed = readLastFailed(process.cwd());
-    if (failed === undefined) console.error('plainwright: no previous run found; running all selected specs');
-    else if (failed.size === 0) console.error('plainwright: no failures in the last run');
+    if (failed === undefined) console.error('plain: no previous run found; running all selected specs');
+    else if (failed.size === 0) console.error('plain: no failures in the last run');
     selected = filterLastFailed(selected, failed);
   }
   return selected;

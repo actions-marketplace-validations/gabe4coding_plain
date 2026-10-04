@@ -9,9 +9,9 @@ Capture is off by default. Give an output folder to save screenshots, browser tr
 spec attempt:
 
 ```sh
-plainwright --headless --artifacts plainwright-results tests/
-plainwright-computer --artifacts plainwright-results tests/desktop.yaml
-plainwright-mobile --artifacts plainwright-results tests/mobile.yaml
+plain --headless --artifacts plain-results tests/
+plain-computer --artifacts plain-results tests/desktop.yaml
+plain-mobile --artifacts plain-results tests/mobile.yaml
 ```
 
 | Option | Values | Default when `--artifacts` is set |
@@ -24,7 +24,7 @@ plainwright-mobile --artifacts plainwright-results tests/mobile.yaml
 can set the same values with `artifacts.dir`, `artifacts.screenshot` and `artifacts.trace`. Options on the
 command line win. See [configuration](running.mdx#configuration).
 
-## What plainwright captures
+## What plain captures
 
 ### Screenshots
 
@@ -47,9 +47,9 @@ Traces are for the browser only:
 - `always` keeps the trace of each attempt.
 - `off` records no trace.
 
-A trace has the action screenshots and the page snapshots. plainwright does not record videos.
+A trace has the action screenshots and the page snapshots. plain does not record videos.
 
-With `--cdp`, plainwright does not record traces, because a trace also records your other tabs. It prints
+With `--cdp`, plain does not record traces, because a trace also records your other tabs. It prints
 one note for the run. Screenshots and debug files still work.
 
 On desktop and mobile, `--trace` must be `off` when an artifacts folder is set. Another mode stops the run
@@ -58,11 +58,11 @@ On desktop and mobile, `--trace` must be `off` when an artifacts folder is set. 
 ### Jev debug files
 
 When a step detail names a Jev debug file (for example `state: <file>.json` or `candidates: <file>.json`),
-plainwright copies the file into the attempt folder. It does this also when the screenshot
-and trace modes are `off`. The original file stays in the temporary `plainwright/` folder, so the path in the
+plain copies the file into the attempt folder. It does this also when the screenshot
+and trace modes are `off`. The original file stays in the temporary `plain/` folder, so the path in the
 detail stays correct.
 
-If a capture fails, plainwright prints one warning for the run. The results do not change, and plainwright
+If a capture fails, plain prints one warning for the run. The results do not change, and plain
 continues to capture the other files.
 
 ## Output layout and cleanup
@@ -70,8 +70,8 @@ continues to capture the other files.
 For `tests/login.yaml`, an attempt with a failing step can give these files:
 
 ```text
-plainwright-results/
-  .plainwright-results
+plain-results/
+  .plain-results
   tests-login.yaml/
     attempt-0/
       step-2-fail.png
@@ -87,18 +87,18 @@ plainwright-results/
   expanded steps of included flows.
 - In the browser, a spec with a setup hook has a `setup` entry at position `0`. Then `step-2-fail.png` belongs to
   the second step in the YAML file.
-- plainwright removes empty attempt folders.
+- plain removes empty attempt folders.
 
 The [JSON report](reporting.mdx#json-report) lists each file with its absolute path and step number. The
 [JUnit report](reporting.mdx#junit-xml) adds an attachment line for each file.
 
 ### Cleanup rules
 
-At the start of a run, plainwright adds the marker file `.plainwright-results` to a missing or empty output
-folder. In a folder with the marker, plainwright deletes the spec folders of the previous run. These are the
+At the start of a run, plain adds the marker file `.plain-results` to a missing or empty output
+folder. In a folder with the marker, plain deletes the spec folders of the previous run. These are the
 folders that are empty or hold only `attempt-N` folders. Other files and folders stay.
 
-plainwright does not use these output folders:
+plain does not use these output folders:
 
 - A folder that is not empty and has no marker.
 - The current folder, or a parent of it.
@@ -106,8 +106,8 @@ plainwright does not use these output folders:
 - A folder that contains a spec of the run.
 - A symbolic link, or a folder with a marker that is a symbolic link.
 
-In these cases, plainwright prints one warning and captures nothing. The specs still run. Use a dedicated folder,
-for example `plainwright-results`.
+In these cases, plain prints one warning and captures nothing. The specs still run. Use a dedicated folder,
+for example `plain-results`.
 
 Do not let two runs use the same output folder at the same time. For example, a browser job and a mobile job on
 one CI machine must not share a folder. The second run deletes the results of the first run. Give each job its own folder.
@@ -115,7 +115,7 @@ one CI machine must not share a folder. The second run deletes the results of th
 ## Open a trace
 
 ```sh
-npx playwright show-trace plainwright-results/tests-login.yaml/attempt-0/trace.zip
+npx playwright show-trace plain-results/tests-login.yaml/attempt-0/trace.zip
 ```
 
 [CI and containers](ci.mdx) shows how to upload the output folder from a CI job.

@@ -218,7 +218,7 @@ export class PickStore {
         done.push(file);
         sidecar.dirty = false;
       } catch (error) {
-        console.error(`plainwright: pick cache: ${file}: ${errorMessage(error)}`);
+        console.error(`plain: pick cache: ${file}: ${errorMessage(error)}`);
       }
     }
     return done;

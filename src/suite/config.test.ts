@@ -6,9 +6,9 @@ import path from 'node:path';
 import { loadConfig } from './config.js';
 import { parseSuiteArgs } from './options.js';
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-config-d-'));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-config-d-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
-function fixture(body?: string, name = 'plainwright.config.yaml'): string {
+function fixture(body?: string, name = 'plain.config.yaml'): string {
   const dir = fs.mkdtempSync(path.join(root, 'case-'));
   if (body !== undefined) fs.writeFileSync(path.join(dir, name), body);
   return dir;
@@ -16,11 +16,11 @@ function fixture(body?: string, name = 'plainwright.config.yaml'): string {
 
 test('config defaults to absent, discovers yml, prefers yaml and honors explicit paths', () => {
   assert.deepEqual(loadConfig(fixture()), {});
-  const dir = fixture('workers: 2\n', 'plainwright.config.yml');
+  const dir = fixture('workers: 2\n', 'plain.config.yml');
   assert.equal(loadConfig(dir).workers, 2);
-  fs.writeFileSync(path.join(dir, 'plainwright.config.yaml'), 'workers: 3\n');
+  fs.writeFileSync(path.join(dir, 'plain.config.yaml'), 'workers: 3\n');
   assert.equal(loadConfig(dir).workers, 3);
-  assert.equal(loadConfig(dir, 'plainwright.config.yml').workers, 2);
+  assert.equal(loadConfig(dir, 'plain.config.yml').workers, 2);
   assert.throws(() => loadConfig(dir, 'missing.yaml'), /--config: file not found/);
 });
 
@@ -30,7 +30,7 @@ profile: .profiles/test
 artifacts: {dir: results, trace: always}
 reporters: [text, 'junit:out/junit.xml', {name: json, output: out/results.json}]
 `);
-  const config = loadConfig(root, path.join(dir, 'plainwright.config.yaml'));
+  const config = loadConfig(root, path.join(dir, 'plain.config.yaml'));
   assert.deepEqual(config.files, [path.join(dir, 'tests'), path.join(dir, 'specs/**/*.yml')]);
   assert.equal(config.profile, path.join(dir, '.profiles/test'));
   // No defaults here: options.ts applies them, so a mode alone in config can pair with --artifacts on the CLI.
@@ -52,7 +52,7 @@ timing: true
 specTimeout: 60000
 timeout: 0
 headless: true
-profile: /tmp/plainwright-test-profile
+profile: /tmp/plain-test-profile
 channel: chrome
 cdp: http://localhost:9222
 server: http://localhost:4723
@@ -82,7 +82,7 @@ test('config rejects unknown keys and wrong types with file and key in the error
   for (const [body, key] of cases) {
     const dir = fixture(body);
     assert.throws(() => loadConfig(dir), (error: unknown) => error instanceof Error &&
-      error.message.includes(path.join(dir, 'plainwright.config.yaml')) && error.message.includes(key), body);
+      error.message.includes(path.join(dir, 'plain.config.yaml')) && error.message.includes(key), body);
   }
 });
 
@@ -92,7 +92,7 @@ test('config reports malformed YAML and non-mapping roots; an empty file is an e
   assert.deepEqual(loadConfig(fixture('artifacts: {screenshot: always}\n')).artifacts, { screenshot: 'always' });
   for (const body of ['workers: [', '[]', 'false']) {
     const dir = fixture(body);
-    assert.throws(() => loadConfig(dir), (error: unknown) => error instanceof Error && error.message.includes('plainwright.config.yaml'));
+    assert.throws(() => loadConfig(dir), (error: unknown) => error instanceof Error && error.message.includes('plain.config.yaml'));
   }
 });
 
@@ -121,11 +121,11 @@ timeout: 12000
   assert.equal(defaults.flags.timeout, '12000');
   assert.equal(defaults.flags.profile, path.join(dir, 'profile'));
   const override = parseSuiteArgs(['--workers', '1', '--tag', 'checkout', '--grep', 'cli', 'other.yaml'],
-    'browser', { PLAINWRIGHT_PROFILE: '/tmp/env-profile' }, dir);
+    'browser', { PLAIN_PROFILE: '/tmp/env-profile' }, dir);
   assert.deepEqual(override.opts.files, ['other.yaml']);
   assert.deepEqual(override.opts.tags, ['checkout']);
   assert.equal(override.opts.grep, 'cli');
   assert.equal(override.flags.profile, '/tmp/env-profile');
   assert.equal(parseSuiteArgs(['--workers', '1', '--profile', '/tmp/cli-profile', 'other.yaml'], 'browser',
-    { PLAINWRIGHT_PROFILE: '/tmp/env-profile' }, dir).flags.profile, '/tmp/cli-profile');
+    { PLAIN_PROFILE: '/tmp/env-profile' }, dir).flags.profile, '/tmp/cli-profile');
 });

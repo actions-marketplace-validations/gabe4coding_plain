@@ -16,7 +16,7 @@ const git = (dir, ...args) => execFileSync('git', ['-C', dir, '-c', 'user.name=t
 let root, main, worktree, other;
 
 before(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'plainwright-pr-gate-')));
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'plain-pr-gate-')));
   main = join(root, 'main');
   worktree = join(main, '.claude', 'worktrees', 'feature');
   other = join(root, 'other');
@@ -39,7 +39,7 @@ after(() => rmSync(root, { recursive: true, force: true }));
 
 /** Record a passing validation of HEAD's files in the checkout's own git dir. */
 function stamp(dir) {
-  const file = git(dir, 'rev-parse', '--path-format=absolute', '--git-path', 'plainwright-validated.json');
+  const file = git(dir, 'rev-parse', '--path-format=absolute', '--git-path', 'plain-validated.json');
   writeFileSync(file, JSON.stringify({ tree: git(dir, 'rev-parse', 'HEAD^{tree}'), at: 'now' }));
 }
 

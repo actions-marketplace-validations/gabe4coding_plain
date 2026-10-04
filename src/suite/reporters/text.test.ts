@@ -46,7 +46,7 @@ test('browser text golden output covers every status, load error, and input orde
 });
 
 test('browser load errors still print the message on stdout', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-text-load-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-text-load-'));
   const yaml = path.join(dir, 'bad.yaml');
   const schema = path.join(dir, 'schema.yaml');
   fs.writeFileSync(yaml, 'a: [\n');

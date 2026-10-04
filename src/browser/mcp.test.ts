@@ -13,9 +13,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 // Drives the real server over stdio, as a plugin host does. CSS targets avoid paid model calls.
 let client: Client;
-const scratch = mkdtempSync(join(tmpdir(), 'plainwright-mcp-test-'));
+const scratch = mkdtempSync(join(tmpdir(), 'plain-mcp-test-'));
 before(async () => {
-  client = new Client({ name: 'plainwright-test', version: '0' });
+  client = new Client({ name: 'plain-test', version: '0' });
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../cli.js', import.meta.url)), '--headless', '--timeout', '500', 'mcp'] }));
 });
 after(async () => { await client.close(); rmSync(scratch, { recursive: true, force: true }); });
@@ -207,7 +207,7 @@ test('the server shuts down when its input ends, with no signal (a host behind n
   const send = (message: object) => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\n');
   const request = (id: number, method: string, params: object) =>
     new Promise<{ result?: { isError?: boolean } }>((resolve) => { replies.set(id, resolve as (m: unknown) => void); send({ id, method, params }); });
-  await request(1, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'plainwright-test', version: '0' } });
+  await request(1, 'initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'plain-test', version: '0' } });
   send({ method: 'notifications/initialized' });
   // An open page keeps Chromium, and so the server, alive unless end of input stops it.
   const opened = await request(2, 'tools/call', { name: 'open', arguments: { url: 'data:text/html,<p>open</p>' } });

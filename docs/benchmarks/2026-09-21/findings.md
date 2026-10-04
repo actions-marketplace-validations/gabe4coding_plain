@@ -9,7 +9,7 @@
 The current implementation does **not** support a general “cheaper and faster” claim. The
 complete sample shows a tradeoff: some workflows finish sooner, but main-agent spending and
 recovery work increase. Results apply to this natural-language-targeting harness and six local
-fixtures; plainwright's CSS escape hatch and arbitrary browser code were excluded.
+fixtures; plain's CSS escape hatch and arbitrary browser code were excluded.
 
 | Main model | Mean cost per attempt vs baseline | Cost per successful task vs baseline | Mean elapsed time vs baseline | Successes, Jev / baseline |
 |---|---:|---:|---:|---:|
@@ -23,7 +23,7 @@ were 0.64 for Luna, 0.94 for Terra and 0.78 for Astra, with cost ratios of 1.52,
 That successful-pair subset is diagnostic, not a replacement for the full sample.
 
 Astra gives the cleanest comparison at equal observed completion: mean wall time was 24.9s
-with plainwright versus 31.8s with Playwright MCP, at $0.0657 versus $0.0503 per task. Its
+with plain versus 31.8s with Playwright MCP, at $0.0657 versus $0.0503 per task. Its
 task-cluster 95% time-ratio interval is 0.62–1.02, which includes no improvement. Eighteen
 successes do not establish a production reliability rate, and this sample does not justify a
 guaranteed speed claim.
@@ -32,11 +32,11 @@ guaranteed speed claim.
 
 Across the 54 Jev-assisted attempts, Jev itself cost **$0.0184**. The main agent made **522 calls**,
 versus **422** with the baseline. Each model tier also consumed more total main-agent input
-tokens with plainwright: +40% for Luna, +15% for Terra and +48% for Astra. Smaller individual
+tokens with plain: +40% for Luna, +15% for Terra and +48% for Astra. Smaller individual
 snapshots did not translate into less conversation context over the whole workflow.
 
 Cached context made repeated reads relatively inexpensive. However, removing that discount in
-the hypothetical repricing still leaves plainwright more expensive in all three tiers. Cache
+the hypothetical repricing still leaves plain more expensive in all three tiers. Cache
 pricing alone does not explain the result. The detailed report separates model-call time from
 browser/helper time; API latency and each stack's browser settling behavior also affect speed.
 

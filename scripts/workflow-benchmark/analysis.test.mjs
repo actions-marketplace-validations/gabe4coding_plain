@@ -7,10 +7,10 @@ import { execFileSync } from 'node:child_process';
 
 test('analysis and publication retain both arms and their costs for legacy and batching comparisons', () => {
   for (const comparison of ['playwright', 'batch']) {
-    const dir = mkdtempSync(join(tmpdir(), 'plainwright-analysis-'));
+    const dir = mkdtempSync(join(tmpdir(), 'plain-analysis-'));
     try {
-      const control = comparison === 'batch' ? 'plainwright-unbatched' : 'playwright';
-      const arms = ['plainwright', control];
+      const control = comparison === 'batch' ? 'plain-unbatched' : 'playwright';
+      const arms = ['plain', control];
       const runs = arms.map((arm, i) => ({ id: `run-${i + 1}`, model: 'test/model', task: 'contact', repeat: 0, arm,
         success: true, ended: 'finish', elapsedMs: i ? 2000 : 1000, totalCost: i ? 1 : 2,
         mainCost: i ? 1 : 1.5, jevCost: i ? 0 : .5, noCacheCost: 3, usageComplete: true,
@@ -35,7 +35,7 @@ test('analysis and publication retain both arms and their costs for legacy and b
       const out = join(dir, 'published');
       execFileSync(process.execPath, [new URL('./report.mjs', import.meta.url).pathname, dir, out]);
       const report = readFileSync(join(out, 'README.md'), 'utf8');
-      assert.ok(report.includes(`plainwright / ${control}`));
+      assert.ok(report.includes(`plain / ${control}`));
       const hashes = JSON.parse(readFileSync(join(out, 'sha256.json')));
       assert.ok(hashes[`${control}-tools.json`]);
       if (comparison === 'batch') assert.match(report, /control is \*\*not Playwright MCP\*\*/);

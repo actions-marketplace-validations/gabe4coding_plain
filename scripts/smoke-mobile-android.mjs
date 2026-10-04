@@ -19,15 +19,15 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sdk = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT;
 const java = process.env.JAVA_HOME;
-const device = process.env.PLAINWRIGHT_MOBILE_DEVICE;
-assert.ok(sdk && java && device, 'Set ANDROID_HOME, JAVA_HOME and PLAINWRIGHT_MOBILE_DEVICE');
+const device = process.env.PLAIN_MOBILE_DEVICE;
+assert.ok(sdk && java && device, 'Set ANDROID_HOME, JAVA_HOME and PLAIN_MOBILE_DEVICE');
 const live = process.argv.includes('--live-jev');
 if (live) for (const file of [join(root, '.env'), USER_ENV_FILE]) { try { process.loadEnvFile(file); } catch {} }
-const output = mkdtempSync(join(tmpdir(), 'plainwright-android-results-'));
+const output = mkdtempSync(join(tmpdir(), 'plain-android-results-'));
 const app = fixtureApp;
 let uninstall;
 const restart = () => execFileSync(join(sdk, 'platform-tools/adb'), ['-s', device, 'shell', 'am', 'force-stop', app]);
-const adapter = new AppiumAdapter(process.env.PLAINWRIGHT_APPIUM_URL, 60000);
+const adapter = new AppiumAdapter(process.env.PLAIN_APPIUM_URL, 60000);
 const message = 'Android adapter works';
 const deterministic = {
   pick: async (candidates, targets) => targets.map((target, i) => {
@@ -92,7 +92,7 @@ try {
   await call('save', { path: specPath, name: 'Native Android preview' });
   await call('close');
   restart(); // Reset only this disposable fixture before replay.
-  const replay = await runMobileSpec(loadMobileSpec(specPath), new MobileSession(new AppiumAdapter(process.env.PLAINWRIGHT_APPIUM_URL, 60000), 60000, ai));
+  const replay = await runMobileSpec(loadMobileSpec(specPath), new MobileSession(new AppiumAdapter(process.env.PLAIN_APPIUM_URL, 60000), 60000, ai));
   writeFileSync(join(output, 'report.json'), JSON.stringify({ device, liveJev: live, authoring: results, replay }, null, 2));
   assert.equal(replay.status, 'pass', JSON.stringify(replay));
   console.log(`Native Android authoring and replay passed (${live ? 'real Jev' : 'injected intelligence'}). Results: ${output}`);

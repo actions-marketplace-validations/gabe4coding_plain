@@ -2,7 +2,7 @@ name: Native control names do not prove DOM order is visual order
 tags: [expect-fail]
 url: ${env.site}/spatial-names
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial-names
   - expect:

@@ -15,15 +15,15 @@ All trials, including failures, contribute to cost and time. Success means the i
 | Main model | Stack | Oracle successes | Successful natural completions | Mean cost/task | Cost/success (failures included) | Mean seconds | Median seconds | p95 seconds |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | gpt-5.6-luna | playwright | 18/18 | 18/18 | $0.001262 | $0.001262 | 35.4 | 32.2 | 69.3 |
-| gpt-5.6-luna | plainwright | 18/18 | 18/18 | $0.001344 | $0.001344 | 17.0 | 15.7 | 28.4 |
+| gpt-5.6-luna | plain | 18/18 | 18/18 | $0.001344 | $0.001344 | 17.0 | 15.7 | 28.4 |
 | gpt-5.6-terra | playwright | 17/18 | 17/18 | $0.013374 | $0.014160 | 22.9 | 22.1 | 35.8 |
-| gpt-5.6-terra | plainwright | 18/18 | 18/18 | $0.010184 | $0.010184 | 17.0 | 16.4 | 24.0 |
+| gpt-5.6-terra | plain | 18/18 | 18/18 | $0.010184 | $0.010184 | 17.0 | 16.4 | 24.0 |
 | gpt-6-astra | playwright | 18/18 | 18/18 | $0.049695 | $0.049695 | 41.8 | 34.1 | 79.6 |
-| gpt-6-astra | plainwright | 18/18 | 18/18 | $0.044577 | $0.044577 | 20.4 | 19.2 | 27.8 |
+| gpt-6-astra | plain | 18/18 | 18/18 | $0.044577 | $0.044577 | 20.4 | 19.2 | 27.8 |
 
 ## Paired comparisons
 
-Ratios are plainwright / playwright. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.
+Ratios are plain / playwright. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.
 
 | Main model | Cost ratio [95% interval] | Time ratio [95% interval] | Cost ratio, both succeeded | Time ratio, both succeeded |
 |---|---:|---:|---:|---:|
@@ -38,11 +38,11 @@ Main-agent input totals include repeatedly supplied conversation context. Cached
 | Main model | Stack | Main calls | Browser/helper calls | Main input | Cache reads | Cache writes | Main output | Reasoning | Jev calls | Jev input | Jev cost | Hypothetical uncached mean cost |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | gpt-5.6-luna | playwright | 137 | 123 | 345714 | 303868 | 41435 | 5160 | 821 | 0 | 0 | $0.000000 | $0.004185 |
-| gpt-5.6-luna | plainwright | 112 | 94 | 278263 | 248714 | 29213 | 5177 | 906 | 101 | 134188 | $0.005636 | $0.003750 |
+| gpt-5.6-luna | plain | 112 | 94 | 278263 | 248714 | 29213 | 5177 | 906 | 101 | 134188 | $0.005636 | $0.003750 |
 | gpt-5.6-terra | playwright | 143 | 127 | 389183 | 344997 | 43757 | 5123 | 863 | 0 | 0 | $0.000000 | $0.046658 |
-| gpt-5.6-terra | plainwright | 113 | 95 | 276895 | 248782 | 27774 | 4819 | 637 | 101 | 133757 | $0.005618 | $0.034291 |
+| gpt-5.6-terra | plain | 113 | 95 | 276895 | 248782 | 27774 | 4819 | 637 | 101 | 133757 | $0.005618 | $0.034291 |
 | gpt-6-astra | playwright | 132 | 114 | 302748 | 266982 | 35370 | 3629 | 0 | 0 | 0 | $0.000000 | $0.178274 |
-| gpt-6-astra | plainwright | 108 | 90 | 268312 | 236709 | 31279 | 3368 | 0 | 70 | 72756 | $0.003056 | $0.158588 |
+| gpt-6-astra | plain | 108 | 90 | 268312 | 236709 | 31279 | 3368 | 0 | 70 | 72756 | $0.003056 | $0.158588 |
 
 ## Where elapsed time goes
 
@@ -51,15 +51,15 @@ Means per trial. Model time includes API latency and inference; tool time includ
 | Main model | Stack | Main-model seconds | Browser/helper seconds |
 |---|---|---:|---:|
 | gpt-5.6-luna | playwright | 28.4 | 7.0 |
-| gpt-5.6-luna | plainwright | 12.9 | 4.0 |
+| gpt-5.6-luna | plain | 12.9 | 4.0 |
 | gpt-5.6-terra | playwright | 15.5 | 7.3 |
-| gpt-5.6-terra | plainwright | 12.9 | 4.1 |
+| gpt-5.6-terra | plain | 12.9 | 4.1 |
 | gpt-6-astra | playwright | 34.8 | 6.9 |
-| gpt-6-astra | plainwright | 16.9 | 3.5 |
+| gpt-6-astra | plain | 16.9 | 3.5 |
 
 ## Tasks: gpt-5.6-luna
 
-Treatment: plainwright; control: playwright.
+Treatment: plain; control: playwright.
 
 | Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |
 |---|---:|---:|---:|
@@ -72,7 +72,7 @@ Treatment: plainwright; control: playwright.
 
 ## Tasks: gpt-5.6-terra
 
-Treatment: plainwright; control: playwright.
+Treatment: plain; control: playwright.
 
 | Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |
 |---|---:|---:|---:|
@@ -85,7 +85,7 @@ Treatment: plainwright; control: playwright.
 
 ## Tasks: gpt-6-astra
 
-Treatment: plainwright; control: playwright.
+Treatment: plain; control: playwright.
 
 | Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |
 |---|---:|---:|---:|

@@ -11,7 +11,7 @@
       "model": "openai/gpt-5.6-luna",
       "task": "record",
       "repeat": 1,
-      "arm": "plainwright",
+      "arm": "plain",
       "success": true,
       "ended": "finish",
       "totalCost": 0.0022012079999999996
@@ -31,7 +31,7 @@
       "model": "openai/gpt-5.6-terra",
       "task": "record",
       "repeat": 2,
-      "arm": "plainwright",
+      "arm": "plain",
       "success": true,
       "ended": "finish",
       "totalCost": 0.021290138
@@ -61,7 +61,7 @@
       "model": "openai/gpt-5.6-luna",
       "task": "catalog",
       "repeat": 1,
-      "arm": "plainwright",
+      "arm": "plain",
       "success": true,
       "ended": "text",
       "totalCost": 0.001544512
@@ -81,7 +81,7 @@
       "model": "openai/gpt-5.6-luna",
       "task": "catalog",
       "repeat": 2,
-      "arm": "plainwright",
+      "arm": "plain",
       "success": true,
       "ended": "text",
       "totalCost": 0.0015723719999999998
@@ -91,7 +91,7 @@
       "model": "openai/gpt-6-astra",
       "task": "catalog",
       "repeat": 0,
-      "arm": "plainwright",
+      "arm": "plain",
       "success": true,
       "ended": "finish",
       "totalCost": 0.04765759000000001

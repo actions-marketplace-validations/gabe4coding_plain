@@ -1,9 +1,9 @@
 ---
 name: validating-changes
-description: Use before you open, update or mark ready any pull request in the plainwright repo, and before you report a code, doc, test or plugin change as done. Runs the full validation loop (key-free gate, live e2e and evals, agent evals, code/doc/test review) and records the pass a pre-PR hook checks.
+description: Use before you open, update or mark ready any pull request in the plain repo, and before you report a code, doc, test or plugin change as done. Runs the full validation loop (key-free gate, live e2e and evals, agent evals, code/doc/test review) and records the pass a pre-PR hook checks.
 ---
 
-# Validating a plainwright change
+# Validating a plain change
 
 Mandatory before every pull request. A hook blocks `gh pr create` until `node scripts/validate.mjs` has passed
 on exactly the files of HEAD. CI repeats the gates; it is the last line, not the first.

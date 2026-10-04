@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-cli-d-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-cli-d-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const engines = [
   { cli: 'cli.js', entry: '../cli.js', header: 'url: https://example.com', action: 'click' },
@@ -42,7 +42,7 @@ for (const { cli, header, action } of engines) {
   test(`${cli}: validate is key-free and distinguishes warnings from errors`, () => {
     assert.equal(run(cli, ['validate', file]).status, 0);
     const warning = `${cli}-warn.yaml`;
-    fs.writeFileSync(path.join(dir, warning), `name: Warning\n${header}\nenv: {value: $PLAINWRIGHT_LANE_D_MISSING_ENV}\nsteps:\n  - ${action}: '\${env.value}'\n`);
+    fs.writeFileSync(path.join(dir, warning), `name: Warning\n${header}\nenv: {value: $PLAIN_LANE_D_MISSING_ENV}\nsteps:\n  - ${action}: '\${env.value}'\n`);
     const warned = run(cli, ['validate', warning]);
     assert.equal(warned.status, 0, warned.stderr);
     assert.match(warned.stdout, new RegExp(`^✔ ${warning}$`, 'm'));

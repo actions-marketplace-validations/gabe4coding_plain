@@ -12,9 +12,9 @@ export interface AriaChanges {
 
 /**
  * Step and batch results in every MCP server carry `changed`, so the agent reads the outcome there instead of
- * calling snapshot or ask (docs/benchmarks/agent-changes.md). PLAINWRIGHT_CHANGES=0 turns it off.
+ * calling snapshot or ask (docs/benchmarks/agent-changes.md). PLAIN_CHANGES=0 turns it off.
  */
-export const CHANGES_ENABLED = process.env.PLAINWRIGHT_CHANGES !== '0';
+export const CHANGES_ENABLED = process.env.PLAIN_CHANGES !== '0';
 export const CHANGES_NOTE = !CHANGES_ENABLED ? '' : ' The result also has `changed`: the page title/URL if they changed, and the accessibility-tree ' +
   'lines the action added (`added`, in page order, capped) and how many it removed. Read it before calling snapshot or ask.';
 

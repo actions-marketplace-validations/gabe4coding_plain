@@ -2,7 +2,7 @@
 # Start with Calendar's main view visible (Add and Search buttons), English (UK) locale.
 # The hook computes the date and a title unique to each run, so the spec works on any day and
 # leftovers from earlier runs never match. Each run adds one event to the simulator's calendar.
-# Set PLAINWRIGHT_MOBILE_DEVICE to the booted iOS simulator's UDID.
+# Set PLAIN_MOBILE_DEVICE to the booted iOS simulator's UDID.
 name: Create and verify a Calendar appointment
 goal: Create a Calendar event on a given date and find it again with Search
 platform: ios
@@ -10,7 +10,7 @@ device: "${env.device}"
 app: com.apple.mobilecal
 hooks: ../hooks/ios-calendar.mjs
 env:
-  device: $PLAINWRIGHT_MOBILE_DEVICE
+  device: $PLAIN_MOBILE_DEVICE
 steps:
   - wait: Calendar's main view is visible with Add and Search buttons.
   - tap: the Add button

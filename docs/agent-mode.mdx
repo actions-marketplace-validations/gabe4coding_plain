@@ -1,11 +1,11 @@
 ---
 title: Agent mode
-description: Let a coding agent drive a browser through the plainwright MCP tools, read page data, and save the flow as a spec.
+description: Let a coding agent drive a browser through the plain MCP tools, read page data, and save the flow as a spec.
 ---
 
 # Agent mode
 
-In agent mode, a coding agent drives a browser through the plainwright MCP server. The agent sends one target or
+In agent mode, a coding agent drives a browser through the plain MCP server. The agent sends one target or
 one claim per call, and Jev makes every pick and every judgment. When the flow works, the agent saves it as a spec,
 and the CLI replays that spec.
 
@@ -17,7 +17,7 @@ This page is about the browser server. For the other engines, see [desktop](comp
 The browser plugin starts the server with `--headless`. To start it without the plugin:
 
 ```sh
-npx -y -p @gabe4coding/plain plainwright [--headless] [--timeout <ms>] mcp
+npx -y -p @gabe4coding/plain plain [--headless] [--timeout <ms>] mcp
 ```
 
 The server keeps one browser session open, serves it over stdio and runs tool calls one at a time. It reads no
@@ -52,7 +52,7 @@ itself failed, for example "call open first". Only `step`, `batch` and `open` ch
   target such as `the comments link` picks the element that the flow is about. The target words win over the goal.
   Claims never see the goal. The goal stays until an `open` call sends a new one.
 - `headed`: `true` shows the browser window. The default comes from the `--headless` flag. A change restarts the
-  browser, and without `--profile` the cookies and logins are lost. With `--cdp`, plainwright ignores `headed`.
+  browser, and without `--profile` the cookies and logins are lost. With `--cdp`, plain ignores `headed`.
 - `hooks`: the path of a hooks module, relative to the working directory of the server. Setup runs before the
   navigation, and steps get its data as `${hooks.*}`. The result lists the placeholder paths in `placeholders`,
   never the values. See [hooks](hooks.mdx).
@@ -105,9 +105,9 @@ Use `batch` for actions that you know, for example to fill a form and submit it.
 `batch` decreases the number of agent calls, not the number of Jev picks. If the next action depends on the result,
 end the batch there.
 
-Before the first action, plainwright checks the shape and the placeholders of all entries. If one entry is not
+Before the first action, plain checks the shape and the placeholders of all entries. If one entry is not
 valid, the call returns a tool error and no action runs. Then the entries run in order. The first entry that does
-not pass (`fail`, `inconclusive`, `error` or `skipped`) stops the batch. plainwright does not undo the entries that
+not pass (`fail`, `inconclusive`, `error` or `skipped`) stops the batch. plain does not undo the entries that
 passed.
 
 | Batch result field | Content |
@@ -146,7 +146,7 @@ read { question: 'the titles and prices of the first three books' }
 → { found: true, answer: '- heading "A Light in the ..." ...', context: [...], confidence: 0.97 }
 ```
 
-Jev selects the first and the last line of the answer, and plainwright copies the lines between them.
+Jev selects the first and the last line of the answer, and plain copies the lines between them.
 
 - `answer`: the lines, up to 6,000 characters.
 - `context`: up to 4 ancestor lines of the answer, outermost first.
@@ -167,7 +167,7 @@ A large page costs many Jev tokens. To read one region, use `within` (`the resul
 
 `ask` never changes the status of the session. For a test check, use an `expect` step. Use `ask` to find why a step
 did not pass, for example `A dialog covers the form`. If the page tree is longer than 60,000
-characters, the result has a `note`: a `no` can then come from content that plainwright cut.
+characters, the result has a `note`: a `no` can then come from content that plain cut.
 
 ### `snapshot`, `evaluate` and `find`
 
@@ -175,7 +175,7 @@ characters, the result has a `note`: a `no` can then come from content that plai
   `mode` selects a raw tree, a compact view or a smart view. See [snapshot views](snapshots.mdx). A link target
   that ends in `…` is cut (see [long link targets](snapshots.mdx#long-link-targets)).
 - `evaluate` runs a JavaScript expression and returns `value` and `url`. Use it to get data in a shape that you
-  choose. plainwright waits for a promise to resolve. An `undefined` value becomes `null`.
+  choose. plain waits for a promise to resolve. An `undefined` value becomes `null`.
 - `find` shows what Jev picks for a target. `kind` is `click`, `hover`, `fill`, `select`, `check`, `upload` or
   `region`. The result has `found`, `detail`, `confidence` and `jevTokens`.
 
@@ -188,7 +188,7 @@ If Jev finds no `within` region, `snapshot`, `read` and `ask` return `found: fal
 
 - A relative `path` resolves against the working directory of the server.
 - `save` replaces a file that already exists, with no warning.
-- The default `name` is `plainwright session`.
+- The default `name` is `plain session`.
 - `url` is the URL of the first `open` call. Each `open` call becomes a `goto` step.
 - `goal` is the last goal that `open` received.
 - Only the steps that passed are in the file, as the agent wrote them.
@@ -213,7 +213,7 @@ To use environment values, add an `env` block to the saved file. Do not write cr
 ## End the session
 
 The browser server has no `close` tool. The session ends when the input of the server closes, or on
-`SIGINT`, `SIGTERM` or `SIGHUP`. plainwright then runs the hooks teardown and closes the browser. If teardown fails,
+`SIGINT`, `SIGTERM` or `SIGHUP`. plain then runs the hooks teardown and closes the browser. If teardown fails,
 the server writes the error to stderr and exits with code 1.
 
 ## Disable `changed` or `read`
@@ -222,22 +222,22 @@ These variables work in the browser, desktop and mobile MCP servers:
 
 | Variable | Effect |
 |---|---|
-| `PLAINWRIGHT_CHANGES=0` | `step` and `batch` results have no `changed` field. |
-| `PLAINWRIGHT_READ=0` | The server does not offer the `read` tool. |
+| `PLAIN_CHANGES=0` | `step` and `batch` results have no `changed` field. |
+| `PLAIN_READ=0` | The server does not offer the `read` tool. |
 
-The desktop and mobile servers read the env files too late for `PLAINWRIGHT_READ`. For them, set it in the
+The desktop and mobile servers read the env files too late for `PLAIN_READ`. For them, set it in the
 environment of the process.
 
 ## Session pane in Claude Code
 
-In Claude Code v2.1.287 or later, each plainwright plugin adds a session pane to the terminal and to the Desktop
+In Claude Code v2.1.287 or later, each plain plugin adds a session pane to the terminal and to the Desktop
 Code tab. The pane shows the page or app, the goal of the flow and the total Jev tokens. It also shows one line for
 each step, with its status and its Jev tokens. The status marks are ✓ pass, ✗ fail, ? inconclusive, ! error and
 – skipped.
 
 The pane opens on the first `open` of a session when the terminal has 144 columns or more. In a narrower terminal,
-a notice shows the command. `/plainwright-pane` shows the pane at any width. The desktop and mobile plugins use
-`/plainwright-computer-pane` and `/plainwright-mobile-pane`.
+a notice shows the command. `/plain-pane` shows the pane at any width. The desktop and mobile plugins use
+`/plain-computer-pane` and `/plain-mobile-pane`.
 
 The pane shows the session of the MCP server, not the conversation. After `/clear` or `/resume`, the pane keeps
 its lines, because the server keeps its steps.
@@ -263,47 +263,47 @@ By default, each session is a new Chromium with no cookies and no logins. Three 
 
 | Flag | Environment variable | Effect |
 |---|---|---|
-| `--profile <dir>` | `PLAINWRIGHT_PROFILE` | Launches a browser with a persistent profile directory. |
-| `--channel <name>` | `PLAINWRIGHT_CHANNEL` | Launches an installed browser, for example `chrome`. |
-| `--cdp <url>` | `PLAINWRIGHT_CDP` | Attaches to a Chrome that is already open. |
+| `--profile <dir>` | `PLAIN_PROFILE` | Launches a browser with a persistent profile directory. |
+| `--channel <name>` | `PLAIN_CHANNEL` | Launches an installed browser, for example `chrome`. |
+| `--cdp <url>` | `PLAIN_CDP` | Attaches to a Chrome that is already open. |
 
 The flags work for spec runs and for `mcp`. With a plugin install, put the variables in
-`~/.config/plainwright/.env`. For spec runs, the [config file](running.mdx#configuration) can also set `profile`,
+`~/.config/plain/.env`. For spec runs, the [config file](running.mdx#configuration) can also set `profile`,
 `channel` and `cdp`. A leading `~` in the profile path is your home directory.
 
 ### `--profile`
 
 The browser keeps its user-data directory, so a login stays for the next session. Use a directory that only
-plainwright uses, for example `~/.plainwright`. Do not copy your Chrome profile into it: its cookies do not work
+plain uses, for example `~/.plain`. Do not copy your Chrome profile into it: its cookies do not work
 there. A spec cannot then set `browser.storageState`. Run the specs with `--workers 1`.
 
 ### `--channel chrome`
 
-plainwright launches your installed Chrome instead of the bundled Chromium (`chrome-beta` and `msedge` also work).
+plain launches your installed Chrome instead of the bundled Chromium (`chrome-beta` and `msedge` also work).
 Use it with `--profile` to get a signed-in browser:
 
 ```sh
-npx -y -p @gabe4coding/plain plainwright --profile ~/.plainwright-chrome --channel chrome mcp
+npx -y -p @gabe4coding/plain plain --profile ~/.plain-chrome --channel chrome mcp
 ```
 
 The first time, sign in to Google in that window, turn on sync, and log in to the sites that you need.
 
 ### `--cdp`
 
-plainwright attaches to a running Chrome through the DevTools protocol. Start Chrome with a debugging port first:
+plain attaches to a running Chrome through the DevTools protocol. Start Chrome with a debugging port first:
 
 ```sh
 # macOS. On Linux, the binary is google-chrome.
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --remote-debugging-port=9222 --user-data-dir="$HOME/.plainwright-chrome"
-npx -y -p @gabe4coding/plain plainwright --cdp http://127.0.0.1:9222 mcp
+  --remote-debugging-port=9222 --user-data-dir="$HOME/.plain-chrome"
+npx -y -p @gabe4coding/plain plain --cdp http://127.0.0.1:9222 mcp
 ```
 
 Chrome 136 and later do not allow remote debugging on the default profile, so the command sets a separate
 `--user-data-dir`. Sign in to that profile one time, and it keeps the logins.
 
-- plainwright works in its own tab and closes it when the session ends. It never closes your Chrome.
+- plain works in its own tab and closes it when the session ends. It never closes your Chrome.
 - A spec with `auth`, `geolocation` or a `browser` block fails.
-- plainwright ignores `--profile` and `--channel`.
+- plain ignores `--profile` and `--channel`.
 - Run the specs with `--workers 1`.
 - The agent acts in your real accounts. Read the [usage rules](../README.md#usage-rules) again.

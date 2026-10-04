@@ -21,15 +21,15 @@ All trials, including failures, contribute to cost and time. Success means the i
 | Main model | Stack | Oracle successes | Natural completions | Mean cost/task | Cost/success (failures included) | Mean seconds | Median seconds | p95 seconds |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | gpt-5.6-luna | playwright | 18/18 | 18/18 | $0.0013 | $0.0013 | 33.4 | 30.5 | 53.1 |
-| gpt-5.6-luna | plainwright | 14/18 | 14/18 | $0.0020 | $0.0025 | 23.1 | 20.1 | 51.7 |
+| gpt-5.6-luna | plain | 14/18 | 14/18 | $0.0020 | $0.0025 | 23.1 | 20.1 | 51.7 |
 | gpt-5.6-terra | playwright | 18/18 | 18/18 | $0.0126 | $0.0126 | 22.7 | 22.9 | 32.8 |
-| gpt-5.6-terra | plainwright | 14/18 | 14/18 | $0.0131 | $0.0169 | 22.0 | 20.8 | 39.8 |
+| gpt-5.6-terra | plain | 14/18 | 14/18 | $0.0131 | $0.0169 | 22.0 | 20.8 | 39.8 |
 | gpt-6-astra | playwright | 18/18 | 18/18 | $0.0503 | $0.0503 | 31.8 | 28.9 | 50.8 |
-| gpt-6-astra | plainwright | 18/18 | 18/18 | $0.0657 | $0.0657 | 24.9 | 24.1 | 32.7 |
+| gpt-6-astra | plain | 18/18 | 18/18 | $0.0657 | $0.0657 | 24.9 | 24.1 | 32.7 |
 
 ## Paired comparisons
 
-Ratios are plainwright / Playwright MCP. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.
+Ratios are plain / Playwright MCP. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.
 
 | Main model | Cost ratio [95% interval] | Time ratio [95% interval] | Cost ratio, both succeeded | Time ratio, both succeeded |
 |---|---:|---:|---:|---:|
@@ -44,11 +44,11 @@ Main-agent input totals include repeatedly supplied conversation context. Cached
 | Main model | Stack | Main calls | Browser/helper calls | Main input | Cache reads | Cache writes | Main output | Reasoning | Jev calls | Jev input | Jev cost | Hypothetical uncached mean cost |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | gpt-5.6-luna | playwright | 147 | 133 | 371427 | 328668 | 42318 | 5355 | 846 | 0 | 0 | $0.0000 | $0.0045 |
-| gpt-5.6-luna | plainwright | 180 | 181 | 519962 | 479688 | 39734 | 7940 | 1972 | 123 | 152587 | $0.0064 | $0.0067 |
+| gpt-5.6-luna | plain | 180 | 181 | 519962 | 479688 | 39734 | 7940 | 1972 | 123 | 152587 | $0.0064 | $0.0067 |
 | gpt-5.6-terra | playwright | 141 | 128 | 347369 | 306030 | 40916 | 5263 | 790 | 0 | 0 | $0.0000 | $0.0421 |
-| gpt-5.6-terra | plainwright | 162 | 146 | 400738 | 367626 | 32626 | 6237 | 1144 | 106 | 131094 | $0.0055 | $0.0490 |
+| gpt-5.6-terra | plain | 162 | 146 | 400738 | 367626 | 32626 | 6237 | 1144 | 106 | 131094 | $0.0055 | $0.0490 |
 | gpt-6-astra | playwright | 134 | 116 | 309796 | 273967 | 35427 | 3687 | 0 | 0 | 0 | $0.0000 | $0.1824 |
-| gpt-6-astra | plainwright | 180 | 162 | 457651 | 416653 | 40458 | 4979 | 52 | 93 | 153311 | $0.0064 | $0.2684 |
+| gpt-6-astra | plain | 180 | 162 | 457651 | 416653 | 40458 | 4979 | 52 | 93 | 153311 | $0.0064 | $0.2684 |
 
 ## Where elapsed time goes
 
@@ -57,15 +57,15 @@ Means per trial. Model time includes API latency and inference; tool time includ
 | Main model | Stack | Main-model seconds | Browser/helper seconds |
 |---|---|---:|---:|
 | gpt-5.6-luna | playwright | 26.3 | 7.1 |
-| gpt-5.6-luna | plainwright | 18.5 | 4.6 |
+| gpt-5.6-luna | plain | 18.5 | 4.6 |
 | gpt-5.6-terra | playwright | 15.7 | 7.0 |
-| gpt-5.6-terra | plainwright | 18.0 | 4.0 |
+| gpt-5.6-terra | plain | 18.0 | 4.0 |
 | gpt-6-astra | playwright | 24.8 | 7.0 |
-| gpt-6-astra | plainwright | 20.9 | 4.0 |
+| gpt-6-astra | plain | 20.9 | 4.0 |
 
 ## Tasks: gpt-5.6-luna
 
-| Task | Successes: plainwright / baseline | Mean cost: plainwright / baseline | Mean seconds: plainwright / baseline |
+| Task | Successes: plain / baseline | Mean cost: plain / baseline | Mean seconds: plain / baseline |
 |---|---:|---:|---:|
 | contact | 3/3 / 3/3 | $0.0009 / $0.0007 | 15.1 / 24.5 |
 | preferences | 3/3 / 3/3 | $0.0013 / $0.0013 | 20.3 / 39.6 |
@@ -76,7 +76,7 @@ Means per trial. Model time includes API latency and inference; tool time includ
 
 ## Tasks: gpt-5.6-terra
 
-| Task | Successes: plainwright / baseline | Mean cost: plainwright / baseline | Mean seconds: plainwright / baseline |
+| Task | Successes: plain / baseline | Mean cost: plain / baseline | Mean seconds: plain / baseline |
 |---|---:|---:|---:|
 | contact | 3/3 / 3/3 | $0.0080 / $0.0080 | 16.1 / 20.2 |
 | preferences | 3/3 / 3/3 | $0.0112 / $0.0096 | 19.0 / 20.9 |
@@ -87,7 +87,7 @@ Means per trial. Model time includes API latency and inference; tool time includ
 
 ## Tasks: gpt-6-astra
 
-| Task | Successes: plainwright / baseline | Mean cost: plainwright / baseline | Mean seconds: plainwright / baseline |
+| Task | Successes: plain / baseline | Mean cost: plain / baseline | Mean seconds: plain / baseline |
 |---|---:|---:|---:|
 | contact | 3/3 / 3/3 | $0.0319 / $0.0310 | 16.5 / 28.7 |
 | preferences | 3/3 / 3/3 | $0.0440 / $0.0356 | 25.6 / 25.7 |

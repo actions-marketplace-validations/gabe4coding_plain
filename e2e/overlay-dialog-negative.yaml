@@ -2,7 +2,7 @@ name: a background button under a script dialog's overlay does not run
 url: ${env.site}
 tags: [expect-fail]
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /overlay
   - click: the Subscribe button
