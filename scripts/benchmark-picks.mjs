@@ -12,6 +12,7 @@ import { parseArgs } from 'node:util';
 import { loadEnvFiles } from '../dist/jev/provider.js';
 import { pickElements } from '../dist/jev/pick.js';
 import { decide } from '../dist/jev/decide.js';
+import { evidenceForGroups } from '../dist/jev/evidence.js';
 
 const { values } = parseArgs({ options: { runs: { type: 'string', default: '1' }, goal: { type: 'string', default: 'both' }, only: { type: 'string' }, out: { type: 'string' } } });
 loadEnvFiles();
@@ -29,11 +30,19 @@ async function mapLimit(items, limit, fn) {
 }
 
 const jobs = [];
-for (let run = 0; run < Number(values.runs); run++) for (const c of cases) for (const mode of modes) jobs.push({ run, c, mode });
-const results = await mapLimit(jobs, 6, async ({ run, c, mode }) => {
+const routes = [];
+for (let run = 0; run < Number(values.runs); run++) {
+  routes.push((await evidenceForGroups(cases.map((c) => [c.target]))).spatial);
+  for (const [index, c] of cases.entries()) for (const mode of modes) jobs.push({ run, c, index, mode });
+}
+const results = await mapLimit(jobs, 6, async ({ run, c, index, mode }) => {
   const state = page(c.page);
   try {
-    const [p] = await pickElements(state.candidates, [c.target], { url: state.url, title: state.title, ...(mode === 'on' ? { goal: c.goal } : {}) });
+    if (c.evidence === 'spatial' && !routes[run][index]) {
+      throw new Error('spatial target routed without layout evidence');
+    }
+    const [p] = await pickElements(state.candidates, [c.target], { url: state.url, title: state.title,
+      ...(state.layout ? { layout: state.layout } : {}), ...(mode === 'on' ? { goal: c.goal } : {}) });
     const score = p.confidence ?? p.probability;
     const accepted = p.id !== null && decide(score, 'pick') === 'pass';
     const outcome = c.expect.length === 0 ? (accepted ? 'wrong' : 'right') : !accepted ? 'inconclusive' : c.expect.includes(p.id) ? 'right' : 'wrong';

@@ -282,9 +282,11 @@ test('resolveLocators: a page swap during settle resolves against the new active
   const opener = await context.newPage();
   const popup = await context.newPage();
   const originalPick = intelligence.pick;
+  const originalAsk = intelligence.ask;
   const release = holdActivity(opener);
   let current: Page = opener;
   try {
+    intelligence.ask = async (_state, questions) => ({ tokens: 0, answers: questions.map(() => ({ choice: 'semantic', confidence: 1 })) });
     await opener.setContent('<body><button>Stay here</button></body>');
     await popup.setContent('<body><button>Popup only</button></body>');
     let signalFirst = () => {};
@@ -318,6 +320,7 @@ test('resolveLocators: a page swap during settle resolves against the new active
     assert.equal(ctx.ms.reasked, 1);
   } finally {
     intelligence.pick = originalPick;
+    intelligence.ask = originalAsk;
     release();
     await context.close();
   }

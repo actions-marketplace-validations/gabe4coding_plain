@@ -16,9 +16,9 @@ const PAGE = '<main><section><h2>Actions</h2><button onclick="document.body.inse
 
 test('browser: a warm run acts on the same element without a pick call', async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-pick-cache-browser-'));
-  const { pick, judge } = intelligence;
+  const { pick, judge, ask } = intelligence;
   t.after(async () => {
-    intelligence.pick = pick; intelligence.judge = judge;
+    intelligence.pick = pick; intelligence.judge = judge; intelligence.ask = ask;
     await closeSharedBrowser();
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -26,10 +26,12 @@ test('browser: a warm run acts on the same element without a pick call', async (
   const file = path.join(dir, 'go.yaml');
   fs.writeFileSync(file, `name: go\nurl: "${url}"\nsteps:\n  - goto: "${url}"\n  - click: the Go button\n  - expect: Go was clicked\n`);
   let picks = 0;
+  let confidence = 0.97;
+  intelligence.ask = async (_state, questions) => ({ tokens: 0, answers: questions.map(() => ({ choice: 'semantic', confidence: 1 })) });
   intelligence.pick = async (candidates, targets) => {
     picks++;
     const go = candidates.find((c) => c.desc.startsWith('button "Go"'));
-    return targets.map((_, i) => ({ id: go?.id ?? null, probability: 0.97, probabilities: {}, tokens: i === 0 ? 50 : 0 }));
+    return targets.map((_, i) => ({ id: go?.id ?? null, probability: 0.97, confidence, probabilities: {}, tokens: i === 0 ? 50 : 0 }));
   };
   let failNext = 0; // the next N judgments fail, whatever the page shows
   intelligence.judge = async (state, claims) => {
@@ -79,5 +81,15 @@ test('browser: a warm run acts on the same element without a pick call', async (
     const failed = await runSuite(engine, opts, services);
     assert.equal(failed.status, 'fail');
     assert.equal(fs.existsSync(sidecarFile), false);
+
+    // A marginal pick acts, but its high probability cannot override the lower confidence for storage.
+    confidence = 0.61;
+    for (let run = 0; run < 2; run++) {
+      const marginal = await runSuite(engine, opts, services);
+      assert.equal(marginal.status, 'pass');
+      assert.equal(marginal.specs[0].attempts[0].steps[1].cached, undefined);
+      assert.equal(picks, 3 + run);
+      assert.equal(fs.existsSync(sidecarFile), false);
+    }
   } finally { process.chdir(cwd); console.error = error; }
 });

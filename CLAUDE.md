@@ -113,7 +113,8 @@ Source layout (tests sit next to their module):
   `isTooLong`, `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
 - `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`), `steps.ts`
   (step handlers), `activity.ts` (settling, request tracking, `mayNavigate`), `settled-ask.ts`, `locate.ts` (targets),
-  `judge-page.ts` (claims), `candidates.ts`, `page.ts` (snapshots, DOM clock), `notes.ts` (console noise), `mcp.ts`.
+  `judge-page.ts` (claims), `candidates.ts`, `page.ts` (snapshots, DOM clock), `evidence.ts` (observation routing),
+  `layout.ts` (read-only rendered bounds), `notes.ts` (console noise), `mcp.ts`.
 - `src/native/` — the shared desktop/mobile core (`session.ts`, `run-spec.ts`, `cli.ts`, `mcp.ts`).
 - `src/computer/` and `src/mobile/` — each platform's `adapter.ts`, `spec.ts`, `session.ts`, `mcp.ts`, `cli.ts`
   (plus `computer/planner.ts`, `mobile/tree.ts`, `mobile/discovery.ts`).
@@ -143,7 +144,8 @@ Source layout (tests sit next to their module):
   (`x.yaml` → `x.picks.json`, committed), key JSON `[index in file, step kind, interpolated target, goal, page]`,
   value the accepted candidate's desc (`value=` dropped only on `editable` text-entry candidates, browser only),
   frame label, page (origin+path) and a sha1 of the whole normalized list plus each element's UI state
-  (checked, selected, pressed, expanded, disabled). When the raw step had `${`, the key's target and page and the
+  (checked, selected, pressed, expanded, disabled). Picks are stored only at confidence (probability fallback) ≥ 0.9;
+  acting still accepts ≥ 0.5. File version 2 rejects older entries. When the raw step had `${`, the key's target and page and the
   stored desc, frame and page are sha256 hashes, so no interpolated data reaches the committed sidecar.
   `resolveTargets` (`TargetAdapter.cached`) acts on a hit only when the list hash is equal and exactly one candidate
   matches; misses go to Jev as before. Never stored: ` #n` ordinals, rejected/`none` picks. Loaders put
@@ -218,7 +220,26 @@ Source layout (tests sit next to their module):
   aria-checked/aria-pressed) and click only when it must change (`setChecked`); `scroll: top|bottom` (and spoken
   forms, `scrollEdge`) scrolls `document.scrollingElement` and reports the distance. A scan with no candidates is
   retried for up to 2 s (`APPEAR_MS` in `locate.ts`, a page still redirecting after `open`). `wait: {that, within}` picks the region
-  once and polls only its tree (`judgeRegion` in `judge-page.ts`).
+  once and polls only its tree (`judgeRegion` in `judge-page.ts`). Browser targets and claims use one cached Jev
+  Choice per distinct prompt group (`jev/evidence.ts`) to request semantic or spatial evidence. Spec runs and MCP
+  batches queue interpolated groups (`browser/evidence.ts`) and classify them in one request at the first model
+  step; a model token-limit rejection bisects groups while preserving answer order and per-request usage.
+  Standalone scoped claims queue the claim and region together. Later interactive groups request their own
+  classification. Entered values, files, keys and navigation URLs are excluded from the routing state. Uncertain routes
+  collect layout too. Spatial candidates carry main-viewport CSS-pixel bounds, covered by the pick-cache list hash.
+  Picks also receive the read-only layout for non-candidate references, retained across chunks and runoff; its
+  hash invalidates a cached pick when a reference moves even if the candidate list stays equal;
+  spatial claims add a bounded read-only layout capture (254 text elements/controls, scoped by `within`). Spatial
+  observations always repeat after settling, since CSS can move elements without a DOM mutation. Scoped claims
+  also repeat: a shadow-root mutation is outside the main-document observer. Layout walks the rendered slot
+  content once, retains native values and accessible names, and isolates transient iframe failures with a 2 s cap.
+  Transparent descendants contribute to content-derived accessible names but not rendered text; neighbor names
+  state both when they differ, so a name does not masquerade as visible text.
+  Collapsed selects expose only their displayed selection and current value; wrapping label names exclude the control subtree.
+  Frame geometry checks embedding visibility through every parent frame, including scoped captures.
+  Spatial judgments receive explicit conjunction rules: names, values, visibility and relations must all hold for the same elements.
+  Measured nearest-neighbor relations with perpendicular overlap give Jev qualitative order without relying on
+  tree order or coordinate arithmetic; the bounded layout retains the raw rectangles for other relations.
 - `src/browser/runner.ts` — `runSpec()`: fork the hooks child first (fails fast, before the browser opens) → open a
   session → `setup()` → interpolate `url`/`steps` with `{env, hooks: data}` → run steps → `teardown()` in
   `finally` → close the child → close the session. `Status` is `pass | fail | inconclusive | error | skipped`.

@@ -1,0 +1,11 @@
+name: Spatial claims use current form values
+url: ${env.site}/spatial-values
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-values
+  - fill: { target: the Right field, value: Current right value }
+  - fill: { target: the Left field, value: Current left value }
+  - expect:
+      that: the field displaying Current left value is to the left of the field displaying Current right value
+      within: the Field pair section

@@ -43,15 +43,21 @@ async function pickSplittingWhenTooLong(candidates, instructions, page, askChunk
 async function pickChunk(candidates, instructions, page) {
     const criteria = { none: 'No listed element matches the instruction' };
     for (const candidate of candidates)
-        criteria[String(candidate.id)] = candidate.desc;
+        criteria[String(candidate.id)] = candidate.desc +
+            (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (main viewport CSS pixels; tree order is not visual order)` : '');
     const state = {
         url: page.url,
         title: page.title,
         today: new Date().toISOString().slice(0, 10),
         ...(page.goal ? { goal: page.goal } : {}),
+        ...(page.layout ? { layout: page.layout } : {}),
+        ...(candidates.some((candidate) => candidate.bounds) ? {
+            geometry: 'Bounds are rendered edges in main viewport CSS pixels. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.',
+        } : {}),
         instructions,
         // `editable` and `state` are for the pick cache only: Jev never sees them.
-        elements: candidates.map(({ id, desc, frameIndex }) => (frameIndex === undefined ? { id, desc } : { id, desc, frameIndex })),
+        elements: candidates.map(({ id, desc, frameIndex, bounds }) => ({ id, desc,
+            ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds } : {}) })),
     };
     const questions = instructions.map((_, i) => ({
         kind: 'choice',

@@ -1,0 +1,10 @@
+name: Spatial targets follow a reference outside the candidate list
+url: ${env.site}/spatial-reference
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-reference
+  - fill: { target: the field immediately below the Shipping heading, value: Upper entry }
+  - click: the Move heading button
+  - fill: { target: the field immediately below the Shipping heading, value: Lower entry }
+  - expect: the Upper field contains Upper entry and the Lower field contains Lower entry

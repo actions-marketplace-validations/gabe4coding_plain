@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { StepKind } from '../core/step-kind.js';
 import { label, dumpDebug, errorMessage } from '../core/results.js';
 import { decide, decideAll } from '../jev/decide.js';
@@ -7,6 +8,7 @@ import { mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators, resolveOne } from './locate.js';
 import { judgeClaims, judgeRegion, judgeSettled } from './judge-page.js';
 import { sleep, timed } from './context.js';
+import { prepareEvidence } from './evidence.js';
 /** Waits at most this many Jev answers for a `wait` condition. */
 const MAX_WAIT_POLLS = 8;
 /** A page that keeps mutating without changing what Jev sees must not spin the wait loop. */
@@ -34,7 +36,7 @@ const ROUTINE_LOG = /^(\d+ × )?(waiting for|waiting \d+ms|retrying|attempting|s
  * line, plus the last log line that gives a reason, such as the element that intercepts pointer events.
  */
 function actionError(error) {
-    const [head, log] = errorMessage(error).split('\nCall log:\n');
+    const [head, log] = stripVTControlCharacters(errorMessage(error)).split('\nCall log:\n');
     if (log === undefined)
         return head;
     const reason = log.split('\n').map((line) => line.trim().replace(/^- /, ''))
@@ -45,6 +47,7 @@ function actionError(error) {
 export async function runStep(ctx, step) {
     ctx.ms = {};
     ctx.step = step;
+    prepareEvidence(ctx, [step]);
     const start = Date.now();
     if (!settlesFirst(step))
         await timed(ctx, 'settle', () => waitHold(ctx.page));
