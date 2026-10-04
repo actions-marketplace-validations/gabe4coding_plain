@@ -20,8 +20,18 @@ try {
   await once(fixture, 'spawn');
   await new Promise(r => setTimeout(r, 800));
   await adapter.open({ pid: fixture.pid }, true);
+  const spatialTarget = 'the left button of the Alpha and Beta pair';
   const ai = {
-    pick: async (candidates, targets) => targets.map((target, i) => {
+    // A prompt that says "left" is spatial: its pick must arrive with bounds and a layout.
+    ask: async ({ groups }, questions) => ({ tokens: 1, answers: questions.map((_, i) => ({
+      choice: groups[i].some((prompt) => /\bleft\b/.test(prompt)) ? 'spatial' : 'semantic', confidence: 1 })) }),
+    pick: async (candidates, targets, page) => targets.map((target, i) => {
+      if (target === spatialTarget) {
+        const pair = candidates.filter(c => /^button "(Alpha|Beta)"/.test(c.desc));
+        assert.ok(pair.length === 2 && pair.every(c => c.bounds) && page.layout, `Expected Alpha and Beta with bounds: ${JSON.stringify(candidates)}`);
+        const left = pair.sort((a, b) => a.bounds.left - b.bounds.left)[0];
+        return { id: left.id, probability: 1, probabilities: { [left.id]: 1 }, tokens: 1 };
+      }
       const matches = candidates.filter(c => c.desc.startsWith(target));
       assert.equal(matches.length, 1, `Expected unique fixture control ${target}: ${JSON.stringify(candidates)}`);
       return { id: matches[0].id, probability: 1, probabilities: { [matches[0].id]: 1 }, tokens: i === 0 ? 1 : 0 };
@@ -50,13 +60,17 @@ try {
   snap = await session.snapshot(); assert.match(snap.aria, /checked=off/);
   await step({ click: 'button "Preview"' });
   snap = await session.snapshot(); assert.match(snap.aria, /Preview: desktop adapter works/);
+  await step({ click: spatialTarget });
+  snap = await session.snapshot(); assert.match(snap.aria, /Chosen: Beta/);
+  const { layout } = (await adapter.capture('region', undefined, { spatial: true })).snapshot;
+  assert.match(layout, /button "Beta" is left of [^\n]*button "Alpha"\./);
   await step({ press: 'Tab' });
   await step({ hover: 'button "Preview"' });
   if (!process.argv.includes('--skip-screenshot')) {
     const png = await adapter.screenshot();
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
   }
-  console.log('Native macOS smoke passed: attach, capture, fill, click, idempotent check/uncheck, key, hover.' + (process.argv.includes('--skip-screenshot') ? ' Screenshot skipped explicitly.' : ' Screenshot passed.'));
+  console.log('Native macOS smoke passed: attach, capture, fill, click, idempotent check/uncheck, spatial click, key, hover.' + (process.argv.includes('--skip-screenshot') ? ' Screenshot skipped explicitly.' : ' Screenshot passed.'));
 } finally {
   await adapter.close();
   if (fixture && fixture.exitCode === null) {

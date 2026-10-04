@@ -1,0 +1,10 @@
+name: A textarea initial value does not prove displayed spatial text
+tags: [expect-fail]
+url: ${env.site}/spatial-values
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-values
+  - fill: {target: the Right field, value: Current right value}
+  - fill: {target: the Left field, value: Current left value}
+  - expect: the field displaying "Old textarea" is to the left of the field displaying "Current right value"

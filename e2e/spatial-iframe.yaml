@@ -1,0 +1,8 @@
+name: Spatial evidence includes iframe contents after its embedding becomes visible
+url: ${env.site}/spatial-iframe
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-iframe
+  - click: the Reveal frame button
+  - expect: the button with visible text Frame action is to the left of the Visible anchor button

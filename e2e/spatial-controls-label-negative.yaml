@@ -1,0 +1,8 @@
+name: Dropdown options do not form its accessible name
+tags: [expect-fail]
+url: ${env.site}/spatial-controls
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-controls
+  - expect: the dropdown whose accessible name is exactly Plan Monthly Annual is to the left of Continue

@@ -2,6 +2,8 @@ import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError
 import { timedInto, dumpDebug, errorMessage } from '../core/results.js';
 import { readAnswer } from '../core/read.js';
 import { decideAll } from '../jev/decide.js';
+import { evidenceForGroups } from '../jev/evidence.js';
+import { evidenceRoutes, prepareRoutes, promptGroups, routeNeedsLayout } from '../core/evidence.js';
 const isAssertion = (step) => step.kind === 'expect' || step.kind === 'wait';
 /** Right after a step the UI may still be busy, so an early capture can save time. Later it only adds calls. */
 const EARLY_WINDOW_MS = 1000;
@@ -31,6 +33,8 @@ export class NativeSession {
     /** Its source and kind key the pick cache. */
     currentStep;
     lastStepEnd = 0;
+    /** Which prompts need geometry (src/core/evidence.ts), queued per spec and per step. */
+    routes = evidenceRoutes();
     constructor(adapter, timeout = 15000, ai = intelligence) {
         this.adapter = adapter;
         this.timeout = timeout;
@@ -45,6 +49,15 @@ export class NativeSession {
     /** The UI was just driven outside a step (the app was opened): the next step may find it busy. */
     noteActivity() { this.lastStepEnd = Date.now(); }
     step(raw) { return this.run(this.parse(raw)); }
+    /** Queues the steps' descriptions, so the first step that needs a route classifies all of them in one request. */
+    prepareEvidence(steps) { prepareRoutes(this.routes, steps.flatMap(promptGroups)); }
+    /** Injected intelligence without `ask` (tests) never routes: every prompt keeps the accessibility tree alone. */
+    needsLayout(prompts) {
+        const request = this.ai.ask;
+        if (!request || !prompts.length)
+            return Promise.resolve(false);
+        return routeNeedsLayout(this.routes, prompts, (groups) => this.timed('jev', () => evidenceForGroups(groups, request, (tokens) => this.track(tokens))).then((result) => result.spatial));
+    }
     async run(step) {
         const start = Date.now();
         this.phaseMs = {};
@@ -53,6 +66,7 @@ export class NativeSession {
         let result;
         try {
             const valid = this.validate(step);
+            this.prepareEvidence([valid]);
             result = isAssertion(valid) ? await this.assert(valid) : await this.act(valid, this.label(valid));
         }
         catch (error) {
@@ -74,9 +88,10 @@ export class NativeSession {
         const refs = picks && step?.at
             ? targets.map((target) => ({ at: step.at, kind: step.kind, target, goal: this.goal }))
             : undefined;
+        const spatial = await this.needsLayout(targets);
         const pick = (frame) => resolveTargets({
             candidates: frame.candidates,
-            state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
+            state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}), ...(frame.coordinates ? { coordinates: frame.coordinates } : {}) },
             element: (candidate) => {
                 const element = frame.elements.get(candidate.id);
                 if (element === undefined)
@@ -86,7 +101,7 @@ export class NativeSession {
             ...(refs ? { cached: (_target, i) => picks.lookup(refs[i], frame.candidates, frame.snapshot) } : {}),
         }, targets, this.ai);
         for (;;) {
-            const { frame, result } = await this.settled({ kind, ask: pick, discard: (unused) => this.trackResolved(unused), regionPick });
+            const { frame, result } = await this.settled({ kind, ask: pick, discard: (unused) => this.trackResolved(unused), regionPick, spatial });
             if (frame.candidates.length === 0 && Date.now() < deadline) {
                 await this.timed('idle', () => new Promise((resolve) => setTimeout(resolve, APPEAR_POLL_MS)));
                 continue;
@@ -101,7 +116,7 @@ export class NativeSession {
                         this.phaseMs.cached = (this.phaseMs.cached ?? 0) + 1;
                     }
                     else if (target.candidate) {
-                        picks.accept(refs[i], target.candidate, frame.candidates, frame.snapshot);
+                        picks.accept(refs[i], target.candidate, frame.candidates, frame.snapshot, target.score ?? 0);
                     }
                 }
             return frame.approximate ? resolved.map((target) => ({ ...target, approximate: true })) : resolved;
@@ -113,7 +128,9 @@ export class NativeSession {
     /** The MCP `ask` tool: judges claims once against the settled UI or a region of it; no polling, not recorded. */
     async ask(claims, within) {
         this.phaseMs = {};
-        const { frame, result } = await this.inRegion(within, (region) => this.settled({ kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens) }));
+        this.prepareEvidence([{ kind: 'expect', expectations: claims, within }]);
+        const { frame, result } = await this.inRegion(within, async (region) => this.settled({ kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens),
+            spatial: await this.needsLayout(claims) }));
         this.track(result.tokens);
         return { snapshot: frame.snapshot, probabilities: result.probabilities, ms: this.phaseMs };
     }
@@ -162,13 +179,13 @@ export class NativeSession {
      * Captures the settled UI and asks Jev about it. Right after the previous step, where the adapter offers an
      * early capture (Android), Jev already works on it while the adapter waits for the UI to go idle.
      */
-    async settled({ kind, within, ask, discard, skip, regionPick = false }) {
+    async settled({ kind, within, ask, discard, skip, regionPick = false, spatial = false }) {
         const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
         const captureEarly = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
         const { frame, result, reasked } = await askSettled({
-            early: captureEarly && (() => this.timed('capture', () => captureEarly(kind, within))),
+            early: captureEarly && (() => this.timed('capture', () => captureEarly(kind, within, spatial ? { spatial } : undefined))),
             settled: async () => {
-                const options = regionPick ? { regionPick } : undefined;
+                const options = regionPick || spatial ? { ...(regionPick ? { regionPick } : {}), ...(spatial ? { spatial } : {}) } : undefined;
                 const frame = await this.timed('capture', () => this.adapter.capture(kind, within, options));
                 if (within === undefined && !frame.approximate)
                     this.firstSnapshot ??= frame.snapshot;
@@ -197,12 +214,13 @@ export class NativeSession {
         let status = 'inconclusive';
         let lastSnapshot;
         let region = step.within ? await this.region(step.within, true) : undefined;
+        const spatial = await this.needsLayout(claims);
         const unchangedSinceNo = (frame) => JSON.stringify(frame.snapshot) === lastSnapshotJson && status === 'fail';
         do {
             let looked;
             try {
                 looked = await this.settled({
-                    kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens), skip: unchangedSinceNo,
+                    kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens), skip: unchangedSinceNo, spatial,
                 });
             }
             catch (error) {

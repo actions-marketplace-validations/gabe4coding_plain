@@ -1,0 +1,10 @@
+name: Transparent text does not prove a spatial visible name
+tags: [expect-fail]
+url: ${env.site}/spatial-transparent
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-transparent
+  - expect:
+      that: a button with visible text Transparent action is to the left of the button with visible text Visible action
+      within: the Transparent action pair section

@@ -484,6 +484,68 @@
    "target": "the \"Select one\" combobox under the \"Examples\" heading",
    "goal": "read the select docs",
    "expect": []
+  },
+  {
+   "page": "spatial-order",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the button on the left",
+   "expect": [
+    1
+   ],
+   "goal": "choose a button by its visual position"
+  },
+  {
+   "page": "spatial-order",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the button on the right",
+   "expect": [
+    0
+   ],
+   "goal": "choose a button by its visual position"
+  },
+  {
+   "page": "spatial-order",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the button immediately to the left of A",
+   "expect": [
+    1
+   ],
+   "goal": "choose a button by its visual position"
+  },
+  {
+   "page": "spatial-order",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the button above A",
+   "expect": [],
+   "goal": "choose a button by its visual position"
+  },
+  {
+   "page": "spatial-reference",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the field immediately below the Shipping heading",
+   "expect": [0],
+   "goal": "enter details immediately below the Shipping heading"
+  },
+  {
+   "page": "spatial-reference-moved",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the field immediately below the Shipping heading",
+   "expect": [1],
+   "goal": "enter details immediately below the Shipping heading"
+  },
+  {
+   "page": "spatial-reference",
+   "type": "spatial",
+   "evidence": "spatial",
+   "target": "the field above the Shipping heading",
+   "expect": [],
+   "goal": "enter details above the Shipping heading"
   }
  ]
 }

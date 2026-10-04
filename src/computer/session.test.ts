@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { ComputerSession, runComputerSpec } from './session.js';
 import type { RunObserver } from '../suite/types.js';
 import { loadComputerSpec, parseComputerStep, ComputerTargetSchema } from './spec.js';
-import { matchesKind, captureTree, type ComputerAdapter } from './adapter.js';
+import { matchesKind, captureTree, DESKTOP_COORDINATES, type ComputerAdapter } from './adapter.js';
 import { createComputerServer } from './mcp.js';
 import { serialQueue } from '../core/serial-queue.js';
 import type { Intelligence } from '../core/automation.js';
@@ -245,4 +245,58 @@ test('captureTree: a row is one candidate named by its cells; one window and the
     'button "Notes" in list "Folders"',
   ]);
   assert.ok(snapshot.aria.includes('x'.repeat(500))); // the snapshot keeps the whole value
+});
+
+test('a desktop spec routes once; spatial prompts get bounds and a layout, semantic ones never read bounds', async () => {
+  let boundsReads = 0;
+  const box = (role: string, name: string, x: number, children: unknown[] = []) => ({
+    ...node(role, name, null, children),
+    get bounds() { boundsReads++; return { x, y: 100, width: 80, height: 40 }; },
+  });
+  // Tree order is the reverse of the visual order: B comes first but is drawn on the right.
+  const tree = box('application', 'Fixture', 0, [box('button', 'B', 300), box('button', 'A', 20), box('static_text', 'Total', 140)]);
+  const clicked: string[] = [];
+  const adapter = Object.assign(new FakeAdapter(), {
+    capture: async (kind: unknown, within: unknown, options?: { spatial?: boolean }) => {
+      const frame = await captureTree((within ?? tree) as never, kind as never, 1000, { spatial: options?.spatial });
+      return { snapshot: { url: 'desktop://42', title: 'Fixture', ...frame.snapshot }, candidates: frame.candidates, elements: frame.elements,
+        ...(options?.spatial ? { coordinates: DESKTOP_COORDINATES } : {}) };
+    },
+    act: async (_kind: unknown, element: { name: string }) => { clicked.push(element.name); },
+  }) as unknown as ComputerAdapter<{ name: string }>;
+  const routed: unknown[] = [];
+  const spatialAi: Intelligence = {
+    ask: async (state, questions) => {
+      routed.push(state);
+      const { groups } = state as { groups: string[][] };
+      return { tokens: 5, answers: questions.map((_, i) => ({ choice: /left|right/.test(groups[i].join(' ')) ? 'spatial' : 'semantic', confidence: 1 })) };
+    },
+    pick: async (candidates, targets, page) => targets.map((target) => {
+      const spatial = target === 'the left button';
+      assert.equal(candidates.some((c) => c.bounds), spatial);
+      assert.equal(page.coordinates, spatial ? DESKTOP_COORDINATES : undefined);
+      const buttons = candidates.filter((c) => c.desc.startsWith('button'));
+      const chosen = spatial ? buttons.sort((a, b) => a.bounds!.left - b.bounds!.left)[0] : buttons.find((c) => c.desc.includes('"B"'))!;
+      return { id: chosen.id, probability: 1, probabilities: {}, tokens: 2 };
+    }),
+    judge: async (state, claims) => {
+      const { layout } = state as { layout?: string };
+      assert.match(layout!, /^Rendered bounds in desktop screen coordinates/);
+      assert.match(layout!, /button "A" is left of static_text "Total"\./);
+      return { probabilities: claims.map(() => 1), tokens: 3 };
+    },
+  };
+  const dir = mkdtempSync(join(tmpdir(), 'desktop-spatial-'));
+  try {
+    const file = join(dir, 'spatial.yaml');
+    writeFileSync(file, 'name: spatial\napp: Fixture\nsteps:\n  - click: the button named B\n  - click: the left button\n  - expect: The A button is left of the Total label\n');
+    const session = new ComputerSession(adapter, 1000, spatialAi);
+    const result = await runComputerSpec(loadComputerSpec(file), session);
+    assert.equal(result.status, 'pass', JSON.stringify(result.steps));
+    assert.deepEqual(clicked, ['B', 'A']);
+    assert.deepEqual(routed, [{ groups: [['the button named B'], ['the left button'], ['The A button is left of the Total label']] }]);
+    assert.equal(result.jevCalls, 4);
+    // The semantic click read no bounds; the two spatial captures read each of the four nodes once.
+    assert.equal(boundsReads, 8);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
