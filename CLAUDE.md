@@ -107,7 +107,7 @@ Rules that cross modules:
   `plugins/plain-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
   (layout in `docs/development.mdx`, "Plugin packaging"). Browser skill: `plugins/plain/skills/using-plain/`.
 - The plugins hold no runtime code: their MCP configs run `node bin/npx.mjs -y --package=@gabe4coding/plain@<version>`
-  (the shim is `scripts/plugin-npx.mjs`: `cmd /c npx` on Windows), pinned to the `package.json` version, so a
+  (the shim is `scripts/plugin-npx.mjs`: `cmd /c npx` on Windows, an npm alias inside a checkout of this repo), pinned to the `package.json` version, so a
   plugin from a clone still runs the npm release. Plugin version = package version.
 - One root `package.json` and lockfile own all dependencies and all CLI binaries. Never add per-plugin package
   manifests, symlinks or parent-directory runtime imports. Never edit the files `npm run build` generates: the

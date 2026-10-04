@@ -1,6 +1,6 @@
 {
   "name": "@gabe4coding/plain",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Natural-language browser, desktop and mobile automation with Playwright, xa11y, Appium and Jev",
   "repository": {
     "type": "git",
