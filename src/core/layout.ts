@@ -22,10 +22,12 @@ export const boundsText = (b: Bounds): string => JSON.stringify(roundBounds(b));
  * the nearest element per direction with perpendicular overlap is named: the raw bounds stay in the layout for the
  * other relations.
  */
+const DIRECTIONS = ['above', 'below', 'left of', 'right of'] as const;
+
 export function neighborRelations(items: LayoutItem[]): string[] {
   const relations = new Set<string>();
   for (const item of items) {
-    const nearest: Partial<Record<'above' | 'below' | 'left of' | 'right of', { gap: number; items: LayoutItem[] }>> = {};
+    const nearest: Partial<Record<typeof DIRECTIONS[number], { gap: number; items: LayoutItem[] }>> = {};
     for (const other of items) {
       if (item === other) continue;
       const a = item.bounds;
@@ -43,9 +45,10 @@ export function neighborRelations(items: LayoutItem[]): string[] {
         else if (gap === known.gap) known.items.push(other);
       }
     }
-    for (const [direction, found] of Object.entries(nearest)) {
-      for (const other of found.items) relations.add(`${item.name} is ${direction} ${other.name}.`);
-    }
+    // One line per element: its name, often long, is written once for all its directions.
+    const parts = DIRECTIONS.filter((direction) => nearest[direction])
+      .map((direction) => `${direction} ${[...new Set(nearest[direction]!.items.map((other) => other.name))].join(' and ')}`);
+    if (parts.length) relations.add(`${item.name} is ${parts.join('; is ')}.`);
   }
   return [...relations];
 }
