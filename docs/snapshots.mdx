@@ -167,6 +167,28 @@ In browser trees, a text field with no value shows `[empty]`, and a read-only fi
 looks empty. Jev, the snapshot views and the `changed` lines all see these marks. plain marks the first 40 such
 fields of each tree.
 
+### Password fields
+
+A filled password field (`<input type="password">`) shows the mask `[filled]` in place of its value. An empty
+password field shows [`[empty]`](#field-state). The mask is the same for all values.
+
+```yaml
+- textbox "Username": tomsmith
+- textbox "Password": "[filled]"
+```
+
+Jev, the snapshot views, the `read` answers, the `changed` lines and the
+[Jev debug files](artifacts.mdx#jev-debug-files) all see the mask. The element list for a pick and the layout
+text for spatial claims show it too. Thus a secret from the spec `env` does not go to the model, the agent or a
+file.
+
+- A claim that a password field is filled or empty can pass or fail.
+- A claim about the text in a password field cannot pass, because Jev does not see the text. It usually ends
+  `inconclusive`.
+- If another field contains the same text as a password field, that field also shows the mask.
+- If a "show password" button changes the field to a text field, the field is no longer a password field. Its
+  value then shows in the tree.
+
 ### Long link targets
 
 In browser trees, a link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200

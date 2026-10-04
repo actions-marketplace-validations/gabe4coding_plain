@@ -226,6 +226,13 @@
     {"page": "field-state", "type": "state", "expect": "fail", "claim": "the Phone field is disabled"},
     {"page": "field-state", "type": "state", "expect": "pass", "claim": "the City field is enabled and contains Paris"},
     {"page": "field-state", "type": "state", "expect": "pass", "claim": "the Account field is read-only"},
-    {"page": "field-state", "type": "state", "expect": "fail", "claim": "the City field is read-only"}
+    {"page": "field-state", "type": "state", "expect": "fail", "claim": "the City field is read-only"},
+    {"page": "password-filled", "type": "state", "expect": "pass", "claim": "the password field is filled"},
+    {"page": "password-filled", "type": "state", "expect": "fail", "claim": "the password field is empty"},
+    {"page": "password-filled", "type": "compound", "expect": "pass", "claim": "the username and password fields are both filled"},
+    {"page": "password-filled", "type": "near", "expect": "fail", "claim": "the password field contains wrong-password"},
+    {"page": "password-empty", "type": "state", "expect": "pass", "claim": "the password field is empty"},
+    {"page": "password-empty", "type": "state", "expect": "fail", "claim": "the password field is filled"},
+    {"page": "password-empty", "type": "compound", "expect": "fail", "claim": "the username and password fields are both filled"}
   ]
 }
