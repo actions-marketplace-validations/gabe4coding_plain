@@ -25,7 +25,10 @@ const DESCRIPTIONS = {
     'Screenshot pixels do not feed Jev targeting.',
   save: 'Write successful recorded steps as a replayable desktop YAML spec. Uses the app name instead of its ephemeral pid. ' +
     'Preserves hook placeholders and makes hooks path relative to the saved file. `path` is relative to the server\'s ' +
-    'working directory; an existing file is overwritten without warning. Errors when no step has passed yet.',
+    'working directory; an existing file is overwritten without warning. Errors when no step has passed yet. ' +
+    'A value typed into a macOS secure text field is never written: the step gets ${env.password} and the spec an `env` ' +
+    'block, {password: $PASSWORD} (password2 and $PASSWORD_2 for a second value); the result lists that block. Set the ' +
+    'variables before replay. Windows and Linux password fields are not detected.',
   close: 'Detach and run teardown. Leaves the desktop application running.',
 };
 

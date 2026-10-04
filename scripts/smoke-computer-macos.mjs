@@ -49,6 +49,13 @@ try {
   assert.ok(message, JSON.stringify(fills.candidates));
   const target = message.desc.split(' value=')[0].split(' [')[0].split(' in ')[0];
   await step({ fill: { target, value: 'desktop adapter works' } });
+  assert.equal(session.filledSecret, false);
+  // An NSSecureTextField is a secure text field: the MCP `save` writes ${env.password}, never the value.
+  const password = fills.candidates.find(c => c.desc.startsWith('text_field "Password"'));
+  assert.ok(password && adapter.secret(fills.elements.get(password.id)) && !adapter.secret(fills.elements.get(message.id)), JSON.stringify(fills.candidates));
+  await step({ fill: { target: 'text_field "Password"', value: 'fixture-secret' } });
+  assert.equal(session.filledSecret, true);
+  assert.doesNotMatch((await session.snapshot()).aria, /fixture-secret/);
   const checks = await adapter.capture('check');
   const checkbox = checks.candidates.find(c => c.desc.includes('Enable preview'));
   assert.ok(checkbox, JSON.stringify(checks.candidates));
@@ -70,7 +77,7 @@ try {
     const png = await adapter.screenshot();
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
   }
-  console.log('Native macOS smoke passed: attach, capture, fill, click, idempotent check/uncheck, spatial click, key, hover.' + (process.argv.includes('--skip-screenshot') ? ' Screenshot skipped explicitly.' : ' Screenshot passed.'));
+  console.log('Native macOS smoke passed: attach, capture, fill, secure fill, click, idempotent check/uncheck, spatial click, key, hover.' + (process.argv.includes('--skip-screenshot') ? ' Screenshot skipped explicitly.' : ' Screenshot passed.'));
 } finally {
   await adapter.close();
   if (fixture && fixture.exitCode === null) {

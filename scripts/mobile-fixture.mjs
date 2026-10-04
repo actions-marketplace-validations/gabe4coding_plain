@@ -1,7 +1,7 @@
 // Shared disposable fixture installation for native smoke tests and example hooks.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -132,4 +132,21 @@ export async function checkSpatial(step, call) {
   const [asked] = (await call('ask', { claims: [falseSpatialClaim] })).answers;
   assert.notEqual(asked.answer, 'yes', `A false spatial claim passed: ${JSON.stringify(asked)}`);
   console.log(`ask "${falseSpatialClaim}": ${asked.answer} (p=${asked.p})`);
+}
+
+const fixtureSecret = 'fixture-secret-1';
+
+/** Types into the fixture's secure Password field; the value must never show in the tree. */
+export async function fillSecret(step, call, dismissKeyboard) {
+  await step({ fill: { target: 'the Password field', value: fixtureSecret } });
+  await step(dismissKeyboard);
+  assert.doesNotMatch(JSON.stringify(await call('snapshot')), new RegExp(fixtureSecret), 'The tree shows the password');
+}
+
+/** The saved spec holds ${env.password} and an env block, never the password; replay reads it from $PASSWORD. */
+export function checkSavedSecret(saved, specPath) {
+  assert.deepEqual(saved.env, { password: '$PASSWORD' });
+  const yaml = readFileSync(specPath, 'utf8');
+  assert.ok(yaml.includes('${env.password}') && !yaml.includes(fixtureSecret), yaml);
+  process.env.PASSWORD = fixtureSecret;
 }

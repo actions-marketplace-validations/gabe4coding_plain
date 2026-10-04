@@ -271,6 +271,10 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     return { id, role };
   }
 
+  secret(element: MobileElement) {
+    return element.secret === true;
+  }
+
   async act(kind: MobileAction, element: MobileElement, value?: string) {
     const driver = this.connectedDriver();
     const { id, role } = await this.resolve(element);

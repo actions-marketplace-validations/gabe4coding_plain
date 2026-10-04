@@ -51,6 +51,8 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
   let opened = false;
   let spec = config.spec;
   let transcript: Record<string, unknown>[] = [];
+  /** Each value typed into a secure text field, with the `env` key that `save` writes in its place. */
+  let secretKeys = new Map<string, string>();
   let hooks: HooksRunner<S> | undefined;
   let data: Record<string, unknown> = {};
   let results: StepResult[] = [];
@@ -84,6 +86,7 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     async open(next, attach) {
       await close();
       transcript = [];
+      secretKeys = new Map();
       results = [];
       overall = 'pass';
       spec = next;
@@ -148,10 +151,25 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     const result = await session.run(withPlaceholders(parsed));
     results.push(result);
     if (isFailure(result.status)) overall = result.status;
-    if (result.status === 'pass') transcript.push(step);
+    if (result.status === 'pass') transcript.push(asSaved(step, parsed as { kind: string; value?: string }));
     const changed = CHANGES_ENABLED ? await changesSince(ownBaseline ?? session.firstSnapshot ?? lastScreen) : {};
     return ok({ ...result, jevTokens: session.tokens - tokensBefore, ...changed });
   }));
+
+  /**
+   * The step as written, except a literal typed into a secure text field, or a value that was typed into one before
+   * (a confirm field that is not secure): that becomes an `${env.*}` placeholder. A value with a placeholder stays.
+   */
+  function asSaved(step: Record<string, unknown>, parsed: { kind: string; value?: string }): Record<string, unknown> {
+    if (parsed.kind !== 'fill' || !parsed.value || parsed.value.includes('${')) return step;
+    let key = secretKeys.get(parsed.value);
+    if (!key) {
+      if (!session.filledSecret) return step;
+      key = secretKeys.size ? `password${secretKeys.size + 1}` : 'password';
+      secretKeys.set(parsed.value, key);
+    }
+    return { ...step, fill: { ...(step.fill as Record<string, unknown>), value: `\${env.${key}}` } };
+  }
 
   server.registerTool('find', {
     description: config.describe.find,
@@ -222,15 +240,19 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     requireOpen();
     if (!transcript.length) throw new Error('No successful steps to save');
     const file = resolve(path);
+    // password: $PASSWORD, password2: $PASSWORD_2, ...
+    const secrets = [...secretKeys.values()].map((key, i) => [key, i ? `$PASSWORD_${i + 1}` : '$PASSWORD']);
+    const env = secrets.length ? { env: Object.fromEntries(secrets) } : {};
     const doc = {
       name: name ?? spec.name,
       ...config.saved(spec),
       ...(spec.goal ? { goal: spec.goal } : {}),
       ...(spec.hooks ? { hooks: relative(dirname(file), spec.hooks) } : {}),
+      ...env,
       steps: transcript,
     };
     writeFileSync(file, stringify(doc), { mode: 0o600 });
-    return ok({ path: file, steps: transcript.length });
+    return ok({ path: file, steps: transcript.length, ...env });
   }));
 
   server.registerTool('close', { description: config.describe.close, inputSchema: {} }, () => queue(async () => {

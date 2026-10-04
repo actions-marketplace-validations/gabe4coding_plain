@@ -1,7 +1,7 @@
 // Native Android validation with a disposable offline app. Requires a booted emulator and Appium.
 // --live-jev additionally verifies real natural-language authoring, assertions and recorded replay.
 import assert from 'node:assert/strict';
-import { installMobileFixture, fixtureApp, withSpatial, checkSpatial } from './mobile-fixture.mjs';
+import { installMobileFixture, fixtureApp, withSpatial, checkSpatial, fillSecret, checkSavedSecret } from './mobile-fixture.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,6 +32,7 @@ const message = 'Android adapter works';
 const deterministic = {
   pick: async (candidates, targets) => targets.map((target, i) => {
     const prefix = {
+      'the Password field': 'android.widget.EditText "Password"',
       'the Message text field': 'android.widget.EditText "Message"',
       'the Enable preview switch': 'android.widget.Switch "Enable preview"',
       'the Preview button': 'android.widget.Button "Preview"',
@@ -85,11 +86,12 @@ try {
   assert.ok((await call('snapshot')).aria.includes('Details are visible'));
   await step({ expect: 'The details label says "Details are visible"' });
   await checkSpatial(step, call);
+  await fillSecret(step, call, { press: 'HideKeyboard' });
   writeFileSync(join(output, 'preview.png'), await adapter.screenshot());
   await step({ scroll: 'down: the Fixture results list' });
   await step({ swipe: 'down' });
   const specPath = join(output, 'recorded.yaml');
-  await call('save', { path: specPath, name: 'Native Android preview' });
+  checkSavedSecret(await call('save', { path: specPath, name: 'Native Android preview' }), specPath);
   await call('close');
   restart(); // Reset only this disposable fixture before replay.
   const replay = await runMobileSpec(loadMobileSpec(specPath), new MobileSession(new AppiumAdapter(process.env.PLAIN_APPIUM_URL, 60000), 60000, ai));
