@@ -76,8 +76,9 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
 async function pickChunk(candidates: Candidate[], instructions: string[], page: PickPage): Promise<PickResult[]> {
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
   const coordinates = page.coordinates ?? 'main viewport CSS pixels';
+  // The coordinate space and the tree-order rule are said once, in `geometry`, not after every candidate's bounds.
   for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc +
-    (candidate.bounds ? ` bounds=${boundsText(candidate.bounds)} (${coordinates}; tree order is not visual order)` : '');
+    (candidate.bounds ? ` bounds=${boundsText(candidate.bounds)}` : '');
 
   const state = {
     url: page.url,
