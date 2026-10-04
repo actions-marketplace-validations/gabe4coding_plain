@@ -3,12 +3,14 @@
 // so scripts/benchmark-claims.mjs runs on fixed pages. The actions are plain Playwright, no Jev: a state must
 // be the same whatever the model does. Content pages are shared with the read benchmark (scripts/read-states/).
 // A state with a `region` saves only that region's tree, as an `expect` with `within` sees it (`region: true`).
+// The password states come from the local e2e site (e2e/site.mjs), so they need no remote site.
 // Re-run only to refresh them (live sites change), then re-check the cases in scripts/claim-cases.json.
 //   node scripts/capture-claim-states.mjs [--only <name>]
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { snapshot, snapshotRegion, installSettleObserver, settle } from '../dist/browser/page.js';
+import { startSite, USER } from '../e2e/site.mjs';
 
 const INTERNET = 'https://the-internet.herokuapp.com';
 const PRACTICE = 'https://practice.expandtesting.com';
@@ -32,6 +34,13 @@ const dragged = async (page) => {
     await page.dragAndDrop('#column-a', '#column-b');
     await page.waitForTimeout(500);
   }
+};
+const site = await startSite();
+// The login form filled but not sent: the tree shows the password field's mask, never the value.
+const loginForm = async (page, password) => {
+  await page.goto(`${site.url}/login`);
+  await page.fill('input[name=username]', USER.name);
+  if (password) await page.fill('input[name=password]', password);
 };
 const STATES = {
   'login-error': (page) => login(page, 'tomsmith', 'wrong-password'),
@@ -76,6 +85,8 @@ const STATES = {
   'flash-ok': { act: (page) => login(page, 'tomsmith', 'SuperSecretPassword!'), region: '#flash' },
   'table-row': { act: (page) => page.goto(`${PRACTICE}/tables`), region: '#table1 tbody tr:nth-child(2)' },
   'table-email': { act: (page) => page.goto(`${PRACTICE}/tables`), region: '#table1 tbody tr:nth-child(2) td:nth-child(3)' },
+  'password-filled': (page) => loginForm(page, USER.pass),
+  'password-empty': (page) => loginForm(page, ''),
 };
 
 const { values } = parseArgs({ options: { only: { type: 'string' } } });
@@ -88,8 +99,10 @@ for (const [name, state] of Object.entries(STATES).filter(([n]) => !values.only 
   await act(page);
   await settle(page, 500, 5000);
   const snap = region ? { ...(await snapshotRegion(page, page.locator(region))), region: true } : await snapshot(page);
-  writeFileSync(new URL(`claim-states/${name}.json`, import.meta.url), JSON.stringify(snap));
+  // A local page's port changes each run: the saved URL leaves it out.
+  writeFileSync(new URL(`claim-states/${name}.json`, import.meta.url), JSON.stringify({ ...snap, url: snap.url.replace(site.url, 'http://127.0.0.1') }));
   console.log(name, snap.aria.length, 'chars', snap.aria.split('\n').length, 'lines');
   await page.close();
 }
 await browser.close();
+await site.close();

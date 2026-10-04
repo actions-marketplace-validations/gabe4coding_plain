@@ -451,3 +451,12 @@ test('transparent embedding elements hide nested-frame geometry, including scope
   }
   assert.match(await layoutSnapshot(page), /Inner action/);
 });
+
+test('layout text shows a filled password field with a mask, never its value', async () => {
+  await page.setContent('<label>Password <input type="password"></label><label>Unused <input type="password"></label>');
+  await page.locator('input').first().fill('hunter2');
+  const layout = await layoutSnapshot(page);
+  assert.doesNotMatch(layout, /hunter2/);
+  assert.match(layout, /main: input\[type=password\] "" label="Password" value="\[filled\]" bounds=/);
+  assert.match(layout, /main: input\[type=password\] "" label="Unused" value="" bounds=/);
+});
