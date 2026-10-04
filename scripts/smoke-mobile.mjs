@@ -4,12 +4,12 @@ import { AppiumAdapter } from '../dist/mobile/adapter.js';
 import { MobileTargetSchema } from '../dist/mobile/spec.js';
 
 const target = MobileTargetSchema.parse({
-  platform: process.env.PLAINWRIGHT_MOBILE_PLATFORM,
-  device: process.env.PLAINWRIGHT_MOBILE_DEVICE,
-  app: process.env.PLAINWRIGHT_MOBILE_APP,
-  capabilities: process.env.PLAINWRIGHT_MOBILE_CAPABILITIES ? JSON.parse(process.env.PLAINWRIGHT_MOBILE_CAPABILITIES) : undefined,
+  platform: process.env.PLAIN_MOBILE_PLATFORM,
+  device: process.env.PLAIN_MOBILE_DEVICE,
+  app: process.env.PLAIN_MOBILE_APP,
+  capabilities: process.env.PLAIN_MOBILE_CAPABILITIES ? JSON.parse(process.env.PLAIN_MOBILE_CAPABILITIES) : undefined,
 });
-const adapter = new AppiumAdapter(process.env.PLAINWRIGHT_APPIUM_URL);
+const adapter = new AppiumAdapter(process.env.PLAIN_APPIUM_URL);
 try {
   await adapter.open(target);
   const frame = await adapter.capture('region');

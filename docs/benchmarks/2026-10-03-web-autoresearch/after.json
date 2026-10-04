@@ -1,6 +1,6 @@
 {
   "runs": 3,
-  "cli": "/workspace/plainwright/dist/cli.js",
+  "cli": "/workspace/plain/dist/cli.js",
   "report": [
     {
       "run": 1,

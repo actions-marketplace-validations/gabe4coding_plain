@@ -3,7 +3,7 @@
 Read the [experiment report](../browser-batching.md) for implementation details, results,
 reproduction instructions, validation and limitations.
 
-This is a **36-trial batching ablation using Jev in both arms**. The control is plainwright with
+This is a **36-trial batching ablation using Jev in both arms**. The control is plain with
 individual-step tools, not Playwright MCP. The treatment adds the batch tool and usage guidance.
 Both arms may issue multiple tool calls in one model turn. All six workflows and three model
 tiers run once in each arm; every final trial is retained.

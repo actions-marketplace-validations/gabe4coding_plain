@@ -11,7 +11,7 @@ import { printValidation } from './suite/validate.js';
 import { checkSpecTimeoutFlag } from './suite/spec-timeout.js';
 import type { SuiteEngine } from './suite/types.js';
 
-const USAGE = 'usage: plainwright [--headless] [--timeout <ms>] [--profile <dir>] [--cdp <url>] [--channel chrome] [--timing] ' +
+const USAGE = 'usage: plain [--headless] [--timeout <ms>] [--profile <dir>] [--cdp <url>] [--channel chrome] [--timing] ' +
   '[--workers N] [suite options] <spec.yaml|dir|glob> [more ...] | validate <files...> | mcp';
 
 loadEnvFiles();
@@ -29,7 +29,7 @@ try {
   if (command === 'mcp') {
     try {
       const chosen = provider();
-      console.error(`plainwright: Jev via ${chosen} (${MODEL_BY_PROVIDER[chosen]})`);
+      console.error(`plain: Jev via ${chosen} (${MODEL_BY_PROVIDER[chosen]})`);
     } catch (error) {
       console.error(errorMessage(error)); // the server still starts; the first Jev call reports it again
     }

@@ -17,7 +17,7 @@ int main(void) {
     [app setActivationPolicy:NSApplicationActivationPolicyRegular];
     NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(200, 200, 420, 260)
       styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:NO];
-    window.title = @"Plainwright Computer Fixture";
+    window.title = @"Plain Computer Fixture";
     NSTextField *input = [[NSTextField alloc] initWithFrame:NSMakeRect(30, 160, 350, 28)];
     input.placeholderString = @"Message";
     input.accessibilityLabel = @"Message";

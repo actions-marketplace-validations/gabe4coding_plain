@@ -10,7 +10,7 @@ export function observerCalls(observer: RunObserver | undefined, info: SpecInfo)
     catch (error) {
       if (!warned) {
         warned = true;
-        console.error(`plainwright: observer: ${errorMessage(error)}`);
+        console.error(`plain: observer: ${errorMessage(error)}`);
       }
       return undefined;
     }

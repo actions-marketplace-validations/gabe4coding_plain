@@ -106,7 +106,7 @@ type PageCapture = { title: string; url: string; aria: string };
 export async function serveMcp(opts: RunOptions): Promise<void> {
   let session: Session | null = null;
   const sessionOpts: RunOptions = { ...opts, handleSignals: false };
-  const spec: Spec = { name: 'plainwright session', url: '', dir: process.cwd(), dialogs: 'accept', steps: [] };
+  const spec: Spec = { name: 'plain session', url: '', dir: process.cwd(), dialogs: 'accept', steps: [] };
   /** The steps that passed, as written: what `save` writes. */
   const transcript: Record<string, unknown>[] = [];
   /** Every step result, pass or not: what teardown sees. */
@@ -119,7 +119,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   let hooksFile: string | null = null;
   let data: Record<string, unknown> = {};
 
-  const server = new McpServer({ name: 'plainwright', version: '1.0.0' });
+  const server = new McpServer({ name: 'plain', version: '1.0.0' });
   // Candidate ids, token counts and the transcript belong to one session: no two calls may interleave.
   const queue = serialQueue();
 
@@ -357,13 +357,13 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
       await runTeardown();
     } catch (error) {
       code = 1;
-      console.error(`plainwright: teardown failed: ${error}`);
+      console.error(`plain: teardown failed: ${error}`);
     }
     try {
       await session?.close();
     } catch (error) {
       code = 1;
-      console.error(`plainwright: session cleanup failed: ${error}`);
+      console.error(`plain: session cleanup failed: ${error}`);
     } finally {
       await closeSharedBrowser();
     }

@@ -33,11 +33,11 @@
   "strictTools": false,
   "maxOutputTokens": 4096,
   "prompts": {
-    "plainwright": "Complete the requested task using the browser tools. Work efficiently and verify the visible result before finishing. You may issue multiple tool calls in a turn; they execute in order. Use only the supplied UI tools: no JavaScript, hidden application state, source inspection, direct HTTP calls, hooks, custom file output, or external sites. read_artifact can read snapshot files linked by browser tools. End with finish, including any requested answer. All pages are disposable test fixtures; saving changes is authorized. Use open first. Known actions can go directly to step, which finds targets through Jev. Each step contains one action. For discovery use snapshot with mode compact, or mode smart with intent describing the task. The intent argument is valid ONLY in smart mode; omit it in compact/raw modes. Use scoped/raw snapshots to read exact data. Read each result. Rephrase ambiguous targets after a miss. Use natural-language targets, not css= selectors.",
+    "plain": "Complete the requested task using the browser tools. Work efficiently and verify the visible result before finishing. You may issue multiple tool calls in a turn; they execute in order. Use only the supplied UI tools: no JavaScript, hidden application state, source inspection, direct HTTP calls, hooks, custom file output, or external sites. read_artifact can read snapshot files linked by browser tools. End with finish, including any requested answer. All pages are disposable test fixtures; saving changes is authorized. Use open first. Known actions can go directly to step, which finds targets through Jev. Each step contains one action. For discovery use snapshot with mode compact, or mode smart with intent describing the task. The intent argument is valid ONLY in smart mode; omit it in compact/raw modes. Use scoped/raw snapshots to read exact data. Read each result. Rephrase ambiguous targets after a miss. Use natural-language targets, not css= selectors.",
     "playwright": "Complete the requested task using the browser tools. Work efficiently and verify the visible result before finishing. You may issue multiple tool calls in a turn; they execute in order. Use only the supplied UI tools: no JavaScript, hidden application state, source inspection, direct HTTP calls, hooks, custom file output, or external sites. read_artifact can read snapshot files linked by browser tools. End with finish, including any requested answer. All pages are disposable test fixtures; saving changes is authorized. Use browser_navigate first. Action responses link to accessibility snapshot files, available through read_artifact. browser_snapshot returns a snapshot inline when filename is omitted. Use references or accessible selectors for targets. browser_fill_form can fill several fields at once. Use browser_find or a scoped browser_snapshot when needed. Read each result and recover from errors."
   },
   "allowed": {
-    "plainwright": [
+    "plain": [
       "open",
       "step",
       "snapshot",
@@ -63,7 +63,7 @@
       "model": "openai/gpt-5.6-luna",
       "task": "record",
       "repeat": 1,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-luna",
@@ -75,7 +75,7 @@
       "model": "openai/gpt-5.6-terra",
       "task": "record",
       "repeat": 2,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-terra",
@@ -93,7 +93,7 @@
       "model": "openai/gpt-5.6-luna",
       "task": "catalog",
       "repeat": 1,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-luna",
@@ -105,13 +105,13 @@
       "model": "openai/gpt-5.6-luna",
       "task": "catalog",
       "repeat": 2,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
       "task": "catalog",
       "repeat": 0,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
@@ -129,13 +129,13 @@
       "model": "openai/gpt-6-astra",
       "task": "record",
       "repeat": 1,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
       "task": "record",
       "repeat": 0,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
@@ -153,7 +153,7 @@
       "model": "openai/gpt-5.6-terra",
       "task": "catalog",
       "repeat": 1,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-terra",
@@ -165,7 +165,7 @@
       "model": "openai/gpt-5.6-terra",
       "task": "catalog",
       "repeat": 0,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
@@ -177,13 +177,13 @@
       "model": "openai/gpt-6-astra",
       "task": "catalog",
       "repeat": 1,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-terra",
       "task": "record",
       "repeat": 1,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-terra",
@@ -201,13 +201,13 @@
       "model": "openai/gpt-6-astra",
       "task": "record",
       "repeat": 2,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-terra",
       "task": "record",
       "repeat": 0,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-terra",
@@ -225,13 +225,13 @@
       "model": "openai/gpt-5.6-terra",
       "task": "catalog",
       "repeat": 2,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
       "task": "catalog",
       "repeat": 2,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-6-astra",
@@ -243,7 +243,7 @@
       "model": "openai/gpt-5.6-luna",
       "task": "record",
       "repeat": 0,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-luna",
@@ -261,13 +261,13 @@
       "model": "openai/gpt-5.6-luna",
       "task": "catalog",
       "repeat": 0,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-luna",
       "task": "record",
       "repeat": 2,
-      "arm": "plainwright"
+      "arm": "plain"
     },
     {
       "model": "openai/gpt-5.6-luna",

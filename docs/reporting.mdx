@@ -10,9 +10,9 @@ CLI writes `text` by default. The desktop and mobile CLIs write `jsonl` by defau
 the default list.
 
 ```sh
-plainwright --headless --reporter text --reporter junit:out/junit.xml --reporter json:out/run.json tests/
-plainwright-computer --reporter jsonl --reporter junit:out/desktop.xml tests/desktop/
-plainwright-mobile --reporter json:out/mobile.json tests/mobile/
+plain --headless --reporter text --reporter junit:out/junit.xml --reporter json:out/run.json tests/
+plain-computer --reporter jsonl --reporter junit:out/desktop.xml tests/desktop/
+plain-mobile --reporter json:out/mobile.json tests/mobile/
 ```
 
 | Reporter | Destination | Contents |
@@ -29,7 +29,7 @@ Rules:
 - A run can have one stdout reporter only. `--reporter text --reporter jsonl` is an error.
 - Two file reporters cannot write the same file.
 - An unknown reporter name or a rule above that is not obeyed stops the CLI before a session opens (exit `2`).
-- If plainwright cannot write a report file, it prints a warning on stderr. The results and the exit code do not
+- If plain cannot write a report file, it prints a warning on stderr. The results and the exit code do not
   change. If your CI job needs the file, make sure that the file exists.
 
 The config key `reporters` sets the same list. See [configuration](running.mdx#configuration).
@@ -97,7 +97,7 @@ stderr as `<file>: <message>`:
 
 ## JUnit XML
 
-The file has one `<testsuites name="plainwright <engine>">` element and one `<testsuite name="plainwright">`
+The file has one `<testsuites name="plain <engine>">` element and one `<testsuite name="plain">`
 element. The `<testsuite>` also has a `timestamp` (the start time). There is one `<testcase>` for each spec, in
 the input order.
 
@@ -149,7 +149,7 @@ for Jenkins and GitLab:
 A reporter does not capture artifacts. Use `--artifacts DIR` to capture them (see [artifacts](artifacts.mdx)).
 If your CI does not keep the runner's files, upload the folder.
 
-plainwright escapes XML special characters and removes characters that XML 1.0 does not permit.
+plain escapes XML special characters and removes characters that XML 1.0 does not permit.
 
 ## JSON report
 

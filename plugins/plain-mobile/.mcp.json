@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "plain-mobile": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/npx.mjs",
+        "-y",
+        "--package=@gabe4coding/plain@2.0.0",
+        "plain-mobile",
+        "mcp"
+      ]
+    }
+  }
+}

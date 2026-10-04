@@ -1,7 +1,7 @@
 name: drag one box onto the other
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /drag
   - drag: { source: the box labelled A, target: the box labelled B }

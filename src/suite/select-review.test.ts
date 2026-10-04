@@ -10,14 +10,14 @@ import { loadSpec } from '../core/spec.js';
 import { runSuite } from './run-suite.js';
 import type { SuiteEngine, SuiteOptions } from './types.js';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-select-review-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-select-review-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const write = (name: string, body: string): string => { const file = path.join(dir, name); fs.writeFileSync(file, body); return file; };
 
 test('a ~ profile in the config stays as written for options.ts to expand', () => {
-  write('plainwright.config.yaml', 'profile: ~/.chrome-profile\n');
+  write('plain.config.yaml', 'profile: ~/.chrome-profile\n');
   assert.equal(loadConfig(dir).profile, '~/.chrome-profile');
-  fs.unlinkSync(path.join(dir, 'plainwright.config.yaml'));
+  fs.unlinkSync(path.join(dir, 'plain.config.yaml'));
 });
 
 test('validate checks every interpolated field and rejects unknown namespaces', () => {

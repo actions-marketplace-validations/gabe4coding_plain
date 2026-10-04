@@ -14,7 +14,7 @@ const base: SuiteOptions = { files: ['case.yaml'], workers: 1, retries: 0, bail:
   tags: [], list: false, reporters: [], timing: false };
 const info: SpecInfo = { file: 'tests/login.yaml', name: 'login', tags: [], attempt: 0 };
 function temp(t: TestContext): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-artifacts-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-artifacts-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -49,22 +49,22 @@ test('run start creates the marker, accepts an empty folder, and cleans only mar
   const dir = path.join(root, 'results');
   const observer = artifactsObserver(options(dir))!;
   await start(observer);
-  assert.equal(fs.readFileSync(path.join(dir, '.plainwright-results'), 'utf8'), 'plainwright results\n');
+  assert.equal(fs.readFileSync(path.join(dir, '.plain-results'), 'utf8'), 'plain results\n');
   fs.mkdirSync(path.join(dir, 'old', 'attempt-0'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'old', 'attempt-0', 'trace.zip'), 'old');
   await start(observer);
-  assert.deepEqual(fs.readdirSync(dir), ['.plainwright-results']);
+  assert.deepEqual(fs.readdirSync(dir), ['.plain-results']);
   const empty = path.join(root, 'empty');
   fs.mkdirSync(empty);
   await start(artifactsObserver(options(empty))!);
-  assert.ok(fs.existsSync(path.join(empty, '.plainwright-results')));
+  assert.ok(fs.existsSync(path.join(empty, '.plain-results')));
 });
 
 test('foreign folders remain intact and the failed observer never writes later', async (t) => {
   const dir = temp(t);
   fs.writeFileSync(path.join(dir, 'precious.txt'), 'keep');
   const observer = artifactsObserver(options(dir, 'always'))!;
-  await assert.rejects(start(observer), /exists and was not created by plainwright/);
+  await assert.rejects(start(observer), /exists and was not created by plain/);
   assert.deepEqual(await attempt(observer, target()), []);
   assert.deepEqual(fs.readdirSync(dir), ['precious.txt']);
   assert.equal(fs.readFileSync(path.join(dir, 'precious.txt'), 'utf8'), 'keep');
@@ -74,15 +74,15 @@ test('symlinked output folders and symlinked markers never authorize deletion', 
   const root = temp(t);
   const foreign = path.join(root, 'foreign');
   fs.mkdirSync(foreign);
-  fs.writeFileSync(path.join(foreign, '.plainwright-results'), 'marker');
+  fs.writeFileSync(path.join(foreign, '.plain-results'), 'marker');
   fs.writeFileSync(path.join(foreign, 'keep'), 'keep');
   const link = path.join(root, 'link');
   fs.symlinkSync(foreign, link, 'dir');
-  await assert.rejects(start(artifactsObserver(options(link))!), /was not created by plainwright/);
+  await assert.rejects(start(artifactsObserver(options(link))!), /was not created by plain/);
   const dir = path.join(root, 'results');
   fs.mkdirSync(dir);
-  fs.symlinkSync(path.join(foreign, '.plainwright-results'), path.join(dir, '.plainwright-results'));
-  await assert.rejects(start(artifactsObserver(options(dir))!), /was not created by plainwright/);
+  fs.symlinkSync(path.join(foreign, '.plain-results'), path.join(dir, '.plain-results'));
+  await assert.rejects(start(artifactsObserver(options(dir))!), /was not created by plain/);
   assert.equal(fs.readFileSync(path.join(foreign, 'keep'), 'utf8'), 'keep');
 });
 
@@ -114,7 +114,7 @@ test('always adds final.png to failure-only step shots; off removes empty attemp
   const off = artifactsObserver(options(dir, 'off'))!;
   await start(off);
   assert.deepEqual(await attempt(off, target()), []);
-  assert.deepEqual(fs.readdirSync(dir), ['.plainwright-results']);
+  assert.deepEqual(fs.readdirSync(dir), ['.plain-results']);
 });
 
 test('parallel specs, colliding slugs, retries, and duplicate inputs have distinct folders', async (t) => {
@@ -147,7 +147,7 @@ test('absolute spec paths slug relative to cwd and long slugs stay writable', as
 
 test('dump details are copied, retain originals, and carry their step index', async (t) => {
   const root = temp(t);
-  const dumpRoot = path.join(os.tmpdir(), 'plainwright');
+  const dumpRoot = path.join(os.tmpdir(), 'plain');
   fs.mkdirSync(dumpRoot, { recursive: true });
   const source = path.join(dumpRoot, `${path.basename(root)} state.json`);
   fs.writeFileSync(source, '{"state":"saved"}');
@@ -180,7 +180,7 @@ test('capture failures warn once, remove partial files, and preserve other evide
   } };
   assert.deepEqual(await attempt(observer, capture), []);
   assert.equal(messages.length, 1);
-  assert.deepEqual(fs.readdirSync(dir), ['.plainwright-results']);
+  assert.deepEqual(fs.readdirSync(dir), ['.plain-results']);
 });
 
 test('missing dumps and trace stop failures preserve successfully written screenshots', async (t) => {
@@ -194,7 +194,7 @@ test('missing dumps and trace stop failures preserve successfully written screen
   } }) }) as unknown as Page };
   await observer.sessionOpen!({ ...info, target: capture });
   await observer.stepEnd!({ ...info, target: capture, index: 0, result: { step: 'expect', status: 'fail',
-    detail: `state: ${path.join(os.tmpdir(), 'plainwright', `${path.basename(dir)}-missing.json`)}` } });
+    detail: `state: ${path.join(os.tmpdir(), 'plain', `${path.basename(dir)}-missing.json`)}` } });
   const artifacts = await observer.sessionClose!({ ...info, target: capture, status: 'fail' });
   assert.deepEqual(artifacts.map((a) => a.kind), ['screenshot', 'screenshot']);
   assert.equal(messages.length, 1);
@@ -234,7 +234,7 @@ test('foreign output errors are logged once by the suite and do not change spec 
   assert.equal(report.status, 'pass');
   assert.ok(report.specs.every((spec) => spec.attempts[0].artifacts.length === 0));
   assert.equal(messages.length, 1);
-  assert.match(messages[0], /was not created by plainwright/);
+  assert.match(messages[0], /was not created by plain/);
   assert.equal(fs.readFileSync(path.join(dir, 'keep'), 'utf8'), 'keep');
 });
 

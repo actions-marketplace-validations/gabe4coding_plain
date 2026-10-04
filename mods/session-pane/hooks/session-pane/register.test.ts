@@ -1,15 +1,15 @@
 import { expect, test } from 'claude-code/testing';
 
-const TOOL = 'mcp__plugin_plainwright_plainwright__';
+const TOOL = 'mcp__plugin_plain_plain__';
 const PANE = {
-  plugin: 'plainwright-session-pane',
+  plugin: 'plain-session-pane',
   component: 'Pane',
-  requestId: 'plainwright',
+  requestId: 'plain',
   viewport: { columns: 120, rows: 40 },
-  props: { title: 'plainwright', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
+  props: { title: 'plain', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 20 }, view: {} },
 } as const;
 
-/** A plainwright result as its MCP server sends it: one JSON text block, and the same object as structured content. */
+/** A plain result as its MCP server sends it: one JSON text block, and the same object as structured content. */
 const mcp = (data: object) => ({ content: [{ type: 'text', text: JSON.stringify(data) }], structuredContent: data, isError: false });
 
 const ANSWERS: Record<string, object> = {
@@ -17,7 +17,7 @@ const ANSWERS: Record<string, object> = {
   step: { status: 'inconclusive', detail: 'p=0.62', notes: [], url: 'https://example.test/item', jevTokens: 340 },
 };
 
-/** Answers tool calls in Claude Code's place: plainwright tools from ANSWERS, any other tool with 'ok'. */
+/** Answers tool calls in Claude Code's place: plain tools from ANSWERS, any other tool with 'ok'. */
 function stubTools(on: any, seen: unknown[] = []): void {
   on('tool.call', ($: any, e: any) => {
     const name = String(e.tool).startsWith(TOOL) ? String(e.tool).slice(TOOL.length) : '';
@@ -90,7 +90,7 @@ test('Save as spec calls the server save tool with the goal file name', async ($
   await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/', goal: 'Read the discussion' });
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' });
   await ui.press({ key: 'save' });
-  expect(calls[0]).toMatchObject({ server: 'plugin_plainwright_plainwright', tool: 'save', args: { path: 'read-the-discussion.yaml' } });
+  expect(calls[0]).toMatchObject({ server: 'plugin_plain_plain', tool: 'save', args: { path: 'read-the-discussion.yaml' } });
   expect(toasts).toContain('Saved 2 steps to /work/read-the-discussion.yaml');
   await ui.unmount();
 });
@@ -138,7 +138,7 @@ test('the pane command shows the pane', async ($, on) => {
     return placed();
   });
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' });
-  await $.command.run({ command: 'plainwright-pane', args: '' });
+  await $.command.run({ command: 'plain-pane', args: '' });
   expect(opens).toBe(1);
 });
 
@@ -196,7 +196,7 @@ test('a pane held back by a narrow terminal points to the command', async ($, on
   });
   await $.tool.call({ tool: TOOL + 'open', url: 'https://example.test/' });
   await new Promise((settle) => setTimeout(settle, 10)); // the pane opens without holding the tool result
-  expect(toasts).toEqual(['Run /plainwright-pane to show the plainwright session pane']);
+  expect(toasts).toEqual(['Run /plain-pane to show the plain session pane']);
 });
 
 test('a new goal drops the typed spec path, so a new flow does not overwrite the old spec', async ($, on) => {

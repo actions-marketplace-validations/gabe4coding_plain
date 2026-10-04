@@ -8,7 +8,7 @@ import { loadComputerSpec } from '../computer/spec.js';
 import { Xa11yAdapter } from '../computer/adapter.js';
 import { label } from './results.js';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-include-source-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-include-source-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const write = (name: string, body: string): string => {
   const file = path.join(dir, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, body); return file;

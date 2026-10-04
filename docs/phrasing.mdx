@@ -11,14 +11,14 @@ probability. To get a better result, change the words. You cannot change the thr
 ## How Jev decides
 
 **A pick** is the choice of one element for a target. All action steps pick, and `expect` and `wait` pick
-their `within` region. plainwright gives Jev a numbered list of candidate elements and asks which one the
+their `within` region. plain gives Jev a numbered list of candidate elements and asks which one the
 target means, or `none`. [What Jev can see](spec-reference.mdx#what-jev-can-see) tells what each candidate
 contains and the order of the list.
 
-- plainwright accepts the pick when the score is 0.5 or more and the answer is not `none`.
+- plain accepts the pick when the score is 0.5 or more and the answer is not `none`.
 - The score is the confidence on the TypeSafe backend, and the probability on the gateway backend.
 - The step detail shows `p=` (probability) and, on TypeSafe, `c=` (confidence).
-- If plainwright does not accept the pick, the step is `inconclusive`. The detail lists the top guesses.
+- If plain does not accept the pick, the step is `inconclusive`. The detail lists the top guesses.
 
 **A judgment** is the verdict on a claim in `expect` or `wait`. Jev answers one yes or no question for each
 claim, against the accessibility snapshot of the page.
@@ -32,8 +32,8 @@ claim, against the accessibility snapshot of the page.
 A `wait` asks again until the claim passes. If it never passes, it ends `inconclusive`, never `fail`. See
 [checks](spec-reference.mdx#checks).
 
-When a pick or a claim does not pass, plainwright writes the exact state that Jev saw to a JSON file under
-`$TMPDIR/plainwright/`. The step detail gives the path.
+When a pick or a claim does not pass, plain writes the exact state that Jev saw to a JSON file under
+`$TMPDIR/plain/`. The step detail gives the path.
 
 ## Write a target
 

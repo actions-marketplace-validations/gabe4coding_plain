@@ -1,14 +1,14 @@
 {
-  "name": "plainwright-marketplace",
+  "name": "plain-marketplace",
   "interface": {
-    "displayName": "plainwright"
+    "displayName": "plain"
   },
   "plugins": [
     {
-      "name": "plainwright",
+      "name": "plain",
       "source": {
         "source": "local",
-        "path": "./plugins/plainwright"
+        "path": "./plugins/plain"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -17,10 +17,10 @@
       "category": "Productivity"
     },
     {
-      "name": "plainwright-computer",
+      "name": "plain-computer",
       "source": {
         "source": "local",
-        "path": "./plugins/plainwright-computer"
+        "path": "./plugins/plain-computer"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -29,10 +29,10 @@
       "category": "Productivity"
     },
     {
-      "name": "plainwright-mobile",
+      "name": "plain-mobile",
       "source": {
         "source": "local",
-        "path": "./plugins/plainwright-mobile"
+        "path": "./plugins/plain-mobile"
       },
       "policy": {
         "installation": "AVAILABLE",

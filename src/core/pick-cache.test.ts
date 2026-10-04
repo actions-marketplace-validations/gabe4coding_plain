@@ -240,7 +240,7 @@ const desktop = (b: ReturnType<typeof brain>): SuiteEngine<ComputerSpec> => ({ e
   run: (spec, observer, info) => runComputerSpec(spec, new ComputerSession(b.screen, 50, b.ai), observer, info) });
 
 function workspace(t: TestContext) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-pick-cache-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-pick-cache-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }

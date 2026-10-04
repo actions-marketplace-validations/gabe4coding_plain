@@ -1,7 +1,7 @@
 name: an alert, a confirm and a new window
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /dialogs
   - click: the Show alert button

@@ -15,7 +15,7 @@ const PAGE = '<main><section><h2>Actions</h2><button onclick="document.body.inse
   '<button onclick="document.body.insertAdjacentHTML(\'beforeend\', \'<p>Clicked Stop</p>\')">Stop</button></section></main>';
 
 test('browser: a warm run acts on the same element without a pick call', async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-pick-cache-browser-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-pick-cache-browser-'));
   const { pick, judge, ask } = intelligence;
   t.after(async () => {
     intelligence.pick = pick; intelligence.judge = judge; intelligence.ask = ask;

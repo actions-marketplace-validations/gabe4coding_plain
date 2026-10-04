@@ -1,7 +1,7 @@
 name: Spatial claims use current form values
 url: ${env.site}/spatial-values
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial-values
   - fill: { target: the Right field, value: Current right value }

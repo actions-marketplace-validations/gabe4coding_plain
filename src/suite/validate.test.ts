@@ -8,7 +8,7 @@ import { loadSpec } from '../core/spec.js';
 import { loadComputerSpec } from '../computer/spec.js';
 import type { SuiteEngine } from './types.js';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-validate-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-validate-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const write = (name: string, body: string): string => {
   const file = path.join(dir, name);
@@ -24,7 +24,7 @@ const desktop: SuiteEngine<ReturnType<typeof loadComputerSpec>> = { engine: 'des
 const page = 'name: x\nurl: https://example.com\nsteps:\n  - goto: https://example.com\n';
 
 test('validate keeps missing-env warnings next to a clean load', () => {
-  const missing = write('missing.yaml', 'name: x\nurl: https://example.com\nenv: {token: $PLAINWRIGHT_VALIDATE_MISSING}\nsteps:\n  - goto: https://example.com\n');
+  const missing = write('missing.yaml', 'name: x\nurl: https://example.com\nenv: {token: $PLAIN_VALIDATE_MISSING}\nsteps:\n  - goto: https://example.com\n');
   const [okR, warn] = validate(browser, [write('ok.yaml', page), missing]);
   assert.deepEqual(okR, { file: okR.file, warnings: [] });
   assert.equal(warn.error, undefined);

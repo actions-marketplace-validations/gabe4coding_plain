@@ -3,7 +3,7 @@
   "pricing.json": "290b1b4afa98c27fe6ca599312524692ef4deec8865ce2b02944ef88fedbe208",
   "summary.json": "ac763b835ee6283c3e6937950484543ae35f49bd639053ec244952002b2959eb",
   "runs.jsonl": "b596c296906d98599bf56aec379e665a7693e232848bc6f5e01632d585bef8e8",
-  "plainwright-tools.json": "cf1c9f669b94ee5e9a6fea82b5002ed05e4ff0a4d9048edf6f7f1567b9d7616a",
-  "plainwright-unbatched-tools.json": "9ed568253942868b804b4b92c54a2237ef9a672c247ab8c8dd4b1a6185633eea",
+  "plain-tools.json": "cf1c9f669b94ee5e9a6fea82b5002ed05e4ff0a4d9048edf6f7f1567b9d7616a",
+  "plain-unbatched-tools.json": "9ed568253942868b804b4b92c54a2237ef9a672c247ab8c8dd4b1a6185633eea",
   "traces.jsonl.gz": "ea5494252539b8d82a9f42bfaec4c2aa9434ce6c9b426e925a1cdd593c07eed0"
 }

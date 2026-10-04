@@ -9,8 +9,8 @@ npm-shrinkwrap.json
 
 # Eval flows (scripts/eval-browser-steps.mjs): state, expected statuses, results and reports stay local.
 .claude/hillclimb/
-plainwright-results/
-.plainwright/
+plain-results/
+.plain/
 
 # Explainer video project (manim scenes, narration, renders): local only.
 .claude/explainer-video/

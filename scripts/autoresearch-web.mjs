@@ -22,7 +22,7 @@ const cli = values.cli ?? fileURLToPath(new URL('../dist/cli.js', import.meta.ur
 const report = [];
 const problems = [];
 const servers = [];
-const client = new Client({ name: 'plainwright-autoresearch', version: '1' });
+const client = new Client({ name: 'plain-autoresearch', version: '1' });
 let local;
 let run = 0;
 
@@ -107,7 +107,7 @@ try {
   await client.connect(new StdioClientTransport({
     command: process.execPath,
     args: [cli, '--headless', '--timeout', '1800', 'mcp'],
-    env: { ...process.env, PLAINWRIGHT_RESEARCH_CLI: cli },
+    env: { ...process.env, PLAIN_RESEARCH_CLI: cli },
     stderr: 'inherit',
   }));
   for (run = 1; run <= runs; run++) {

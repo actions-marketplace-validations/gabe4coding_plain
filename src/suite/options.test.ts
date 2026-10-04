@@ -6,7 +6,7 @@ import path from 'node:path';
 import { engineConfig, expandFiles, parseSuiteArgs, UsageError } from './options.js';
 
 const parsed = (args: string[], engine: 'browser' | 'desktop' | 'mobile' = 'browser', env: NodeJS.ProcessEnv = {}) =>
-  parseSuiteArgs([...args, 'case.yaml'], engine, env, '/tmp/plainwright-options-absent');
+  parseSuiteArgs([...args, 'case.yaml'], engine, env, '/tmp/plain-options-absent');
 
 test('parses all suite flags and browser flags', () => {
   const { opts, flags } = parsed(['--workers', '4', '--retries', '0', '--bail', '0', '--grep', 'one',
@@ -33,7 +33,7 @@ test('parses all suite flags and browser flags', () => {
 });
 
 test('CLI overrides existing env fallback; env overrides defaults', () => {
-  const env = { PLAINWRIGHT_PROFILE: '/env/profile', PLAINWRIGHT_CHANNEL: 'chrome', PLAINWRIGHT_CDP: 'http://env' };
+  const env = { PLAIN_PROFILE: '/env/profile', PLAIN_CHANNEL: 'chrome', PLAIN_CDP: 'http://env' };
   assert.equal(parsed(['--profile', '/cli/profile', '--timeout', '8000'], 'browser', env).flags.profile, '/cli/profile');
   assert.equal(parsed([], 'browser', env).flags.channel, 'chrome');
   assert.equal(parsed([], 'browser', env).flags.cdp, 'http://env');
@@ -41,7 +41,7 @@ test('CLI overrides existing env fallback; env overrides defaults', () => {
 });
 
 test('directory and glob expansion are sorted, while file positionals keep their order', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-options-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-options-'));
   fs.mkdirSync(path.join(dir, 'tests', 'deep'), { recursive: true });
   for (const file of ['tests/z.yaml', 'tests/a.yml', 'tests/deep/b.yaml', 'tests/no.txt'])
     fs.writeFileSync(path.join(dir, file), '');
@@ -75,19 +75,19 @@ test('config file values apply to every key, below CLI and existing env; mcp nev
     timing: true, specTimeout: 5000, timeout: '8000', headless: true, channel: 'chrome', files: ['from-config.yaml'],
     artifacts: { dir: 'out', screenshot: 'always', trace: 'off' } };
   const read = () => config as never;
-  const { opts, flags } = parseSuiteArgs([], 'browser', {}, '/tmp/plainwright-options-absent', read);
+  const { opts, flags } = parseSuiteArgs([], 'browser', {}, '/tmp/plain-options-absent', read);
   assert.deepEqual(opts.files, ['from-config.yaml']);
   assert.equal(opts.workers, 3); assert.equal(opts.retries, 2); assert.equal(opts.bail, 1); assert.equal(opts.maxTokens, 900);
   assert.equal(opts.grep, 'g'); assert.equal(opts.grepInvert, 'v'); assert.deepEqual(opts.tags, ['smoke']);
   assert.equal(opts.timing, true); assert.equal(opts.specTimeout, 5000);
   assert.deepEqual(opts.artifacts, { dir: 'out', screenshot: 'always', trace: 'off' });
   assert.equal(flags.timeout, '8000'); assert.equal(flags.headless, true); assert.equal(flags.channel, 'chrome');
-  const cli = parseSuiteArgs(['--workers', '2', '--grep', 'cli', 'case.yaml'], 'browser', { PLAINWRIGHT_CHANNEL: 'msedge' },
-    '/tmp/plainwright-options-absent', read);
+  const cli = parseSuiteArgs(['--workers', '2', '--grep', 'cli', 'case.yaml'], 'browser', { PLAIN_CHANNEL: 'msedge' },
+    '/tmp/plain-options-absent', read);
   assert.equal(cli.opts.workers, 2); assert.equal(cli.opts.grep, 'cli'); assert.deepEqual(cli.opts.files, ['case.yaml']);
   assert.equal(cli.flags.channel, 'msedge');
   let reads = 0;
-  parseSuiteArgs(['mcp'], 'browser', {}, '/tmp/plainwright-options-absent', () => { reads++; return {}; });
+  parseSuiteArgs(['mcp'], 'browser', {}, '/tmp/plain-options-absent', () => { reads++; return {}; });
   assert.equal(reads, 0);
 });
 
@@ -97,26 +97,26 @@ test('one shared config: values an engine cannot use are ignored with one note, 
   const read = () => structuredClone(config) as never;
   const notes = t.mock.method(console, 'error', () => {});
   const run = (engine: 'browser' | 'desktop' | 'mobile', args = ['case.yaml'], env: NodeJS.ProcessEnv = {}) =>
-    parseSuiteArgs(args, engine, env, '/tmp/plainwright-options-absent', read);
+    parseSuiteArgs(args, engine, env, '/tmp/plain-options-absent', read);
 
   const desktop = run('desktop');
   assert.equal(desktop.opts.workers, 1); assert.equal(desktop.opts.timing, false); assert.equal(desktop.opts.retries, 2);
   assert.deepEqual(desktop.opts.artifacts, { dir: 'out', screenshot: 'on-failure', trace: 'off' });
   assert.deepEqual(desktop.flags, { timeout: '15000', headless: false, profile: undefined, cdp: undefined,
     channel: undefined, server: undefined });
-  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plainwright: desktop ignores these config values: ' +
+  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plain: desktop ignores these config values: ' +
     'headless, profile, channel, cdp, timing, workers: 4, timeout: 0, artifacts.trace: on-failure, server']);
 
   notes.mock.resetCalls();
   assert.equal(run('mobile').flags.server, 'http://appium');
-  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plainwright: mobile ignores these config values: ' +
+  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plain: mobile ignores these config values: ' +
     'headless, profile, channel, cdp, timing, workers: 4, timeout: 0, artifacts.trace: on-failure']);
   notes.mock.resetCalls();
   const browser = run('browser', ['--workers', '1', 'case.yaml']);
   assert.equal(browser.flags.headless, true); assert.equal(browser.flags.timeout, '0');
   assert.equal(browser.opts.artifacts?.trace, 'on-failure');
   assert.equal(browser.flags.server, undefined);
-  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plainwright: browser ignores these config values: server']);
+  assert.deepEqual(notes.mock.calls.map((call) => call.arguments[0]), ['plain: browser ignores these config values: server']);
 
   // validate and --list read the same config and no longer stop on browser values.
   assert.equal(run('desktop', ['validate', 'case.yaml']).command, 'validate');
@@ -140,14 +140,14 @@ test('engineConfig keeps shared values, does not change its input and does not r
   assert.deepEqual(engineConfig({ artifacts: { trace: 'on-failure' } } as never, 'desktop'),
     { config: {}, ignored: ['artifacts.trace: on-failure'] }); // no empty `artifacts` left behind
   const notes = t.mock.method(console, 'error', () => {});
-  const { flags } = parsed([], 'desktop', { PLAINWRIGHT_CHANNEL: 'chrome', PLAINWRIGHT_APPIUM_URL: 'http://appium' });
+  const { flags } = parsed([], 'desktop', { PLAIN_CHANNEL: 'chrome', PLAIN_APPIUM_URL: 'http://appium' });
   assert.equal(flags.channel, 'chrome'); // ignored by the desktop session, as before
   assert.equal(notes.mock.callCount(), 0);
 });
 
 test('usage, timeout and engine-only flag errors', () => {
-  assert.throws(() => parseSuiteArgs([], 'browser', {}, '/tmp/plainwright-options-absent'), UsageError);
-  assert.throws(() => parseSuiteArgs(['validate'], 'desktop', {}, '/tmp/plainwright-options-absent'), UsageError);
+  assert.throws(() => parseSuiteArgs([], 'browser', {}, '/tmp/plain-options-absent'), UsageError);
+  assert.throws(() => parseSuiteArgs(['validate'], 'desktop', {}, '/tmp/plain-options-absent'), UsageError);
   assert.equal(parsed(['--timeout', '0']).flags.timeout, '0'); // Playwright's "no timeout", accepted as before
   assert.throws(() => parsed(['--timeout', '0'], 'desktop'), /--timeout must be a positive number of milliseconds/);
   assert.equal(parsed(['--timeout', '1500.5'], 'mobile').flags.timeout, '1500.5');
@@ -160,6 +160,6 @@ test('--picks is on by default, takes read or off, and comes from config `picks`
   assert.equal(parsed(['--picks', 'read']).opts.picks, 'read');
   assert.equal(parsed(['--picks', 'off'], 'desktop').opts.picks, 'off');
   assert.throws(() => parsed(['--picks', 'write']), /--picks must be one of on, read, off/);
-  const fromConfig = parseSuiteArgs(['case.yaml'], 'browser', {}, '/tmp/plainwright-options-absent', () => ({ picks: 'read' } as never));
+  const fromConfig = parseSuiteArgs(['case.yaml'], 'browser', {}, '/tmp/plain-options-absent', () => ({ picks: 'read' } as never));
   assert.equal(fromConfig.opts.picks, 'read');
 });

@@ -1,7 +1,7 @@
 name: fill empty and plaintext-only contenteditable editors
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /candidate-editor
   - fill: { target: the Article body textbox, value: Research article }

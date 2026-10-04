@@ -4,13 +4,13 @@ FROM mcr.microsoft.com/playwright:v1.63.0-noble
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 # The image installs the npm release of the version in package.json. Its shrinkwrap pins the same Playwright
 # as this base image, so the image's Chromium is used and nothing is downloaded at run time.
-COPY package.json /tmp/plainwright-package.json
-RUN package="$(node -p "const p = require('/tmp/plainwright-package.json'); p.name + '@' + p.version")" && \
+COPY package.json /tmp/plain-package.json
+RUN package="$(node -p "const p = require('/tmp/plain-package.json'); p.name + '@' + p.version")" && \
     { npm install --global --no-audit --no-fund "$package" || \
       { echo "$package is not on npm yet: the Publish workflow publishes it after it reaches main." >&2; exit 1; }; } && \
-    rm /tmp/plainwright-package.json && \
+    rm /tmp/plain-package.json && \
     mkdir -p /work && chown pwuser:pwuser /work
 
 USER pwuser
 WORKDIR /work
-ENTRYPOINT ["plainwright", "--headless"]
+ENTRYPOINT ["plain", "--headless"]

@@ -48,7 +48,7 @@ const OPEN_DESCRIPTION = 'Launch/activate an installed native app on an explicit
 export function createMobileServer<T>(adapter: MobileAdapter<T>, timeout = 15000, ai: Intelligence = intelligence,
   discovery: MobileDiscovery = new LocalMobileDiscovery()) {
   return createNativeServer<MobileSpec>({
-    name: 'plainwright-mobile',
+    name: 'plain-mobile',
     version: '0.2.0',
     placeholderSource: 'mobile MCP',
     ai,

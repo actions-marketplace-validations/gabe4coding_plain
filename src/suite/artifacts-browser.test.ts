@@ -13,7 +13,7 @@ import { runSuite } from './run-suite.js';
 import type { SuiteOptions } from './types.js';
 
 test('real Chromium writes failure traces and screenshots, discards passing traces, and attaches artifacts', async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-artifacts-browser-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-artifacts-browser-'));
   t.after(async () => { await closeSharedBrowser(); fs.rmSync(root, { recursive: true, force: true }); });
   const pass = path.join(root, 'pass.yaml');
   const fail = path.join(root, 'fail.yaml');
@@ -44,7 +44,7 @@ test('real Chromium writes failure traces and screenshots, discards passing trac
 });
 
 test('runner marks actual CDP sessions so artifact capture leaves attached contexts untraced', async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-artifacts-cdp-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-artifacts-cdp-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const server = createServer();
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

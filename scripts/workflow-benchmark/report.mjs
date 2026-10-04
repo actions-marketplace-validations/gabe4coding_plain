@@ -8,7 +8,7 @@ const source = resolve(process.argv[2]);
 const destination = resolve(process.argv[3]);
 const summary = JSON.parse(readFileSync(resolve(source, 'summary.json')));
 const manifest = JSON.parse(readFileSync(resolve(source, 'manifest.json')));
-const armNames = manifest.arms ?? ['plainwright', 'playwright'];
+const armNames = manifest.arms ?? ['plain', 'playwright'];
 const [treatment, control] = armNames;
 const toolFiles = armNames.map(arm => `${arm}-tools.json`);
 const runsText = readFileSync(resolve(source, 'runs.jsonl'), 'utf8');
@@ -20,7 +20,7 @@ for (let i = 0; i < runs.length; i++) {
 }
 mkdirSync(destination, { recursive: true });
 // Keep exact measured costs and usage. Scrub host home/temp prefixes from artifact paths only.
-const sanitize = text => text.replaceAll(process.env.HOME, '<home>').replace(/\/private\/var\/folders\/[^"\s]+?(?=\/plainwright\/)/g, '<tmp>').replace(/\/var\/folders\/[^"\s]+?(?=\/plainwright\/)/g, '<tmp>');
+const sanitize = text => text.replaceAll(process.env.HOME, '<home>').replace(/\/private\/var\/folders\/[^"\s]+?(?=\/plain\/)/g, '<tmp>').replace(/\/var\/folders\/[^"\s]+?(?=\/plain\/)/g, '<tmp>');
 const dataFiles = ['manifest.json', 'pricing.json', 'summary.json', 'runs.jsonl', ...toolFiles,
   ...(existsSync(resolve(source, 'audit.json')) ? ['audit.json'] : [])];
 for (const file of dataFiles) {
@@ -40,7 +40,7 @@ const lines = [
   `${runs.length} trials; ${manifest.tasks.length} synthetic workflows, ${manifest.repeats} repetition${manifest.repeats === 1 ? '' : 's'}, two tool configurations and ${manifest.models.length} main models. Total recorded API cost: **$${summary.totalCost.toFixed(4)}**. Development pilots and the benchmarking agent’s own work are excluded.`, '',
   ...(incomplete.length ? [`**Incomplete billing:** ${incomplete.length} trial(s) lack final usage for at least one request. Costs below are recorded charges and may underestimate actual spending. Affected trials: ${incomplete.map(r => r.id).join(', ')}. Ratios involving these trials are not exact total-cost comparisons.`, ''] : []),
   'See the [protocol and reproduction instructions](../browser-workflows.md). These are measurements of this harness and task suite, not a general website-performance guarantee.', '',
-  ...(manifest.comparison === 'batch' ? ['This is a batching ablation: both arms use the same plainwright/Jev implementation. Only `plainwright` exposes `batch` and its usage guidance; `plainwright-unbatched` uses individual steps. The control is **not Playwright MCP**.', ''] : []),
+  ...(manifest.comparison === 'batch' ? ['This is a batching ablation: both arms use the same plain/Jev implementation. Only `plain` exposes `batch` and its usage guidance; `plain-unbatched` uses individual steps. The control is **not Playwright MCP**.', ''] : []),
   ...(existsSync(resolve(destination, 'findings.md')) ? ['Read the [interpretation and failure analysis](findings.md).', ''] : []),
   ...(existsSync(resolve(destination, 'comparison.svg')) ? ['![Cost, elapsed time and task success by main model](comparison.svg)', ''] : []),
   '## Full-sample results', '',

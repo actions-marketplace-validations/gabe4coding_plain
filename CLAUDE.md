@@ -65,8 +65,8 @@ node dist/cli.js --list --tag smoke tests/                # list selected specs;
   `docs/benchmarks/`. Compare a change against a saved run of main.
 
 `dist/` is gitignored, never committed: build after a clone and after each `src/` change. The npm package
-`@gabe4coding/plain` (scoped: npm refuses the unscoped `plainwright` as too similar to `playwright`) ships `bin/`, `dist/` without tests and the root lockfile as `npm-shrinkwrap.json` (`files` in
-`package.json`; `scripts/pack.mjs` runs on `prepack`/`postpack`). `bin/plainwright.mjs` runs `dist/cli.js` and
+`@gabe4coding/plain` (scoped: the unscoped `plain` belongs to another package) ships `bin/`, `dist/` without tests and the root lockfile as `npm-shrinkwrap.json` (`files` in
+`package.json`; `scripts/pack.mjs` runs on `prepack`/`postpack`). `bin/plain.mjs` runs `dist/cli.js` and
 installs Chromium on first run. Releases: `.github/workflows/publish.yml` publishes the `package.json` version on a
 push to main when npm lacks it, then tags `v<version>`; `action.yml` and the `Dockerfile` install that npm release
 (`docs/development.mdx`, "Releases").
@@ -81,7 +81,7 @@ advice were tuned against it.
 
 Source layout (tests sit next to their module; details live in each module's comments):
 
-- `src/cli.ts` — the browser CLI entry (`plainwright`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
+- `src/cli.ts` — the browser CLI entry (`plain`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
 - `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`,
   `step-kind.ts`, `unknown-key.ts`), the shared targeting/judging boundary (`automation.ts`), results, labels and
   debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), the pick cache (`pick-cache.ts`), `read`,
@@ -103,9 +103,9 @@ Rules that cross modules:
 - When `describe()`/`candidates()` or a native candidate description changes, bump `DESC_FORMAT` in
   `src/core/pick-cache.ts`, so stored picks are ignored.
 - MCP servers use stdout as the JSON-RPC channel: all logging goes to `console.error`.
-- Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop) and
-  `plugins/plainwright-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
-  (layout in `docs/development.mdx`, "Plugin packaging"). Browser skill: `plugins/plainwright/skills/using-plainwright/`.
+- Plugins live at `plugins/plain/` (browser), `plugins/plain-computer/` (desktop) and
+  `plugins/plain-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
+  (layout in `docs/development.mdx`, "Plugin packaging"). Browser skill: `plugins/plain/skills/using-plain/`.
 - The plugins hold no runtime code: their MCP configs run `node bin/npx.mjs -y --package=@gabe4coding/plain@<version>`
   (the shim is `scripts/plugin-npx.mjs`: `cmd /c npx` on Windows), pinned to the `package.json` version, so a
   plugin from a clone still runs the npm release. Plugin version = package version.
@@ -151,15 +151,15 @@ One owner per topic. Other docs link to the owner and do not repeat it:
 ## Constraints
 
 - This repo is site-agnostic. Site-specific skills, environment facts, and regression specs belong in downstream
-  plugins that depend on plainwright, not here.
+  plugins that depend on plain, not here.
 - Specs never hold literal credentials: put them in the spec's `env` block as `$VAR` references, used in steps as
   `${env.*}`.
 - `examples/*.yaml` run against public demo sites; `examples/fixtures/` and `examples/hooks/` back the
   `login-dataset.yaml` example. They are user demos, checked offline only (`check:examples`).
 - `e2e/` is the live gate: every page it needs lives in `e2e/site.mjs`, never on a remote site, so a failure is
-  plainwright's or Jev's. Phrase its targets and claims so one clear answer exists; when Jev misses on such a page,
+  plain's or Jev's. Phrase its targets and claims so one clear answer exists; when Jev misses on such a page,
   suspect the product (what Jev is shown) before the wording.
-- Per `plugins/plainwright/skills/using-plainwright/SKILL.md`: test environments only, stop before the last irreversible step
+- Per `plugins/plain/skills/using-plain/SKILL.md`: test environments only, stop before the last irreversible step
   (payment, booking, sending), never bypass bot protection.
 - Desktop and mobile: Appium and platform drivers are host prerequisites; never auto-install apps or reset app
   data. Browser-only steps must fail explicitly on desktop and mobile.

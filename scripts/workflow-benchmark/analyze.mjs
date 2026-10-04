@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const dir = resolve(process.argv[2] ?? '/tmp/plainwright-workflow-benchmark');
+const dir = resolve(process.argv[2] ?? '/tmp/plain-workflow-benchmark');
 const runs = readFileSync(resolve(dir, 'runs.jsonl'), 'utf8').trim().split('\n').map(s => JSON.parse(s));
 const manifest = JSON.parse(readFileSync(resolve(dir, 'manifest.json')));
-const arms = manifest.arms ?? ['plainwright', 'playwright'];
+const arms = manifest.arms ?? ['plain', 'playwright'];
 const [treatment, control] = arms;
 const sum = (xs, f) => xs.reduce((s, x) => s + f(x), 0);
 const mean = (xs, f) => sum(xs, f) / xs.length;

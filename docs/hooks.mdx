@@ -39,7 +39,7 @@ export async function teardown({ spec, data, result }) {
 }
 ```
 
-The source of the data is your choice. plainwright only calls the two functions and gives the data to the
+The source of the data is your choice. plain only calls the two functions and gives the data to the
 steps and to `teardown`.
 
 A full example is in `examples/login-dataset.yaml`, `examples/hooks/login-dataset.mjs` and
@@ -48,8 +48,8 @@ A full example is in `examples/login-dataset.yaml`, `examples/hooks/login-datase
 ## When hooks run
 
 1. `setup({ spec })` runs once, before the first step. In the browser, it runs after the browser opens. On
-   desktop and mobile, it runs before plainwright opens the app.
-2. plainwright replaces the `${hooks.*}` placeholders in every step string with the data from `setup`. In the
+   desktop and mobile, it runs before plain opens the app.
+2. plain replaces the `${hooks.*}` placeholders in every step string with the data from `setup`. In the
    browser, it also replaces them in `url`.
 3. The steps run.
 4. `teardown({ spec, data, result })` runs after the steps, whether they passed, failed or ended in an error.
@@ -70,16 +70,16 @@ arguments and the data from `setup` go between the processes as JSON. Return pla
 
 | Value | What the steps and `teardown` get |
 |---|---|
-| A function | Nothing. plainwright drops it. |
+| A function | Nothing. plain drops it. |
 | A class instance | A plain object with its fields. The methods are lost. |
 | A `Date` | An ISO date string. |
 | A `Map` or a `Set` | An empty object `{}`. |
-| `undefined` | Nothing. plainwright drops the key. |
+| `undefined` | Nothing. plain drops the key. |
 
 A `${hooks.*}` placeholder must name a text, number or boolean value. See
 [placeholders](spec-reference.mdx#placeholders).
 
-Write logs with `console.error`, not `console.log`. The hooks process shares the stdout of plainwright.
+Write logs with `console.error`, not `console.log`. The hooks process shares the stdout of plain.
 stdout carries the `jsonl` report, and in agent mode the MCP messages.
 
 ## Failure rules

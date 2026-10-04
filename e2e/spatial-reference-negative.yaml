@@ -2,7 +2,7 @@ name: Reference motion does not overwrite the earlier spatial target
 tags: [expect-fail]
 url: ${env.site}/spatial-reference
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial-reference
   - fill: { target: the field immediately below the Shipping heading, value: Upper entry }

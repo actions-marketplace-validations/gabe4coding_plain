@@ -2,11 +2,11 @@ name: a field inside an iframe and a button inside a shadow root
 url: ${env.site}
 timeout: 25000 # about 2 s normally, so room for a slow Jev call; two 15 s waits for the ad sync frame break it
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /frames
-  - fill: { target: the Comment field in the comment editor frame, value: Hello from plainwright }
-  - expect: the Comment field in the frame contains "Hello from plainwright"
+  - fill: { target: the Comment field in the comment editor frame, value: Hello from plain }
+  - expect: the Comment field in the frame contains "Hello from plain"
   - click: the Add one button
   - click: the Add one button
   - expect: 'the page shows "Count: 2"'

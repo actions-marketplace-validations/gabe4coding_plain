@@ -10,7 +10,7 @@ import numpy as np
 directory = pathlib.Path(sys.argv[1])
 summary = json.loads((directory / "summary.json").read_text())
 manifest = json.loads((directory / "manifest.json").read_text())
-arms = manifest.get("arms", ["plainwright", "playwright"])
+arms = manifest.get("arms", ["plain", "playwright"])
 treatment, control = arms
 models = manifest["models"]
 labels = [model.split("/")[1] for model in models]

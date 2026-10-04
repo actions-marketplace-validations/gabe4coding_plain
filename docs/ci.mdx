@@ -1,11 +1,11 @@
 ---
 title: CI and containers
-description: Run plainwright specs in GitHub Actions, GitLab CI or Docker, publish JUnit results and keep failure artifacts.
+description: Run plain specs in GitHub Actions, GitLab CI or Docker, publish JUnit results and keep failure artifacts.
 ---
 
 # CI and containers
 
-A CI job for plainwright needs three things: Node.js, Chromium for browser specs, and a Jev API key
+A CI job for plain needs three things: Node.js, Chromium for browser specs, and a Jev API key
 (`TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`) as a secret. The job runs the
 [`@gabe4coding/plain` npm package](https://www.npmjs.com/package/@gabe4coding/plain) with `npx`. [Getting started](getting-started.mdx) describes the
 API key. [Running suites](running.mdx) describes the options, the config file and the exit codes.
@@ -16,8 +16,8 @@ API key. [Running suites](running.mdx) describes the options, the config file an
 secrets:
 
 ```sh
-npx -y -p @gabe4coding/plain@<version> plainwright validate tests/
-npx -y -p @gabe4coding/plain@<version> plainwright --list --tag smoke tests/
+npx -y -p @gabe4coding/plain@<version> plain validate tests/
+npx -y -p @gabe4coding/plain@<version> plain --list --tag smoke tests/
 ```
 
 `validate` gives a warning for an absent spec environment variable. `--list` needs these variables.
@@ -28,7 +28,7 @@ already installed, the CLI uses it.
 
 ## GitHub Action
 
-The `action.yml` file at the root of the plainwright repository runs specs from your checkout. It uses the npm
+The `action.yml` file at the root of the plain repository runs specs from your checkout. It uses the npm
 package at the version of the action ref. Add the API key as a repository secret. A minimal workflow:
 
 ```yaml
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: gabe4coding/plainwright@main
+      - uses: gabe4coding/plain@main
         with:
           specs: tests/
         env:
@@ -57,9 +57,9 @@ action fails for some minutes after a new version reaches main, until npm has it
 | `specs` | Yes | None | Spec files, folders or globs, separated by spaces |
 | `args` | No | Empty | More CLI options, for example `--workers 2 --retries 1` |
 | `picks` | No | `read` | [Pick cache](running.mdx#pick-cache) mode: `on`, `read` or `off`. Empty gives no `--picks` option |
-| `junit` | No | `plainwright-results/junit.xml` | Path of the JUnit XML file. Empty disables the JUnit report and its upload |
-| `artifacts` | No | `plainwright-results` | Output folder for screenshots, traces and debug files. Empty disables capture and its upload |
-| `artifact-name` | No | `plainwright-results` | Name of the uploaded artifacts folder. The JUnit file has the name `<artifact-name>-junit` |
+| `junit` | No | `plain-results/junit.xml` | Path of the JUnit XML file. Empty disables the JUnit report and its upload |
+| `artifacts` | No | `plain-results` | Output folder for screenshots, traces and debug files. Empty disables capture and its upload |
+| `artifact-name` | No | `plain-results` | Name of the uploaded artifacts folder. The JUnit file has the name `<artifact-name>-junit` |
 | `node-version` | No | `'22'` | Node.js version |
 
 The action parses `specs` and `args` with shell quoting rules, so you can put quotes around a value with spaces.
@@ -67,9 +67,9 @@ It does not run them as a shell script.
 
 ### What the action does
 
-1. It installs Node.js, the plainwright npm package at the `version` in the `package.json` of the action ref,
+1. It installs Node.js, the plain npm package at the `version` in the `package.json` of the action ref,
    and Chromium with its system packages.
-2. It runs `plainwright --headless --reporter text`. It adds `--picks <picks>`, `--reporter junit:<junit>` and
+2. It runs `plain --headless --reporter text`. It adds `--picks <picks>`, `--reporter junit:<junit>` and
    `--artifacts <artifacts>` for each of these inputs that is not empty. Then it adds the `args` and the `specs`.
 3. If `junit` is not empty, it uploads the JUnit file with the name `<artifact-name>-junit`. It does this after
    each run, also when the run passes. If the run stops before it writes the file, the upload gives a warning.
@@ -79,7 +79,7 @@ It does not run them as a shell script.
 The action does not publish the JUnit results as a check. To publish them, add a step after the action (see
 below).
 
-The action runs in the folder of your checkout. Thus it reads `plainwright.config.yaml` from there. The action's
+The action runs in the folder of your checkout. Thus it reads `plain.config.yaml` from there. The action's
 `--reporter` options replace the config `reporters`, and `specs` replaces the config `files`. The `picks` input
 replaces the config `picks`. To use the config `picks`, set the `picks` input to an empty value. The other
 config keys apply.
@@ -88,7 +88,7 @@ With the default `picks: read`, the run uses the committed pick files and does n
 the pick files, run with `--picks on` on your computer and commit the files. A `--picks` option in `args`
 replaces the `picks` input, because `args` comes after it.
 
-`args` can add a file reporter, for example `--reporter json:plainwright-results/run.json`. `args` cannot add a
+`args` can add a file reporter, for example `--reporter json:plain-results/run.json`. `args` cannot add a
 stdout reporter, because the action already uses `text`.
 
 ### A full workflow
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: gabe4coding/plainwright@main
+      - uses: gabe4coding/plain@main
         with:
           specs: 'tests/smoke/ tests/checkout/*.yaml'
           args: '--workers 2 --retries 1'
@@ -117,11 +117,11 @@ jobs:
         if: always()
         uses: mikepenz/action-junit-report@v5
         with:
-          report_paths: plainwright-results/junit.xml
+          report_paths: plain-results/junit.xml
 ```
 
 The publish step needs the `checks: write` permission. In a matrix, give each job its own `artifact-name`, for
-example `plainwright-results-${{ matrix.site }}`. Artifact names must be unique in a workflow run.
+example `plain-results-${{ matrix.site }}`. Artifact names must be unique in a workflow run.
 
 ## GitLab CI
 
@@ -134,38 +134,38 @@ browser-specs:
   variables:
     PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
   script:
-    - npx -y -p @gabe4coding/plain@<version> plainwright --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
+    - npx -y -p @gabe4coding/plain@<version> plain --headless --picks read --reporter text --reporter junit:plain-results/junit.xml --artifacts plain-results tests/
   artifacts:
     when: always
     paths:
-      - plainwright-results/
+      - plain-results/
     reports:
-      junit: plainwright-results/junit.xml
+      junit: plain-results/junit.xml
 ```
 
 Set `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` as a masked CI variable.
 
-Use the image tag of the Playwright version that your plainwright version installs. If the two versions are
+Use the image tag of the Playwright version that your plain version installs. If the two versions are
 different, the CLI downloads its own Chromium on each run.
 
 ## Docker
 
-The image uses the Chromium of Playwright 1.63.0 and runs as the user `pwuser`. It installs the plainwright npm
-package at the `version` in `package.json`. Build it from the plainwright repository, then run it from the folder
+The image uses the Chromium of Playwright 1.63.0 and runs as the user `pwuser`. It installs the plain npm
+package at the `version` in `package.json`. Build it from the plain repository, then run it from the folder
 that holds your specs:
 
 ```sh
-docker build -t plainwright .
-docker run --rm -v "$PWD:/work" -e TYPESAFE_API_KEY plainwright tests/
-docker run --rm -v "$PWD:/work" plainwright validate tests/
+docker build -t plain .
+docker run --rm -v "$PWD:/work" -e TYPESAFE_API_KEY plain tests/
+docker run --rm -v "$PWD:/work" plain validate tests/
 ```
 
 - The image always adds `--headless`. Give the other options after the image name.
-- The mounted folder is the current folder of the CLI. The CLI reads `plainwright.config.yaml` and `.env` from
+- The mounted folder is the current folder of the CLI. The CLI reads `plain.config.yaml` and `.env` from
   it.
 - Set the API key in the host environment and give only its name with `-e`. Do not put the key in a spec or in
   the image. The build does not copy the `.env` file of the repository into the image.
-- The run writes reports, artifacts, pick files and `.plainwright/last-run.json` into the mounted folder. Make
+- The run writes reports, artifacts, pick files and `.plain/last-run.json` into the mounted folder. Make
   sure that `pwuser` in the container can write to it.
 - Without spec paths, the CLI runs the config `files`. If there is no `files` key, it prints a usage line and
   exits with `2`.

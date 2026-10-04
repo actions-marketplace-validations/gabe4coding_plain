@@ -73,7 +73,7 @@ See the [full tables and traces](2026-09-21-context/README.md),
 ## Measurement
 
 The frozen workflow harness runs the two previously problematic tasks, **catalog and record editing**,
-three times with each of the same small, medium and top models. Both plainwright and the pinned
+three times with each of the same small, medium and top models. Both plain and the pinned
 Playwright MCP baseline run afresh: 36 trials, including 18 Jev-assisted attempts. Each trial
 measures the entire browser workflow, including discovery, actions, verification and recovery.
 
@@ -97,11 +97,11 @@ With the dependencies and API keys described in the [protocol](browser-workflows
 
 ```sh
 node scripts/workflow-benchmark/run.mjs \
-  --baseline=/tmp/plainwright-benchmark-baseline/node_modules/@playwright/mcp/cli.js \
-  --out=/tmp/plainwright-context-results --tasks=catalog,record \
+  --baseline=/tmp/plain-benchmark-baseline/node_modules/@playwright/mcp/cli.js \
+  --out=/tmp/plain-context-results --tasks=catalog,record \
   --repeats=3 --seed=210926 --budget=5
-node scripts/workflow-benchmark/analyze.mjs /tmp/plainwright-context-results
-node scripts/workflow-benchmark/report.mjs /tmp/plainwright-context-results /tmp/plainwright-context-report
+node scripts/workflow-benchmark/analyze.mjs /tmp/plain-context-results
+node scripts/workflow-benchmark/report.mjs /tmp/plain-context-results /tmp/plain-context-report
 ```
 
 The original 108-trial artifacts remain unchanged. This experiment changes only candidate context;

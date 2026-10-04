@@ -7,7 +7,7 @@ import { errorMessage } from './results.js';
  * Where an expanded step was written: its file (relative to the root spec's folder; undefined for the root spec
  * itself) and its index in that file. A symbol key, so the step's own keys stay as written.
  */
-const SOURCE = Symbol('plainwright.include.source');
+const SOURCE = Symbol('plain.include.source');
 interface Source { file?: string; index: number }
 
 /** Takes the source off an expanded step, for the loader's error messages. */

@@ -64,7 +64,7 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
         if (retargeted || !(error instanceof HiddenTargetError)) throw error;
         // Jev accepted a covered element over a visible one. Logged: the approximate capture assumes this is rare.
         if (resolved.approximate) {
-          console.error(`plainwright-mobile: accepted pick from an approximate capture was covered, picking again from the exact tree: ${target} ${resolved.detail}`);
+          console.error(`plain-mobile: accepted pick from an approximate capture was covered, picking again from the exact tree: ${target} ${resolved.detail}`);
         }
         this.retarget();
       }
