@@ -20,13 +20,13 @@ test('a real spec batches resolved descriptions once and keeps each route indepe
   let routes = 0;
   intelligence.ask = async (state, questions) => {
     routes++;
-    assert.deepEqual(state, { groups: [['the Name field'], ['the left button'], ['B clicked is shown', 'the Name field contains entry']] });
+    assert.deepEqual(state, { groups: [['the first field'], ['the button nearest the edge'], ['B clicked is shown', 'the first field contains entry']] });
     assert.equal(questions.length, 3);
     return { answers: [{ choice: 'semantic', confidence: 1 }, { choice: 'spatial', confidence: 1 },
       { choice: 'semantic', confidence: 1 }], tokens: 11 };
   };
   intelligence.pick = async (candidates, targets, state) => {
-    const spatial = targets[0] === 'the left button';
+    const spatial = targets[0] === 'the button nearest the edge';
     assert.equal(state.layout !== undefined, spatial);
     assert.equal(candidates.some((candidate) => candidate.bounds), spatial);
     const chosen = spatial ? candidates.filter((candidate) => candidate.desc.startsWith('button '))
@@ -45,9 +45,9 @@ test('a real spec batches resolved descriptions once and keeps each route indepe
     { kind: 'goto', url },
     { kind: 'fill', target: '${env.field}', value: 'private entry' },
     { kind: 'fill', target: '${env.field}', value: 'entry' },
-    { kind: 'click', target: 'the left button' },
-    { kind: 'expect', expectations: ['B clicked is shown', 'the Name field contains entry'], within: 'css=body' },
-  ]), env: { field: 'the Name field' } }, options);
+    { kind: 'click', target: 'the button nearest the edge' },
+    { kind: 'expect', expectations: ['B clicked is shown', 'the first field contains entry'], within: 'css=body' },
+  ]), env: { field: 'the first field' } }, options);
   assert.equal(result.status, 'pass', JSON.stringify(result.steps));
   assert.equal(routes, 1);
   assert.equal(result.jevCalls, 5);
@@ -75,7 +75,7 @@ test('a scoped interactive claim batches the region and claim while retaining th
   let routes = 0;
   intelligence.ask = async (state, questions) => {
     routes++;
-    assert.deepEqual(state, { groups: [['B is left of A'], ['the Button pair section']] });
+    assert.deepEqual(state, { groups: [['B comes before A visually'], ['the Button pair row']] });
     assert.equal(questions.length, 2);
     return { answers: [{ choice: 'spatial', confidence: 1 }, { choice: 'semantic', confidence: 1 }], tokens: 1 };
   };
@@ -90,7 +90,7 @@ test('a scoped interactive claim batches the region and claim while retaining th
     assert.doesNotMatch(snap.layout, /Name|Email/);
     return { probabilities: [1], tokens: 1 };
   };
-  const result = await askPage(session.ctx, ['B is left of A'], 'the Button pair section');
+  const result = await askPage(session.ctx, ['B comes before A visually'], 'the Button pair row');
   assert.ok('probabilities' in result);
   assert.deepEqual(result.probabilities, [1]);
   assert.equal(routes, 1);
@@ -102,17 +102,54 @@ test('an optional failed batch route leaves later groups available for one retry
   let calls = 0;
   intelligence.ask = async (state, questions) => {
     calls++;
-    assert.deepEqual(state, { groups: [['the Name field'], ['the Email field']] });
+    assert.deepEqual(state, { groups: [['the first field'], ['the second field']] });
     if (calls === 1) throw new Error('temporary classifier failure');
     return { answers: questions.map(() => ({ choice: 'semantic', confidence: 1 })), tokens: 1 };
   };
   intelligence.pick = async (candidates) => [{ id: candidates.find((candidate) => candidate.desc.includes('Email'))!.id,
     probability: 1, probabilities: {}, tokens: 1 }];
   const result = await runSpec(spec([{ kind: 'goto', url },
-    { kind: 'fill', target: 'the Name field', value: 'entry', optional: true },
-    { kind: 'fill', target: 'the Email field', value: 'entry' },
+    { kind: 'fill', target: 'the first field', value: 'entry', optional: true },
+    { kind: 'fill', target: 'the second field', value: 'entry' },
   ]), options);
   assert.equal(result.status, 'pass', JSON.stringify(result.steps));
   assert.equal(result.steps[1].status, 'skipped');
   assert.equal(calls, 2);
+});
+
+test('a scroll to the page edge is not routed with the other descriptions', async (t) => {
+  const { ask, pick } = intelligence;
+  t.after(() => { intelligence.ask = ask; intelligence.pick = pick; });
+  const routed: unknown[] = [];
+  intelligence.ask = async (state, questions) => {
+    routed.push(state);
+    return { answers: questions.map(() => ({ choice: 'semantic', confidence: 1 })), tokens: 1 };
+  };
+  intelligence.pick = async (candidates) => [{ id: candidates.find((candidate) => candidate.desc.includes('Email'))!.id,
+    probability: 1, probabilities: {}, tokens: 1 }];
+  const result = await runSpec(spec([{ kind: 'goto', url }, { kind: 'scroll', target: 'bottom' },
+    { kind: 'fill', target: 'the second field', value: 'entry' }]), options);
+  assert.equal(result.status, 'pass', JSON.stringify(result.steps));
+  assert.deepEqual(routed, [{ groups: [['the second field']] }]);
+});
+
+test('consecutive expects on an unchanged page share one judgment; a changed page is asked again', async (t) => {
+  const { judge } = intelligence;
+  t.after(() => { intelligence.judge = judge; });
+  const asked: string[][] = [];
+  intelligence.judge = async (_state, claims) => { asked.push(claims); return { probabilities: claims.map(() => 1), tokens: 4 }; };
+  const result = await runSpec(spec([{ kind: 'goto', url },
+    { kind: 'expect', expectations: ['B clicked is not shown'] },
+    { kind: 'expect', expectations: ['the Name field is empty', 'B clicked is not shown'] },
+    { kind: 'expect', expectations: ['the Email field is empty'] },
+    { kind: 'click', target: 'css=button:nth-of-type(2)' },
+    { kind: 'expect', expectations: ['the output says B clicked'] },
+    { kind: 'expect', expectations: ['the Email field is empty'] },
+  ]), options);
+  assert.equal(result.status, 'pass', JSON.stringify(result.steps));
+  // The second expect group re-asks the Email claim: the click changed the page after the first answer.
+  assert.deepEqual(asked, [['B clicked is not shown', 'the Name field is empty', 'the Email field is empty'],
+    ['the output says B clicked', 'the Email field is empty']]);
+  assert.equal(result.jevCalls, 2);
+  assert.equal(result.totalTokens, 8);
 });
