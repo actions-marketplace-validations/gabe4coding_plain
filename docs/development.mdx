@@ -113,9 +113,11 @@ Claude and Codex usage. CI does not run them. Use `--agent claude` or `--only lo
 
 - The `Test` workflow runs `npm run verify` on each pull request and on main. It then checks that the generated
   plugin files match the build.
-- The `Live` workflow runs the e2e suite and the claims gate. It runs on pull requests that change the runtime,
-  the e2e suite or the eval data. It needs the `TYPESAFE_API_KEY` repository secret. Without it, the workflow fails, but
-  on a pull request from a fork it is skipped.
+- The `Live` workflow runs the e2e suite and the claims gate. It starts on each pull request, because main
+  requires its `live` check. If the pull request does not change the runtime, the e2e suite or the eval data, the
+  check passes and the workflow runs nothing more. The `RUNTIME` pattern in `.github/workflows/live.yml` lists
+  these files. The workflow needs the `TYPESAFE_API_KEY` repository secret. Without it, the workflow fails, but on
+  a pull request from a fork it is skipped.
 - The `Publish` workflow publishes the npm package. Refer to [releases](#releases).
 
 To run one test file or one test case after a build:
