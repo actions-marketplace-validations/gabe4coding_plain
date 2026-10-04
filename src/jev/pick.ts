@@ -1,7 +1,7 @@
 import type { Candidate } from '../core/automation.js';
 import { ask, choiceChunks, isTooLong, MAX_CHOICE_OPTIONS, type Question } from './ask.js';
 import { decide } from './decide.js';
-import { boundsText, roundBounds } from '../core/layout.js';
+import { boundsText } from '../core/layout.js';
 
 /** At most four parallel requests per pick. Candidates are ordered so that a cut drops nav and footer links first. */
 export const MAX_CANDIDATES = MAX_CHOICE_OPTIONS * 4;
@@ -69,7 +69,8 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
 
 /**
  * One Choice question per instruction, all in one request. The descriptions are in both `elements` and the
- * criteria on purpose: sending them only once saves tokens but lowers the pick probability.
+ * criteria on purpose: sending them only once saves tokens but lowers the pick probability (benchmark-picks: 9 fewer
+ * right with the goal, 2026-10).
  * `instructions` are a list in the state, plus `today`, so "the earliest day after today" has one answer.
  * `goal` is state only, never named in the question: the target's words still win when they disagree with it.
  */
@@ -89,9 +90,9 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
       geometry: `Bounds are rendered edges in ${coordinates}. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.`,
     } : {}),
     instructions,
-    // `editable` and `state` are for the pick cache only: Jev never sees them.
-    elements: candidates.map(({ id, desc, frameIndex, bounds }) => ({ id, desc,
-      ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds: roundBounds(bounds) } : {}) })),
+    // One `id: description` line per element: JSON objects cost Jev tokens per key and pick no better. An iframe
+    // element's description starts with its frame. `editable` and `state` are for the pick cache only.
+    elements: candidates.map(({ id, desc, bounds }) => `${id}: ${desc}${bounds ? ` bounds=${boundsText(bounds)}` : ''}`).join('\n'),
   };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',
