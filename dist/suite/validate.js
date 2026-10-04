@@ -1,5 +1,8 @@
 import { errorMessage } from '../core/results.js';
-/** Loads each file and checks its placeholders, without a key, a session or the hooks module. */
+/**
+ * Loads each file (includes expanded, schemas checked) and checks its placeholders, without a key, a session or the
+ * hooks module. An absent `$VAR` leaf is a warning here, where a run fails on it.
+ */
 export function validate(engine, files) {
     return files.map((file) => {
         const warnings = [];

@@ -3,7 +3,10 @@ import type { SuiteEngine } from './types.js';
 
 export interface ValidationResult { file: string; error?: string; warnings: string[] }
 
-/** Loads each file and checks its placeholders, without a key, a session or the hooks module. */
+/**
+ * Loads each file (includes expanded, schemas checked) and checks its placeholders, without a key, a session or the
+ * hooks module. An absent `$VAR` leaf is a warning here, where a run fails on it.
+ */
 export function validate<S>(engine: SuiteEngine<S>, files: string[]): ValidationResult[] {
   return files.map((file) => {
     const warnings: string[] = [];

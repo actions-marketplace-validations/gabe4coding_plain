@@ -110,7 +110,7 @@ export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: 
 
   const acceptDialogs = spec.dialogs !== 'dismiss';
   const pendingNotes: string[] = [];
-  /** Console noise since the last drain, reported as one note. */
+  /** Console noise since the last drain, reported as one note; it never reaches `events`, so Jev never sees it. */
   let noise = 0;
   /** What every judgment sees, so "a file was downloaded" or "a JavaScript error happened" can be judged. */
   const events: string[] = [];

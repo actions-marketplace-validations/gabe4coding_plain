@@ -82,6 +82,10 @@ const FileSpecSchema = SpecSchema.omit({ dir: true, steps: true }).extend({
 
 export interface LoadOptions { onMissingEnv?: (message: string) => void }
 
+/**
+ * Loads a browser spec file. Every schema is strict: an unknown key (top level, `auth`, `geolocation`, `browser`,
+ * a step or its mapping) is an error naming the closest known key. `env` takes any keys.
+ */
 export function loadSpec(path: string, opts?: LoadOptions): Spec {
   const raw = parseData(FileSpecSchema, parse(readFileSync(path, 'utf8')), path);
   const spec: Spec = {
@@ -145,7 +149,8 @@ export function parseStep(path: string, i: number, raw: unknown): Step {
 
 /**
  * The step's one action key. Any other key than `optional` is an error that names it, with the closest of
- * `suggest` when one is near; `at` and `origin` only come from the loader.
+ * `suggest` when one is near; `at` and `origin` only come from the loader. Shared by the browser, desktop and
+ * mobile parsers, for spec files and MCP `step`/`batch`.
  */
 export function stepKind(mapping: Record<string, unknown>, where: string, kinds: readonly string[], suggest = kinds): string {
   rejectReserved(mapping, where);

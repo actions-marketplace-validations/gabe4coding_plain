@@ -97,7 +97,11 @@ const SAVE_DESCRIPTION =
 
 type PageCapture = { title: string; url: string; aria: string };
 
-/** The browser MCP server: one persistent session, every tool call run one at a time. */
+/**
+ * The browser MCP server: one persistent session, every tool call run one at a time. Only `open` and passing
+ * `step`/`batch` steps reach the transcript; `find`, `snapshot`, `ask`, `read` and `evaluate` only read. stdout is
+ * the JSON-RPC channel, so every log line goes to console.error.
+ */
 export async function serveMcp(opts: RunOptions): Promise<void> {
   let session: Session | null = null;
   const sessionOpts: RunOptions = { ...opts, handleSignals: false };

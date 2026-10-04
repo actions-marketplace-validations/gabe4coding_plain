@@ -89,6 +89,7 @@ export function parseSuiteArgs(argv, engine, env = process.env, cwd = process.cw
     const workers = integer('workers', setting('workers', values.workers, 1), 1);
     const profile = asString(setting('profile', values.profile, undefined))?.replace(/^~(?=\/|$)/, homedir());
     const cdp = asString(setting('cdp', values.cdp, undefined));
+    // Worker conflicts fail here, before any spec loads or a browser opens.
     if (workers > 1 && engine !== 'browser')
         throw new Error('--workers > 1 is not supported for desktop or mobile');
     if (workers > 1 && (profile || cdp)) {

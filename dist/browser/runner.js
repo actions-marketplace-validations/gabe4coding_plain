@@ -73,6 +73,7 @@ export async function runSpec(spec, opts, observer, info) {
             runSteps = [];
         }
         for (const step of runSteps) {
+            // The timeout is outside runStepSafely: an optional step cut by it ends `error`, not `skipped`.
             let result = await deadline.step(() => runStepSafely(session.ctx, step), () => label(step));
             result = withCacheDump(result, picks?.endStep(result.status));
             const notes = session.drainNotes();
@@ -101,6 +102,7 @@ export async function runSpec(spec, opts, observer, info) {
                 hooks.close();
             }
         }
+        // Saved only when the steps and teardown passed: a failed run must not overwrite a good state file.
         if (overall === 'pass' && spec.browser?.saveState !== undefined) {
             try {
                 await saveStorageState(session, path.resolve(spec.dir, spec.browser.saveState));
