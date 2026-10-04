@@ -74,10 +74,12 @@ const TASKS = {
 const skill = ['SKILL.md', 'browsing.md', 'authoring.md']
   .map((file) => readFileSync(join(SKILL_DIR, file), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '')).join('\n\n');
 const skillFile = join(scratch, 'skill.md');
-// The skill names `<plugin dir>` for CLI commands; a real install resolves it, so the eval says it.
+// The skill runs the CLI as the published `npx -y plainwright@<version>`; the eval tests the checkout, so it says
+// which command stands in for it.
 writeFileSync(skillFile, `# The plainwright skill (its files are below; you do not need to read them)\n\n` +
   `The plainwright MCP tools are already running as the \`pw\` server: use them for the browser. For the CLI ` +
-  `commands the skill names (validate, replay), the plugin dir is ${join(root, 'plugins/plainwright')}.\n\n${skill}`);
+  `commands the skill names (validate, replay), run \`node ${join(root, 'bin/plainwright.mjs')}\` in place of ` +
+  `\`npx -y plainwright@<version>\`.\n\n${skill}`);
 const env = { ...process.env, PLAINWRIGHT_E2E_SITE: site.url };
 const server = { command: process.execPath, args: [cli, '--headless', 'mcp'] };
 

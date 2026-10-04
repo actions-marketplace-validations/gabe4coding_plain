@@ -72,7 +72,8 @@ In Codex, run `codex exec review --base origin/main`. Then check each point your
 - **Comments**: only non-obvious reasons. No history ("before", "now", "new"), no restated code.
 - **No dead code**: no unused export, file or branch (strict `tsc` catches unused locals only).
 - **Fit**: matches the idiom and comment density of the code around it.
-- **Generated files**: `dist/` and the runtime archives rebuilt and committed with the source.
+- **Generated files**: the plugin files `npm run build` writes (MCP configs, npx shim, versions, mod)
+  committed with the source. `dist/` is never committed.
 
 ## 6. Docs and agent-facing text
 

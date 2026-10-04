@@ -2,16 +2,41 @@
   "name": "plainwright",
   "version": "1.0.0",
   "description": "Natural-language browser, desktop and mobile automation with Playwright, xa11y, Appium and Jev",
-  "repository": "github:gabe4coding/plainwright",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabe4coding/plainwright.git"
+  },
+  "homepage": "https://github.com/gabe4coding/plainwright#readme",
+  "bugs": "https://github.com/gabe4coding/plainwright/issues",
   "license": "MIT",
+  "keywords": [
+    "e2e",
+    "testing",
+    "playwright",
+    "appium",
+    "mcp",
+    "natural-language",
+    "jev"
+  ],
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "bin": {
     "plainwright": "bin/plainwright.mjs",
     "plainwright-computer": "bin/plainwright-computer.mjs",
     "plainwright-mobile": "bin/plainwright-mobile.mjs"
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "!dist/**/*.test.js",
+    "npm-shrinkwrap.json"
+  ],
   "scripts": {
     "build": "tsc && node scripts/build-plugins.mjs",
+    "prepack": "node scripts/pack.mjs prepack",
+    "postpack": "node scripts/pack.mjs postpack",
     "test": "npm run build && node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'",
     "check:docs": "node scripts/check-docs.mjs",
     "check:examples": "node scripts/check-examples.mjs",

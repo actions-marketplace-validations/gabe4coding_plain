@@ -372,5 +372,8 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   // connect() owns transport.onclose; the server's onclose is how end of input reaches the cleanup.
   server.server.onclose = () => void shutdown();
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.once(signal, () => void shutdown());
+  // The SDK's stdio transport does not close on end of input, and a host's signal does not always arrive: under
+  // npx, a shell sits between the host and this process. A closed input means the host is gone.
+  process.stdin.once('end', () => void shutdown());
   await server.connect(new StdioServerTransport());
 }

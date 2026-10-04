@@ -18,7 +18,8 @@ For Appium, device IDs and the mobile steps, read [Mobile use](../../docs/mobile
 
 ## Common setup
 
-1. Install Node 22 or later. On the first run, `bin/plainwright-mobile.mjs` installs the npm dependencies.
+1. Install Node 22 or later. The examples use the fixture scripts of the repository. Thus run them from a clone:
+   run `npm ci` and `npm run build` in the repository folder.
 2. Install Appium and the driver for your platform. Install the driver before you start the server.
 3. Boot the emulator or the simulator, and start Appium.
 4. Put `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` in `~/.config/plainwright/.env`. Read [Getting started](../../docs/getting-started.mdx).

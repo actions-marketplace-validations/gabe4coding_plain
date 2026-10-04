@@ -7,7 +7,8 @@ description: Configure the Jev API key, install the plugins for Claude Code or C
 
 ## Requirements
 
-- Node 22 or newer, and npm.
+- Node 22 or newer, and npm. The plugins and the CLIs run the
+  [plainwright npm package](https://www.npmjs.com/package/plainwright) with `npx`.
 - A [TypeSafe](https://typesafe.ai) API key or a Vercel AI Gateway key. Jev uses this key for each pick and each judgment.
 - For desktop specs: a desktop session and accessibility permission. Refer to [desktop platform setup](computer-use.mdx#platform-setup).
 - For mobile specs: an Appium server, a test device or simulator, and your app installed on it. Refer to [mobile setup](mobile-use.mdx#setup).
@@ -76,9 +77,9 @@ save a flow. Install only the plugins that you need.
 
 You can use a local clone path in place of `gabe4coding/plainwright`.
 
-On the first start, each plugin installs its runtime dependencies. The browser plugin also installs Chromium.
-The first connection can take one or two minutes. If it times out, run `/mcp` to connect again when the
-installation is complete.
+Each plugin starts its MCP server with `npx`, at the plainwright package version of the plugin. On the first
+start, npx installs this version. The browser plugin also installs Chromium. The first connection can take one or
+two minutes. If it times out, run `/mcp` to connect again when the installation is complete.
 
 Claude Code gives the plugin servers its environment. Thus you can also export the key in your shell profile, or
 put it in the `env` block of `~/.claude/settings.json`.
@@ -89,7 +90,7 @@ name replaces the plugin server without a warning.
 To use the browser server without the plugin, register it directly:
 
 ```sh
-claude mcp add plainwright -- node /path/to/plainwright/bin/plainwright.mjs --headless mcp
+claude mcp add plainwright -- npx -y plainwright --headless mcp
 ```
 
 ### Codex
@@ -115,43 +116,50 @@ codex plugin remove plainwright@plainwright-marketplace
 codex plugin marketplace remove plainwright-marketplace
 ```
 
-## Run from a checkout
+## Run the CLI
+
+Run a spec with npx. You do not have to install or build plainwright. For a first run, save the
+[browser spec](#browser) of the next section as `todo.yaml`:
 
 ```sh
-git clone https://github.com/gabe4coding/plainwright.git
-cd plainwright
-node bin/plainwright.mjs examples/todo.yaml
+npx plainwright todo.yaml
 ```
 
-The repository contains the compiled output, so you do not have to build it. On the first run, the browser launcher
-`bin/plainwright.mjs` installs the npm dependencies and Chromium. Then it opens a visible browser. Add `--headless`
-to hide the browser.
+On the first run, npx installs the plainwright package and the browser CLI installs Chromium. Then the CLI opens a
+visible browser. Add `--headless` to hide the browser. Add `-y` to skip the install question of npx, for example
+in a script.
 
-The desktop and mobile launchers also install the npm dependencies on the first run. They do not install Chromium:
+The package also contains the desktop and mobile CLIs. They do not install Chromium. Give the package name with
+`-p`:
 
 ```sh
-node bin/plainwright-computer.mjs path/to/desktop.yaml
-node bin/plainwright-mobile.mjs path/to/mobile.yaml
+npx -p plainwright plainwright-computer path/to/desktop.yaml
+npx -p plainwright plainwright-mobile path/to/mobile.yaml
 ```
 
 To connect an MCP client directly, start a server over stdio:
 
 ```sh
-node bin/plainwright.mjs --headless mcp
-node bin/plainwright-computer.mjs mcp
-node bin/plainwright-mobile.mjs mcp
+npx -y plainwright --headless mcp
+npx -y -p plainwright plainwright-computer mcp
+npx -y -p plainwright plainwright-mobile mcp
 ```
+
+`npx plainwright` uses the latest version. To use a fixed version, write `plainwright@<version>`, for example in
+CI. To install the CLIs on your `PATH`, run `npm install --global plainwright`.
 
 The CLIs have no `--help` flag. To see the usage line, run a CLI without arguments.
 
 Before a live run, check your specs without a key or a session:
 
 ```sh
-node bin/plainwright.mjs validate tests/
+npx plainwright validate tests/
 ```
 
 A spec run writes a pick cache file next to each spec file, for example `login.picks.json` for `login.yaml`.
 Refer to the [pick cache](running.mdx#pick-cache). For all flags, refer to [running suites](running.mdx).
+
+To run plainwright from a clone of the repository, build it first. Refer to [development](development.mdx).
 
 ## Your first spec
 
