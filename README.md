@@ -50,13 +50,12 @@ You need Node 22 or newer, npm, and a [TypeSafe](https://typesafe.ai) API key (a
    codex plugin add plainwright@plainwright-marketplace
    ```
 
-3. To run a spec from the command line, clone the repository and run an example. On the first run, the
-   launcher installs the dependencies and Chromium.
+3. To run a spec from the command line, save the spec in [A spec](#a-spec) as `todo.yaml`. Then run it with
+   npx. On the first run, npx installs the [plainwright npm package](https://www.npmjs.com/package/plainwright)
+   and plainwright installs Chromium.
 
    ```sh
-   git clone https://github.com/gabe4coding/plainwright.git
-   cd plainwright
-   node bin/plainwright.mjs examples/todo.yaml
+   npx plainwright todo.yaml
    ```
 
 [Getting started](docs/getting-started.mdx) shows the desktop and mobile plugins, the key options and all

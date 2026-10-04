@@ -27,7 +27,7 @@ Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compil
 npm test                                                    # build + node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'
 npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
 npm run check:examples                                      # validate examples/, e2e/ and the doc YAML, per engine
-npm run test:plugins                                        # install each plugin archive in isolation, list MCP tools
+npm run test:plugins                                        # npm pack, then run each plugin's npx MCP command on the tarball
 npm run verify                                              # all of the above: the key-free gate CI runs
 node --test dist/browser/runner.test.js                     # one file, after a build
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
@@ -77,7 +77,7 @@ node scripts/benchmark-steps.mjs --picks on --dir <scratch copy of examples>   #
 `--headless` hides the browser (visible by default); `--timeout` is per-action (ms); `--profile <dir>` launches a
 persistent context; `--channel chrome` launches an installed browser instead of the bundled Chromium; `--cdp <url>` attaches
 to a running Chrome (`openPage()` in `src/browser/session.ts` picks one of the three; env fallbacks `PLAINWRIGHT_PROFILE`/
-`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/suite/options.ts`). The browser plugin `.mcp.json` runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs --headless mcp`, which installs and dispatches to the shared runtime.
+`PLAINWRIGHT_CHANNEL`/`PLAINWRIGHT_CDP` in `src/suite/options.ts`). The browser plugin `.mcp.json` runs `npx -y --package=plainwright@<version> plainwright --headless mcp`: the published npm package, pinned to the `package.json` version.
 
 Suite flags are shared by all three CLIs; native engines require `--workers 1` and default to `jsonl`
 rather than browser `text`. Config comes from cwd `plainwright.config.yaml`/`.yml` or `--config`;
@@ -90,11 +90,17 @@ variables already in the environment are never overridden. The user file exists 
 servers no shell environment. Spec runs check for a key just before execution; `validate` and `--list` need none.
 MCP mode keeps serving and the first Jev call returns the message as a tool error.
 
-`dist/` is committed on purpose — this repo is also a Claude Code plugin and ships its built output
-(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium;
-`bin/plainwright-computer.mjs` and `bin/plainwright-mobile.mjs` lazy-install the same npm deps, no Chromium, via
-`bin/install-deps.mjs`).
-`dist/**/*.test.js` is gitignored. Rebuild before committing a `src/` change so `dist/` matches it.
+`dist/` is gitignored, never committed: build after a clone and after each `src/` change. The npm package
+`plainwright` ships `bin/`, `dist/` without tests and the root lockfile as `npm-shrinkwrap.json` (`files` in
+`package.json`; `scripts/pack.mjs` is `prepack`/`postpack`: clean `tsc`, an unresolved-relative-import check, the
+shrinkwrap copy and its removal). `bin/plainwright.mjs` runs `dist/cli.js` and installs Chromium on first run;
+`bin/plainwright-computer.mjs` and `bin/plainwright-mobile.mjs` only import their `dist/` CLI.
+
+Releases: `.github/workflows/publish.yml` runs on each push to main; when npm lacks the `package.json` version it
+runs `npm run verify`, `npm publish --provenance` (trusted publishing via OIDC, `NPM_TOKEN` secret as fallback for
+the first publish) and pushes the tag `v<version>`. A release is a merged PR that bumps the version
+(`npm version <v> --no-git-tag-version`, then `npm run build`). The GitHub Action (`action.yml`) and the
+`Dockerfile` install the npm release of the `package.json` version, not the checkout.
 
 ## Architecture
 
@@ -267,17 +273,20 @@ Source layout (tests sit next to their module):
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop), and
   `plugins/plainwright-mobile/` (mobile), each
   with portable `plugin.json`/`mcp.json`, `.claude-plugin/plugin.json`/`.mcp.json`, a Codex compatibility
-  manifest, its skill, and a generated `runtime.tgz`. Both root marketplaces point at these directories.
-  Keep identity/version/description aligned across each plugin's manifests. Browser skill lives at
+  manifest and its skill. Both root marketplaces point at these directories. `scripts/build-plugins.mjs` writes
+  each plugin's MCP configs (`npx -y --package=plainwright@<version> <bin> ...`, `npxArgs`), the `package.json`
+  version into its three manifests and into every `plainwright@<semver>` of its skill, its `LICENSE` and the mod.
+  Plugin hosts refresh a cached plugin only on a version change, so plugin version = package version. A plugin
+  from a clone still runs the npm version, not the checkout. Keep name/description aligned across the manifests. Browser skill lives at
   `plugins/plainwright/skills/using-plainwright/` (SKILL.md, browsing.md, authoring.md).
 - `mods/session-pane/` — a Claude Code mod (session pane) that observes each plugin's MCP tool results and draws
   them; `hooks/session-pane/` holds `model.ts` (pure state), `view.ts` (pure tree) and `register.ts` (the only mods
   API user). `scripts/build-plugins.mjs` copies `hooks/` into each plugin (tests excluded) and writes its
-  `config.ts`; never edit `plugins/*/hooks/`. Not compiled by `tsc`, not in `runtime.tgz`, invisible to Codex.
+  `config.ts`; never edit `plugins/*/hooks/`. Not compiled by `tsc`, not in the npm package, invisible to Codex.
   Tests: `npm run test:mods` (needs the `claude` CLI, outside `npm test`).
-- One root `package.json` and lockfile own all dependencies and all CLI binaries. `scripts/build-plugins.mjs`
-  packages compiled runtime plus the root manifest/lockfile into the same archive for all plugins.
-  `scripts/plugin-launcher.mjs` is copied into each plugin and caches the installed runtime by archive hash.
+- One root `package.json` and lockfile own all dependencies and all CLI binaries; the plugins hold no runtime
+  code. `npm run test:plugins` (`scripts/smoke-plugins.mjs`) packs the package, checks its file list, and starts
+  each plugin's real `npx` command with the packed tarball in place of the registry version.
   Never add per-plugin package manifests, symlinks or parent-directory runtime imports.
 - Docs: see "Documentation" below for the doc set, the owner of each topic and the writing rules.
 
@@ -385,7 +394,7 @@ and read the code for those.
 - `src/computer/adapter.ts` implements `ComputerAdapter` using pinned xa11y (`@crowecawcaw/xa11y` 0.15.0). Native import is lazy; use the CommonJS default export (Node does not synthesize all named exports). `captureTree` (unit-tested with fake nodes) skips control parts (text, groups, images, table cells) inside a candidate, names unnamed candidates by their inner text, drops the single-window/application context and shortens long values; `click` inside a `web_area` is a pointer click, elsewhere the accessibility press when the element offers one (else a pointer click).
 - `src/computer/spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (ten serialized MCP tools in all), and sequential batch replay, on top of `src/native/`. Desktop specs have `app`, not `url`.
 - `src/computer/planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `src/computer/cli.ts`. Change it only when `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
-- `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates all plugin runtime archives via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
+- `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates the generated plugin files via `scripts/build-plugins.mjs`; never edit generated files directly. The root package and lockfile are the only dependency sources.
 - Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.mdx` and the plugin's `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
 - `npm run test:computer:mac` is an opt-in native smoke against a disposable Cocoa fixture (Accessibility/Screen Recording permissions required); regular `npm test` uses injected desktop adapters and no model keys. Windows/Linux native parity requires testing on those platforms.
 

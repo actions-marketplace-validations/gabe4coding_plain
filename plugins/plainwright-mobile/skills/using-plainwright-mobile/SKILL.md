@@ -172,7 +172,7 @@ steps:
   - expect: "The preview contains the test message"
 ```
 
-Run `node <plugin-root>/bin/launch.mjs <spec.yaml>` or `plainwright-mobile <spec.yaml>`.
+Run `npx -y -p plainwright@1.0.0 plainwright-mobile <spec.yaml>` (the MCP server's package version).
 Files run sequentially. On iOS use `platform: ios` and its UDID/bundle ID. Equivalent flows can
 share steps, but verify accessibility and navigation on each platform. Optional hooks use the
 shared isolated setup/teardown contract, with setup before opening and cleanup on failure.
@@ -181,7 +181,7 @@ runs; prepare starting state in explicit steps or hooks.
 
 For YAML suites, add `tags: [smoke]` and share steps with
 `include: ./flows/login.yaml` (a steps-only file; placeholders use root env/hooks).
-Keep flows outside spec input globs. Run `node <plugin-root>/bin/launch.mjs validate spec.yaml`
+Keep flows outside spec input globs. Run `npx -y -p plainwright@1.0.0 plainwright-mobile validate spec.yaml`
 before replay; missing secrets are warnings and no session/model key is needed.
 For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plainwright-results`.
 Commit the pick cache (`*.picks.json` next to specs and flows) and run CI with `--picks read`.

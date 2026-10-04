@@ -1,0 +1,80 @@
+name: Publish
+
+# A release is a merged pull request that bumps the version in package.json. On each push to main, this workflow
+# publishes that version to npm when the registry does not have it yet, then tags the commit v<version>. The
+# plugins pin the same version (scripts/build-plugins.mjs), so they start working once the publish is done.
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write  # push the v<version> tag
+  id-token: write  # npm trusted publishing (OIDC) and provenance
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - name: Check the version
+        id: version
+        shell: bash
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if npm view "$name@$version" version --json >/dev/null 2>&1; then
+            echo "$name@$version is already on npm: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.publish == 'true'
+        run: npm ci
+      - if: steps.version.outputs.publish == 'true'
+        run: npx playwright install --with-deps chromium
+      # Publishing cannot be undone: run the whole key-free gate again on the exact commit.
+      - if: steps.version.outputs.publish == 'true'
+        run: npm run verify
+      - name: Check generated plugin files
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        run: |
+          changed="$(git status --porcelain -- plugins)"
+          if [[ -n "$changed" ]]; then
+            echo 'Plugin files do not pin the package.json version. Run npm run build and commit plugins/.' >&2
+            echo "$changed" >&2
+            exit 1
+          fi
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships npm 10.
+      - if: steps.version.outputs.publish == 'true'
+        run: npm install --global npm@^11.5.1
+      # npm uses OIDC when a trusted publisher is set for this workflow on npmjs.com, else the NPM_TOKEN secret
+      # (needed once, for the first publish, before the package exists to set the trusted publisher on).
+      - name: Publish to npm
+        if: steps.version.outputs.publish == 'true'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Tag the release
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          TAG: v${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "plainwright $TAG"
+          git push origin "$TAG"
