@@ -190,6 +190,57 @@ test('real MCP protocol records successful placeholder steps, saves replayable Y
     assert.ok((await client.callTool({ name: 'snapshot', arguments: {} })).isError);
   } finally { await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); }
 });
+test('save writes a value typed into a secure text field as ${env.password}, and the saved spec replays it from the env', async () => {
+  class SecureAdapter extends FakeAdapter {
+    secureField = false;
+    secret() { return this.secureField; }
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'computer-secret-'));
+  const adapter = new SecureAdapter();
+  const { server, close } = createComputerServer(adapter, 100, ai);
+  const client = new Client({ name: 'test', version: '1' });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(a); await client.connect(b);
+  async function call(name: string, args: Record<string, unknown> = {}) {
+    const r = await client.callTool({ name, arguments: args });
+    assert.ok(!r.isError, JSON.stringify(r));
+    return r.structuredContent as Record<string, any>;
+  }
+  async function fill(target: string, value: string, secure: boolean) {
+    adapter.secureField = secure;
+    await call('step', { step: { fill: { target, value } } });
+  }
+  const saved = { PASSWORD: process.env.PASSWORD, PASSWORD_2: process.env.PASSWORD_2 };
+  try {
+    await call('open', { app: 'Fixture', activate: false });
+    await fill('Password', 'hunter2', true);
+    await fill('Confirm password', 'hunter2', false); // not a secure field, but the value was a password
+    await fill('Message', 'Hello', false);
+    await fill('New password', 'correct horse', true);
+    const path = join(dir, 'secret.yaml');
+    const result = await call('save', { path });
+    assert.deepEqual(result.env, { password: '$PASSWORD', password2: '$PASSWORD_2' });
+    const yaml = readFileSync(path, 'utf8');
+    assert.doesNotMatch(yaml, /hunter2|correct horse/);
+    assert.deepEqual(loadComputerSpec(path, { onMissingEnv: () => {} }).steps.map((step) => step.kind === 'fill' && step.value),
+      ['${env.password}', '${env.password}', 'Hello', '${env.password2}']);
+
+    process.env.PASSWORD = 'replayed-1'; process.env.PASSWORD_2 = 'replayed-2';
+    const replay = new FakeAdapter();
+    assert.equal((await runComputerSpec(loadComputerSpec(path), new ComputerSession(replay, 100, ai))).status, 'pass');
+    assert.deepEqual(replay.log.filter((e) => Array.isArray(e) && e[0] === 'fill').map((e) => (e as string[])[2]),
+      ['replayed-1', 'replayed-1', 'Hello', 'replayed-2']);
+
+    // A new recording forgets the passwords of the last one.
+    await call('open', { app: 'Fixture', activate: false });
+    await fill('Message', 'hunter2', false);
+    assert.equal((await call('save', { path })).env, undefined);
+    assert.match(readFileSync(path, 'utf8'), /hunter2/);
+  } finally {
+    for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true });
+  }
+});
 test('a window that appears after the previous step is waited for, not reported as no candidates', async () => {
   class LateWindow extends FakeAdapter {
     empty = 2;

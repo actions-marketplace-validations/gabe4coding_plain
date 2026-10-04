@@ -26,7 +26,10 @@ const DESCRIPTIONS = {
   screenshot: 'Capture the device screen as a PNG for inspection. Screenshot pixels do not feed Jev targeting.',
   save: 'Write successful recorded steps as a replayable mobile YAML spec with platform, device and app. Preserves hook placeholders ' +
     'and makes hooks path relative to the saved file. `path` is relative to the server\'s working directory; an existing ' +
-    'file is overwritten without warning. Errors when no step has passed yet.',
+    'file is overwritten without warning. Errors when no step has passed yet. A value typed into a password field ' +
+    '(iOS secure text field, Android password="true") is never written: the step gets ${env.password} and the spec an ' +
+    '`env` block, {password: $PASSWORD} (password2 and $PASSWORD_2 for a second value); the result lists that block. ' +
+    'Set the variables before replay.',
   close: 'Run teardown and delete the Appium session. Preserves app data; does not uninstall the app.',
 };
 

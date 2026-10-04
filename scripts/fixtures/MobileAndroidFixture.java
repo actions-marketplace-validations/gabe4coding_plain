@@ -2,6 +2,7 @@ package dev.plain.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -64,6 +65,11 @@ public class MobileAndroidFixture extends Activity {
             choice.setOnClickListener(view -> chosen.setText("Chosen: " + name));
             choices.addView(choice, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         }
+        EditText password = new EditText(this);
+        password.setContentDescription("Password");
+        password.setHint("Password");
+        password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        content.addView(password);
         for (int i = 1; i <= 25; i++) {
             TextView row = new TextView(this);
             row.setText("Fixture row " + i);

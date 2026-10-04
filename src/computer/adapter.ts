@@ -34,6 +34,8 @@ type AccessibleNode = Pick<Element, 'role' | 'name' | 'value' | 'visible' | 'ena
 export const DESKTOP_COORDINATES = 'desktop screen coordinates';
 
 const TEXT_ROLE = /^(static_text|text)$/;
+/** macOS: an NSSecureTextField is a text field with this subrole. */
+const SECURE_SUBROLE = 'AXSecureTextField';
 /** Parts of a control, not controls of their own: inside a candidate they are no candidates (a row's cells too). */
 const PART_ROLE = /^(static_text|text|group|image|generic|table_cell|cell)$/;
 /** A candidate names only the start of a long value (an editor's whole file); the snapshot keeps all of it. */
@@ -224,6 +226,10 @@ export class Xa11yAdapter implements ComputerAdapter<Element> {
     if (kind === 'rightclick') return input.rightClick(element);
     // A wheel scroll: scrollIntoView does nothing on macOS.
     return input.scroll(element, 0, Number(value ?? 3));
+  }
+
+  secret(element: Element) {
+    return element.raw.ax_subrole === SECURE_SUBROLE;
   }
 
   async press(key: string) {

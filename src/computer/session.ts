@@ -52,6 +52,7 @@ export class ComputerSession<T = unknown> extends NativeSession<T, ComputerKind,
       : step.kind === 'scroll' ? String(step.target.startsWith('up:') ? -SCROLL_LINES : SCROLL_LINES)
         : undefined;
     const action = step.kind as ComputerAction;
+    this.noteFill(step, element);
     await this.timed('act', () => this.adapter.act(action, element, value));
     return { step: stepLabel, status: 'pass', detail: resolved.detail };
   }
