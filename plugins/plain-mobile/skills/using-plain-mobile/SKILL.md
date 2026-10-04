@@ -154,6 +154,11 @@ Use `${hooks.*}` from `open` setup for dynamic data, especially credentials. MCP
 `${env.*}` namespace. `save {path, name?}` writes only passing steps and preserves placeholders
 in target settings and steps; hooks paths become relative to the saved file. Reads and
 failed/inconclusive/skipped steps are omitted. A new open clears the recording.
+A value typed into a password field (iOS `XCUIElementTypeSecureTextField`, Android
+`password="true"`) is never saved: the step gets `${env.password}`, the spec
+`env: {password: $PASSWORD}` (`password2`/`$PASSWORD_2` for a second value; a later fill of the
+same value gets the same placeholder), and the `save` result lists that block. Set the variables
+before replay.
 
 For file replay, add an `env` block with `$VAR` references:
 

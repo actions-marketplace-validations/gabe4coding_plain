@@ -63,12 +63,20 @@
     self.chosen = [[UILabel alloc] initWithFrame:CGRectMake(24, 424, width, 48)];
     self.chosen.text = @"Chosen: none";
     [scroll addSubview:self.chosen];
+    UITextField *password = [[UITextField alloc] initWithFrame:CGRectMake(24, 480, width, 48)];
+    password.borderStyle = UITextBorderStyleRoundedRect;
+    password.secureTextEntry = YES;
+    password.accessibilityLabel = @"Password";
+    password.placeholder = @"Password";
+    password.returnKeyType = UIReturnKeyDone;
+    password.delegate = self;
+    [scroll addSubview:password];
     for (int i = 1; i <= 25; i++) {
-        UILabel *row = [[UILabel alloc] initWithFrame:CGRectMake(24, 480 + (i - 1) * 48, width, 48)];
+        UILabel *row = [[UILabel alloc] initWithFrame:CGRectMake(24, 536 + (i - 1) * 48, width, 48)];
         row.text = [NSString stringWithFormat:@"Fixture row %d", i];
         [scroll addSubview:row];
     }
-    scroll.contentSize = CGSizeMake(self.view.bounds.size.width, 480 + 25 * 48);
+    scroll.contentSize = CGSizeMake(self.view.bounds.size.width, 536 + 25 * 48);
 }
 - (void)choose:(UIButton *)sender {
     self.chosen.text = [@"Chosen: " stringByAppendingString:sender.currentTitle];

@@ -15,12 +15,15 @@ int main(void) {
   @autoreleasepool {
     NSApplication *app = NSApplication.sharedApplication;
     [app setActivationPolicy:NSApplicationActivationPolicyRegular];
-    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(200, 200, 420, 260)
+    NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(200, 200, 420, 300)
       styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:NO];
     window.title = @"Plain Computer Fixture";
     NSTextField *input = [[NSTextField alloc] initWithFrame:NSMakeRect(30, 160, 350, 28)];
     input.placeholderString = @"Message";
     input.accessibilityLabel = @"Message";
+    NSSecureTextField *password = [[NSSecureTextField alloc] initWithFrame:NSMakeRect(30, 205, 350, 28)];
+    password.placeholderString = @"Password";
+    password.accessibilityLabel = @"Password";
     NSTextField *output = [NSTextField labelWithString:@"Ready"];
     output.frame = NSMakeRect(30, 45, 350, 28);
     output.accessibilityLabel = @"Preview output";
@@ -35,7 +38,7 @@ int main(void) {
     alpha.frame = NSMakeRect(220, 75, 100, 32);
     NSButton *beta = [NSButton buttonWithTitle:@"Beta" target:handler action:@selector(choose:)];
     beta.frame = NSMakeRect(30, 75, 100, 32);
-    for (NSView *view in @[input, output, check, button, alpha, beta]) [window.contentView addSubview:view];
+    for (NSView *view in @[password, input, output, check, button, alpha, beta]) [window.contentView addSubview:view];
     [window makeKeyAndOrderFront:nil];
     [app activateIgnoringOtherApps:YES];
     [app run];

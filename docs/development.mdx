@@ -252,7 +252,8 @@ the Accessibility and Screen Recording permissions. Without Screen Recording, ad
 
 The test injects deterministic Jev decisions and needs no API key. It checks the real application state after
 attach, tree capture, fill, click, check and uncheck, a key press, hover and a PNG screenshot. A second `check` on
-a checked box must not change it.
+a checked box must not change it. A fill in the secure Password field must be found as secure and must not show
+in the tree.
 Windows and Linux need the same kind of run on their own hosts before you claim native parity.
 
 ### Mobile connection
@@ -280,7 +281,8 @@ This test does not check taps, input or gestures.
 
 This test builds a small offline Android app, installs it, and does real text entry, check and uncheck, tap, long
 press, scroll, swipe and screenshots. It records a flow through MCP, restarts the app and runs the saved spec. Then
-it removes the app. If the fixture app is already installed, the test stops and does not replace it.
+it removes the app. The saved spec must have `${env.password}` for the Password field, and the replay reads the
+value from `$PASSWORD`. If the fixture app is already installed, the test stops and does not replace it.
 
 Prepare the host:
 
@@ -307,8 +309,8 @@ This test checks native Android controls. It does not prove React Native or iOS 
 ### iOS Simulator fixture
 
 This test builds an offline UIKit app with the Xcode simulator SDK and installs it. It records native actions
-through MCP, restarts the app and runs the saved spec. Then it removes the app. If the fixture app is already
-installed, the test stops. You do not need an Apple developer account.
+through MCP, restarts the app and runs the saved spec. Then it removes the app. As on Android, the Password field
+must be saved as `${env.password}`. If the fixture app is already installed, the test stops. You do not need an Apple developer account.
 
 Prepare the host:
 

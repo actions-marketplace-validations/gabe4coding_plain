@@ -203,6 +203,13 @@ for (const platform of ['android', 'ios'] as const) {
       assert.deepEqual([requests.find(r => r.path.endsWith('/element'))?.body.using, requests.find(r => r.path.endsWith('/element'))?.body.value],
         platform === 'ios' ? ['-ios class chain', 'XCUIElementTypeTextField[1]'] : ['xpath', '/*[1]/*[1]/*[2]']);
       assert.ok(requests.some(r => r.path.endsWith('/value') && r.body.text === 'hello'));
+      // A secure text field: XCUIElementTypeSecureTextField on iOS, password="true" on Android.
+      assert.equal(adapter.secret(await target('fill')), false);
+      source = platform === 'ios'
+        ? ios.replace('<XCUIElementTypeTextField type="XCUIElementTypeTextField"', '<XCUIElementTypeSecureTextField type="XCUIElementTypeSecureTextField"')
+        : android.replace('<android.widget.EditText content-desc="Email"', '<android.widget.EditText password="true" content-desc="Email"');
+      assert.equal(adapter.secret(await target('fill')), true);
+      source = platform === 'ios' ? ios : android;
       assert.ok(requests.some(r => r.path.endsWith('/clear')));
       const sourceReads = () => requests.filter(r => r.body.args?.[0]?.excludedAttributes?.startsWith('visible')).length;
       if (platform === 'ios') {

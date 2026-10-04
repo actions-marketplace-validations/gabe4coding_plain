@@ -102,7 +102,11 @@ named elements). Specs classify their known prompts in one request; tree order i
 `open` may receive a `hooks` path. Setup runs before attachment and exposes `${hooks.*}` names;
 use those placeholders, especially for credentials. `save` writes only passing steps, preserving
 placeholders and a relative hooks path. Failed/inconclusive/skipped attempts are omitted. No
-`${env.*}` namespace exists in MCP; add an `env` block to a saved YAML spec for batch replay:
+`${env.*}` namespace exists in MCP; add an `env` block to a saved YAML spec for batch replay.
+A value typed into a macOS secure text field is never saved: the step gets `${env.password}`, the
+spec `env: {password: $PASSWORD}` (`password2`/`$PASSWORD_2` for a second value; a later fill of
+the same value gets the same placeholder), and the `save` result lists that block. Set the
+variables before replay. On Windows and Linux, passwords are saved as typed: use `${hooks.*}`.
 
 ```yaml
 name: Desktop preview
