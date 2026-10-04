@@ -27,8 +27,9 @@ const PICK_CACHE_ACCEPT_AT = 0.9;
  * 3: the list hash also covers each element's UI state (checked, selected, pressed, expanded, disabled).
  * 4: a labelable control's description carries its `<label>` text (`label="…"`).
  * 5: spatial candidates and reference elements carry rendered geometry in the list hash.
+ * 6: a filled password field's value is a fixed mask (`PASSWORD_MASK` in src/browser/page.ts), never the value.
  */
-export const DESC_FORMAT = 5;
+export const DESC_FORMAT = 6;
 
 export const PICKS_MODES = ['on', 'read', 'off'] as const;
 export type PicksMode = typeof PICKS_MODES[number];
