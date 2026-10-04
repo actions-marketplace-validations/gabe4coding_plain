@@ -56,8 +56,10 @@ The rules below apply to both.
     to a heading outside the fill candidates. Reference captures and spatial claims collect at most 254 elements.
     If claim layout is truncated, scope with `within`.
     Bounds do not prove color or image appearance. `snapshot` still returns the accessibility tree.
-    Specs and MCP batches classify their known targets and claims together in one request. Repeated prompt
-    groups reuse the classification; new interactive prompts need another request.
+    Specs and MCP batches classify their known targets and claims together in one request. Plain English
+    prompts without a position word are semantic, and a lowercase relation word ("left of", "below") is
+    spatial, without a request. Repeated prompt groups reuse the classification; new interactive prompts
+    need another request.
     A request over the model limit splits into smaller requests.
   - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plain/*.json`; the path

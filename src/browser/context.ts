@@ -19,6 +19,8 @@ export interface StepContext {
   picks?: PickAttempt;
   /** The step running now: its source and kind key the pick cache. */
   step?: Step;
+  /** The interpolated steps after it in a spec run or an MCP batch: an expect asks the next expects' claims too. */
+  upcoming?: Step[];
 }
 
 /** Adds the time `fn` takes to ctx.ms[phase]. */

@@ -16,12 +16,20 @@ function sessionRoutes(ctx: StepContext): EvidenceRoutes {
   return cached;
 }
 
+/** `scroll: bottom`, `top`, and the ways an agent writes them ("the bottom of the page", "page end"). */
+export function scrollEdge(target: string): 'top' | 'bottom' | null {
+  const match = /^(?:the )?(?:page )?(top|bottom|end)(?: of the page)?$/i.exec(target.trim());
+  if (!match) return null;
+  return match[1].toLowerCase() === 'top' ? 'top' : 'bottom';
+}
+
 /**
  * Queues the steps' descriptions. No model call until a step needs it. Pass interpolated steps: the route is about
- * the words Jev sees.
+ * the words Jev sees. A scroll to the page's edge describes no element, so it has no route.
  */
 export function prepareEvidence(ctx: StepContext, steps: Step[]): void {
-  prepareRoutes(sessionRoutes(ctx), steps.flatMap(promptGroups));
+  prepareRoutes(sessionRoutes(ctx), steps.filter((step) => !(step.kind === 'scroll' && scrollEdge(step.target)))
+    .flatMap(promptGroups));
 }
 
 export function needsLayout(ctx: StepContext, prompts: string[]): Promise<boolean> {
