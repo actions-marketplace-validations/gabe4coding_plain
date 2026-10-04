@@ -4,6 +4,7 @@ import type { Step } from '../core/spec.js';
 import { evidenceForGroups } from '../jev/evidence.js';
 import { timed, type StepContext } from './context.js';
 
+/** One route cache per session: a prompt group is classified once per spec run or MCP session. */
 const routes = new WeakMap<StepContext, EvidenceRoutes>();
 
 function sessionRoutes(ctx: StepContext): EvidenceRoutes {
@@ -15,7 +16,10 @@ function sessionRoutes(ctx: StepContext): EvidenceRoutes {
   return cached;
 }
 
-/** Queues the steps' descriptions. No model call until a step needs it. */
+/**
+ * Queues the steps' descriptions. No model call until a step needs it. Pass interpolated steps: the route is about
+ * the words Jev sees.
+ */
 export function prepareEvidence(ctx: StepContext, steps: Step[]): void {
   prepareRoutes(sessionRoutes(ctx), steps.flatMap(promptGroups));
 }

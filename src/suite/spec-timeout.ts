@@ -3,7 +3,11 @@ import type { StepResult } from '../core/results.js';
 /** setTimeout's largest delay. */
 const MAX_TIMER_MS = 2_147_483_647;
 
-/** One budget for a whole attempt, opening, setup and observers included. */
+/**
+ * One budget for a whole attempt, opening, setup and observers included; only steps are bounded by what is left.
+ * The expiry wraps the step's own handling, so an `optional` step cannot turn it into `skipped`. Teardown and
+ * close run outside it, so cleanup finishes after the budget is spent.
+ */
 export function specDeadline(timeout?: number, started = performance.now()) {
   const end = timeout === undefined ? undefined : started + timeout;
   return {
