@@ -38,6 +38,7 @@ export async function judgeRegion(ctx, region, claim, skip) {
 }
 /** One judgment of the claims, against the page or the region `within` names (`detail` when Jev finds no region). */
 export async function judgeClaims(ctx, claims, within) {
+    // The claims and the region are queued together, so one request routes both (MCP `ask` is not a step).
     prepareEvidence(ctx, [{ kind: StepKind.expect, expectations: claims, within }]);
     if (within) {
         const region = await resolveOne(ctx, 'region', within);

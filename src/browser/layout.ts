@@ -5,6 +5,7 @@ import { frameLabel } from './frames.js';
 
 const MAX_LAYOUT_TEXT = 120;
 const MAX_LAYOUT_NODES = 10_000;
+/** An iframe capture that fails or outlasts this (detached, navigating) becomes one "unavailable" line. */
 const IFRAME_LAYOUT_MS = 2_000;
 
 function edges(box: { x: number; y: number; width: number; height: number }): NonNullable<Candidate['bounds']> {
@@ -61,7 +62,11 @@ export async function spatialCandidates(page: Page, candidates: Candidate[]): Pr
   return observed.filter((candidate): candidate is Candidate => candidate !== null);
 }
 
-/** Returns actual elements: no DOM attributes are written, and handles retain identity during a layout change. */
+/**
+ * Returns actual elements: no DOM attributes are written, and handles retain identity during a layout change.
+ * Walks the rendered tree: a slot's assigned elements, a shadow root's children in place of the host's light
+ * children, so `visited` lists each slotted element once.
+ */
 function layoutElements(root: Element, limits: { elements: number; nodes: number }): { elements: Element[]; truncated: boolean } {
   const found: Element[] = [];
   for (let ancestor: Element | null = root; ancestor;) {
@@ -93,6 +98,11 @@ function layoutElements(root: Element, limits: { elements: number; nodes: number
   return { elements: found, truncated: false };
 }
 
+/**
+ * `desc` keeps native values and the accessible name apart from the rendered text. Transparent descendants count in a
+ * content-derived name but not in the rendered text; `name` states both when they differ, so a name never passes
+ * for visible text. A collapsed select shows only its displayed selection and value.
+ */
 async function describeElement(element: ElementHandle<Element>, maxText: number) {
   return element.evaluate((el, max) => {
     const role = el.getAttribute('role');
@@ -103,6 +113,7 @@ async function describeElement(element: ElementHandle<Element>, maxText: number)
     for (const label of (el as HTMLInputElement).labels ?? []) {
       const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        // A wrapping label's name excludes the control's own subtree.
         if (!el.contains(node)) labelParts.push(node.textContent ?? '');
       }
     }
@@ -192,6 +203,7 @@ async function captureLayout(root: Locator, label: string, remaining: number, ti
 
 /** Bounded spatial evidence for a page or exactly one region, including its open shadow roots. */
 export async function layoutSnapshot(page: Page, within?: Locator): Promise<string> {
+  // A region's frame goes through the same embedding visibility check as a whole page's frames.
   let regionFrame: Frame | null | undefined;
   if (within) {
     const handles = await within.elementHandles();

@@ -1,5 +1,5 @@
-// Checks the user docs against the rules in CLAUDE.md "Documentation": each file compiles as MDX 3 (GFM +
-// frontmatter), stays GitHub-safe, follows the mechanical ASD-STE100 rules, and every relative link and heading
+// Checks the user docs against the rules in .claude/skills/writing-docs/SKILL.md: each file compiles as MDX 3
+// (GFM + frontmatter), stays GitHub-safe, follows the mechanical ASD-STE100 rules, and every relative link and heading
 // anchor resolves. Links are also checked in the files that point into the docs (benchmarks, skills, CLAUDE.md).
 //   node scripts/check-docs.mjs            # all user docs
 //   node scripts/check-docs.mjs docs/x.mdx # only these files (links into them are not re-scanned)
@@ -129,7 +129,7 @@ for (const file of args.length ? docs : [...docs, ...linkOnly]) checkLinks(file)
 
 if (problems.length) {
   console.error(problems.join('\n'));
-  console.error(`\n${problems.length} problem(s). The rules are in CLAUDE.md, section "Documentation".`);
+  console.error(`\n${problems.length} problem(s). The rules are in .claude/skills/writing-docs/SKILL.md.`);
   process.exit(1);
 }
 console.log(`docs ok: ${docs.length} file(s)`);

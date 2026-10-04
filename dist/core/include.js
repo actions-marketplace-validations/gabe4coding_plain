@@ -14,7 +14,11 @@ export function splitSource(step) {
     const { [SOURCE]: source, ...rest } = step;
     return { step: rest, source: source };
 }
-/** Replaces each `include: <file>` step with the steps of that file, recursively, before validation. */
+/**
+ * Replaces each `include: <file>` step with the steps of that file, recursively, before validation. A path is
+ * relative to the file that names it. A flow holds only `steps:`, so its placeholders resolve against the root
+ * spec's env and hooks data.
+ */
 export function expandIncludes(rawSteps, file) {
     const root = resolve(file);
     const folder = dirname(root);

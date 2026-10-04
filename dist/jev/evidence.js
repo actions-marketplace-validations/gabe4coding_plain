@@ -4,7 +4,10 @@ export async function evidenceFor(prompts, request = ask) {
     const { spatial, tokens } = await evidenceForGroups([prompts], request);
     return { spatial: spatial[0], tokens };
 }
-/** Independent routes for known prompt groups, answered in one request. */
+/**
+ * Independent routes for known prompt groups, answered in one request (one Choice per group). A token-limit
+ * rejection bisects the groups: the answers keep group order, and `used` sees each request's tokens.
+ */
 export async function evidenceForGroups(groups, request = ask, used) {
     if (!groups.length)
         return { spatial: [], tokens: 0 };

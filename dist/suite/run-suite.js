@@ -9,7 +9,9 @@ import { schedule, checkSchedule } from './schedule.js';
 import { writeLastRun } from './last-run.js';
 /**
  * Loads every spec, selects, then runs the selection through the scheduler and the observers (artifacts,
- * reporters). Results come out in input order; a spec that does not load is always reported. `--list` only lists.
+ * reporters), and records the last run. Results come out in input order; a spec that does not load is always
+ * reported. `--list` only lists, before any observer is built or a key is needed, and records nothing.
+ * All three engines run through it.
  */
 export async function runSuite(engine, opts, services = { provider, warmUp }) {
     const start = Date.now();
