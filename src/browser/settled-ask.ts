@@ -10,6 +10,8 @@ interface SettledQuestion<S, R> {
   discard: (result: R) => void;
   /** No question is needed for this state: the caller already knows the answer. */
   skip?: (state: S) => boolean;
+  /** Geometry can change through CSS without a DOM mutation. */
+  reobserve?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ export async function settledAsk<S, R>(ctx: StepContext, question: SettledQuesti
 
   let state = first;
   // The mark covers the main document only: look again when iframes exist, or when a popup became the active page.
-  const mayHaveChanged = ctx.page !== page || !unchangedSince(before, settled) || page.frames().length > 1;
+  const mayHaveChanged = question.reobserve || ctx.page !== page || !unchangedSince(before, settled) || page.frames().length > 1;
   if (mayHaveChanged) {
     const again = await observe();
     if (!same(first, again)) state = again;

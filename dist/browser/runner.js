@@ -7,6 +7,7 @@ import { withCacheDump } from '../core/pick-cache.js';
 import { observerCalls } from '../suite/observe.js';
 import { specDeadline } from '../suite/spec-timeout.js';
 import { runStepSafely } from './steps.js';
+import { prepareEvidence } from './evidence.js';
 import { openSession } from './session.js';
 /** A capture can hang on a page that a step cut by the spec timeout still holds. */
 const SCREENSHOT_TIMEOUT_MS = 10_000;
@@ -66,6 +67,7 @@ export async function runSpec(spec, opts, observer, info) {
             const interpolated = interpolate({ url: spec.url, steps: spec.steps }, { env: spec.env ?? {}, hooks: data }, spec.name);
             session.ctx.spec = { ...spec, url: interpolated.url };
             runSteps = interpolated.steps;
+            prepareEvidence(session.ctx, runSteps);
         }
         catch (error) {
             overall = 'error';

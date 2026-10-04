@@ -334,7 +334,9 @@ test('MCP steps report what they changed, picks see the open goal, read copies s
     assert.equal(read.found, true);
     assert.equal(read.answer, '  - textfield "To"');
     assert.equal(read.jevTokens, 9);
-    assert.equal((asked[0] as { question: string }).question, 'the recipient field');
+    // The tap's target was routed first (src/core/evidence.ts); press and read need no route.
+    assert.deepEqual(asked[0], { groups: [['the Compose button']] });
+    assert.equal((asked[1] as { question: string }).question, 'the recipient field');
     const path = join(dir, 'saved.yaml'); await call('save', { path });
     assert.equal(loadMobileSpec(path).goal, 'Send a message to Ada');
   } finally { await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); }

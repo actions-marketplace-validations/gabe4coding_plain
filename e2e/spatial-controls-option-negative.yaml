@@ -1,0 +1,8 @@
+name: An unselected dropdown option is not displayed spatial text
+tags: [expect-fail]
+url: ${env.site}/spatial-controls
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-controls
+  - expect: the Plan dropdown displays Annual to the left of the Continue button

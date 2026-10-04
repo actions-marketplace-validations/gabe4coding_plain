@@ -1,7 +1,7 @@
 // Native iOS validation with a disposable offline app. Requires a booted simulator and Appium.
 // --live-jev additionally verifies real natural-language authoring, assertions and recorded replay.
 import assert from 'node:assert/strict';
-import { installMobileFixture, fixtureApp } from './mobile-fixture.mjs';
+import { installMobileFixture, fixtureApp, withSpatial, checkSpatial } from './mobile-fixture.mjs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,11 +44,11 @@ const deterministic = {
   }),
   judge: async (state, claims) => ({ probabilities: claims.map(claim => {
     if (claim === 'The preview says iOS adapter works') return state.aria.includes(`Preview: ${message}`) ? 1 : 0;
-    if (claim === 'Details are visible') return state.aria.includes('Details are visible') ? 1 : 0;
+    if (claim === 'The details label says "Details are visible"') return state.aria.includes('Details are visible') ? 1 : 0;
     throw new Error(`Unknown fixture claim: ${claim}`);
   }), tokens: 1 }),
 };
-const ai = live ? intelligence : deterministic;
+const ai = live ? intelligence : withSpatial(deterministic);
 const { server, close } = createMobileServer(adapter, 240000, ai);
 const client = new Client({ name: 'native-ios-smoke', version: '1' });
 const [a, b] = InMemoryTransport.createLinkedPair();
@@ -69,7 +69,8 @@ try {
   await server.connect(a); await client.connect(b);
   await call('open', { platform: 'ios', device, app, capabilities: { 'appium:wdaLaunchTimeout': 180000 } });
   await step({ fill: { target: 'the Message text field', value: message } });
-  // XCUITest cannot generically dismiss every iPhone keyboard; use the app's explicit control.
+  // XCUITest cannot generically dismiss every iPhone keyboard; use the app's explicit control. Its return key is
+  // labeled "done" (iOS 27 draws it as a checkmark).
   await step({ tap: 'the Done keyboard button' });
   assert.ok((await call('snapshot')).aria.includes(`value="${message}"`));
   await step({ check: 'the Enable preview switch' });
@@ -83,7 +84,8 @@ try {
   await step({ expect: 'The preview says iOS adapter works' });
   await step({ longpress: 'the Hold for details button' });
   assert.ok((await call('snapshot')).aria.includes('Details are visible'));
-  await step({ expect: 'Details are visible' });
+  await step({ expect: 'The details label says "Details are visible"' });
+  await checkSpatial(step, call);
   writeFileSync(join(output, 'preview.png'), await adapter.screenshot());
   await step({ scroll: 'down: the Fixture results list' });
   await step({ swipe: 'down' });

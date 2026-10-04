@@ -72,10 +72,10 @@ A claim is one fact about something that is visible when the condition is true.
   no longer visible`. It is hard to prove from a snapshot that something is not there.
 - **Use the names of the accessibility tree.** Write `a heading with the text "name: user1"`, not `a caption`.
   The tree shows roles such as heading, button, textbox and link.
-- **Use `within` for elements that have no role.** The tree does not show plain boxes. Two boxes with the
-  letters B and A become the text `B A`, so Jev cannot tell which box is first or on the left. Claim each
-  box with its own `within`. A pick has no layout either, so a region such as `the first box` can be wrong.
-  For such a box, use `css=`: `expect: { that: the letter "B" is shown, within: "css=#column-a" }`.
+- **Name a spatial relation explicitly.** Write `the button B is to the left of the button A`.
+  Targets and claims that need layout get rendered bounds in all engines. In the browser, plain boxes with text get bounds too.
+  `First` alone does not distinguish list order from visual order. Use `leftmost` or `topmost` for visual order.
+  If the layout is truncated, use `within` to scope a claim.
 - **Prove a state with an action.** To check that an input is enabled, `fill` it. Then claim that the page
   shows the typed value. Use a test value that has no words in common with the page, such as `hello`.
 - **Claim what is stable.** On a page with random text, claim the part that does not change: `a notification

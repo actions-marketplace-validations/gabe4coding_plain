@@ -125,7 +125,9 @@ button carries the previous screen's title ("the Summary button in the Step Coun
 bar", not "the Back button"). Segmented controls expose full names ("the Week segment", not "W").
 On inconclusive, the detail's top guesses show the tree's names: reuse the right one.
 
-iOS has no generic Back/Enter step: tap the visible navigation or keyboard control. `check`/
+iOS has no generic Back/Enter step: tap the visible navigation or keyboard control. On iOS, `fill`
+and a tap on a text field return once the keyboard is on screen (at most 3 s), so the next step can
+tap a key; the return key is often labeled "done" even when drawn as a checkmark. `check`/
 `uncheck` read boolean checked state and tap only when it differs; unknown/mixed states error.
 `fill` also selects iOS picker-wheel values without clearing the control. Inspect the native
 value/format first, then verify the resulting value; date/time formats depend on the app/locale.
@@ -136,6 +138,9 @@ Picks need confidence >= 0.5 (probability fallback). Claims pass at p >= 0.9, fa
 otherwise are inconclusive. On inconclusive, rephrase or split the claim. Captures cap at 1,016
 candidates, 5,000 nodes / 32 levels and 60,000 text characters. Use scoped reads when truncated.
 `wait` makes at most eight model calls; native/model requests can outlast the polling deadline.
+Use explicit spatial relations ("the left button of the pair", "A is above B"): targets and claims that
+need layout get bounds (Android pixels, iOS points) and measured neighbors (at most 254 named elements).
+Specs classify their known prompts in one request; tree order is not visual order.
 On iOS, steps (spec replay and MCP) pick action targets from a faster tree that also lists covered elements (confidence
 there runs lower); a rejected pick, or one confirmed covered, is picked again from the exact tree (`ms.retargeted`).
 
@@ -180,6 +185,7 @@ Keep flows outside spec input globs. Run `node <plugin-root>/bin/launch.mjs vali
 before replay; missing secrets are warnings and no session/model key is needed.
 For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plainwright-results`.
 Commit the pick cache (`*.picks.json` next to specs and flows) and run CI with `--picks read`.
+Spec runs store reusable picks only at confidence >= 0.9 (probability fallback). Marginal accepted picks ask Jev again next run.
 Runs stay sequential; screenshots are supported, browser traces are unavailable.
 `include` is expanded by the file loader, so it cannot be sent to MCP `step`.
 

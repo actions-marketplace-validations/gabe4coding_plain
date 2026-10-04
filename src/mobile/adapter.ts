@@ -1,5 +1,5 @@
 import type { Browser } from 'webdriverio';
-import type { NativeAdapter } from '../native/session.js';
+import type { CaptureOptions, NativeAdapter } from '../native/session.js';
 import { HiddenTargetError } from '../core/automation.js';
 import { MobileTargetSchema, type MobileTarget, type Direction } from './spec.js';
 import { parseMobileTree, findMobileNode, nodeIdentity, parseIdentity, mobileFrame, type MobileElement, type MobileKind, type MobileNode } from './tree.js';
@@ -30,6 +30,11 @@ const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry
 const NOT_ACTIONABLE = 'Mobile control is no longer visible/enabled';
 const ANDROID_KEY_CODES: Record<string, number> = { Back: 4, Home: 3, Enter: 66 };
 const DEFAULT_IDLE_TIMEOUT_MS = 10000;
+/** iOS controls that bring up the keyboard when tapped. */
+const IOS_TEXT_ENTRY = /^XCUIElementType(TextField|SecureTextField|TextView|SearchField)$/;
+/** The longest wait for the iOS keyboard to come on screen after typing or tapping a text control. */
+const KEYBOARD_MS = 3000;
+const KEYBOARD_POLL_MS = 100;
 export const DEFAULT_APPIUM_URL = 'http://127.0.0.1:4723';
 
 export function mobileCapabilities(target: MobileTarget): Record<string, unknown> & { platformName: string } {
@@ -137,18 +142,19 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
    * without XCUITest's `visible` attribute, most of its cost, and judges visibility by bounds. That view also
    * shows covered elements, so resolve() confirms the pick's own `visible` before acting, and a hidden pick is
    * targeted again from an exact capture. Claims and regions always see the exact tree, read without
-   * `accessible`, which only click candidates use.
+   * `accessible`, which only click candidates use. A spatial capture is exact: covered elements would be
+   * measured as visible references.
    */
-  async capture(kind: MobileKind, within?: MobileElement, { regionPick = false } = {}) {
+  async capture(kind: MobileKind, within?: MobileElement, { regionPick = false, spatial = false }: CaptureOptions = {}) {
     const driver = this.connectedDriver();
-    const fast = this.fastTargets && this.ios && (kind !== 'region' || regionPick) && !within;
+    const fast = this.fastTargets && this.ios && (kind !== 'region' || regionPick) && !within && !spatial;
     if (fast && !this.exactNext) {
       const source = await this.iosSource(driver, kind === 'click' ? 'visible' : 'visible,accessible');
       return this.frame(source, kind, undefined, true);
     }
     if (fast) this.exactNext = false;
     const source = this.ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource();
-    return this.frame(source, kind, within);
+    return this.frame(source, kind, within, false, spatial);
   }
 
   preferExact() { this.exactNext = true; }
@@ -160,7 +166,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
    * action. Jev works on it while capture() waits, and the answer is kept only if the settled tree is the same.
    * Null on iOS: XCUITest already waits inside the action, and a quick read there was never faster.
    */
-  async captureEarly(kind: MobileKind, within?: MobileElement) {
+  async captureEarly(kind: MobileKind, within?: MobileElement, { spatial = false }: CaptureOptions = {}) {
     if (this.target?.platform !== 'android') return null;
     const driver = this.connectedDriver();
     this.idleTimeout ??= Number((await driver.getSettings())?.waitForIdleTimeout) || DEFAULT_IDLE_TIMEOUT_MS;
@@ -171,14 +177,17 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     } finally {
       await driver.updateSettings({ waitForIdleTimeout: this.idleTimeout });
     }
-    return this.frame(source, kind, within);
+    return this.frame(source, kind, within, false, spatial);
   }
 
   private async iosSource(driver: MobileDriver, excludedAttributes: ExcludedAttributes) {
     return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
   }
 
-  private frame(source: string, kind: MobileKind, within?: MobileElement, boundsVisibility = false) {
+  /** Appium reports iOS frames in points and Android bounds in pixels. */
+  private get coordinates() { return this.ios ? 'iOS screen points' : 'Android screen pixels'; }
+
+  private frame(source: string, kind: MobileKind, within?: MobileElement, boundsVisibility = false, spatial = false) {
     const tree = parseMobileTree(source, { boundsVisibility });
     const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
     // A region picked from an approximate capture must show something in the exact tree. Not its own flag:
@@ -189,7 +198,8 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     }
     const state = { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app };
     // An approximate region pick lists containers only: covered views would double the nodes past one Jev request.
-    const frame = mobileFrame(roots, kind, state, this.generation, tree.truncated, { containersOnly: boundsVisibility && kind === 'region' });
+    const frame = mobileFrame(roots, kind, state, this.generation, tree.truncated,
+      { containersOnly: boundsVisibility && kind === 'region', ...(spatial ? { coordinates: this.coordinates } : {}) });
     if (!boundsVisibility) return frame;
     const elements = new Map([...frame.elements].map(([id, element]) => [id, { ...element, approximate: true }]));
     return { ...frame, elements, approximate: true };
@@ -268,6 +278,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
       // XCUITest sets picker wheels through the value endpoint: they cannot be cleared like text fields.
       if (!(this.ios && role === 'XCUIElementTypePickerWheel')) await driver.elementClear(id);
       await driver.elementSendKeys(id, value ?? '');
+      if (this.ios) await this.keyboardShown();
     } else if (kind === 'check' || kind === 'uncheck') {
       const state = String(await driver.getElementAttribute(id, this.ios ? 'value' : 'checked'));
       if (!['true', 'false', '1', '0'].includes(state)) throw new Error('Control does not expose a boolean checked state');
@@ -278,6 +289,25 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
       await driver.executeScript(`mobile: ${this.ios ? 'doubleTap' : 'doubleClickGesture'}`, [{ elementId: id }]);
     } else {
       await driver.elementClick(id);
+      if (this.ios && IOS_TEXT_ENTRY.test(role)) await this.keyboardShown();
+    }
+  }
+
+  /**
+   * iOS 27 keeps the keyboard below the screen, `visible="false"`, for up to about 1.5 s after typing or a tap on a
+   * text control has returned, and XCUITest does not wait for it. A capture in that time shows no keys, so the next
+   * step could not target the keyboard (its return key, for example). This waits until the keyboard is visible or
+   * absent (a hardware keyboard, a picker), at most KEYBOARD_MS. One lookup when there is nothing to wait for.
+   */
+  private async keyboardShown() {
+    const driver = this.connectedDriver();
+    const deadline = Date.now() + Math.min(KEYBOARD_MS, this.timeout);
+    for (;;) {
+      // The action already happened: a failed lookup ends the wait, and the next step meets the error if it lasts.
+      const found = await driver.findElement('-ios class chain', '**/XCUIElementTypeKeyboard')
+        .catch(() => ({})) as FoundElement & { error?: string };
+      if (!found[ELEMENT_KEY] || reportedVisible(found['attribute/visible']) !== false || Date.now() >= deadline) return;
+      await new Promise((resolve) => setTimeout(resolve, KEYBOARD_POLL_MS));
     }
   }
 

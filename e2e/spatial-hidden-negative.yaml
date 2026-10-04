@@ -1,0 +1,10 @@
+name: Hidden DOM text does not prove a spatial control name
+tags: [expect-fail]
+url: ${env.site}/spatial-values
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-values
+  - expect:
+      that: a button with visible text Hidden action is to the left of the button with visible text Visible action
+      within: the Action pair section

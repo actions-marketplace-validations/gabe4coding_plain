@@ -5,6 +5,8 @@ import type { PickRef } from '../core/pick-cache.js';
 import { MAX_CANDIDATES } from '../jev/pick.js';
 import { candidates, elementById, type CandidateKind } from './candidates.js';
 import { settledAsk } from './settled-ask.js';
+import { needsLayout } from './evidence.js';
+import { layoutSnapshot, spatialCandidates } from './layout.js';
 import { sleep, timed, type StepContext } from './context.js';
 
 /** How long a step waits for a page with no candidates yet (still redirecting after `open`) to show some. */
@@ -18,7 +20,7 @@ const NO_CANDIDATES_HINT: Partial<Record<CandidateKind, string>> = {
   [StepKind.upload]: ' (no file input); if the page opens a picker from a button, use css= on the hidden input',
 };
 
-interface Look { page: Page; cands: Candidate[]; url: string; title: string }
+interface Look { page: Page; cands: Candidate[]; url: string; title: string; layout?: string }
 
 /** One target, its Jev call counted. */
 export async function resolveOne(ctx: StepContext, kind: CandidateKind, target: string): Promise<ResolvedTarget<Locator>> {
@@ -46,15 +48,16 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   const refs = ctx.picks && step?.at
     ? jevTargets.map((target): PickRef => ({ at: step.at!, kind: step.kind, target, goal: ctx.spec.goal }))
     : undefined;
-  const { state: { cands, url, title }, result: picks } = await lookAndPick(ctx, kind, jevTargets, refs);
+  const { state: { cands, url, title, layout }, result: picks } = await lookAndPick(ctx, kind, jevTargets, refs);
+  const pickState = { url, title, ...(layout === undefined ? {} : { layout }) };
 
   // Only the answer kept is recorded: an early look's answer may have been discarded.
   if (refs) for (const [j, pick] of picks.entries()) {
     if (pick.cached) {
-      ctx.picks!.hit(refs[j], { url, title });
+      ctx.picks!.hit(refs[j], pickState);
       ctx.ms.cached = (ctx.ms.cached ?? 0) + 1;
     } else if (pick.candidate) {
-      ctx.picks!.accept(refs[j], pick.candidate, cands, { url, title });
+      ctx.picks!.accept(refs[j], pick.candidate, cands, pickState, pick.score ?? 0);
     }
   }
   const noCandidates = `no candidates: nothing on the page matches a ${kind} target${NO_CANDIDATES_HINT[kind] ?? ''}`;
@@ -79,28 +82,38 @@ async function resolveCss(ctx: StepContext, selector: string): Promise<ResolvedT
  * for up to APPEAR_MS.
  */
 async function lookAndPick(ctx: StepContext, kind: CandidateKind, targets: string[], refs: PickRef[] | undefined) {
+  let spatial: boolean | undefined;
   const deadline = Date.now() + Math.min(APPEAR_MS, ctx.timeout);
   for (;;) {
     const look = await settledAsk<Look, ResolvedTarget<Locator>[]>(ctx, {
+      get reobserve() { return spatial === true; },
       // The active page is read on every look: a popup may replace it while the page settles, and a locator
       // belongs to the page that was scanned.
       observe: async () => {
-        const page = ctx.page;
-        const cands = await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES));
-        return { page, cands, url: page.url(), title: await page.title() };
+        let page = ctx.page;
+        let found = await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES));
+        if (found.length && spatial === undefined) {
+          spatial = await needsLayout(ctx, targets);
+          // Routing can outlast a render or replace the active page; geometry needs a fresh scan.
+          page = ctx.page;
+          found = await timed(ctx, 'candidates', () => candidates(page, kind, MAX_CANDIDATES));
+        }
+        const cands = spatial ? await timed(ctx, 'candidates', () => spatialCandidates(page, found)) : found;
+        const layout = spatial ? await timed(ctx, 'snapshot', () => layoutSnapshot(page)) : undefined;
+        return { page, cands, url: page.url(), title: await page.title(), ...(layout === undefined ? {} : { layout }) };
       },
-      same: (a, b) => a.page === b.page && a.url === b.url && a.title === b.title && sameCandidates(a.cands, b.cands),
-      ask: ({ page, cands, url, title }) => resolveTargets({
+      same: (a, b) => a.page === b.page && a.url === b.url && a.title === b.title && a.layout === b.layout && sameCandidates(a.cands, b.cands),
+      ask: ({ page, cands, url, title, layout }) => resolveTargets({
         candidates: cands,
-        state: { url, title, goal: ctx.spec.goal },
+        state: { url, title, goal: ctx.spec.goal, ...(layout === undefined ? {} : { layout }) },
         element: (candidate) => elementById(page, candidate.id, candidate.frameIndex),
-        ...(refs ? { cached: (_target: string, i: number) => ctx.picks!.lookup(refs[i], cands, { url, title }) } : {}),
+        ...(refs ? { cached: (_target: string, i: number) => ctx.picks!.lookup(refs[i], cands, { url, title, ...(layout === undefined ? {} : { layout }) }) } : {}),
       }, targets),
       discard: (results) => {
         for (const result of results) if (result.usedJev) ctx.track(result.tokens);
       },
     }).catch((error) => {
-      if (Date.now() < deadline && /context was destroyed|navigat/i.test(String(error))) return null;
+      if (Date.now() < deadline && /context was destroyed|frame was detached|navigat/i.test(String(error))) return null;
       throw error;
     });
     const expired = Date.now() >= deadline;
@@ -110,7 +123,9 @@ async function lookAndPick(ctx: StepContext, kind: CandidateKind, targets: strin
   }
 }
 
-/** Ids follow scan order, so equal lists also mean equal ids on the page. */
+/** Geometry can omit a detached element, leaving gaps in the ids of an otherwise equal list. */
 function sameCandidates(a: Candidate[], b: Candidate[]): boolean {
-  return a.length === b.length && a.every((candidate, i) => candidate.desc === b[i].desc && candidate.frameIndex === b[i].frameIndex);
+  return a.length === b.length && a.every((candidate, i) => candidate.id === b[i].id &&
+    candidate.desc === b[i].desc && candidate.frameIndex === b[i].frameIndex &&
+    JSON.stringify(candidate.bounds) === JSON.stringify(b[i].bounds));
 }

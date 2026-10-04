@@ -149,6 +149,14 @@ a dense app, scope the step or snapshot with `within`.
 A pick that plainwright rejects, or a claim that does not pass, writes its state to `$TMPDIR/plainwright/`, as
 in the browser ([failure artifacts](artifacts.mdx)).
 
+### Spatial targets and claims
+
+A target or a claim about a physical position, such as `the left button`, gets the bounds of the elements.
+The classification and the rules are the same as in the browser ([what Jev can see](spec-reference.mdx#for-a-pick)).
+The bounds come from the accessibility tree, in desktop screen coordinates.
+The layout lists at most 254 elements that have a name or a value. A cut layout is reported.
+Other steps do not read bounds, so they do not become slower.
+
 ### Hooks
 
 Desktop hooks use the same isolated child process and exports as browser hooks ([hooks](hooks.mdx)).

@@ -19,6 +19,6 @@ steps:
   - tap: the Preview button
   - expect: The preview says iOS adapter works
   - longpress: the Hold for details button
-  - expect: Details are visible
+  - expect: 'The details label says "Details are visible"'
   - scroll: "down: the Fixture results list"
   - swipe: down

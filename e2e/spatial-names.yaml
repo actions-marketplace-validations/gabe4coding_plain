@@ -1,0 +1,12 @@
+name: Spatial claims retain control names
+url: ${env.site}/spatial-names
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-names
+  - expect:
+      that: the button B is to the left of the button A
+      within: the Native button pair section
+  - expect:
+      that: the button D is to the left of the button C
+      within: the Referenced button pair section
