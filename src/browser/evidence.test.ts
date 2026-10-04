@@ -132,3 +132,24 @@ test('a scroll to the page edge is not routed with the other descriptions', asyn
   assert.equal(result.status, 'pass', JSON.stringify(result.steps));
   assert.deepEqual(routed, [{ groups: [['the second field']] }]);
 });
+
+test('consecutive expects on an unchanged page share one judgment; a changed page is asked again', async (t) => {
+  const { judge } = intelligence;
+  t.after(() => { intelligence.judge = judge; });
+  const asked: string[][] = [];
+  intelligence.judge = async (_state, claims) => { asked.push(claims); return { probabilities: claims.map(() => 1), tokens: 4 }; };
+  const result = await runSpec(spec([{ kind: 'goto', url },
+    { kind: 'expect', expectations: ['B clicked is not shown'] },
+    { kind: 'expect', expectations: ['the Name field is empty', 'B clicked is not shown'] },
+    { kind: 'expect', expectations: ['the Email field is empty'] },
+    { kind: 'click', target: 'css=button:nth-of-type(2)' },
+    { kind: 'expect', expectations: ['the output says B clicked'] },
+    { kind: 'expect', expectations: ['the Email field is empty'] },
+  ]), options);
+  assert.equal(result.status, 'pass', JSON.stringify(result.steps));
+  // The second expect group re-asks the Email claim: the click changed the page after the first answer.
+  assert.deepEqual(asked, [['B clicked is not shown', 'the Name field is empty', 'the Email field is empty'],
+    ['the output says B clicked', 'the Email field is empty']]);
+  assert.equal(result.jevCalls, 2);
+  assert.equal(result.totalTokens, 8);
+});
