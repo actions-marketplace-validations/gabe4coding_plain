@@ -201,7 +201,10 @@ Each plugin directory contains:
 The MCP configs run `node bin/npx.mjs -y --package=@gabe4coding/plain@<version> <cli> ...`. `<version>` is the
 `package.json` version, and the plugin version is the same. `bin/npx.mjs` is a copy of `scripts/plugin-npx.mjs`.
 It starts `npx` with the MCP channel as its input and output. On Windows, it starts `npx` through `cmd /c`,
-because some plugin hosts cannot start `npx` directly. A plugin host updates a cached plugin only when its
+because some plugin hosts cannot start `npx` directly. In a checkout of this repository, `npx` uses the checkout as
+the installed package and does not find the CLI. Thus in a checkout, the shim requests the package through an npm
+alias: `gabe4coding-plain@npm:@gabe4coding/plain@<version>`. Then `npx` installs the package in its cache, and the CLI
+runs in the same folder. A plugin host updates a cached plugin only when its
 version changes. Thus each new package version is also a new plugin version.
 
 Keep the `name` and `description` equal in the three `plugin.json` files of each plugin. The build writes the
