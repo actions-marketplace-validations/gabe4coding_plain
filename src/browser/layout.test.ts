@@ -460,3 +460,16 @@ test('layout text shows a filled password field with a mask, never its value', a
   assert.match(layout, /main: input\[type=password\] "" label="Password" value="\[filled\]" bounds=/);
   assert.match(layout, /main: input\[type=password\] "" label="Unused" value="" bounds=/);
 });
+
+test('a judge layout drops the main label of a page without iframes and groups the neighbors per element', async () => {
+  await page.setContent('<h2>Shipping</h2><input aria-label="Upper field"><br><br><br><input aria-label="Lower field">');
+  const full = await layoutSnapshot(page);
+  const compact = await layoutSnapshot(page, undefined, { compact: true });
+  assert.match(full, /^main: field "Upper field" is above main: field "Lower field"\.$/m);
+  assert.match(full, /^main: field "Upper field" is below main: heading "Shipping"\.$/m);
+  assert.doesNotMatch(compact, /main: /);
+  assert.match(compact, /^field "Upper field" is above field "Lower field"; is below heading "Shipping"\.$/m);
+  await page.setContent('<button>A</button><iframe srcdoc="<button>B</button>"></iframe>');
+  await page.frames()[1]?.waitForLoadState();
+  assert.match(await layoutSnapshot(page, undefined, { compact: true }), /^main: button "A"/m);
+});
