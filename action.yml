@@ -52,7 +52,10 @@ runs:
       run: |
         prefix="$RUNNER_TEMP/plainwright"
         version="$(node -p "require(process.argv[1]).version" "$GITHUB_ACTION_PATH/package.json")"
-        npm install --prefix "$prefix" --no-audit --no-fund --no-save "plainwright@$version"
+        if ! npm install --prefix "$prefix" --no-audit --no-fund --no-save "plainwright@$version"; then
+          echo "::error::Cannot install plainwright@$version from npm. The Publish workflow of gabe4coding/plainwright publishes a version after it reaches main. Pin the action to a release tag (v<version>), or wait for that workflow." >&2
+          exit 1
+        fi
         echo "bin=$prefix/node_modules/.bin" >> "$GITHUB_OUTPUT"
     - name: Install Chromium and system dependencies
       shell: bash

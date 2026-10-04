@@ -1,6 +1,6 @@
-// Verify each plugin as a plugin host runs it: the manifests agree, the MCP configs run `npx` on the package
-// version in package.json, and that command starts the MCP server from a fresh npx install of the packed package
-// (`npm pack`, so exactly the files and the shrinkwrap that `npm publish` would send).
+// Verify each plugin as a plugin host runs it: the manifests agree, the MCP configs run the plugin's npx shim on
+// the package version in package.json, and that command starts the MCP server from a fresh npx install of the
+// packed package (`npm pack`, so exactly the files and the shrinkwrap that `npm publish` would send).
 import assert from 'node:assert/strict';
 import { mkdtempSync, cpSync, rmSync, readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
@@ -37,13 +37,11 @@ try {
     assert.equal(identities[0].version, version, `${name}: plugin version must equal the package version`);
     const config = JSON.parse(readFileSync(join(plugin, 'mcp.json'), 'utf8')).mcpServers[name];
     const claude = JSON.parse(readFileSync(join(plugin, '.mcp.json'), 'utf8')).mcpServers[name];
-    for (const server of [config, claude]) {
-      assert.equal(server.command, 'npx');
-      assert.deepEqual(server.args, npxArgs(name));
-    }
+    assert.deepEqual([config.command, config.cwd, ...config.args], ['node', '${PLUGIN_ROOT}', 'bin/npx.mjs', ...npxArgs(name)]);
+    assert.deepEqual([claude.command, ...claude.args], ['node', '${CLAUDE_PLUGIN_ROOT}/bin/npx.mjs', ...npxArgs(name)]);
     const client = new Client({ name: 'isolated-plugin-smoke', version: '1' });
-    // Started from the plugin copy, an unrelated cwd: npx must not need a checkout.
-    const transport = new StdioClientTransport({ command: 'npx', args: local(config.args), cwd: plugin, stderr: 'pipe' });
+    // The plugin copy has no package.json or node_modules: npx must not need a checkout.
+    const transport = new StdioClientTransport({ command: process.execPath, args: local(config.args), cwd: plugin, stderr: 'pipe' });
     let stderr = '';
     transport.stderr.on('data', chunk => { stderr += chunk; process.stderr.write(chunk); });
     await client.connect(transport, { timeout: 300000 });
@@ -65,7 +63,9 @@ try {
     assert.doesNotMatch(stderr, /triggerUncaughtException|cleanup failed|teardown failed/);
     if (name === 'plainwright-mobile') {
       const client = new Client({ name: 'claude-plugin-smoke', version: '1' });
-      const transport = new StdioClientTransport({ command: 'npx', args: local(claude.args), cwd: dir, stderr: 'pipe' });
+      // Claude substitutes an absolute plugin root and can launch from an unrelated cwd.
+      const transport = new StdioClientTransport({ command: process.execPath,
+        args: local(claude.args).map((arg) => arg.replaceAll('${CLAUDE_PLUGIN_ROOT}', plugin)), cwd: dir, stderr: 'pipe' });
       transport.stderr.on('data', chunk => process.stderr.write(chunk));
       try {
         await client.connect(transport);

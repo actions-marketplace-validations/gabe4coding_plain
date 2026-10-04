@@ -61,13 +61,17 @@ jobs:
       # Trusted publishing needs npm 11.5.1 or newer; Node 22 ships npm 10.
       - if: steps.version.outputs.publish == 'true'
         run: npm install --global npm@^11.5.1
-      # npm uses OIDC when a trusted publisher is set for this workflow on npmjs.com, else the NPM_TOKEN secret
-      # (needed once, for the first publish, before the package exists to set the trusted publisher on).
+      # npm uses OIDC when a trusted publisher is set for this workflow on npmjs.com. The NPM_TOKEN secret is needed
+      # once, for the first publish, before the package exists to set the trusted publisher on. The token is
+      # exported only when the secret is set: an empty token in .npmrc can win over OIDC and fail the publish.
       - name: Publish to npm
         if: steps.version.outputs.publish == 'true'
-        run: npm publish --provenance --access public
+        shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -n "$NPM_TOKEN" ]]; then export NODE_AUTH_TOKEN="$NPM_TOKEN"; fi
+          npm publish --provenance --access public
       - name: Tag the release
         if: steps.version.outputs.publish == 'true'
         shell: bash
@@ -78,3 +82,33 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -a "$TAG" -m "plainwright $TAG"
           git push origin "$TAG"
+      # What a user gets, after the tag so that a failure here never leaves a published version untagged: install the
+      # published version from the registry, check that npm honored the shrinkwrap (every direct dependency at its
+      # lockfile version; the Docker image tag matches the locked Playwright) and that the CLI starts.
+      - name: Check the published package
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          prefix="$RUNNER_TEMP/published"
+          for attempt in 1 2 3 4 5 6; do
+            npm install --prefix "$prefix" --no-audit --no-fund --no-save "plainwright@$VERSION" && break
+            if [[ "$attempt" == 6 ]]; then echo "::error::plainwright@$VERSION does not install from npm." >&2; exit 1; fi
+            sleep 20
+          done
+          node - "$prefix" <<'JS'
+          const { readFileSync } = require('node:fs');
+          const read = (file) => JSON.parse(readFileSync(file, 'utf8'));
+          const locked = read('package-lock.json').packages;
+          const drift = Object.keys(read('package.json').dependencies).flatMap((name) => {
+            const installed = read(`${process.argv[2]}/node_modules/${name}/package.json`).version;
+            const want = locked[`node_modules/${name}`].version;
+            return installed === want ? [] : [`${name} ${installed} (lockfile ${want})`];
+          });
+          if (drift.length) {
+            console.error(`::error::npm did not honor the shrinkwrap: ${drift.join(', ')}`);
+            process.exit(1);
+          }
+          JS
+          "$prefix/node_modules/.bin/plainwright" validate examples/todo.yaml

@@ -130,8 +130,8 @@ node --test --test-name-pattern "<name>" dist/jev/pick.test.js
 The repository does not contain `dist/`. Run `npm run build` after a clone and after each change in `src/`.
 Then the launchers in `bin/` run the checkout, for example `node bin/plainwright.mjs examples/todo.yaml`.
 
-`npm run build` also writes the generated plugin files: the MCP configs, the plugin versions, the version in the
-`npx` commands of the skills, the license and the session pane mod. Do not edit these files by hand. Commit them
+`npm run build` also writes the generated plugin files: the MCP configs, the npx shim, the plugin versions, the
+version in the `npx` commands of the skills, the license and the session pane mod. Do not edit these files by hand. Commit them
 with the change. The `Test` workflow fails if they are different from the build output.
 
 ## Releases
@@ -150,6 +150,9 @@ To release a version:
 On each push to main, the `Publish` workflow compares the `package.json` version with npm. If npm does not have
 this version, the workflow runs `npm run verify`, publishes the package with provenance and pushes the tag
 `v<version>`. A version that is already on npm is not published again.
+
+Then the workflow installs the published version from npm. It fails if a direct dependency does not have its
+lockfile version, because then npm did not use the shrinkwrap. It also runs the CLI once.
 
 The plugins run `npx -y --package=plainwright@<version>`. Thus a merged version bump starts to work in the plugins
 when the `Publish` workflow is complete.
@@ -188,13 +191,15 @@ manifest, a lockfile, a symlink or a parent-directory import to a plugin.
 Each plugin directory contains:
 
 - The portable manifests `plugin.json` and `mcp.json`.
-- The Claude Code manifests `.claude-plugin/plugin.json` and `.mcp.json`.
+- The Claude Code manifests `.claude-plugin/plugin.json` and `.mcp.json`. The server runs `${CLAUDE_PLUGIN_ROOT}/bin/npx.mjs`.
 - The Codex manifest `.codex-plugin/plugin.json`. It uses the same `.mcp.json` and `skills/`.
 - The skill in `skills/`.
-- The generated `LICENSE` and session pane mod in `hooks/`.
+- The generated `bin/npx.mjs`, `LICENSE` and session pane mod in `hooks/`.
 
-The MCP configs start the server with `npx -y --package=plainwright@<version> <cli> ...`. `<version>` is the
-`package.json` version, and the plugin version is the same. A plugin host updates a cached plugin only when its
+The MCP configs run `node bin/npx.mjs -y --package=plainwright@<version> <cli> ...`. `<version>` is the
+`package.json` version, and the plugin version is the same. `bin/npx.mjs` is a copy of `scripts/plugin-npx.mjs`.
+It starts `npx` with the MCP channel as its input and output. On Windows, it starts `npx` through `cmd /c`,
+because some plugin hosts cannot start `npx` directly. A plugin host updates a cached plugin only when its
 version changes. Thus each new package version is also a new plugin version.
 
 Keep the `name` and `description` equal in the three `plugin.json` files of each plugin. The build writes the

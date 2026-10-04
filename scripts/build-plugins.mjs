@@ -1,7 +1,8 @@
 // The three plugins run the published npm package through npx, pinned to the root package.json version. This
-// script writes what each plugin derives from the root: the MCP configs, the version in its three manifests and in
-// the `plainwright@<version>` commands of its skill, the license and the session pane mod. Plugin hosts refresh
-// a cached plugin when its version changes, so a new runtime version is also a new plugin version.
+// script writes what each plugin derives from the root: the MCP configs, the npx shim (scripts/plugin-npx.mjs as
+// bin/npx.mjs), the version in its three manifests and in the `plainwright@<version>` commands of its skill, the
+// license and the session pane mod. Plugin hosts refresh a cached plugin when its version changes, so a new
+// runtime version is also a new plugin version.
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,8 @@ const SERVERS = {
   'plainwright-mobile': { bin: 'plainwright-mobile', args: ['mcp'] },
 };
 const SEMVER = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`;
+// Hosts start `node` on every platform; the shim starts npx (through cmd /c on Windows).
+const SHIM = 'bin/npx.mjs';
 const writeJson = (file, value) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
@@ -56,8 +59,10 @@ function buildPlugin(name) {
   }
   const args = npxArgs(name);
   writeJson(join(plugin, 'mcp.json'), { $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
-    mcpServers: { [name]: { type: 'stdio', command: 'npx', args } } });
-  writeJson(join(plugin, '.mcp.json'), { mcpServers: { [name]: { command: 'npx', args } } });
+    mcpServers: { [name]: { type: 'stdio', command: 'node', args: [SHIM, ...args], cwd: '${PLUGIN_ROOT}' } } });
+  writeJson(join(plugin, '.mcp.json'), { mcpServers: { [name]: { command: 'node', args: [`\${CLAUDE_PLUGIN_ROOT}/${SHIM}`, ...args] } } });
+  mkdirSync(join(plugin, 'bin'), { recursive: true });
+  copyFileSync(join(root, 'scripts/plugin-npx.mjs'), join(plugin, SHIM));
   pinSkill(join(plugin, 'skills'));
   copyFileSync(join(root, 'LICENSE'), join(plugin, 'LICENSE'));
   copyMod(plugin, name);
