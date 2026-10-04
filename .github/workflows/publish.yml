@@ -86,6 +86,9 @@ jobs:
       # What a user gets, after the tag so that a failure here never leaves a published version untagged: install the
       # published version from the registry, check that npm honored the shrinkwrap (every direct dependency at its
       # lockfile version; the Docker image tag matches the locked Playwright) and that the CLI starts.
+      # The registry CDN caches the package metadata for up to 5 minutes (max-age=300), and "Check the version" read
+      # it before the publish: retry the install with backoff for up to 10 minutes, so that a cached version list
+      # expires at least once. --prefer-online makes npm revalidate its local cache on each attempt.
       - name: Check the published package
         if: steps.version.outputs.publish == 'true'
         shell: bash
@@ -93,10 +96,16 @@ jobs:
           PACKAGE: ${{ steps.version.outputs.name }}@${{ steps.version.outputs.version }}
         run: |
           prefix="$RUNNER_TEMP/published"
-          for attempt in 1 2 3 4 5 6; do
-            npm install --prefix "$prefix" --no-audit --no-fund --no-save "$PACKAGE" && break
-            if [[ "$attempt" == 6 ]]; then echo "::error::$PACKAGE does not install from npm." >&2; exit 1; fi
-            sleep 20
+          deadline=$((SECONDS + 600))
+          delay=15
+          until npm install --prefix "$prefix" --no-audit --no-fund --no-save --prefer-online "$PACKAGE"; do
+            if ((SECONDS + delay > deadline)); then
+              echo "::error::$PACKAGE does not install from npm after 10 minutes." >&2
+              exit 1
+            fi
+            echo "$PACKAGE does not install yet. Next attempt in ${delay}s."
+            sleep "$delay"
+            delay=$((delay * 2 > 120 ? 120 : delay * 2))
           done
           node - "$prefix" <<'JS'
           const { readFileSync } = require('node:fs');
