@@ -80,7 +80,8 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
       runSteps = [];
     }
 
-    for (const step of runSteps) {
+    for (const [index, step] of runSteps.entries()) {
+      session.ctx.upcoming = runSteps.slice(index + 1);
       // The timeout is outside runStepSafely: an optional step cut by it ends `error`, not `skipped`.
       let result = await deadline.step(() => runStepSafely(session.ctx, step), () => label(step));
       result = withCacheDump(result, picks?.endStep(result.status));
