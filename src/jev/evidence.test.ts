@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evidenceFor, evidenceForGroups } from './evidence.js';
+import { evidenceFor, evidenceForGroups, maySpatial } from './evidence.js';
 import type { AskAnswer } from './ask.js';
 
 test('uncertain evidence routes collect spatial evidence rather than discard it', async () => {
-  const classify = (answer: AskAnswer) => evidenceFor(['a prompt'], async () => ({ answers: [answer], tokens: 4 }));
+  const classify = (answer: AskAnswer) => evidenceFor(['the left prompt'], async () => ({ answers: [answer], tokens: 4 }));
   assert.deepEqual(await classify({ choice: 'semantic', confidence: 0.99 }), { spatial: false, tokens: 4 });
   assert.equal((await classify({ choice: 'spatial', confidence: 0.99 })).spatial, true);
   assert.equal((await classify({ choice: 'semantic', confidence: 0.5, probabilities: { semantic: 0.99 } })).spatial, true);
@@ -50,4 +50,23 @@ test('oversized batches bisect only on the token limit and retain routes and per
   let failures = 0;
   await assert.rejects(evidenceForGroups(groups, async () => { failures++; throw new Error('invalid request'); }), /invalid request/);
   assert.equal(failures, 1);
+});
+
+test('plain English prompts without a spatial cue route as semantic without a request', async () => {
+  for (const prompt of ['the Login button', 'the status message says "Saved"', 'a heading that says Report ready']) {
+    assert.equal(maySpatial(prompt), false, prompt);
+  }
+  for (const prompt of ['the button on the left', 'the topmost card', 'the field next to Email', 'the last row',
+    'le bouton à gauche', 'Senden-Knopf', 'the button named "Left"']) {
+    assert.equal(maySpatial(prompt), true, prompt);
+  }
+  const groups = [['the Login button'], ['the button on the left'], ['the Save button', 'the box below it']];
+  const result = await evidenceForGroups(groups, async (state, questions) => {
+    assert.deepEqual(state, { groups: [groups[1], groups[2]] });
+    assert.equal(questions.length, 2);
+    return { answers: [{ choice: 'spatial', confidence: 0.99 }, { choice: 'semantic', confidence: 0.99 }], tokens: 5 };
+  });
+  assert.deepEqual(result, { spatial: [false, true, false], tokens: 5 });
+  assert.deepEqual(await evidenceForGroups([['the Login button']], async () => { throw new Error('must not ask'); }),
+    { spatial: [false], tokens: 0 });
 });
