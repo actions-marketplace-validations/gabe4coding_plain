@@ -1,6 +1,6 @@
 {
   "name": "plain-mobile",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Native iOS and Android automation with Appium actions and Jev decisions; record and replay natural-language YAML tests",
   "author": {
     "name": "Gabriele Pavanello"
