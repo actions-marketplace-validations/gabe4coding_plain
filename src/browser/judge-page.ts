@@ -66,7 +66,7 @@ async function judgeObservation(ctx: StepContext, claims: string[], spatial: boo
     observe: async () => ({ snap: await timed(ctx, 'snapshot', async () => {
       const page = ctx.page;
       const snap = await (within ? snapshotRegion(page, within) : snapshot(page));
-      return spatial ? { ...snap, layout: await layoutSnapshot(page, within) } : snap;
+      return spatial ? { ...snap, layout: await layoutSnapshot(page, within, { compact: true }) } : snap;
     }), events: [...ctx.events] }),
     same: sameObserved,
     ask: async (observed): Promise<Judgment> => {

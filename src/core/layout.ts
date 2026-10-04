@@ -17,15 +17,18 @@ export const roundBounds = (b: Bounds): Bounds =>
   ({ left: Math.round(b.left), top: Math.round(b.top), right: Math.round(b.right), bottom: Math.round(b.bottom) });
 export const boundsText = (b: Bounds): string => JSON.stringify(roundBounds(b));
 
+const DIRECTIONS = ['above', 'below', 'left of', 'right of'] as const;
+
 /**
  * Qualitative neighbors expose measured order without asking Jev to infer it from tree order or arithmetic. Only
  * the nearest element per direction with perpendicular overlap is named: the raw bounds stay in the layout for the
- * other relations.
+ * other relations. `grouped`: one line per element with all its directions, for a judge; a pick reads one line per
+ * relation better (a reference target lost confidence on grouped lines).
  */
-export function neighborRelations(items: LayoutItem[]): string[] {
+export function neighborRelations(items: LayoutItem[], grouped = false): string[] {
   const relations = new Set<string>();
   for (const item of items) {
-    const nearest: Partial<Record<'above' | 'below' | 'left of' | 'right of', { gap: number; items: LayoutItem[] }>> = {};
+    const nearest: Partial<Record<typeof DIRECTIONS[number], { gap: number; items: LayoutItem[] }>> = {};
     for (const other of items) {
       if (item === other) continue;
       const a = item.bounds;
@@ -42,6 +45,12 @@ export function neighborRelations(items: LayoutItem[]): string[] {
         if (!known || gap < known.gap) nearest[direction] = { gap, items: [other] };
         else if (gap === known.gap) known.items.push(other);
       }
+    }
+    if (grouped) {
+      const parts = DIRECTIONS.filter((direction) => nearest[direction])
+        .map((direction) => `${direction} ${[...new Set(nearest[direction]!.items.map((other) => other.name))].join(' and ')}`);
+      if (parts.length) relations.add(`${item.name} is ${parts.join('; is ')}.`);
+      continue;
     }
     for (const [direction, found] of Object.entries(nearest)) {
       for (const other of found.items) relations.add(`${item.name} is ${direction} ${other.name}.`);
