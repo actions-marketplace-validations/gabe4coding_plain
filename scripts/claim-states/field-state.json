@@ -1,0 +1,6 @@
+{
+  "url": "http://127.0.0.1/field-state",
+  "title": "Account details",
+  "aria": "- main:\n  - heading \"Account details\" [level=1]\n  - text: Email\n  - textbox \"Email\" [empty]:\n    - /placeholder: name@example.com\n  - text: City\n  - textbox \"City\": Paris\n  - text: Phone\n  - textbox \"Phone\" [empty]\n  - text: Coupon\n  - textbox \"Coupon\" [disabled]: SAVE10\n  - text: Account\n  - textbox \"Account\" [readonly]: ACME-42\n  - text: Comment\n  - textbox \"Comment\" [empty]\n  - textbox \"Article body\": Draft about lighthouses\n  - textbox \"Notes\" [empty]",
+  "truncated": false
+}

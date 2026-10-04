@@ -1,0 +1,14 @@
+name: Claims see empty fields, read-only fields and editor text
+url: ${env.site}
+env:
+  site: $PLAIN_E2E_SITE
+steps:
+  - goto: /field-state
+  - fill: { target: the City textbox, value: Paris }
+  - fill: { target: the Article body textbox, value: Draft about lighthouses }
+  - expect:
+      - the Email field is empty
+      - the City field contains Paris
+      - the Account field is read-only
+      - the Article body editor contains "Draft about lighthouses"
+      - the Notes editor is empty
