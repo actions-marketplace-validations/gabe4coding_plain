@@ -77,6 +77,15 @@ status();`),
   document.querySelector('#result').textContent = name + ' clicked';
   if (name === 'A') setTimeout(() => document.styleSheets[0].insertRule('.pair { flex-direction:row }', 2), 400);
 }`),
+  '/field-state': () => page('Account details', `<h1>Account details</h1>
+<label>Email <input type="email" placeholder="name@example.com"></label>
+<label>City <input></label>
+<label>Phone <input type="tel"></label>
+<label>Coupon <input value="SAVE10" disabled></label>
+<label>Account <input value="ACME-42" readonly></label>
+<label>Comment <textarea></textarea></label>
+<div contenteditable role="textbox" aria-label="Article body" style="border:1px solid;padding:20px"></div>
+<div contenteditable role="textbox" aria-label="Notes" style="border:1px solid;padding:20px"></div>`),
   '/candidate-editor': () => page('Article editor', `<h1>Article editor</h1>
 <label>Title <input></label><div contenteditable role="textbox" aria-label="Article body" style="border:1px solid;padding:20px"></div>
 <div contenteditable="plaintext-only" role="textbox" aria-label="Notes" style="border:1px solid;padding:20px"></div>

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
 import { intelligence } from '../core/automation.js';
 import { candidates, elementById } from './candidates.js';
-import { installSettleObserver, mark, markUnchecked, maskPasswords, settle, shortenUrls, snapshot, snapshotRegion, unchangedSince, waitForMutation } from './page.js';
+import { installSettleObserver, mark, markFields, markUnchecked, maskPasswords, settle, shortenUrls, snapshot, snapshotRegion, unchangedSince, waitForMutation } from './page.js';
 import { holdActivity, mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators } from './locate.js';
 import { settledAsk } from './settled-ask.js';
@@ -387,6 +387,55 @@ test('snapshot: an unchecked checkbox, radio or switch is marked checked=false',
   assert.match(aria, /- checkbox \[checked=mixed\]/);
 });
 
+test('snapshot: empty and read-only fields are marked; an editor gets back the text the tree drops', async () => {
+  await page.goto(html(
+    '<label>Email <input placeholder="name@example.com"></label><label>City <input value="Paris"></label>' +
+    '<label>Account <input value="ACME-42" readonly></label><label>Code <input disabled></label>' +
+    '<label>Comment <textarea></textarea></label><input type="checkbox" aria-label="Agree"><input type="hidden">' +
+    '<div contenteditable role="textbox" aria-label="Body">Draft about lighthouses</div>' +
+    '<div contenteditable role="textbox" aria-label="Story"><div><span>Draft.js block</span></div></div>' +
+    '<div contenteditable role="textbox" aria-label="Rich" aria-placeholder="Write"><p>Kept paragraph</p></div>' +
+    '<div contenteditable role="textbox" aria-label="Notes"><p><br></p></div>' +
+    '<div role="textbox" aria-label="Body">Second body</div><input aria-label="Hidden" style="display:none">' +
+    '<div id="host"></div><iframe srcdoc="<label>Frame field <input></label>"></iframe>' +
+    `<script>host.attachShadow({mode:'open'}).innerHTML='<label>Shadow field <input></label>'</script>` +
+    '<div id="before"></div><div role="textbox" aria-label="Later">Light text</div>' +
+    `<script>before.attachShadow({mode:'open'}).innerHTML='<input aria-label="Earlier">'</script>`
+  ));
+  await page.frames()[1].waitForLoadState();
+  const { aria } = await snapshot(page);
+  assert.match(aria, /- textbox "Email" \[empty\]:\n\s+- \/placeholder: name@example.com/);
+  assert.match(aria, /- textbox "City": Paris$/m);
+  assert.match(aria, /- textbox "Account" \[readonly\]: ACME-42$/m);
+  assert.match(aria, /- textbox "Code" \[disabled\] \[empty\]$/m);
+  assert.match(aria, /- textbox "Comment" \[empty\]$/m);
+  assert.match(aria, /- checkbox "Agree" \[checked=false\]$/m);
+  assert.match(aria, /- textbox "Body": Draft about lighthouses\n/);
+  assert.match(aria, /- textbox "Story": Draft.js block$/m);
+  assert.match(aria, /- textbox "Rich":\n\s+- paragraph: Kept paragraph$/m);
+  assert.match(aria, /- textbox "Notes" \[empty\]:/);
+  assert.match(aria, /- textbox "Body": Second body$/m); // the second field of one name gets its own text
+  assert.match(aria, /- textbox "Shadow field" \[empty\]$/m);
+  assert.match(aria, /--- iframe [^\n]+ ---\n[\s\S]*- textbox "Frame field" \[empty\]$/m);
+  assert.doesNotMatch(aria, /Hidden/);
+  assert.match(aria, /- textbox "Earlier" \[empty\]\n- textbox "Later": Light text$/m); // shadow content sits in place
+  assert.equal((await snapshotRegion(page, page.getByRole('textbox', { name: 'Comment' }).locator('..'))).aria.includes('[empty]'), true);
+  // A region that is the field itself.
+  assert.equal((await snapshotRegion(page, page.getByRole('textbox', { name: 'Story' }))).aria, '- textbox "Story": Draft.js block');
+});
+
+test('markFields: marks go after the attributes, text becomes the value or a child; unknown lines are skipped', () => {
+  const aria = ['- textbox "A"', '- textbox "B" [disabled]:', '  - /placeholder: b', "- 'textbox \"C: d\"'", '- textbox "A"'].join('\n');
+  assert.equal(markFields(aria, [
+    { head: '- textbox "Missing"', empty: true },
+    { head: "- 'textbox \"C: d\"'", empty: true }, // out of tree order
+    { head: '- textbox "A"', text: 'first' },
+    { head: '- textbox "B" [disabled]:', readonly: true, text: '- dash' },
+    { head: '- textbox "A"', empty: true },
+  ]), ['- textbox "A": first', '- textbox "B" [disabled] [readonly]:', '  - text: "- dash"', '  - /placeholder: b',
+    "- 'textbox \"C: d\" [empty]'", '- textbox "A" [empty]'].join('\n'));
+});
+
 test('shortenUrls: a link target over 200 characters keeps its part before ? or #; shorter ones and other lines are kept', () => {
   const query = 'x'.repeat(250);
   const aria = [
@@ -494,7 +543,7 @@ test('snapshot: room made for a cut dialog never drops another dialog that fit i
   assert.ok(snap.aria.includes('button "Option 59 of the offer list"'));
 });
 
-test('snapshot: a filled password field shows a mask in every tree, never its value; an empty one shows no value', async () => {
+test('snapshot: a filled password field shows a mask in every tree, never its value; an empty one shows [empty]', async () => {
   const secret = 'hunter2: Pw#1';
   await page.goto(html(`<form><label>Password <input type="password" id="main"></label>` +
     '<label>Hinted <input type="password" id="hinted" placeholder="Your password"></label>' +
@@ -508,7 +557,7 @@ test('snapshot: a filled password field shows a mask in every tree, never its va
   assert.ok(!snap.aria.includes('hunter2'), snap.aria);
   assert.match(snap.aria, /^- textbox "Password": "\[filled\]"$/m);
   assert.match(snap.aria, /^- textbox "Hinted":\n {2}- \/placeholder: Your password\n {2}- text: "\[filled\]"$/m);
-  assert.match(snap.aria, /^- textbox "Unused"$/m);
+  assert.match(snap.aria, /^- textbox "Unused" \[empty\]$/m);
   assert.match(snap.aria, /^- textbox "Name": Ada$/m);
   assert.match(snap.aria, /^- textbox "Shadow password": "\[filled\]"$/m);
   assert.match(snap.aria, /--- iframe login ---\n- text: Frame password\n- textbox "Frame password": "\[filled\]"$/);

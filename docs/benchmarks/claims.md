@@ -38,6 +38,34 @@ node scripts/benchmark-claims.mjs --runs 3 --compare /tmp/base.json
 node scripts/benchmark-claims.mjs --group page         # all claims of a page in one call, like an expect list
 ```
 
+## Field marks (2026-10-04)
+
+Playwright's tree gives an empty field and a read-only field no mark, and it drops the text of a `role=textbox`
+editor unless the text sits in a paragraph (a plain contenteditable or a Draft.js editor reads as empty). The
+browser snapshot (`src/browser/page.ts`, `markFields`) now writes `[empty]`, `[readonly]` and the dropped editor
+text on the field's line. Unlike `[checked=false]`, the marks need the DOM, so saved pages keep the tree they were
+captured with: only a page captured after the change gets them.
+
+The new local page `/field-state` (`e2e/site.mjs`, `scripts/capture-field-states.mjs`) holds an empty field with
+a placeholder, a filled field, a disabled and a read-only field, an empty textarea and two editors, one with text.
+18 cases. Both arms ran the whole suite, 3 runs each (678 judgments); main judged the page as main captures it.
+
+| | main | field marks |
+|---|---|---|
+| False pass / false fail | 3 / 3 | **0 / 0** |
+| Right | 577 (85.1%) | **594 (87.6%)** |
+| Inconclusive | 95 (14.0%) | 84 (12.4%) |
+| Jev tokens per claim | 3,248 | 3,250 |
+
+On `/field-state`: 36 → **54 of 54** right, lowest p on a claim that holds 0.03 → 0.93, highest p on a claim that
+does not 0.92 → 0.08. The three false passes were one claim: "the Article body editor is empty" at 0.91–0.92 on an
+editor with text. Its true partner ("contains Draft about lighthouses") was a false fail at 0.03, and "the Account
+field is read-only" stayed at 0.41–0.46. "Enabled" and "disabled" claims were right on main too, so there is no
+mark for them. The other 624 judgments get the same input in both arms: 541 → 540 right is run-to-run noise.
+
+Not measured: the existing UI states hold empty fields (the-internet login after a wrong password: "the username
+and password fields are empty" stays at 0.85–0.87), but the-internet timed out on a fresh capture.
+
 ## Regions without the page URL, and short ad links (2026-10-02)
 
 A live MCP session on practice.expandtesting.com showed two weaknesses. Both reproduce on saved pages.
