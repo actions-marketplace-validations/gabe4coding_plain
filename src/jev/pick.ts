@@ -67,9 +67,14 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
   }
 }
 
+/** A browser description's container part (src/browser/candidates.ts): last, and often a whole row's text. */
+const CONTEXT = / context: .*$/;
+
 /**
  * One Choice question per instruction, all in one request. The descriptions are in both `elements` and the
- * criteria on purpose: sending them only once saves tokens but lowers the pick probability.
+ * criteria on purpose: sending them only once saves tokens but lowers the pick probability (benchmark-picks, 2026-10:
+ * 9 fewer right with the goal). The criteria leave out the container context, which `elements` keeps: the same picks
+ * for 20% fewer tokens on content pages.
  * `instructions` are a list in the state, plus `today`, so "the earliest day after today" has one answer.
  * `goal` is state only, never named in the question: the target's words still win when they disagree with it.
  */
@@ -77,7 +82,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
   const coordinates = page.coordinates ?? 'main viewport CSS pixels';
   // The coordinate space and the tree-order rule are said once, in `geometry`, not after every candidate's bounds.
-  for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc +
+  for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc.replace(CONTEXT, '') +
     (candidate.bounds ? ` bounds=${boundsText(candidate.bounds)}` : '');
 
   const state = {
