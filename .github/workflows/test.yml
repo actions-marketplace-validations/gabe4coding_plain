@@ -22,19 +22,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # The same key-free gate an agent runs before it reports a change done (CLAUDE.md "Validation").
       - run: npm run verify
-      - name: Check generated files
+      - name: Check generated plugin files
         shell: bash
         run: |
-          generated=(
-            dist
-            plugins/plainwright/runtime.tgz
-            plugins/plainwright-computer/runtime.tgz
-            plugins/plainwright-mobile/runtime.tgz
-          )
-          changed="$(git status --porcelain -- "${generated[@]}")"
+          changed="$(git status --porcelain -- plugins)"
           if [[ -n "$changed" ]]; then
-            echo 'Generated files are out of date.' >&2
-            echo 'Run npm run build; commit dist/ and runtime archives.' >&2
+            echo 'Plugin files are out of date with package.json or mods/.' >&2
+            echo 'Run npm run build and commit plugins/.' >&2
             echo "$changed" >&2
             exit 1
           fi

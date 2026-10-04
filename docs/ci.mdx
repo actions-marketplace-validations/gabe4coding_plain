@@ -6,7 +6,8 @@ description: Run plainwright specs in GitHub Actions, GitLab CI or Docker, publi
 # CI and containers
 
 A CI job for plainwright needs three things: Node.js, Chromium for browser specs, and a Jev API key
-(`TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`) as a secret. [Getting started](getting-started.mdx) describes the
+(`TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`) as a secret. The job runs the
+[plainwright npm package](https://www.npmjs.com/package/plainwright) with `npx`. [Getting started](getting-started.mdx) describes the
 API key. [Running suites](running.mdx) describes the options, the config file and the exit codes.
 
 ## Check specs before a live run
@@ -15,19 +16,20 @@ API key. [Running suites](running.mdx) describes the options, the config file an
 secrets:
 
 ```sh
-node bin/plainwright.mjs validate tests/
-node bin/plainwright.mjs --list --tag smoke tests/
+npx -y plainwright@<version> validate tests/
+npx -y plainwright@<version> --list --tag smoke tests/
 ```
 
 `validate` gives a warning for an absent spec environment variable. `--list` needs these variables.
 
-On its first run, `bin/plainwright.mjs` installs the dependencies and downloads Chromium, also for `validate`.
-To skip the Chromium download, install the dependencies with `npm ci --omit=dev` and run `node dist/cli.js`.
+Write a fixed version in CI, so that a new release does not change your results without a commit. On its first
+run, the browser CLI downloads Chromium, also for `validate`. If Chromium of the same Playwright version is
+already installed, the CLI uses it.
 
 ## GitHub Action
 
-The `action.yml` file at the root of the plainwright repository runs specs from your checkout. Add the API key
-as a repository secret. A minimal workflow:
+The `action.yml` file at the root of the plainwright repository runs specs from your checkout. It uses the npm
+package at the version of the action ref. Add the API key as a repository secret. A minimal workflow:
 
 ```yaml
 name: Browser specs
@@ -61,7 +63,8 @@ It does not run them as a shell script.
 
 ### What the action does
 
-1. It installs Node.js, the locked dependencies of plainwright and Chromium with its system packages.
+1. It installs Node.js, the plainwright npm package at the `version` in the `package.json` of the action ref,
+   and Chromium with its system packages.
 2. It runs `plainwright --headless --reporter text`. It adds `--picks <picks>`, `--reporter junit:<junit>` and
    `--artifacts <artifacts>` for each of these inputs that is not empty. Then it adds the `args` and the `specs`.
 3. If `junit` is not empty, it uploads the JUnit file with the name `<artifact-name>-junit`. It does this after
@@ -118,8 +121,8 @@ example `plainwright-results-${{ matrix.site }}`. Artifact names must be unique 
 
 ## GitLab CI
 
-This job runs in a checkout of the plainwright repository with your specs in `tests/`. It keeps the JUnit report
-and the artifacts:
+This job runs the npm package in your repository, with your specs in `tests/`. It keeps the JUnit report and the
+artifacts:
 
 ```yaml
 browser-specs:
@@ -127,8 +130,7 @@ browser-specs:
   variables:
     PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
   script:
-    - npm ci
-    - node dist/cli.js --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
+    - npx -y plainwright@<version> --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
   artifacts:
     when: always
     paths:
@@ -139,10 +141,14 @@ browser-specs:
 
 Set `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` as a masked CI variable.
 
+Use the image tag of the Playwright version that your plainwright version installs. If the two versions are
+different, the CLI downloads its own Chromium on each run.
+
 ## Docker
 
-The image uses the Chromium of Playwright 1.63.0 and runs as the user `pwuser`. Build it from the plainwright
-repository, then run it from the folder that holds your specs:
+The image uses the Chromium of Playwright 1.63.0 and runs as the user `pwuser`. It installs the plainwright npm
+package at the `version` in `package.json`. Build it from the plainwright repository, then run it from the folder
+that holds your specs:
 
 ```sh
 docker build -t plainwright .

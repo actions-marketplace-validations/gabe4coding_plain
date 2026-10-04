@@ -1,6 +1,6 @@
 ---
 title: Development
-description: Build and test plainwright from a checkout, run the opt-in native smoke tests, and package the three plugins.
+description: Build and test plainwright from a checkout, run the opt-in native smoke tests, package the plugins and publish to npm.
 ---
 
 # Development
@@ -13,11 +13,11 @@ This page is for contributors. To use plainwright, start with [getting started](
 ```sh
 npm ci
 npx playwright install chromium
-npm run build    # compile src/ to dist/ and make the plugin runtime archives again
+npm run build    # compile src/ to dist/ and write the generated plugin files again
 npm test         # build, then run the tests in dist/**/*.test.js and scripts/*.test.mjs
 npm run check:docs
 npm run test:mods  # the session pane mod tests (claude plugin test). Needs the claude CLI. Not in npm test
-npm run verify   # the key-free gate: tests, docs, examples and plugin install
+npm run verify   # the key-free gate: tests, docs, examples, package and plugin install
 ```
 
 `npm run verify` runs `npm test`, `npm run check:docs`, `npm run check:examples` and `npm run test:plugins`. The
@@ -111,11 +111,12 @@ Claude and Codex usage. CI does not run them. Use `--agent claude` or `--only lo
 
 ### Continuous integration
 
-- The `Test` workflow runs `npm run verify` on each pull request and on main. It then checks that `dist/` and
-  the runtime archives match the build.
+- The `Test` workflow runs `npm run verify` on each pull request and on main. It then checks that the generated
+  plugin files match the build.
 - The `Live` workflow runs the e2e suite and the claims gate. It runs on pull requests that change the runtime,
   the e2e suite or the eval data. It needs the `TYPESAFE_API_KEY` repository secret. Without it, the workflow fails, but
   on a pull request from a fork it is skipped.
+- The `Publish` workflow publishes the npm package. Refer to [releases](#releases).
 
 To run one test file or one test case after a build:
 
@@ -124,25 +125,53 @@ node --test dist/browser/runner.test.js
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js
 ```
 
-## Committed build output
+## Build output
 
-The repository contains `dist/` and the three `runtime.tgz` archives. The plugins ship this built output, and
-`bin/plainwright.mjs` runs `dist/cli.js` directly.
+The repository does not contain `dist/`. Run `npm run build` after a clone and after each change in `src/`.
+Then the launchers in `bin/` run the checkout, for example `node bin/plainwright.mjs examples/todo.yaml`.
 
-- After a change in `src/`, run `npm run build` before you commit. Then `dist/` agrees with the source.
-- Do not edit the generated files by hand: `dist/`, `plugins/*/runtime.tgz`, `plugins/*/bin/launch.mjs`.
-- The CI workflow runs `npm run verify`. Then it fails if `dist/` or an archive is different from the build output.
-- Git ignores the compiled tests, `dist/**/*.test.js`.
+`npm run build` also writes the generated plugin files: the MCP configs, the plugin versions, the version in the
+`npx` commands of the skills, the license and the session pane mod. Do not edit these files by hand. Commit them
+with the change. The `Test` workflow fails if they are different from the build output.
+
+## Releases
+
+The npm package `plainwright` contains `bin/`, the compiled `dist/` without tests, and the root lockfile as
+`npm-shrinkwrap.json`. Thus an install from npm uses the locked dependency graph. `npm pack` and `npm publish`
+compile a clean `dist/` first.
+
+To release a version:
+
+1. In a pull request, run `npm version <version> --no-git-tag-version`. It changes `package.json` and
+   `package-lock.json`.
+2. Run `npm run build`. The build writes the new version into the three plugins.
+3. Merge the pull request.
+
+On each push to main, the `Publish` workflow compares the `package.json` version with npm. If npm does not have
+this version, the workflow runs `npm run verify`, publishes the package with provenance and pushes the tag
+`v<version>`. A version that is already on npm is not published again.
+
+The plugins run `npx -y --package=plainwright@<version>`. Thus a merged version bump starts to work in the plugins
+when the `Publish` workflow is complete.
+
+The workflow uses npm trusted publishing. The first publish needs the `NPM_TOKEN` repository secret, because
+npm sets a trusted publisher only on a package that exists:
+
+1. Create a granular npm access token with write access. If your npm account uses two-factor authentication,
+   select the option that lets the token bypass it.
+2. Add the token as the `NPM_TOKEN` repository secret.
+3. Let the `Publish` workflow publish the first version.
+4. On npmjs.com, add a trusted publisher for the package: GitHub Actions, this repository, workflow `publish.yml`.
+5. Remove the `NPM_TOKEN` secret, and delete the token on npmjs.com.
 
 ## Repository layout
 
 ```text
 package.json                 all dependencies, the three CLI binaries, build and test scripts
 src/                         browser, desktop, mobile and shared code, with tests next to each module
-dist/                        compiled runtime (committed)
-bin/                         CLI launchers
+bin/                         CLI launchers, the bin entries of the npm package
 plugins/
-  plainwright/               browser plugin: manifests, skill, launcher, runtime archive
+  plainwright/               browser plugin: manifests, MCP config, skill
   plainwright-computer/      desktop plugin
   plainwright-mobile/        mobile plugin
 scripts/                     plugin build, smoke tests, benchmarks, evals, the validation loop
@@ -158,39 +187,41 @@ manifest, a lockfile, a symlink or a parent-directory import to a plugin.
 
 Each plugin directory contains:
 
-- The portable manifests `plugin.json` and `mcp.json`. The server starts in `${PLUGIN_ROOT}`.
-- The Claude Code manifests `.claude-plugin/plugin.json` and `.mcp.json`. The server runs `${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs`.
+- The portable manifests `plugin.json` and `mcp.json`.
+- The Claude Code manifests `.claude-plugin/plugin.json` and `.mcp.json`.
 - The Codex manifest `.codex-plugin/plugin.json`. It uses the same `.mcp.json` and `skills/`.
 - The skill in `skills/`.
-- The generated `runtime.tgz`, `bin/launch.mjs` and `LICENSE`.
+- The generated `LICENSE` and session pane mod in `hooks/`.
 
-Keep the `name`, `version` and `description` equal in the three `plugin.json` files of each plugin. Both root
-marketplaces, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`, list the three plugin
-directories.
+The MCP configs start the server with `npx -y --package=plainwright@<version> <cli> ...`. `<version>` is the
+`package.json` version, and the plugin version is the same. A plugin host updates a cached plugin only when its
+version changes. Thus each new package version is also a new plugin version.
 
-`npm run build` compiles TypeScript. Then `scripts/build-plugins.mjs` packs one archive and copies it into each
-plugin. The archive contains the root package manifest, the root lockfile as `npm-shrinkwrap.json`, the compiled
-runtime without tests, the CLI launchers and the license. Thus a plugin install uses the locked dependency graph.
+Keep the `name` and `description` equal in the three `plugin.json` files of each plugin. The build writes the
+`version`. Both root marketplaces, `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`, list
+the three plugin directories.
 
-On the first start, the plugin launcher installs the archive in `plugins/<name>/.runtime/<archive hash>/`. A new
-archive gets a new installation. The launcher writes npm output to stderr, because stdout is the MCP channel.
-Git ignores the `.runtime/` folders.
-
-To check the archives as a plugin host sees them, run:
+To check the plugins as a plugin host sees them, run:
 
 ```sh
 npm run test:plugins
 ```
 
-This script copies each plugin to a temporary folder, compares the three manifests, installs the archive and lists
-the MCP tools. It needs no API key.
+This script packs the npm package with `npm pack` and checks its file list. Then it copies each plugin to a
+temporary folder and compares the three manifests and the MCP configs. It starts each MCP server with the `npx`
+command of its config and lists the MCP tools. The command uses the packed file in place of the npm version. It needs no API
+key, but it needs the npm registry for the dependencies.
 
 Pitfalls:
 
-- Keep `.env` files and `.runtime/` folders out of the plugin directories. Codex copies the plugin directory into
+- Keep `.env` files out of the plugin directories. Codex copies the plugin directory into
   `~/.codex/plugins/cache/`.
-- To try a plugin from a clone without an install, run `claude --plugin-dir /absolute/path/to/plainwright/plugins/plainwright`.
-  Use the same command for `plugins/plainwright-computer` and `plugins/plainwright-mobile`.
+- A plugin from a clone runs the npm version in its MCP config, not the code of the clone. To try a change in the
+  code with an agent, register the server of the checkout, for example
+  `claude mcp add plainwright-dev -- node /absolute/path/to/plainwright/bin/plainwright.mjs --headless mcp`.
+- To try a change in a skill or the session pane mod, run
+  `claude --plugin-dir /absolute/path/to/plainwright/plugins/plainwright`. Use the same command for
+  `plugins/plainwright-computer` and `plugins/plainwright-mobile`.
 - `AGENTS.md` is a symlink to `CLAUDE.md`. Codex reads the same repository guidance as Claude Code.
 
 ## Verification

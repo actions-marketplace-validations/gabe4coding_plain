@@ -1,9 +1,11 @@
 {
   "mcpServers": {
     "plainwright-mobile": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/bin/launch.mjs",
+        "-y",
+        "--package=plainwright@1.0.0",
+        "plainwright-mobile",
         "mcp"
       ]
     }

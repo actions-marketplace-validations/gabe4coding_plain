@@ -4,7 +4,7 @@
 // cost and time per task, and each final answer (check them by eye). Costs Claude usage.
 //
 //   node scripts/benchmark-agent.mjs [--runs 1] [--model sonnet] [--only <task,task>] [--changed both|on|off] [--read both|on|off]
-//                                    [--cli <path to cli.js or a plugin's bin/launch.mjs>] [--out result.json]
+//                                    [--cli <path to cli.js or bin/plainwright.mjs>] [--out result.json]
 // --cli compares another build (an installed plugin version) on the same tasks.
 //
 // Needs the `claude` CLI and a Jev key. Build first (npm run build).

@@ -45,14 +45,18 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-    - name: Install Plainwright dependencies
+    # The npm release of the version in the action's package.json, so the action ref and the runtime agree.
+    - name: Install Plainwright
+      id: install
       shell: bash
-      working-directory: ${{ github.action_path }}
-      run: npm ci --omit=dev
+      run: |
+        prefix="$RUNNER_TEMP/plainwright"
+        version="$(node -p "require(process.argv[1]).version" "$GITHUB_ACTION_PATH/package.json")"
+        npm install --prefix "$prefix" --no-audit --no-fund --no-save "plainwright@$version"
+        echo "bin=$prefix/node_modules/.bin" >> "$GITHUB_OUTPUT"
     - name: Install Chromium and system dependencies
       shell: bash
-      working-directory: ${{ github.action_path }}
-      run: npx playwright install --with-deps chromium
+      run: '"${{ steps.install.outputs.bin }}/playwright" install --with-deps chromium'
     # Trimmed once here, so the run and the upload conditions agree on what counts as empty.
     - name: Resolve output paths
       id: paths
@@ -74,6 +78,7 @@ runs:
     - name: Run specs
       shell: bash
       env:
+        PLAINWRIGHT_ACTION_BIN: ${{ steps.install.outputs.bin }}
         PLAINWRIGHT_ACTION_ARGS: ${{ inputs.args }}
         PLAINWRIGHT_ACTION_SPECS: ${{ inputs.specs }}
         PLAINWRIGHT_ACTION_PICKS: ${{ inputs.picks }}
@@ -90,7 +95,7 @@ runs:
         junit = os.environ['PLAINWRIGHT_ACTION_JUNIT']
         artifacts = os.environ['PLAINWRIGHT_ACTION_ARTIFACTS']
         command = [
-            'node', f"{os.environ['GITHUB_ACTION_PATH']}/dist/cli.js",
+            f"{os.environ['PLAINWRIGHT_ACTION_BIN']}/plainwright",
             '--headless', '--reporter', 'text',
         ]
         if picks:
