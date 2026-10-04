@@ -3,13 +3,15 @@
   "mcpServers": {
     "plainwright-mobile": {
       "type": "stdio",
-      "command": "npx",
+      "command": "node",
       "args": [
+        "bin/npx.mjs",
         "-y",
         "--package=plainwright@1.0.0",
         "plainwright-mobile",
         "mcp"
-      ]
+      ],
+      "cwd": "${PLUGIN_ROOT}"
     }
   }
 }

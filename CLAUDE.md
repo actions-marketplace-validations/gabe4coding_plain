@@ -106,11 +106,12 @@ Rules that cross modules:
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop) and
   `plugins/plainwright-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
   (layout in `docs/development.mdx`, "Plugin packaging"). Browser skill: `plugins/plainwright/skills/using-plainwright/`.
-- The plugins hold no runtime code: their MCP configs run `npx -y --package=plainwright@<version>`, pinned to the
-  `package.json` version, so a plugin from a clone still runs the npm release. Plugin version = package version.
+- The plugins hold no runtime code: their MCP configs run `node bin/npx.mjs -y --package=plainwright@<version>`
+  (the shim is `scripts/plugin-npx.mjs`: `cmd /c npx` on Windows), pinned to the `package.json` version, so a
+  plugin from a clone still runs the npm release. Plugin version = package version.
 - One root `package.json` and lockfile own all dependencies and all CLI binaries. Never add per-plugin package
   manifests, symlinks or parent-directory runtime imports. Never edit the files `npm run build` generates: the
-  plugins' MCP configs, versions, `plainwright@<version>` in the skills, `LICENSE` and `hooks/`.
+  plugins' MCP configs, `bin/npx.mjs`, versions, `plainwright@<version>` in the skills, `LICENSE` and `hooks/`.
 - `mods/session-pane/` — a Claude Code mod that draws each plugin's MCP tool results; `hooks/session-pane/` holds
   `model.ts` (pure state), `view.ts` (pure tree) and `register.ts` (the only mods API user).
   `scripts/build-plugins.mjs` copies `hooks/` into each plugin; never edit `plugins/*/hooks/`. Not compiled by
