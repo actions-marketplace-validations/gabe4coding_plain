@@ -22,23 +22,37 @@ const SPATIAL_CUE = new RegExp(`\\b(${[
 ].join('|')})\\b`, 'i');
 const ENGLISH = /\b(the|a|an|is|are|shows?|says|with|of|and|button|field|link|heading|text|message)\b/i;
 
+/** Lowercase, outside quotes: a relation, not a name like "Left field". */
+const SURE_SPATIAL = /\b(left|right|above|below|beside|between|underneath|beneath|leftmost|rightmost|topmost|bottommost|uppermost|lowermost)\b/;
+const plainEnglish = (prompt: string): boolean => /^[\x20-\x7e]*$/.test(prompt) && ENGLISH.test(prompt);
+
 /** True when the prompt may need rendered geometry and Jev must route it. */
 export function maySpatial(prompt: string): boolean {
-  return !/^[\x20-\x7e]*$/.test(prompt) || !ENGLISH.test(prompt) || SPATIAL_CUE.test(prompt);
+  return !plainEnglish(prompt) || SPATIAL_CUE.test(prompt);
 }
 
 /**
- * Independent routes for known prompt groups. Groups without any spatial cue (maySpatial) are semantic without a
- * request; the others are answered in one request (one Choice per group). A token-limit rejection bisects the
- * groups: the answers keep group order, and `used` sees each request's tokens.
+ * True when the prompt names a physical relation in plain English: spatial without a request. Spatial is the safe
+ * route (an uncertain answer collects it too); a false one only costs the layout's tokens.
+ */
+export function sureSpatial(prompt: string): boolean {
+  return plainEnglish(prompt) && SURE_SPATIAL.test(prompt.replace(/"[^"]*"/g, ''));
+}
+
+/**
+ * Independent routes for known prompt groups. Groups without any spatial cue (maySpatial) are semantic and groups
+ * with a sure one (sureSpatial) spatial, without a request; the others are answered in one request (one Choice per
+ * group). A token-limit rejection bisects the groups: the answers keep group order, and `used` sees each request's
+ * tokens.
  */
 export async function evidenceForGroups(groups: string[][], request = ask,
   used?: (tokens: number) => void): Promise<{ spatial: boolean[]; tokens: number }> {
-  const asked = groups.filter((group) => group.some(maySpatial));
+  const known = groups.map((group) => group.some(sureSpatial) ? true : group.some(maySpatial) ? undefined : false);
+  const asked = groups.filter((_, i) => known[i] === undefined);
   if (asked.length === groups.length) return askRoutes(groups, request, used);
   const { spatial, tokens } = await askRoutes(asked, request, used);
   let next = 0;
-  return { spatial: groups.map((group) => group.some(maySpatial) ? spatial[next++] : false), tokens };
+  return { spatial: known.map((route) => route ?? spatial[next++]), tokens };
 }
 
 async function askRoutes(groups: string[][], request: typeof ask,

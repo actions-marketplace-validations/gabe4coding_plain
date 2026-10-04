@@ -180,8 +180,8 @@ test('scoped spatial assertions receive geometry without outside evidence and re
     return { probabilities: [1], tokens: 1 };
   };
   const context = ctx();
-  await askPage(context, ['B is left of A'], 'css=#pair');
-  await askPage(context, ['B is left of A'], 'css=#pair');
+  await askPage(context, ['B comes before A visually'], 'css=#pair');
+  await askPage(context, ['B comes before A visually'], 'css=#pair');
   assert.equal(routes, 1);
 });
 
@@ -258,7 +258,7 @@ test('candidate capture refreshes after routing and does not auto-wait for an un
     assert.ok(observed[0].bounds);
     return [{ id: observed[0].id, probability: 1, probabilities: {}, tokens: 1 }];
   };
-  const [resolved] = await resolveLocators(ctx(), 'click', ['the left button']);
+  const [resolved] = await resolveLocators(ctx(), 'click', ['the button nearest the edge']);
   await resolved.element!.click();
   assert.equal(await resolved.element!.innerText(), 'Stable');
   // The obsolete scan cannot wait for its old ids to reappear.

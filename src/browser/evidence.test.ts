@@ -20,13 +20,13 @@ test('a real spec batches resolved descriptions once and keeps each route indepe
   let routes = 0;
   intelligence.ask = async (state, questions) => {
     routes++;
-    assert.deepEqual(state, { groups: [['the Name field'], ['the left button'], ['B clicked is shown', 'the Name field contains entry']] });
+    assert.deepEqual(state, { groups: [['the first field'], ['the button nearest the edge'], ['B clicked is shown', 'the first field contains entry']] });
     assert.equal(questions.length, 3);
     return { answers: [{ choice: 'semantic', confidence: 1 }, { choice: 'spatial', confidence: 1 },
       { choice: 'semantic', confidence: 1 }], tokens: 11 };
   };
   intelligence.pick = async (candidates, targets, state) => {
-    const spatial = targets[0] === 'the left button';
+    const spatial = targets[0] === 'the button nearest the edge';
     assert.equal(state.layout !== undefined, spatial);
     assert.equal(candidates.some((candidate) => candidate.bounds), spatial);
     const chosen = spatial ? candidates.filter((candidate) => candidate.desc.startsWith('button '))
@@ -45,9 +45,9 @@ test('a real spec batches resolved descriptions once and keeps each route indepe
     { kind: 'goto', url },
     { kind: 'fill', target: '${env.field}', value: 'private entry' },
     { kind: 'fill', target: '${env.field}', value: 'entry' },
-    { kind: 'click', target: 'the left button' },
-    { kind: 'expect', expectations: ['B clicked is shown', 'the Name field contains entry'], within: 'css=body' },
-  ]), env: { field: 'the Name field' } }, options);
+    { kind: 'click', target: 'the button nearest the edge' },
+    { kind: 'expect', expectations: ['B clicked is shown', 'the first field contains entry'], within: 'css=body' },
+  ]), env: { field: 'the first field' } }, options);
   assert.equal(result.status, 'pass', JSON.stringify(result.steps));
   assert.equal(routes, 1);
   assert.equal(result.jevCalls, 5);
@@ -75,7 +75,7 @@ test('a scoped interactive claim batches the region and claim while retaining th
   let routes = 0;
   intelligence.ask = async (state, questions) => {
     routes++;
-    assert.deepEqual(state, { groups: [['B is left of A'], ['the Button pair section']] });
+    assert.deepEqual(state, { groups: [['B comes before A visually'], ['the Button pair row']] });
     assert.equal(questions.length, 2);
     return { answers: [{ choice: 'spatial', confidence: 1 }, { choice: 'semantic', confidence: 1 }], tokens: 1 };
   };
@@ -90,7 +90,7 @@ test('a scoped interactive claim batches the region and claim while retaining th
     assert.doesNotMatch(snap.layout, /Name|Email/);
     return { probabilities: [1], tokens: 1 };
   };
-  const result = await askPage(session.ctx, ['B is left of A'], 'the Button pair section');
+  const result = await askPage(session.ctx, ['B comes before A visually'], 'the Button pair row');
   assert.ok('probabilities' in result);
   assert.deepEqual(result.probabilities, [1]);
   assert.equal(routes, 1);
@@ -102,15 +102,15 @@ test('an optional failed batch route leaves later groups available for one retry
   let calls = 0;
   intelligence.ask = async (state, questions) => {
     calls++;
-    assert.deepEqual(state, { groups: [['the Name field'], ['the Email field']] });
+    assert.deepEqual(state, { groups: [['the first field'], ['the second field']] });
     if (calls === 1) throw new Error('temporary classifier failure');
     return { answers: questions.map(() => ({ choice: 'semantic', confidence: 1 })), tokens: 1 };
   };
   intelligence.pick = async (candidates) => [{ id: candidates.find((candidate) => candidate.desc.includes('Email'))!.id,
     probability: 1, probabilities: {}, tokens: 1 }];
   const result = await runSpec(spec([{ kind: 'goto', url },
-    { kind: 'fill', target: 'the Name field', value: 'entry', optional: true },
-    { kind: 'fill', target: 'the Email field', value: 'entry' },
+    { kind: 'fill', target: 'the first field', value: 'entry', optional: true },
+    { kind: 'fill', target: 'the second field', value: 'entry' },
   ]), options);
   assert.equal(result.status, 'pass', JSON.stringify(result.steps));
   assert.equal(result.steps[1].status, 'skipped');

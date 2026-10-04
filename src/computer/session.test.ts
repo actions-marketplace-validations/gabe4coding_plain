@@ -320,10 +320,10 @@ test('a desktop spec routes once; spatial prompts get bounds and a layout, seman
     ask: async (state, questions) => {
       routed.push(state);
       const { groups } = state as { groups: string[][] };
-      return { tokens: 5, answers: questions.map((_, i) => ({ choice: /left|right/.test(groups[i].join(' ')) ? 'spatial' : 'semantic', confidence: 1 })) };
+      return { tokens: 5, answers: questions.map((_, i) => ({ choice: /left|right|edge/.test(groups[i].join(' ')) ? 'spatial' : 'semantic', confidence: 1 })) };
     },
     pick: async (candidates, targets, page) => targets.map((target) => {
-      const spatial = target === 'the left button';
+      const spatial = target === 'the button nearest the edge';
       assert.equal(candidates.some((c) => c.bounds), spatial);
       assert.equal(page.coordinates, spatial ? DESKTOP_COORDINATES : undefined);
       const buttons = candidates.filter((c) => c.desc.startsWith('button'));
@@ -340,13 +340,13 @@ test('a desktop spec routes once; spatial prompts get bounds and a layout, seman
   const dir = mkdtempSync(join(tmpdir(), 'desktop-spatial-'));
   try {
     const file = join(dir, 'spatial.yaml');
-    writeFileSync(file, 'name: spatial\napp: Fixture\nsteps:\n  - click: the button named B\n  - click: the left button\n  - expect: The A button is left of the Total label\n');
+    writeFileSync(file, 'name: spatial\napp: Fixture\nsteps:\n  - click: the button named B\n  - click: the button nearest the edge\n  - expect: The A button is left of the Total label\n');
     const session = new ComputerSession(adapter, 1000, spatialAi);
     const result = await runComputerSpec(loadComputerSpec(file), session);
     assert.equal(result.status, 'pass', JSON.stringify(result.steps));
     assert.deepEqual(clicked, ['B', 'A']);
-    // 'the button named B' has no spatial cue: it is semantic without a request.
-    assert.deepEqual(routed, [{ groups: [['the left button'], ['The A button is left of the Total label']] }]);
+    // Only the vague target needs a request: 'the button named B' has no spatial cue, the claim a sure one.
+    assert.deepEqual(routed, [{ groups: [['the button nearest the edge']] }]);
     assert.equal(result.jevCalls, 4);
     // The semantic click read no bounds; the two spatial captures read each of the four nodes once.
     assert.equal(boundsReads, 8);
