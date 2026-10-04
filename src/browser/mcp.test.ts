@@ -192,6 +192,40 @@ test('a typed password reaches step changes and snapshots only as a mask', async
   }
 });
 
+test('save writes values typed into password fields as env references, never as literals', async () => {
+  // Its own server: the shared one already holds the passwords of earlier tests.
+  const own = new Client({ name: 'plain-test-secrets', version: '0' });
+  await own.connect(new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../cli.js', import.meta.url)), '--headless', '--timeout', '500', 'mcp'] }));
+  const ownCall = async (name: string, args: Record<string, unknown>) =>
+    ((await own.callTool({ name, arguments: args })) as { structuredContent: Record<string, unknown> }).structuredContent;
+  try {
+    const hooks = join(scratch, 'secret-hooks.mjs');
+    writeFileSync(hooks, 'export function setup() { return { pin: "9999" }; }');
+    await ownCall('open', { hooks, url: html('<input id="user"><input type="password" id="pw"><input id="confirm">' +
+      '<input type="password" id="code"><input type="password" id="pin">') });
+    const result = await ownCall('batch', { steps: [
+      { fill: { target: 'css=#user', value: 'tomsmith' } },
+      { fill: { target: 'css=#pw', value: 'hunter2' } },
+      { fill: { target: 'css=#confirm', value: 'hunter2' } },
+      { fill: { target: 'css=#code', value: '4321' } },
+      { fill: { target: 'css=#pin', value: '${hooks.pin}' } },
+    ] });
+    assert.equal(result.status, 'pass');
+    const path = join(scratch, 'secrets.yaml');
+    const saved = await ownCall('save', { path });
+    const env = { password: '$PASSWORD', password2: '$PASSWORD_2' };
+    assert.deepEqual(saved.env, env);
+    const text = readFileSync(path, 'utf8');
+    assert.doesNotMatch(text, /hunter2|4321/);
+    const spec = parse(text); // the text-type confirm field gets the reference too: its value was typed as a password
+    assert.deepEqual(spec.env, env);
+    assert.deepEqual(spec.steps.slice(1).map((step: { fill: { value: string } }) => step.fill.value),
+      ['tomsmith', '${env.password}', '${env.password}', '${env.password2}', '${hooks.pin}']);
+  } finally {
+    await own.close();
+  }
+});
+
 test('step results carry what the action changed; open keeps a goal that save writes', async () => {
   const page = 'data:text/html,' + encodeURIComponent(`<!doctype html><title>Menu</title><button onclick="document.body.insertAdjacentHTML('beforeend','<p>Saved: 3 items</p>')">Save</button>`);
   await call('open', { url: page, goal: 'save the list' });

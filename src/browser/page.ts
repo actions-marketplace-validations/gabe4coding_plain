@@ -284,7 +284,15 @@ async function passwordValues(page: Page): Promise<Set<string>> {
   const values = await Promise.all(page.frames().map((frame) => frame.locator('input').evaluateAll((inputs) =>
     inputs.flatMap((input) => input instanceof HTMLInputElement && input.type === 'password' && input.value ? [input.value] : []))
     .catch(() => [])));
-  return new Set(values.flat().map((value) => value.replace(/[\u200b\u00ad]/g, '').trim().replace(/\s+/g, ' ')).filter(Boolean));
+  return new Set(values.flat().map(asPrinted).filter(Boolean));
+}
+
+const asPrinted = (value: string): string => value.replace(/[\u200b\u00ad]/g, '').trim().replace(/\s+/g, ' ');
+
+/** Whether one of the page's password fields holds `value`: a secret that a saved spec must not contain. */
+export async function inPasswordField(page: Page, value: string): Promise<boolean> {
+  const printed = asPrinted(value);
+  return printed !== '' && (await passwordValues(page)).has(printed);
 }
 
 /**
