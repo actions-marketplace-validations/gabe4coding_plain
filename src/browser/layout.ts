@@ -1,6 +1,6 @@
 import type { ElementHandle, Frame, JSHandle, Locator, Page } from 'playwright';
 import type { Candidate } from '../core/automation.js';
-import { joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations, type LayoutItem } from '../core/layout.js';
+import { boundsText, joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations, type LayoutItem } from '../core/layout.js';
 import { frameLabel } from './frames.js';
 import { PASSWORD_MASK } from './page.js';
 
@@ -249,7 +249,7 @@ export async function layoutSnapshot(page: Page, within?: Locator): Promise<stri
       lines.push(`Layout unavailable for ${label}: missing geometry is insufficient evidence.`);
     }
   }
-  const observations = items.map((item) => `${item.description} bounds=${JSON.stringify(item.bounds)}`);
+  const observations = items.map((item) => `${item.description} bounds=${boundsText(item.bounds)}`);
   if (items.some((item) => item.description.includes(' collapsed='))) {
     observations.unshift('For a collapsed native select, displayed_selection is the only displayed option; options_not_displayed are not visible. Its label is the control name, separate from its displayed selection.');
   }

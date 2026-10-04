@@ -1,6 +1,7 @@
 import type { Candidate } from '../core/automation.js';
 import { ask, choiceChunks, isTooLong, MAX_CHOICE_OPTIONS, type Question } from './ask.js';
 import { decide } from './decide.js';
+import { boundsText, roundBounds } from '../core/layout.js';
 
 /** At most four parallel requests per pick. Candidates are ordered so that a cut drops nav and footer links first. */
 export const MAX_CANDIDATES = MAX_CHOICE_OPTIONS * 4;
@@ -76,7 +77,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
   const coordinates = page.coordinates ?? 'main viewport CSS pixels';
   for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc +
-    (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (${coordinates}; tree order is not visual order)` : '');
+    (candidate.bounds ? ` bounds=${boundsText(candidate.bounds)} (${coordinates}; tree order is not visual order)` : '');
 
   const state = {
     url: page.url,
@@ -90,7 +91,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
     instructions,
     // `editable` and `state` are for the pick cache only: Jev never sees them.
     elements: candidates.map(({ id, desc, frameIndex, bounds }) => ({ id, desc,
-      ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds } : {}) })),
+      ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds: roundBounds(bounds) } : {}) })),
   };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',
