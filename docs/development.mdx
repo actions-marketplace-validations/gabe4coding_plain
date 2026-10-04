@@ -153,8 +153,10 @@ On each push to main, the `Publish` workflow compares the `package.json` version
 this version, the workflow runs `npm run verify`, publishes the package with provenance and pushes the tag
 `v<version>`. A version that is already on npm is not published again.
 
-Then the workflow installs the published version from npm. It fails if a direct dependency does not have its
-lockfile version, because then npm did not use the shrinkwrap. It also runs the CLI once.
+Then the workflow installs the published version from npm. The registry can serve the old version list for up to
+5 minutes after a publish. Thus the workflow tries the install again with longer delays, for up to 10 minutes. It
+fails if the install does not work in that time. It also fails if a direct dependency does not have its lockfile
+version, because then npm did not use the shrinkwrap. Then it runs the CLI once.
 
 The plugins run `npx -y --package=@gabe4coding/plain@<version>`. Thus a merged version bump starts to work in the plugins
 when the `Publish` workflow is complete.
