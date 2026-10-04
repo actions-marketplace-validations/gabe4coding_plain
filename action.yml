@@ -1,5 +1,5 @@
 ---
-name: Plain
+name: Plain-e2e
 description: >-
   Run Plain YAML specs with JUnit reporting and failure artifacts
 inputs:
