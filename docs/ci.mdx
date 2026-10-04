@@ -7,7 +7,7 @@ description: Run plainwright specs in GitHub Actions, GitLab CI or Docker, publi
 
 A CI job for plainwright needs three things: Node.js, Chromium for browser specs, and a Jev API key
 (`TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY`) as a secret. The job runs the
-[plainwright npm package](https://www.npmjs.com/package/plainwright) with `npx`. [Getting started](getting-started.mdx) describes the
+[`@gabe4coding/plain` npm package](https://www.npmjs.com/package/@gabe4coding/plain) with `npx`. [Getting started](getting-started.mdx) describes the
 API key. [Running suites](running.mdx) describes the options, the config file and the exit codes.
 
 ## Check specs before a live run
@@ -16,8 +16,8 @@ API key. [Running suites](running.mdx) describes the options, the config file an
 secrets:
 
 ```sh
-npx -y plainwright@<version> validate tests/
-npx -y plainwright@<version> --list --tag smoke tests/
+npx -y -p @gabe4coding/plain@<version> plainwright validate tests/
+npx -y -p @gabe4coding/plain@<version> plainwright --list --tag smoke tests/
 ```
 
 `validate` gives a warning for an absent spec environment variable. `--list` needs these variables.
@@ -134,7 +134,7 @@ browser-specs:
   variables:
     PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
   script:
-    - npx -y plainwright@<version> --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
+    - npx -y -p @gabe4coding/plain@<version> plainwright --headless --picks read --reporter text --reporter junit:plainwright-results/junit.xml --artifacts plainwright-results tests/
   artifacts:
     when: always
     paths:

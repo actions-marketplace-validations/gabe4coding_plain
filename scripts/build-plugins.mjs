@@ -1,6 +1,6 @@
 // The three plugins run the published npm package through npx, pinned to the root package.json version. This
 // script writes what each plugin derives from the root: the MCP configs, the npx shim (scripts/plugin-npx.mjs as
-// bin/npx.mjs), the version in its three manifests and in the `plainwright@<version>` commands of its skill, the
+// bin/npx.mjs), the version in its three manifests and in the `@gabe4coding/plain@<version>` commands of its skill, the
 // license and the session pane mod. Plugin hosts refresh a cached plugin when its version changes, so a new
 // runtime version is also a new plugin version.
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -15,12 +15,14 @@ const SERVERS = {
   'plainwright-mobile': { bin: 'plainwright-mobile', args: ['mcp'] },
 };
 const SEMVER = String.raw`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?`;
+// `@gabe4coding/plain@1.2.3` in a skill, not inside a longer package name.
+const PINNED = new RegExp(String.raw`(?<![\w@/.-])` + PACKAGE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '@' + SEMVER, 'g');
 // Hosts start `node` on every platform; the shim starts npx (through cmd /c on Windows).
 const SHIM = 'bin/npx.mjs';
 const writeJson = (file, value) => writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
-/** `npx -y --package=plainwright@<version> <bin> ...`: one form for all bins, so a test can swap the package spec. */
+/** `npx -y --package=@gabe4coding/plain@<version> <bin> ...`: one form for all bins, so a test can swap the package spec. */
 export function npxArgs(name, spec = `${PACKAGE}@${version}`) {
   const { bin, args } = SERVERS[name];
   return ['-y', `--package=${spec}`, bin, ...args];
@@ -47,7 +49,7 @@ function pinSkill(dir) {
     const path = join(dir, file);
     if (!file.endsWith('.md') || statSync(path).isDirectory()) continue;
     const text = readFileSync(path, 'utf8');
-    const pinned = text.replace(new RegExp(`\\b${PACKAGE}@${SEMVER}`, 'g'), `${PACKAGE}@${version}`);
+    const pinned = text.replace(PINNED, `${PACKAGE}@${version}`);
     if (pinned !== text) writeFileSync(path, pinned);
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "plainwright",
+  "name": "@gabe4coding/plain",
   "version": "1.0.0",
   "description": "Natural-language browser, desktop and mobile automation with Playwright, xa11y, Appium and Jev",
   "repository": {
