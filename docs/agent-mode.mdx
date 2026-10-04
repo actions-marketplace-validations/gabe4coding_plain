@@ -21,7 +21,7 @@ npx -y plainwright [--headless] [--timeout <ms>] mcp
 ```
 
 The server keeps one browser session open, serves it over stdio and runs tool calls one at a time. It reads no
-config file.
+config file. When its input closes, the server closes the browser and stops.
 
 Without an API key, only the calls that do not ask Jev work: `open`, `evaluate`, `save`, a `goto` step, a `css=`
 target, and a raw or compact `snapshot` of the whole page. For a call that needs Jev, `step` and `batch` return
