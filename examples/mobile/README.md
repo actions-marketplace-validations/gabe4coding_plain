@@ -9,8 +9,8 @@ This folder has four mobile specs. Run all commands from the repository root.
 
 | Spec | App | What it does | Cleanup |
 |---|---|---|---|
-| [android.yaml](android.yaml) | The plainwright fixture | Text entry, keyboard, switches, tap, long press, scroll, swipe | The hook uninstalls the fixture. |
-| [ios.yaml](ios.yaml) | The plainwright fixture | The same steps on an iOS simulator | The hook uninstalls the fixture. |
+| [android.yaml](android.yaml) | The plain fixture app | Text entry, keyboard, switches, tap, long press, scroll, swipe | The hook uninstalls the fixture. |
+| [ios.yaml](ios.yaml) | The plain fixture app | The same steps on an iOS simulator | The hook uninstalls the fixture. |
 | [android-contacts.yaml](android-contacts.yaml) | Google Contacts | Creates and checks the contact Alex Example | None. Each run adds a contact. |
 | [ios-calendar.yaml](ios-calendar.yaml) | Apple Calendar | Creates an event and finds it with Search | None. Each run adds an event. |
 
@@ -22,13 +22,13 @@ For Appium, device IDs and the mobile steps, read [Mobile use](../../docs/mobile
    run `npm ci` and `npm run build` in the repository folder.
 2. Install Appium and the driver for your platform. Install the driver before you start the server.
 3. Boot the emulator or the simulator, and start Appium.
-4. Put `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` in `~/.config/plainwright/.env`. Read [Getting started](../../docs/getting-started.mdx).
-5. Set `PLAINWRIGHT_MOBILE_DEVICE` to the ID of your emulator or simulator.
+4. Put `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` in `~/.config/plain/.env`. Read [Getting started](../../docs/getting-started.mdx).
+5. Set `PLAIN_MOBILE_DEVICE` to the ID of your emulator or simulator.
 
-Do not put the API key or a personal device ID in the YAML. The specs read the device from `PLAINWRIGHT_MOBILE_DEVICE`.
+Do not put the API key or a personal device ID in the YAML. The specs read the device from `PLAIN_MOBILE_DEVICE`.
 
 Appium listens on `http://127.0.0.1:4723` by default. If your server uses another address, set
-`PLAINWRIGHT_APPIUM_URL` or add `--server http://127.0.0.1:4725` to the command.
+`PLAIN_APPIUM_URL` or add `--server http://127.0.0.1:4725` to the command.
 
 A run writes a pick cache file next to the spec, for example `examples/mobile/android.picks.json`.
 The next run uses the stored picks, and its step details show `(cached pick)`.
@@ -38,16 +38,16 @@ Read [Pick cache](../../docs/running.mdx#pick-cache).
 ## Fixture examples
 
 `android.yaml` and `ios.yaml` use [a setup and teardown hook](../hooks/mobile-fixture.mjs).
-The hook builds the offline fixture app `dev.plainwright.fixture` and installs it on the device.
+The hook builds the offline fixture app `dev.plain.fixture` and installs it on the device.
 After the run, pass or fail, the hook uninstalls the app. You need no app project.
 The hook does not start the emulator, the simulator or Appium.
 
-The hook stops if `dev.plainwright.fixture` is already installed. This can occur after a run that was stopped before
+The hook stops if `dev.plain.fixture` is already installed. This can occur after a run that was stopped before
 its teardown. Uninstall the app, then run again:
 
 ```sh
-adb -s emulator-5554 uninstall dev.plainwright.fixture
-xcrun simctl uninstall "$PLAINWRIGHT_MOBILE_DEVICE" dev.plainwright.fixture
+adb -s emulator-5554 uninstall dev.plain.fixture
+xcrun simctl uninstall "$PLAIN_MOBILE_DEVICE" dev.plain.fixture
 ```
 
 ### Android
@@ -61,12 +61,12 @@ Prepare the Android host:
 
 ```sh
 "$ANDROID_HOME/platform-tools/adb" devices -l
-PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 \
-  node bin/plainwright-mobile.mjs --timeout 60000 examples/mobile/android.yaml
+PLAIN_MOBILE_DEVICE=emulator-5554 \
+  node bin/plain-mobile.mjs --timeout 60000 examples/mobile/android.yaml
 ```
 
 Replace `emulator-5554` with the serial of your device. To use another installed Build-Tools version, set
-`PLAINWRIGHT_ANDROID_BUILD_TOOLS` (for example `35.0.0`). The fixture still uses SDK Platform 36.
+`PLAIN_ANDROID_BUILD_TOOLS` (for example `35.0.0`). The fixture still uses SDK Platform 36.
 
 ### iOS Simulator
 
@@ -81,8 +81,8 @@ The fixture works only on a simulator. You do not need an Apple developer accoun
 
 ```sh
 xcrun simctl list devices booted
-export PLAINWRIGHT_MOBILE_DEVICE='replace-with-your-booted-simulator-udid'
-node bin/plainwright-mobile.mjs --timeout 240000 examples/mobile/ios.yaml
+export PLAIN_MOBILE_DEVICE='replace-with-your-booted-simulator-udid'
+node bin/plain-mobile.mjs --timeout 240000 examples/mobile/ios.yaml
 ```
 
 The first session builds WebDriverAgent, so the command uses a long timeout. The spec taps the Done key of the
@@ -109,7 +109,7 @@ These specs test native UIKit and Android controls. They do not test physical iP
 They have no cleanup, and the data that they create stays on the device. Use a test device and remove the data
 after you test. Run them with the same command as the fixture examples.
 
-plainwright does not restart an app that is open. A run starts on the screen that the last run left.
+plain does not restart an app that is open. A run starts on the screen that the last run left.
 
 ### Google Contacts on Android
 

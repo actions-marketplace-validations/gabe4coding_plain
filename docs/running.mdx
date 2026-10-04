@@ -5,13 +5,13 @@ description: Run browser, desktop and mobile specs from the command line, select
 
 # Running suites
 
-The three CLIs `plainwright` (browser), `plainwright-computer` (desktop) and `plainwright-mobile` (mobile) share
+The three CLIs `plain` (browser), `plain-computer` (desktop) and `plain-mobile` (mobile) share
 the options on this page:
 
 ```sh
-plainwright --headless --workers 4 --retries 1 --tag smoke tests/
-plainwright-computer --retries 1 tests/desktop/
-plainwright-mobile 'tests/mobile/**/*.yaml'
+plain --headless --workers 4 --retries 1 --tag smoke tests/
+plain-computer --retries 1 tests/desktop/
+plain-mobile 'tests/mobile/**/*.yaml'
 ```
 
 [Reporting](reporting.mdx) describes the output formats. [Artifacts](artifacts.mdx) describes screenshots,
@@ -31,7 +31,7 @@ not exist becomes a load error. A glob that matches no file adds nothing. If you
 Keep included flow files outside the paths that you run. A flow file has only `steps:`, so it gives a load error.
 
 A spec that does not load (bad YAML, an incorrect field, an absent `$VAR`) is reported as `error`. It never runs,
-plainwright does not retry it, and it does not count toward `--bail`. Selection filters do not hide it.
+plain does not retry it, and it does not count toward `--bail`. Selection filters do not hide it.
 
 ## Command-line options
 
@@ -57,7 +57,7 @@ Each option has a key with the same effect in the [config file](#configuration).
 | `--tag T` | `tags` | None | Runs only specs that have this tag. Repeat it to require more tags. |
 | `--last-failed` | None | Off | Runs only specs that did not pass in the previous run. |
 | `--list` | None | Off | Prints the selected specs and runs nothing. |
-| `--config FILE` | None | `plainwright.config.yaml` | Reads this config file. |
+| `--config FILE` | None | `plain.config.yaml` | Reads this config file. |
 | `--reporter NAME[:FILE]` | `reporters` | Browser `text`, desktop and mobile `jsonl` | Output format. Repeat it for more outputs. |
 | `--timing` | `timing` | Off | Browser only. Adds phase timings to `text` output. |
 | `--artifacts DIR` | `artifacts.dir` | Off | Saves screenshots, traces and debug files in this folder. |
@@ -93,8 +93,8 @@ An empty selection does not need an API key.
 ## Select specs
 
 ```sh
-plainwright --grep 'Login|Checkout' tests/
-plainwright --tag smoke --tag checkout tests/
+plain --grep 'Login|Checkout' tests/
+plain --tag smoke --tag checkout tests/
 ```
 
 `--grep` uses a JavaScript regular expression. It matches the spec name or the path relative to the current
@@ -125,16 +125,16 @@ the reason `bail` or `max-tokens`.
 
 ## Previous failures
 
-Each completed run writes `.plainwright/last-run.json` in the current folder, with the final status of each spec.
-Each run replaces it. All three CLIs share this file. Add `.plainwright/` to your `.gitignore`. `--list` and
+Each completed run writes `.plain/last-run.json` in the current folder, with the final status of each spec.
+Each run replaces it. All three CLIs share this file. Add `.plain/` to your `.gitignore`. `--list` and
 `validate` do not change the file.
 
 `--last-failed` keeps only the selected specs that did not pass in the previous run:
 
-- If there is no file, or the file is not valid, plainwright runs all selected specs. It prints
+- If there is no file, or the file is not valid, plain runs all selected specs. It prints
   `no previous run found; running all selected specs`.
-- If the previous run had no failures, plainwright runs nothing. It prints `no failures in the last run`.
-- In all other cases, plainwright runs the selected specs whose final status was not `pass`. This includes
+- If the previous run had no failures, plain runs nothing. It prints `no failures in the last run`.
+- In all other cases, plain runs the selected specs whose final status was not `pass`. This includes
   skipped specs and load errors. Flaky passes are not included.
 
 ## Pick cache
@@ -160,9 +160,9 @@ In CI, use `--picks read` to keep the working tree unchanged.
 If the step text has a placeholder (`${env.*}` or `${hooks.*}`), the pick file holds only hashes. Other entries hold
 the element description and the page address as plain text.
 
-### When plainwright uses a stored pick
+### When plain uses a stored pick
 
-plainwright uses a stored pick only when:
+plain uses a stored pick only when:
 
 - It is the first attempt of the spec. A retry always asks Jev.
 - The page has the same origin and path. The query and the hash part of the address can change.
@@ -177,15 +177,15 @@ After a miss, Jev picks as usual. A step that used a stored pick has `(cached pi
 
 ### When entries change
 
-- plainwright stores picks only from passed steps in a passed attempt, with confidence of at least 0.9.
-  If the provider gives no confidence, plainwright uses the probability.
+- plain stores picks only from passed steps in a passed attempt, with confidence of at least 0.9.
+  If the provider gives no confidence, plain uses the probability.
   A pick below 0.9 still acts at the pick threshold, but each run asks Jev again.
-- plainwright never stores a pick of one of many identical elements (a target that ends with ` #2`), or a pick
+- plain never stores a pick of one of many identical elements (a target that ends with ` #2`), or a pick
   that Jev rejected.
-- If an attempt does not pass, plainwright deletes the stored picks that it used. If the retry passes, its picks
+- If an attempt does not pass, plain deletes the stored picks that it used. If the retry passes, its picks
   replace them. If a step that used stored picks does not pass, its detail names a debug file with these picks
   (`cache: <file>.json`).
-- plainwright ignores a pick file from another Jev model, or from a plainwright version with another element
+- plain ignores a pick file from another Jev model, or from a version of plain with another element
   description format. The next passing run writes a new file.
 
 To reset the cache, delete the pick file or one entry in it, or run once with `--picks off`. If you move a step to
@@ -195,8 +195,8 @@ a new position, it gets a new entry. The old entry stays in the file until you d
 
 ## Configuration
 
-Each CLI reads `plainwright.config.yaml` from the current folder, or
-`plainwright.config.yml` if that file is absent. Use `--config FILE` to read another file. If that file does not
+Each CLI reads `plain.config.yaml` from the current folder, or
+`plain.config.yml` if that file is absent. Use `--config FILE` to read another file. If that file does not
 exist, the CLI stops with an error. `mcp` does not read a config file.
 
 ```yaml
@@ -209,7 +209,7 @@ reporters:
   - junit:reports/junit.xml
   - {name: json, output: reports/results.json}
 artifacts:
-  dir: plainwright-results
+  dir: plain-results
   screenshot: on-failure
   trace: on-failure
 ```
@@ -229,8 +229,8 @@ mappings.
 ### Order of precedence
 
 1. Command-line options.
-2. The environment variables `PLAINWRIGHT_PROFILE`, `PLAINWRIGHT_CHANNEL`, `PLAINWRIGHT_CDP` and
-   `PLAINWRIGHT_APPIUM_URL`. [Getting started](getting-started.mdx) lists all environment variables.
+2. The environment variables `PLAIN_PROFILE`, `PLAIN_CHANNEL`, `PLAIN_CDP` and
+   `PLAIN_APPIUM_URL`. [Getting started](getting-started.mdx) lists all environment variables.
 3. The config file.
 4. The defaults.
 
@@ -244,32 +244,32 @@ The three CLIs read the same config file. Each CLI ignores the config values tha
 note on stderr with the names of these values, and then it continues:
 
 ```text
-plainwright: desktop ignores these config values: headless, workers: 4, artifacts.trace: on-failure
+plain: desktop ignores these config values: headless, workers: 4, artifacts.trace: on-failure
 ```
 
 | CLI | Config values that it ignores |
 |---|---|
-| `plainwright` | `server` |
-| `plainwright-computer` | `headless`, `timing`, `profile`, `channel`, `cdp`, `server`, `workers` more than `1`, `timeout: 0`, an `artifacts.trace` mode other than `off` |
-| `plainwright-mobile` | `headless`, `timing`, `profile`, `channel`, `cdp`, `workers` more than `1`, `timeout: 0`, an `artifacts.trace` mode other than `off` |
+| `plain` | `server` |
+| `plain-computer` | `headless`, `timing`, `profile`, `channel`, `cdp`, `server`, `workers` more than `1`, `timeout: 0`, an `artifacts.trace` mode other than `off` |
+| `plain-mobile` | `headless`, `timing`, `profile`, `channel`, `cdp`, `workers` more than `1`, `timeout: 0`, an `artifacts.trace` mode other than `off` |
 
 In place of an ignored value, the CLI uses its default: one worker, a `15000` ms timeout and no trace. This is
 also true for `validate` and `--list`.
 
-The same value as a command-line option stops the CLI (exit `2`), for example `plainwright-computer --headless` or
-`plainwright-mobile --workers 4`. An option is a request for this run, thus the CLI does not ignore it. The
+The same value as a command-line option stops the CLI (exit `2`), for example `plain-computer --headless` or
+`plain-mobile --workers 4`. An option is a request for this run, thus the CLI does not ignore it. The
 environment variables in the [order of precedence](#order-of-precedence) are not config values. A CLI that does
 not use one of them ignores it and prints no note.
 
 To give desktop or mobile specs other values, for example other `files`, use a second config file:
-`plainwright-computer --config desktop.config.yaml`.
+`plain-computer --config desktop.config.yaml`.
 
 ## Check specs without a run
 
 ```sh
-plainwright validate tests/
-plainwright-computer validate tests/desktop/
-plainwright-mobile validate tests/mobile/
+plain validate tests/
+plain-computer validate tests/desktop/
+plain-mobile validate tests/mobile/
 ```
 
 `validate` loads each file, expands the includes and checks the schema. It also checks the placeholders in the

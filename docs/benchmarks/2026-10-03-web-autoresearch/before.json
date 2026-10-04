@@ -1,6 +1,6 @@
 {
   "runs": 3,
-  "cli": "/tmp/plainwright-research/main/dist/cli.js",
+  "cli": "/tmp/plain-research/main/dist/cli.js",
   "report": [
     {
       "run": 1,
@@ -448,7 +448,7 @@
       "isError": false,
       "data": {
         "status": "inconclusive",
-        "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plainwright/1791008738960-4930-1-pick.json",
+        "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plain/1791008738960-4930-1-pick.json",
         "notes": [],
         "url": "http://127.0.0.1:45787/",
         "jevTokens": 459,
@@ -514,7 +514,7 @@
       "isError": false,
       "data": {
         "status": "inconclusive",
-        "detail": "low confidence or invalid candidate c=0.37 — top: button \"Continue\" #1 (p=0.58) | none (p=0.41) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plainwright/1791008739143-4930-2-pick.json",
+        "detail": "low confidence or invalid candidate c=0.37 — top: button \"Continue\" #1 (p=0.58) | none (p=0.41) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plain/1791008739143-4930-2-pick.json",
         "notes": [],
         "url": "http://127.0.0.1:42737/",
         "jevTokens": 513,
@@ -989,7 +989,7 @@
       "isError": false,
       "data": {
         "status": "inconclusive",
-        "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plainwright/1791008744072-4930-3-pick.json",
+        "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plain/1791008744072-4930-3-pick.json",
         "notes": [],
         "url": "http://127.0.0.1:45787/",
         "jevTokens": 459,
@@ -1055,7 +1055,7 @@
       "isError": false,
       "data": {
         "status": "inconclusive",
-        "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plainwright/1791008744277-4930-4-pick.json",
+        "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plain/1791008744277-4930-4-pick.json",
         "notes": [],
         "url": "http://127.0.0.1:42737/",
         "jevTokens": 513,
@@ -1530,7 +1530,7 @@
       "isError": false,
       "data": {
         "status": "inconclusive",
-        "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plainwright/1791008749371-4930-5-pick.json",
+        "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plain/1791008749371-4930-5-pick.json",
         "notes": [],
         "url": "http://127.0.0.1:45787/",
         "jevTokens": 459,
@@ -1596,7 +1596,7 @@
       "isError": false,
       "data": {
         "status": "inconclusive",
-        "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plainwright/1791008749591-4930-6-pick.json",
+        "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plain/1791008749591-4930-6-pick.json",
         "notes": [],
         "url": "http://127.0.0.1:42737/",
         "jevTokens": 513,
@@ -1660,7 +1660,7 @@
       "run": 1,
       "site": "editor",
       "name": "step",
-      "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plainwright/1791008738960-4930-1-pick.json"
+      "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plain/1791008738960-4930-1-pick.json"
     },
     {
       "run": 1,
@@ -1685,7 +1685,7 @@
       "run": 1,
       "site": "shadow",
       "name": "step",
-      "detail": "low confidence or invalid candidate c=0.37 — top: button \"Continue\" #1 (p=0.58) | none (p=0.41) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plainwright/1791008739143-4930-2-pick.json"
+      "detail": "low confidence or invalid candidate c=0.37 — top: button \"Continue\" #1 (p=0.58) | none (p=0.41) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plain/1791008739143-4930-2-pick.json"
     },
     {
       "run": 1,
@@ -1730,7 +1730,7 @@
       "run": 2,
       "site": "editor",
       "name": "step",
-      "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plainwright/1791008744072-4930-3-pick.json"
+      "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plain/1791008744072-4930-3-pick.json"
     },
     {
       "run": 2,
@@ -1755,7 +1755,7 @@
       "run": 2,
       "site": "shadow",
       "name": "step",
-      "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plainwright/1791008744277-4930-4-pick.json"
+      "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plain/1791008744277-4930-4-pick.json"
     },
     {
       "run": 2,
@@ -1800,7 +1800,7 @@
       "run": 3,
       "site": "editor",
       "name": "step",
-      "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plainwright/1791008749371-4930-5-pick.json"
+      "detail": "no matching element c=0.99 — top: none (p=1.00) | input label=\"Title\" (p=0.00) — candidates: /tmp/plain/1791008749371-4930-5-pick.json"
     },
     {
       "run": 3,
@@ -1825,7 +1825,7 @@
       "run": 3,
       "site": "shadow",
       "name": "step",
-      "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plainwright/1791008749591-4930-6-pick.json"
+      "detail": "low confidence or invalid candidate c=0.31 — top: button \"Continue\" #1 (p=0.54) | none (p=0.45) | button \"Continue\" #2 (p=0.01) — candidates: /tmp/plain/1791008749591-4930-6-pick.json"
     },
     {
       "run": 3,

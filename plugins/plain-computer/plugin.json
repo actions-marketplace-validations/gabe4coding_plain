@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "plain-computer",
+  "version": "2.0.0",
+  "description": "Native desktop automation with xa11y actions and Jev decisions; record and replay natural-language YAML tests",
+  "author": {
+    "name": "Gabriele Pavanello"
+  }
+}

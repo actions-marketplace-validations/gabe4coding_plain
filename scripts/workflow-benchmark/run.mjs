@@ -20,8 +20,8 @@ globalThis.AI_SDK_LOG_WARNINGS = false; // Stored per generation below, without 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
 const arg = (name, fallback) => process.argv.find(a => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback;
-const out = resolve(arg('out', '/tmp/plainwright-workflow-benchmark'));
-const baseline = resolve(arg('baseline', '/tmp/plainwright-cost-analysis/baseline/node_modules/@playwright/mcp/cli.js'));
+const out = resolve(arg('out', '/tmp/plain-workflow-benchmark'));
+const baseline = resolve(arg('baseline', '/tmp/plain-cost-analysis/baseline/node_modules/@playwright/mcp/cli.js'));
 const models = arg('models', 'openai/gpt-5.6-luna,openai/gpt-5.6-terra,openai/gpt-6-astra').split(',');
 const tasks = arg('tasks', taskNames.join(',')).split(',');
 const repeats = Number(arg('repeats', '3'));
@@ -29,8 +29,8 @@ const seed = Number(arg('seed', '210926'));
 const budget = Number(arg('budget', '25'));
 const comparison = arg('comparison', 'playwright');
 if (!['playwright', 'batch'].includes(comparison)) throw new Error('comparison must be playwright or batch');
-const controlArm = comparison === 'batch' ? 'plainwright-unbatched' : 'playwright';
-const arms = ['plainwright', controlArm];
+const controlArm = comparison === 'batch' ? 'plain-unbatched' : 'playwright';
+const arms = ['plain', controlArm];
 const maxTurns = 20;
 const trialTimeoutMs = 180_000;
 const stopped = new AbortController();
@@ -46,14 +46,14 @@ writeFileSync(resolve(out, 'pricing.json'), JSON.stringify({ retrievedAt: new Da
 
 const common = 'Complete the requested task using the browser tools. Work efficiently and verify the visible result before finishing. You may issue multiple tool calls in a turn; they execute in order. Use only the supplied UI tools: no JavaScript, hidden application state, source inspection, direct HTTP calls, hooks, custom file output, or external sites. read_artifact can read snapshot files linked by browser tools. End with finish, including any requested answer. All pages are disposable test fixtures; saving changes is authorized.';
 const prompts = {
-  plainwright: common + ' Use open first. Known actions can go directly to step, which finds targets through Jev. Each step contains one action. For discovery use snapshot with mode compact, or mode smart with intent describing the task. The intent argument is valid ONLY in smart mode; omit it in compact/raw modes. Use scoped/raw snapshots to read exact data. Read each result. Rephrase ambiguous targets after a miss. Use natural-language targets, not css= selectors.',
+  plain: common + ' Use open first. Known actions can go directly to step, which finds targets through Jev. Each step contains one action. For discovery use snapshot with mode compact, or mode smart with intent describing the task. The intent argument is valid ONLY in smart mode; omit it in compact/raw modes. Use scoped/raw snapshots to read exact data. Read each result. Rephrase ambiguous targets after a miss. Use natural-language targets, not css= selectors.',
   playwright: common + ' Use browser_navigate first. Action responses link to accessibility snapshot files, available through read_artifact. browser_snapshot returns a snapshot inline when filename is omitted. Use references or accessible selectors for targets. browser_fill_form can fill several fields at once. Use browser_find or a scoped browser_snapshot when needed. Read each result and recover from errors.',
 };
-prompts['plainwright-unbatched'] = prompts.plainwright;
-prompts.plainwright += ' Use batch for sequences of already-known actions, such as filling a form and saving it. A batch stops at its first non-pass. Inspect results before planning actions that depend on new information.';
+prompts['plain-unbatched'] = prompts.plain;
+prompts.plain += ' Use batch for sequences of already-known actions, such as filling a form and saving it. A batch stops at its first non-pass. Inspect results before planning actions that depend on new information.';
 const allowed = {
-  plainwright: ['open', 'step', 'batch', 'snapshot', 'find'],
-  'plainwright-unbatched': ['open', 'step', 'snapshot', 'find'],
+  plain: ['open', 'step', 'batch', 'snapshot', 'find'],
+  'plain-unbatched': ['open', 'step', 'snapshot', 'find'],
   playwright: ['browser_navigate', 'browser_navigate_back', 'browser_snapshot', 'browser_find', 'browser_click', 'browser_type', 'browser_fill_form', 'browser_select_option', 'browser_press_key', 'browser_wait_for', 'browser_handle_dialog', 'browser_hover'],
 };
 let rng = seed >>> 0;
@@ -78,7 +78,7 @@ try {
     const main = [];
     const calls = [];
     const env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => typeof v === 'string'));
-    for (const key of ['PLAINWRIGHT_PROFILE', 'PLAINWRIGHT_CHANNEL', 'PLAINWRIGHT_CDP', 'TYPESAFE_BASE_URL']) delete env[key];
+    for (const key of ['PLAIN_PROFILE', 'PLAIN_CHANNEL', 'PLAIN_CDP', 'TYPESAFE_BASE_URL']) delete env[key];
     env.JEV_PROVIDER = 'typesafe'; env.BENCH_JEV_USAGE = jevFile;
     const args = row.arm !== 'playwright'
       ? ['--import', resolve(here, 'jev-usage.mjs'), resolve(root, 'dist/cli.js'), '--headless', '--channel', 'chromium', '--timeout', '10000', 'mcp']

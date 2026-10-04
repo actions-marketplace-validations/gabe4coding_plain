@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.jpg" alt="plainwright: end-to-end browser tests written in plain English. A YAML step, click: the login button, goes through a semantic decision model that reads the page's accessibility tree and clicks the Login button." width="100%" />
+  <img src="docs/banner.webp" alt="plain: a coral square with a lowercase p and a dot, next to the word plain." width="100%" />
 </p>
 
 <p align="center">
@@ -14,14 +14,14 @@ coding agent explore a flow through MCP and save it as a spec.
 [Jev](https://typesafe.ai), a small decision model, selects the element that a target describes and judges each
 claim. Jev reads the accessibility tree, not screenshots. Playwright, xa11y or Appium do the actions.
 
-https://github.com/user-attachments/assets/cd3eecfc-91de-4ac9-a4cf-44300cf5ccc2
+https://github.com/user-attachments/assets/87fdc301-93af-40bf-b19d-3637689e5c98
 
-<p align="center"><sub>plainwright, explained in 6 minutes: plain-English specs, how Jev picks and judges, the three engines,
+<p align="center"><sub>plain, explained in 6 minutes: plain-English specs, how Jev picks and judges, the three engines,
 agent mode, the pick cache, what Jev costs, and how it compares with a classic test framework.</sub></p>
 
 | | Browser | Desktop | Mobile |
 |---|---|---|---|
-| Plugin and CLI | `plainwright` | `plainwright-computer` | `plainwright-mobile` |
+| Plugin and CLI | `plain` | `plain-computer` | `plain-mobile` |
 | Actions by | [Playwright](https://playwright.dev) | [xa11y](https://xa11y.dev) | [Appium](https://appium.io) |
 | Spec target | `url`: a website | `app`: a running application | `platform`, `device`, `app`: an installed app |
 | Platforms | Chromium or Chrome | macOS (tested), Windows, Linux | iOS, Android, React Native |
@@ -30,7 +30,7 @@ agent mode, the pick cache, what Jev costs, and how it compares with a classic t
 
 You need Node 22 or newer, npm, and a [TypeSafe](https://typesafe.ai) API key (a Vercel AI Gateway key also works).
 
-1. Put the key in `~/.config/plainwright/.env`. All plugins and CLIs read this file.
+1. Put the key in `~/.config/plain/.env`. All plugins and CLIs read this file.
 
    ```dotenv
    TYPESAFE_API_KEY=<your key>
@@ -39,24 +39,24 @@ You need Node 22 or newer, npm, and a [TypeSafe](https://typesafe.ai) API key (a
 2. Install the browser plugin in your coding agent. In Claude Code:
 
    ```sh
-   /plugin marketplace add gabe4coding/plainwright
-   /plugin install plainwright@plainwright-marketplace
+   /plugin marketplace add gabe4coding/plain
+   /plugin install plain@plain-marketplace
    ```
 
    In Codex:
 
    ```sh
-   codex plugin marketplace add gabe4coding/plainwright
-   codex plugin add plainwright@plainwright-marketplace
+   codex plugin marketplace add gabe4coding/plain
+   codex plugin add plain@plain-marketplace
    ```
 
 3. To run a spec from the command line, save the spec in [A spec](#a-spec) as `todo.yaml`. Then run it with
    npx. On the first run, npx installs the
-   [`@gabe4coding/plain` npm package](https://www.npmjs.com/package/@gabe4coding/plain) and plainwright installs
+   [`@gabe4coding/plain` npm package](https://www.npmjs.com/package/@gabe4coding/plain) and plain installs
    Chromium.
 
    ```sh
-   npx -p @gabe4coding/plain plainwright todo.yaml
+   npx -p @gabe4coding/plain plain todo.yaml
    ```
 
 [Getting started](docs/getting-started.mdx) shows the desktop and mobile plugins, the key options and all
@@ -79,7 +79,7 @@ steps:
 Describe each element by its role and visible text. Write each claim as a specific statement about the
 current state. The [phrasing guide](docs/phrasing.mdx) shows how.
 
-In a [comparison on six browser workflows](docs/performance.mdx), an agent with plainwright used 25–52% less
+In a [comparison on six browser workflows](docs/performance.mdx), an agent with plain used 25–52% less
 time than with Playwright MCP. The API cost changed from 24% lower to 7% higher, by model.
 
 ## Documentation
@@ -103,9 +103,9 @@ time than with Playwright MCP. The API cost changed from 24% lower to 7% higher,
 
 ## Usage rules
 
-- Use plainwright on test environments only. Stop before the last irreversible step: payment, booking, sending.
+- Use plain on test environments only. Stop before the last irreversible step: payment, booking, sending.
 - Do not put literal credentials in a spec. Use environment references or hooks.
-- Do not use plainwright to bypass bot protection.
+- Do not use plain to bypass bot protection.
 
 ## License
 

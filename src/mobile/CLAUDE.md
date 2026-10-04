@@ -44,5 +44,5 @@ Built on the native core (`src/native/CLAUDE.md`).
   before claiming parity.
 - Runnable mobile YAML lives in `examples/mobile/` so the top-level browser glob remains valid. Its
   `examples/hooks/mobile-fixture.mjs` hook and both native smoke scripts share `scripts/mobile-fixture.mjs` for
-  fixture installation/cleanup. Example device IDs come from `PLAINWRIGHT_MOBILE_DEVICE`, never checked-in personal
+  fixture installation/cleanup. Example device IDs come from `PLAIN_MOBILE_DEVICE`, never checked-in personal
   UDIDs.

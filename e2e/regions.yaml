@@ -1,7 +1,7 @@
 name: claims on boxes with no role, and a page with a long ad link
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /boxes
   - drag: { source: the box with the letter A, target: the box with the letter B }

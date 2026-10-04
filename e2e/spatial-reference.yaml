@@ -1,7 +1,7 @@
 name: Spatial targets follow a reference outside the candidate list
 url: ${env.site}/spatial-reference
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial-reference
   - fill: { target: the field immediately below the Shipping heading, value: Upper entry }

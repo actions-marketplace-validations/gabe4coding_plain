@@ -1,0 +1,19 @@
+{
+  "name": "plain",
+  "version": "2.0.0",
+  "description": "YAML e2e tests where Playwright acts and the Jev model decides; MCP server for agents to drive a browser step by step",
+  "author": {
+    "name": "Gabriele Pavanello"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Plain",
+    "shortDescription": "Drive and test browsers in plain language.",
+    "longDescription": "YAML e2e tests where Playwright acts and the Jev model decides; MCP server for agents to drive a browser step by step",
+    "developerName": "Gabriele Pavanello",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Test a browser flow with plain."
+  },
+  "mcpServers": "./.mcp.json"
+}

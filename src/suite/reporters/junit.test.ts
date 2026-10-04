@@ -46,8 +46,8 @@ test('JUnit maps every final status, load errors, thrown attempts, and both stop
     assert.equal(node['@_skipped'], '3');
     assert.equal(node['@_time'], '5.25');
   }
-  assert.equal(parsed['@_name'], 'plainwright browser');
-  assert.equal(parsed.testsuite['@_name'], 'plainwright');
+  assert.equal(parsed['@_name'], 'plain browser');
+  assert.equal(parsed.testsuite['@_name'], 'plain');
   const cases = parsed.testsuite.testcase;
   assert.equal(cases[0].failure, undefined);
   assert.equal(cases[0].error, undefined);
@@ -64,9 +64,9 @@ test('JUnit maps every final status, load errors, thrown attempts, and both stop
 
 test('JUnit retains all failed retries, all attempt artifacts, timings, and aggregate properties', () => {
   const artifacts = [
-    { kind: 'screenshot' as const, path: path.resolve('plainwright-results/fail&shot.png'), step: 0 },
-    { kind: 'trace' as const, path: path.resolve('plainwright-results/trace.zip') },
-    { kind: 'dump' as const, path: path.resolve('plainwright-results/pick.json') },
+    { kind: 'screenshot' as const, path: path.resolve('plain-results/fail&shot.png'), step: 0 },
+    { kind: 'trace' as const, path: path.resolve('plain-results/trace.zip') },
+    { kind: 'dump' as const, path: path.resolve('plain-results/pick.json') },
   ];
   const report = run([
     spec('pass', { flaky: true, attempts: [attempt('fail', { artifacts: artifacts.slice(0, 2) }),
@@ -99,7 +99,7 @@ test('JUnit retains all failed retries, all attempt artifacts, timings, and aggr
 });
 
 test('JUnit creates nested directories at runEnd and reports empty native suites', async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'plainwright-junit-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'plain-junit-'));
   try {
     const file = path.join(dir, 'nested', 'junit.xml');
     const observer = junitReporter(file);
@@ -108,7 +108,7 @@ test('JUnit creates nested directories at runEnd and reports empty native suites
       await observer.runEnd!({ report: { ...run([]), engine } });
       const xml = await fs.readFile(file, 'utf8');
       const parsed = parse(xml);
-      assert.equal(parsed['@_name'], `plainwright ${engine}`);
+      assert.equal(parsed['@_name'], `plain ${engine}`);
       assert.equal(parsed['@_tests'], '0');
     }
   } finally { await fs.rm(dir, { recursive: true, force: true }); }

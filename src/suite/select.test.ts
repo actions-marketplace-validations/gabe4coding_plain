@@ -49,14 +49,14 @@ test('last-failed selection keeps all on absent history, none on empty history, 
 });
 
 test('last-failed prints one note when persistence has no previous run', (t) => {
-  // Other tests' runSuite calls write .plainwright/last-run.json into the cwd: use an empty one.
+  // Other tests' runSuite calls write .plain/last-run.json into the cwd: use an empty one.
   const cwd = process.cwd();
-  process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-no-last-run-')));
+  process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'plain-no-last-run-')));
   t.after(() => process.chdir(cwd));
   const log = t.mock.method(console, 'error', () => {});
   assert.deepEqual(select(specs, { ...base, lastFailed: true, tags: ['smoke'] }), specs.slice(0, 2));
   assert.equal(log.mock.callCount(), 1);
-  assert.equal(log.mock.calls[0].arguments[0], 'plainwright: no previous run found; running all selected specs');
+  assert.equal(log.mock.calls[0].arguments[0], 'plain: no previous run found; running all selected specs');
 });
 
 test('list format includes files, names, tags and has no empty output', (t) => {

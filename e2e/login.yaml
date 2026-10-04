@@ -1,7 +1,7 @@
 name: login with the user from a hook
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 hooks: ./hooks/user.mjs
 steps:
   - goto: /login

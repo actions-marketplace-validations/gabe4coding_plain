@@ -21,7 +21,7 @@ test('native reporter prints one JSON line with the legacy result fields', async
 });
 
 test('native load errors go to stderr as file: error and write no stdout JSON', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-jsonl-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-jsonl-'));
   const good = path.join(dir, 'ok.yaml');
   const yaml = path.join(dir, 'bad.yaml');
   const schema = path.join(dir, 'schema.yaml');

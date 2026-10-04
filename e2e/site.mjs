@@ -1,5 +1,5 @@
 // The local site the live e2e specs run against (scripts/e2e.mjs). It stands in for the public demo pages of
-// examples/: same kinds of controls, but served from 127.0.0.1, so a run fails only when plainwright or Jev does,
+// examples/: same kinds of controls, but served from 127.0.0.1, so a run fails only when plain or Jev does,
 // never because a remote site is slow, changed or down. Plain HTML and inline scripts, no dependencies.
 import { createServer } from 'node:http';
 

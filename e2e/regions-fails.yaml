@@ -1,7 +1,7 @@
 name: a region claim that does not hold fails
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 tags: [expect-fail]
 steps:
   - goto: /boxes

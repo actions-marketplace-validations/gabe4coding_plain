@@ -1,6 +1,6 @@
 ---
 title: Performance
-description: Measured API cost and speed of plainwright against Playwright MCP, the step time of spec runs, and links to the full benchmark reports.
+description: Measured API cost and speed of plain against Playwright MCP, the step time of spec runs, and links to the full benchmark reports.
 ---
 
 # Performance
@@ -10,10 +10,10 @@ These results are measurements on a small set of workflows. They are not a guara
 
 ## Agent cost and speed against Playwright MCP
 
-A main agent did six synthetic browser workflows with plainwright and with Playwright MCP 0.0.82. Each workflow
+A main agent did six synthetic browser workflows with plain and with Playwright MCP 0.0.82. Each workflow
 ran three times with each of three main models: 108 trials in total.
 
-| Main model | API cost per task: plainwright / Playwright MCP | Cost change | Mean seconds: plainwright / Playwright MCP | Time change |
+| Main model | API cost per task: plain / Playwright MCP | Cost change | Mean seconds: plain / Playwright MCP | Time change |
 |---|---:|---:|---:|---:|
 | GPT-5.6 Luna (small) | $0.001344 / $0.001262 | +7% | 17.0 / 35.4 | −52% |
 | GPT-5.6 Terra (medium) | $0.010184 / $0.013374 | −24% | 17.0 / 22.9 | −25% |
@@ -56,7 +56,7 @@ What this means for your runs:
 
 | Report | What it measures |
 |---|---|
-| [Current browser comparison](benchmarks/current-browser-comparison.md) | Agent cost and time, plainwright against Playwright MCP. |
+| [Current browser comparison](benchmarks/current-browser-comparison.md) | Agent cost and time, plain against Playwright MCP. |
 | [Browser workflows](benchmarks/browser-workflows.md) | The protocol of the workflow comparison. |
 | [Browser batching](benchmarks/browser-batching.md) | Workflows with and without the `batch` tool. |
 | [Contextual targeting](benchmarks/contextual-targeting.md) | Context in action candidates, with a known baseline fault. |

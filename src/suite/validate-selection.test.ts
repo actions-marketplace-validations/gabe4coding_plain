@@ -9,7 +9,7 @@ import { loadComputerSpec } from '../computer/spec.js';
 import { loadMobileSpec } from '../mobile/spec.js';
 import type { SuiteEngine } from './types.js';
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-validate-d-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-validate-d-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 let next = 0;
 function fixture(body: string): string {
@@ -23,7 +23,7 @@ const page = 'name: x\nurl: https://example.com\n';
 
 test('validate accepts declared env leaves, including missing secret references, zero, false, and hooks', () => {
   const file = fixture(`${page}env:
-  user: {name: $PLAINWRIGHT_LANE_D_MISSING_ENV}
+  user: {name: $PLAIN_LANE_D_MISSING_ENV}
   count: 0
   enabled: false
 steps:
@@ -33,7 +33,7 @@ steps:
   const [result] = validate(browser, [file]);
   assert.equal(result.error, undefined);
   assert.equal(result.warnings.length, 1);
-  assert.match(result.warnings[0], /PLAINWRIGHT_LANE_D_MISSING_ENV.*not set/);
+  assert.match(result.warnings[0], /PLAIN_LANE_D_MISSING_ENV.*not set/);
 });
 
 test('validate checks URL and nested step fields and rejects missing or non-scalar env paths', () => {
@@ -50,7 +50,7 @@ steps:
 
 test('validate loads every file and preserves warnings when a later placeholder check fails', () => {
   const files = [fixture(`${page}steps:\n  - click: OK\n`), fixture('name: bad\nsteps: []\n'),
-    fixture(`${page}env: {user: $PLAINWRIGHT_LANE_D_MISSING_ENV}\nsteps:\n  - click: '\${env.absent}'\n`)];
+    fixture(`${page}env: {user: $PLAIN_LANE_D_MISSING_ENV}\nsteps:\n  - click: '\${env.absent}'\n`)];
   const results = validate(browser, files);
   assert.deepEqual(results.map((r) => r.file), files);
   assert.equal(results[0].error, undefined);

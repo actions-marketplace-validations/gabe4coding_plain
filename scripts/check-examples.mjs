@@ -31,7 +31,7 @@ function run(engine, args, cwd = root, label = args.at(-1)) {
 
 function checkConfig(dir, text, data, label) {
   mkdirSync(dir);
-  writeFileSync(join(dir, 'plainwright.config.yaml'), text);
+  writeFileSync(join(dir, 'plain.config.yaml'), text);
   // --list needs one spec to select; the config's own `files` decides which.
   for (const pattern of [].concat(data.files ?? ['tests/a.yaml'])) {
     const path = pattern.replace(/\*+\/?/g, 'a');
@@ -46,7 +46,7 @@ for (const [engine, files] of [['browser', [...yamlIn('examples'), ...yamlIn('e2
   run(engine, ['validate', ...files], root, `${engine} files`);
 }
 
-const scratch = mkdtempSync(join(tmpdir(), 'plainwright-doc-examples-'));
+const scratch = mkdtempSync(join(tmpdir(), 'plain-doc-examples-'));
 try {
   let checked = 0;
   for (const doc of userDocs) {

@@ -1,9 +1,9 @@
 ---
 name: writing-docs
-description: Use before you write or change a user doc in the plainwright repo (README.md, docs/*.mdx, examples/mobile/README.md). Gives the MDX format rules, the ASD-STE100 language rules, the content rules and how to check a doc change.
+description: Use before you write or change a user doc in the plain repo (README.md, docs/*.mdx, examples/mobile/README.md). Gives the MDX format rules, the ASD-STE100 language rules, the content rules and how to check a doc change.
 ---
 
-# Writing plainwright user docs
+# Writing plain user docs
 
 User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`. They are for humans first: a developer or
 QA engineer who writes, runs or debugs specs, or uses the plugins with an agent. Contributor detail goes in

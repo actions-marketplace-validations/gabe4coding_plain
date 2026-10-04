@@ -18,7 +18,7 @@ type DriverCommands = 'getPageSource' | 'findElement' | 'elementClick' | 'elemen
 export type MobileDriver = { [K in DriverCommands]: OmitThisParameter<Browser[K]> };
 export type ConnectMobile = (options: Parameters<typeof import('webdriverio').remote>[0]) => Promise<MobileDriver>;
 
-/** Plainwright owns the session lifecycle: extra capabilities may only configure signing and device details. */
+/** Plain owns the session lifecycle: extra capabilities may only configure signing and device details. */
 const RESERVED_CAPABILITIES = new Set(['platformName', 'browserName', 'appium:automationName', 'appium:udid', 'appium:app',
   'appium:bundleId', 'appium:appPackage', 'appium:noReset', 'appium:fullReset', 'appium:autoLaunch', 'appium:dontStopAppOnReset',
   'appium:forceAppLaunch', 'appium:shouldTerminateApp', 'appium:autoWebview']);
@@ -40,7 +40,7 @@ export const DEFAULT_APPIUM_URL = 'http://127.0.0.1:4723';
 export function mobileCapabilities(target: MobileTarget): Record<string, unknown> & { platformName: string } {
   for (const key of Object.keys(target.capabilities ?? {})) {
     if (RESERVED_CAPABILITIES.has(key) || !key.includes(':') || key === 'appium:options') {
-      throw new Error(`Capability ${key} is managed by Plainwright or unsupported; use platform, device and app`);
+      throw new Error(`Capability ${key} is managed by Plain or unsupported; use platform, device and app`);
     }
   }
   const ios = target.platform === 'ios';

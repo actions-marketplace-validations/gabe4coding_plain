@@ -18,23 +18,23 @@ const LastRun = z.object({
 
 /** The absolute spec files that did not pass in the last run; `undefined` when there is no record or it is invalid. */
 export function readLastFailed(cwd: string): Set<string> | undefined {
-  const file = join(cwd, '.plainwright', 'last-run.json');
+  const file = join(cwd, '.plain', 'last-run.json');
   try {
     const run = LastRun.parse(JSON.parse(readFileSync(file, 'utf8')));
     return new Set(run.specs.filter((spec) => spec.status !== 'pass').map((spec) => spec.file));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
-      console.error(`plainwright: could not read ${file} (${errorMessage(error)}); ignoring previous run`);
+      console.error(`plain: could not read ${file} (${errorMessage(error)}); ignoring previous run`);
     return undefined;
   }
 }
 
 /**
- * Replaces `<cwd>/.plainwright/last-run.json` atomically (temporary file, then rename) with each spec's absolute
+ * Replaces `<cwd>/.plain/last-run.json` atomically (temporary file, then rename) with each spec's absolute
  * path, final status and `flaky`. Only a real run writes it: `--list` and `validate` never replace it.
  */
 export function writeLastRun(cwd: string, report: RunReport): void {
-  const dir = join(cwd, '.plainwright');
+  const dir = join(cwd, '.plain');
   const temporary = join(dir, `last-run-${randomUUID()}.tmp`);
   try {
     mkdirSync(dir, { recursive: true });
@@ -44,7 +44,7 @@ export function writeLastRun(cwd: string, report: RunReport): void {
     renameSync(temporary, join(dir, 'last-run.json'));
   } catch (error) {
     // Persistence should not turn a completed suite into a usage/config error.
-    console.error(`plainwright: could not write last run: ${errorMessage(error)}`);
+    console.error(`plain: could not write last run: ${errorMessage(error)}`);
   } finally {
     try { rmSync(temporary, { force: true }); } catch { /* The directory may be unwritable too. */ }
   }

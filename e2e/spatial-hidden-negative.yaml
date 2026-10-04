@@ -2,7 +2,7 @@ name: Hidden DOM text does not prove a spatial control name
 tags: [expect-fail]
 url: ${env.site}/spatial-values
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial-values
   - expect:

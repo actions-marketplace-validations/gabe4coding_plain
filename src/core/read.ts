@@ -6,8 +6,8 @@ import { parseAriaTree } from './snapshot-view.js';
 // Jev picks the first and the last line of the answer, code copies the lines in between: Jev selects and never
 // writes, so nothing is made up.
 
-/** PLAINWRIGHT_READ=0 hides the tool (scripts/benchmark-agent.mjs --read measures with and without it). */
-export const READ_ENABLED = process.env.PLAINWRIGHT_READ !== '0';
+/** PLAIN_READ=0 hides the tool (scripts/benchmark-agent.mjs --read measures with and without it). */
+export const READ_ENABLED = process.env.PLAIN_READ !== '0';
 export const READ_DESCRIPTION =
   'Read data off the current page or screen: answers `question` ("the price of the first result", "the titles and prices of ' +
   'the first three books") with the exact accessibility-tree lines that hold the answer, copied verbatim, ' +

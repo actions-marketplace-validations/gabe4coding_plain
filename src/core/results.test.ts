@@ -51,7 +51,7 @@ test('dumpDebug writes a distinct temp file each call', () => {
   const b = dumpDebug('pick', { instruction: 'Save' });
   assert.notEqual(a, b);
   const seq = (file: string) => Number(file.match(/-(\d+)-pick\.json$/)?.[1]);
-  assert.match(a, /plainwright[/\\]\d+-\d+-\d+-pick\.json$/);
+  assert.match(a, /plain[/\\]\d+-\d+-\d+-pick\.json$/);
   assert.equal(seq(b), seq(a) + 1);
   assert.deepEqual(JSON.parse(readFileSync(a, 'utf8')), { instruction: 'Save' });
 });

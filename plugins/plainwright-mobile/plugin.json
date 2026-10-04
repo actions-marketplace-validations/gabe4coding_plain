@@ -1,9 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "plainwright-mobile",
-  "version": "1.0.0",
-  "description": "Native iOS and Android automation with Appium actions and Jev decisions; record and replay natural-language YAML tests",
-  "author": {
-    "name": "Gabriele Pavanello"
-  }
-}

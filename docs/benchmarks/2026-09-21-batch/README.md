@@ -4,7 +4,7 @@
 
 See the [protocol and reproduction instructions](../browser-workflows.md). These are measurements of this harness and task suite, not a general website-performance guarantee.
 
-This is a batching ablation: both arms use the same plainwright/Jev implementation. Only `plainwright` exposes `batch` and its usage guidance; `plainwright-unbatched` uses individual steps. The control is **not Playwright MCP**.
+This is a batching ablation: both arms use the same plain/Jev implementation. Only `plain` exposes `batch` and its usage guidance; `plain-unbatched` uses individual steps. The control is **not Playwright MCP**.
 
 Read the [interpretation and failure analysis](findings.md).
 
@@ -14,16 +14,16 @@ All trials, including failures, contribute to cost and time. Success means the i
 
 | Main model | Stack | Oracle successes | Natural completions | Mean cost/task | Cost/success (failures included) | Mean seconds | Median seconds | p95 seconds |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| gpt-5.6-luna | plainwright-unbatched | 6/6 | 6/6 | $0.0017 | $0.0017 | 25.4 | 23.7 | 38.3 |
-| gpt-5.6-luna | plainwright | 6/6 | 6/6 | $0.0014 | $0.0014 | 17.9 | 19.5 | 21.5 |
-| gpt-5.6-terra | plainwright-unbatched | 6/6 | 6/6 | $0.0119 | $0.0119 | 20.8 | 22.1 | 25.8 |
-| gpt-5.6-terra | plainwright | 6/6 | 6/6 | $0.0111 | $0.0111 | 16.8 | 15.3 | 25.3 |
-| gpt-6-astra | plainwright-unbatched | 6/6 | 6/6 | $0.0546 | $0.0546 | 22.5 | 21.9 | 29.1 |
-| gpt-6-astra | plainwright | 6/6 | 6/6 | $0.0476 | $0.0476 | 20.3 | 20.1 | 24.2 |
+| gpt-5.6-luna | plain-unbatched | 6/6 | 6/6 | $0.0017 | $0.0017 | 25.4 | 23.7 | 38.3 |
+| gpt-5.6-luna | plain | 6/6 | 6/6 | $0.0014 | $0.0014 | 17.9 | 19.5 | 21.5 |
+| gpt-5.6-terra | plain-unbatched | 6/6 | 6/6 | $0.0119 | $0.0119 | 20.8 | 22.1 | 25.8 |
+| gpt-5.6-terra | plain | 6/6 | 6/6 | $0.0111 | $0.0111 | 16.8 | 15.3 | 25.3 |
+| gpt-6-astra | plain-unbatched | 6/6 | 6/6 | $0.0546 | $0.0546 | 22.5 | 21.9 | 29.1 |
+| gpt-6-astra | plain | 6/6 | 6/6 | $0.0476 | $0.0476 | 20.3 | 20.1 | 24.2 |
 
 ## Paired comparisons
 
-Ratios are plainwright / plainwright-unbatched. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.
+Ratios are plain / plain-unbatched. Below 1 means lower cost or less elapsed time. Intervals resample task types, preserving repetitions and pairs; they are descriptive and based on a small suite.
 
 | Main model | Cost ratio [95% interval] | Time ratio [95% interval] | Cost ratio, both succeeded | Time ratio, both succeeded |
 |---|---:|---:|---:|---:|
@@ -37,12 +37,12 @@ Main-agent input totals include repeatedly supplied conversation context. Cached
 
 | Main model | Stack | Main calls | Browser/helper calls | Main input | Cache reads | Cache writes | Main output | Reasoning | Jev calls | Jev input | Jev cost | Hypothetical uncached mean cost |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| gpt-5.6-luna | plainwright-unbatched | 51 | 47 | 121422 | 108820 | 12449 | 2143 | 408 | 38 | 49145 | $0.0021 | $0.0048 |
-| gpt-5.6-luna | plainwright | 38 | 32 | 93082 | 82008 | 10960 | 1709 | 287 | 36 | 47192 | $0.0020 | $0.0038 |
-| gpt-5.6-terra | plainwright-unbatched | 51 | 45 | 114422 | 103309 | 10960 | 1774 | 204 | 32 | 42779 | $0.0018 | $0.0420 |
-| gpt-5.6-terra | plainwright | 38 | 32 | 97129 | 85777 | 11238 | 1614 | 204 | 32 | 42870 | $0.0018 | $0.0359 |
-| gpt-6-astra | plainwright-unbatched | 50 | 44 | 112810 | 100050 | 12610 | 1342 | 0 | 23 | 33196 | $0.0014 | $0.1994 |
-| gpt-6-astra | plainwright | 36 | 30 | 89403 | 77313 | 11982 | 1133 | 0 | 23 | 23490 | $0.0010 | $0.1586 |
+| gpt-5.6-luna | plain-unbatched | 51 | 47 | 121422 | 108820 | 12449 | 2143 | 408 | 38 | 49145 | $0.0021 | $0.0048 |
+| gpt-5.6-luna | plain | 38 | 32 | 93082 | 82008 | 10960 | 1709 | 287 | 36 | 47192 | $0.0020 | $0.0038 |
+| gpt-5.6-terra | plain-unbatched | 51 | 45 | 114422 | 103309 | 10960 | 1774 | 204 | 32 | 42779 | $0.0018 | $0.0420 |
+| gpt-5.6-terra | plain | 38 | 32 | 97129 | 85777 | 11238 | 1614 | 204 | 32 | 42870 | $0.0018 | $0.0359 |
+| gpt-6-astra | plain-unbatched | 50 | 44 | 112810 | 100050 | 12610 | 1342 | 0 | 23 | 33196 | $0.0014 | $0.1994 |
+| gpt-6-astra | plain | 36 | 30 | 89403 | 77313 | 11982 | 1133 | 0 | 23 | 23490 | $0.0010 | $0.1586 |
 
 ## Where elapsed time goes
 
@@ -50,16 +50,16 @@ Means per trial. Model time includes API latency and inference; tool time includ
 
 | Main model | Stack | Main-model seconds | Browser/helper seconds |
 |---|---|---:|---:|
-| gpt-5.6-luna | plainwright-unbatched | 21.3 | 4.0 |
-| gpt-5.6-luna | plainwright | 13.8 | 4.1 |
-| gpt-5.6-terra | plainwright-unbatched | 17.2 | 3.7 |
-| gpt-5.6-terra | plainwright | 12.8 | 4.0 |
-| gpt-6-astra | plainwright-unbatched | 19.2 | 3.3 |
-| gpt-6-astra | plainwright | 16.9 | 3.4 |
+| gpt-5.6-luna | plain-unbatched | 21.3 | 4.0 |
+| gpt-5.6-luna | plain | 13.8 | 4.1 |
+| gpt-5.6-terra | plain-unbatched | 17.2 | 3.7 |
+| gpt-5.6-terra | plain | 12.8 | 4.0 |
+| gpt-6-astra | plain-unbatched | 19.2 | 3.3 |
+| gpt-6-astra | plain | 16.9 | 3.4 |
 
 ## Tasks: gpt-5.6-luna
 
-Treatment: plainwright; control: plainwright-unbatched.
+Treatment: plain; control: plain-unbatched.
 
 | Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |
 |---|---:|---:|---:|
@@ -72,7 +72,7 @@ Treatment: plainwright; control: plainwright-unbatched.
 
 ## Tasks: gpt-5.6-terra
 
-Treatment: plainwright; control: plainwright-unbatched.
+Treatment: plain; control: plain-unbatched.
 
 | Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |
 |---|---:|---:|---:|
@@ -85,7 +85,7 @@ Treatment: plainwright; control: plainwright-unbatched.
 
 ## Tasks: gpt-6-astra
 
-Treatment: plainwright; control: plainwright-unbatched.
+Treatment: plain; control: plain-unbatched.
 
 | Task | Successes: treatment / control | Mean cost: treatment / control | Mean seconds: treatment / control |
 |---|---:|---:|---:|

@@ -5,7 +5,7 @@ platform: android
 device: "${env.device}"
 app: com.google.android.contacts
 env:
-  device: $PLAINWRIGHT_MOBILE_DEVICE
+  device: $PLAIN_MOBILE_DEVICE
 steps:
   # Return from a contact detail screen when replaying after a previous run.
   - tap: Navigate up

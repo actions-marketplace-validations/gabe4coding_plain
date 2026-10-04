@@ -18,7 +18,7 @@ description: Configure the Jev API key, install the plugins for Claude Code or C
 Put the key in the user env file. All plugins and CLIs read this file:
 
 ```dotenv
-# ~/.config/plainwright/.env
+# ~/.config/plain/.env
 TYPESAFE_API_KEY=<your key>
 ```
 
@@ -29,19 +29,19 @@ Each key selects a provider:
 | `TYPESAFE_API_KEY` | TypeSafe | `jev-1.13.0` (pinned) |
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway | `typesafe-ai/jev` (no pinned version) |
 
-If both keys are set, plainwright uses TypeSafe. To force a provider, set `JEV_PROVIDER` to `typesafe` or `gateway`.
+If both keys are set, plain uses TypeSafe. To force a provider, set `JEV_PROVIDER` to `typesafe` or `gateway`.
 If `JEV_PROVIDER` names a provider without its key, the run stops with an error.
 
 The thresholds and the phrasing advice were tuned against `jev-1.13.0`. Only the TypeSafe provider pins this
 version.
 
-### Where plainwright reads the key
+### Where plain reads the key
 
-plainwright reads variables from these sources, in this order:
+plain reads variables from these sources, in this order:
 
 1. The environment of the process (your shell, or the plugin host).
 2. The `.env` file in the current directory.
-3. The user env file: `$XDG_CONFIG_HOME/plainwright/.env` if `XDG_CONFIG_HOME` is set, else `~/.config/plainwright/.env`.
+3. The user env file: `$XDG_CONFIG_HOME/plain/.env` if `XDG_CONFIG_HOME` is set, else `~/.config/plain/.env`.
 
 A file never replaces a variable that is already set. Thus the first source that sets a variable wins.
 The user env file is the one place that works for the CLIs and for both plugin hosts. Codex does not give plugin
@@ -52,14 +52,14 @@ these files. Refer to the [spec reference](spec-reference.mdx).
 
 Do not commit a `.env` file. It contains your API key. The repository has an [example file](../.env.example).
 
-### When plainwright needs the key
+### When plain needs the key
 
 - A spec run checks for the key before the first spec starts.
 - `validate` and `--list` do not need a key.
 - An MCP server starts without a key. A tool call that needs Jev then returns the missing-key message to the agent.
 
 The browser CLI and the browser MCP server write the selected provider and model to stderr, for example
-`plainwright: Jev via typesafe (jev-1.13.0)`.
+`plain: Jev via typesafe (jev-1.13.0)`.
 
 ## Install the plugins
 
@@ -69,40 +69,40 @@ save a flow. Install only the plugins that you need.
 ### Claude Code
 
 ```sh
-/plugin marketplace add gabe4coding/plainwright
-/plugin install plainwright@plainwright-marketplace
-/plugin install plainwright-computer@plainwright-marketplace
-/plugin install plainwright-mobile@plainwright-marketplace
+/plugin marketplace add gabe4coding/plain
+/plugin install plain@plain-marketplace
+/plugin install plain-computer@plain-marketplace
+/plugin install plain-mobile@plain-marketplace
 ```
 
-You can use a local clone path in place of `gabe4coding/plainwright`.
+You can use a local clone path in place of `gabe4coding/plain`.
 
-Each plugin starts its MCP server with `npx`, at the plainwright package version of the plugin. On the first
+Each plugin starts its MCP server with `npx`, at the plain package version of the plugin. On the first
 start, npx installs this version. The browser plugin also installs Chromium. The first connection can take one or
 two minutes. If it times out, run `/mcp` to connect again when the installation is complete.
 
 Claude Code gives the plugin servers its environment. Thus you can also export the key in your shell profile, or
 put it in the `env` block of `~/.claude/settings.json`.
 
-Do not register a server with `claude mcp add plainwright ...` when the plugin is installed. A server with the same
+Do not register a server with `claude mcp add plain ...` when the plugin is installed. A server with the same
 name replaces the plugin server without a warning.
 
 To use the browser server without the plugin, register it directly:
 
 ```sh
-claude mcp add plainwright -- npx -y -p @gabe4coding/plain plainwright --headless mcp
+claude mcp add plain -- npx -y -p @gabe4coding/plain plain --headless mcp
 ```
 
 ### Codex
 
 ```sh
-codex plugin marketplace add gabe4coding/plainwright
-codex plugin add plainwright@plainwright-marketplace
-codex plugin add plainwright-computer@plainwright-marketplace
-codex plugin add plainwright-mobile@plainwright-marketplace
+codex plugin marketplace add gabe4coding/plain
+codex plugin add plain@plain-marketplace
+codex plugin add plain-computer@plain-marketplace
+codex plugin add plain-mobile@plain-marketplace
 ```
 
-You can use a local clone path in place of `gabe4coding/plainwright`. Then put the key in the user env file and
+You can use a local clone path in place of `gabe4coding/plain`. Then put the key in the user env file and
 start a new Codex session.
 
 - Codex gives plugin MCP servers no shell environment. Use the user env file for the key.
@@ -112,17 +112,17 @@ start a new Codex session.
 To remove the browser plugin and the marketplace:
 
 ```sh
-codex plugin remove plainwright@plainwright-marketplace
-codex plugin marketplace remove plainwright-marketplace
+codex plugin remove plain@plain-marketplace
+codex plugin marketplace remove plain-marketplace
 ```
 
 ## Run the CLI
 
-Run a spec with npx. You do not have to install or build plainwright. For a first run, save the
+Run a spec with npx. You do not have to install or build plain. For a first run, save the
 [browser spec](#browser) of the next section as `todo.yaml`:
 
 ```sh
-npx -p @gabe4coding/plain plainwright todo.yaml
+npx -p @gabe4coding/plain plain todo.yaml
 ```
 
 On the first run, npx installs the package and the browser CLI installs Chromium. Then the CLI opens a
@@ -132,20 +132,20 @@ in a script.
 The package also contains the desktop and mobile CLIs. They do not install Chromium:
 
 ```sh
-npx -p @gabe4coding/plain plainwright-computer path/to/desktop.yaml
-npx -p @gabe4coding/plain plainwright-mobile path/to/mobile.yaml
+npx -p @gabe4coding/plain plain-computer path/to/desktop.yaml
+npx -p @gabe4coding/plain plain-mobile path/to/mobile.yaml
 ```
 
 To connect an MCP client directly, start a server over stdio:
 
 ```sh
-npx -y -p @gabe4coding/plain plainwright --headless mcp
-npx -y -p @gabe4coding/plain plainwright-computer mcp
-npx -y -p @gabe4coding/plain plainwright-mobile mcp
+npx -y -p @gabe4coding/plain plain --headless mcp
+npx -y -p @gabe4coding/plain plain-computer mcp
+npx -y -p @gabe4coding/plain plain-mobile mcp
 ```
 
-The package name is `@gabe4coding/plain`. It contains three commands: `plainwright`, `plainwright-computer` and
-`plainwright-mobile`. Give the package with `-p` and then the command. Without a version, npx uses the latest
+The package name is `@gabe4coding/plain`. It contains three commands: `plain`, `plain-computer` and
+`plain-mobile`. Give the package with `-p` and then the command. Without a version, npx uses the latest
 version. To use a fixed version, write `-p @gabe4coding/plain@<version>`, for example in CI. To install the
 commands on your `PATH`, run `npm install --global @gabe4coding/plain`.
 
@@ -154,13 +154,13 @@ The CLIs have no `--help` flag. To see the usage line, run a CLI without argumen
 Before a live run, check your specs without a key or a session:
 
 ```sh
-npx -p @gabe4coding/plain plainwright validate tests/
+npx -p @gabe4coding/plain plain validate tests/
 ```
 
 A spec run writes a pick cache file next to each spec file, for example `login.picks.json` for `login.yaml`.
 Refer to the [pick cache](running.mdx#pick-cache). For all flags, refer to [running suites](running.mdx).
 
-To run plainwright from a clone of the repository, build it first. Refer to [development](development.mdx).
+To run plain from a clone of the repository, build it first. Refer to [development](development.mdx).
 
 ## Your first spec
 
@@ -176,7 +176,7 @@ steps:
   - expect: "a todo item named 'buy milk' is listed"
 ```
 
-Start a browser spec with a `goto` step. plainwright does not open `url` by itself: `url` is only the base for
+Start a browser spec with a `goto` step. plain does not open `url` by itself: `url` is only the base for
 `goto`. The [spec reference](spec-reference.mdx) gives all steps and fields.
 
 ### Desktop
@@ -224,13 +224,13 @@ For iOS, use `platform: ios`, the simulator or device UDID and the app bundle ID
 | `TYPESAFE_API_KEY` | All | Key for the TypeSafe provider. Wins if both keys are set. |
 | `AI_GATEWAY_API_KEY` | All | Key for the Vercel AI Gateway provider. |
 | `JEV_PROVIDER` | All | `typesafe` or `gateway`. Forces the provider. |
-| `XDG_CONFIG_HOME` | All | Moves the user env file to `$XDG_CONFIG_HOME/plainwright/.env`. |
-| `PLAINWRIGHT_CHANGES` | MCP servers | `0` removes `changed` from `step` and `batch` results. On by default. |
-| `PLAINWRIGHT_READ` | MCP servers | `0` hides the `read` tool. On by default. |
-| `PLAINWRIGHT_PROFILE` | Browser | Same as `--profile`. |
-| `PLAINWRIGHT_CHANNEL` | Browser | Same as `--channel`. |
-| `PLAINWRIGHT_CDP` | Browser | Same as `--cdp`. |
-| `PLAINWRIGHT_APPIUM_URL` | Mobile | Same as `--server`. Default `http://127.0.0.1:4723`. |
+| `XDG_CONFIG_HOME` | All | Moves the user env file to `$XDG_CONFIG_HOME/plain/.env`. |
+| `PLAIN_CHANGES` | MCP servers | `0` removes `changed` from `step` and `batch` results. On by default. |
+| `PLAIN_READ` | MCP servers | `0` hides the `read` tool. On by default. |
+| `PLAIN_PROFILE` | Browser | Same as `--profile`. |
+| `PLAIN_CHANNEL` | Browser | Same as `--channel`. |
+| `PLAIN_CDP` | Browser | Same as `--cdp`. |
+| `PLAIN_APPIUM_URL` | Mobile | Same as `--server`. Default `http://127.0.0.1:4723`. |
 | `ANDROID_HOME`, `ANDROID_SDK_ROOT` | Mobile | Device discovery finds `adb` in this SDK. |
 
 A command-line flag wins over its variable. The variable wins over the config file. MCP servers do not read the

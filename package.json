@@ -1,13 +1,13 @@
 {
   "name": "@gabe4coding/plain",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Natural-language browser, desktop and mobile automation with Playwright, xa11y, Appium and Jev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gabe4coding/plainwright.git"
+    "url": "git+https://github.com/gabe4coding/plain.git"
   },
-  "homepage": "https://github.com/gabe4coding/plainwright#readme",
-  "bugs": "https://github.com/gabe4coding/plainwright/issues",
+  "homepage": "https://github.com/gabe4coding/plain#readme",
+  "bugs": "https://github.com/gabe4coding/plain/issues",
   "license": "MIT",
   "keywords": [
     "e2e",
@@ -23,9 +23,9 @@
     "node": ">=22"
   },
   "bin": {
-    "plainwright": "bin/plainwright.mjs",
-    "plainwright-computer": "bin/plainwright-computer.mjs",
-    "plainwright-mobile": "bin/plainwright-mobile.mjs"
+    "plain": "bin/plain.mjs",
+    "plain-computer": "bin/plain-computer.mjs",
+    "plain-mobile": "bin/plain-mobile.mjs"
   },
   "files": [
     "bin/",

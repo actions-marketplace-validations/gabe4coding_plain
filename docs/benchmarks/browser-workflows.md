@@ -1,6 +1,6 @@
 # Browser workflow cost benchmark
 
-This benchmark compares a main agent using plainwright (with Jev) with the same model using
+This benchmark compares a main agent using plain (with Jev) with the same model using
 Microsoft's Playwright MCP. It measures **complete UI workflows**, not snapshot compression in
 isolation. Results apply to these synthetic tasks and this agent harness; they are not a claim
 about every website, coding agent, or Playwright integration.
@@ -56,7 +56,7 @@ network inspection, screenshots, shell access, hooks, and application source ins
 The baseline retains bulk form filling, accessible selectors, snapshot search, scoped snapshots,
 and the default snapshot-file behavior of `@playwright/mcp@0.0.82`. Both agents can read browser
 snapshot artifacts through the same restricted `read_artifact` helper. The baseline is not forced
-to reread an entire tree after each action. Current plainwright runs expose `open`, `step`, `batch`,
+to reread an entire tree after each action. Current plain runs expose `open`, `step`, `batch`,
 `find`, and `snapshot`; the original run predates `batch`. All snapshot modes are available and none is forced. Natural-language targeting is
 required in its arm. This compares two tool stacks, not an isolated causal ablation of Jev.
 
@@ -72,7 +72,7 @@ Main-agent cost uses the gateway's reported dollar cost. A separate reconstructi
 captured pricing catalog, including cache-write premiums and long-context tiers. Reasoning
 tokens are already included in output usage and are not charged twice.
 
-The benchmark preloads a passive HTTP observer in the plainwright MCP process to capture
+The benchmark preloads a passive HTTP observer in the plain MCP process to capture
 actual Jev input/output usage, HTTP status and latency for each attempt. It records no keys,
 request headers or request bodies. Jev costs $0.042 per million input tokens, with free output,
 according to [TypeSafe's model documentation](https://docs.typesafe.ai/models).
@@ -111,17 +111,17 @@ checked between generations/trials, so an in-flight call can exceed it slightly.
 npm ci
 npm run build
 npx playwright install chromium
-npm install --prefix /tmp/plainwright-benchmark-baseline --ignore-scripts --no-audit --no-fund @playwright/mcp@0.0.82
+npm install --prefix /tmp/plain-benchmark-baseline --ignore-scripts --no-audit --no-fund @playwright/mcp@0.0.82
 node --test scripts/workflow-benchmark/*.test.mjs
 node scripts/workflow-benchmark/run.mjs \
-  --baseline=/tmp/plainwright-benchmark-baseline/node_modules/@playwright/mcp/cli.js \
-  --out=/tmp/plainwright-workflow-results --repeats=3 --seed=210926 --budget=25
-node scripts/workflow-benchmark/analyze.mjs /tmp/plainwright-workflow-results
-node scripts/workflow-benchmark/report.mjs /tmp/plainwright-workflow-results /tmp/plainwright-workflow-report
+  --baseline=/tmp/plain-benchmark-baseline/node_modules/@playwright/mcp/cli.js \
+  --out=/tmp/plain-workflow-results --repeats=3 --seed=210926 --budget=25
+node scripts/workflow-benchmark/analyze.mjs /tmp/plain-workflow-results
+node scripts/workflow-benchmark/report.mjs /tmp/plain-workflow-results /tmp/plain-workflow-report
 ```
 
 An optional figure uses Python with Matplotlib (`3.9.4` and NumPy `2.0.2` for the checked-in
-figure): `python3 scripts/workflow-benchmark/plot.py /tmp/plainwright-workflow-report`.
+figure): `python3 scripts/workflow-benchmark/plot.py /tmp/plain-workflow-report`.
 
 The output directory must be new. `--models=` and `--tasks=` accept comma-separated subsets
 for smoke runs; do not mix them with the formal sample. The manifest saves the schedule,
@@ -135,11 +135,11 @@ read fixture source, expected state, other trials, or API credentials through it
 
 ## Batching ablation
 
-New runs expose the browser `batch` tool in the plainwright arm. Historical reports retain their
+New runs expose the browser `batch` tool in the plain arm. Historical reports retain their
 original tool schemas and prompts. To isolate batching instead of comparing browser stacks, use
-`--comparison=batch`. Both arms then launch the same plainwright runtime, with the same contextual
-targeting, Jev model, fixtures and main-agent settings. `plainwright` exposes `batch` plus a short
-usage instruction; `plainwright-unbatched` exposes only the individual-step tools and the previous
+`--comparison=batch`. Both arms then launch the same plain runtime, with the same contextual
+targeting, Jev model, fixtures and main-agent settings. `plain` exposes `batch` plus a short
+usage instruction; `plain-unbatched` exposes only the individual-step tools and the previous
 guide. Both can emit several tool calls in one model turn. Calls execute sequentially in both arms.
 
 The manifest records the arm names and exact guides. This comparison measures the effect of exposing
@@ -151,9 +151,9 @@ For a first pass across all six workflows and three main models (36 whole-workfl
 
 ```sh
 node scripts/workflow-benchmark/run.mjs --comparison=batch \
-  --out=/tmp/plainwright-batch-results --repeats=1 --seed=210926 --budget=5
-node scripts/workflow-benchmark/analyze.mjs /tmp/plainwright-batch-results
-node scripts/workflow-benchmark/report.mjs /tmp/plainwright-batch-results /tmp/plainwright-batch-report
+  --out=/tmp/plain-batch-results --repeats=1 --seed=210926 --budget=5
+node scripts/workflow-benchmark/analyze.mjs /tmp/plain-batch-results
+node scripts/workflow-benchmark/report.mjs /tmp/plain-batch-results /tmp/plain-batch-report
 ```
 
 No separate Playwright MCP installation is needed for this mode. One repetition per task/model/arm

@@ -481,12 +481,12 @@ z
 " style="fill: #c76728"/>
     </g>
     <g id="text_34">
-     <text style="font: 9px 'DejaVu Sans'; text-anchor: start" x="887.864721" y="305.131961" transform="rotate(-0 887.864721 305.131961)">plainwright + Jev</text>
+     <text style="font: 9px 'DejaVu Sans'; text-anchor: start" x="887.864721" y="305.131961" transform="rotate(-0 887.864721 305.131961)">plain + Jev</text>
     </g>
    </g>
   </g>
   <g id="text_35">
-   <text style="font: 700 16px 'DejaVu Sans'; text-anchor: middle" x="504" y="18.7815" transform="rotate(-0 504 18.7815)">Whole browser workflows: plainwright with Jev vs Playwright MCP</text>
+   <text style="font: 700 16px 'DejaVu Sans'; text-anchor: middle" x="504" y="18.7815" transform="rotate(-0 504 18.7815)">Whole browser workflows: plain with Jev vs Playwright MCP</text>
   </g>
   <g id="text_36">
    <text style="fill: #4e596c; font: 9px 'DejaVu Sans'" transform="translate(40.32 309.529969)">108 local trials · 6 synthetic workflows · 3 repetitions · low reasoning effort</text>

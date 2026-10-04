@@ -1,7 +1,7 @@
 # Browser batching experiment
 
 This experiment measures whole browser workflows with and without the new `batch` tool. Both arms
-use plainwright with contextual action candidates and Jev. It does **not** compare against
+use plain with contextual action candidates and Jev. It does **not** compare against
 Playwright MCP; the [earlier stack comparison](2026-09-21/README.md) and
 [contextual-targeting follow-up](contextual-targeting.md) remain separate.
 
@@ -64,8 +64,8 @@ and indexed result also add tokens; those costs are included in the measurements
 
 ## Protocol
 
-The measured runtime is frozen at `52075e3`. The `plainwright` arm exposes `batch` and a short
-instruction to use it for known action sequences. The `plainwright-unbatched` arm exposes the
+The measured runtime is frozen at `52075e3`. The `plain` arm exposes `batch` and a short
+instruction to use it for known action sequences. The `plain-unbatched` arm exposes the
 same individual-step tools and the previous usage guide. Both arms may emit several tool calls
 in one model response, so the control is not forced to take a separate model turn per action.
 The harness rejects tools outside each arm's allowlist.
@@ -97,12 +97,12 @@ With the configured API keys, installed dependencies and Chromium:
 
 ```sh
 node scripts/workflow-benchmark/run.mjs --comparison=batch \
-  --out=/tmp/plainwright-batch-results --repeats=1 --seed=210926 --budget=5
-node scripts/workflow-benchmark/analyze.mjs /tmp/plainwright-batch-results
-node scripts/workflow-benchmark/report.mjs /tmp/plainwright-batch-results /tmp/plainwright-batch-report
+  --out=/tmp/plain-batch-results --repeats=1 --seed=210926 --budget=5
+node scripts/workflow-benchmark/analyze.mjs /tmp/plain-batch-results
+node scripts/workflow-benchmark/report.mjs /tmp/plain-batch-results /tmp/plain-batch-report
 ```
 
 The first arm in `manifest.arms` is the treatment; the second is the control. Published ratios are
 treatment divided by control. Historical manifests without arm names retain the original
-plainwright/Playwright MCP comparison. Analysis tests verify both formats, and the generalized
+plain/Playwright MCP comparison. Analysis tests verify both formats, and the generalized
 analyzer reproduces the two historical summaries exactly.

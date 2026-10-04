@@ -4,8 +4,8 @@ import { frameLabel } from './frames.js';
 
 declare global {
   interface Window {
-    __plainwrightLastMutation?: number;
-    __plainwrightDoc?: number;
+    __plainLastMutation?: number;
+    __plainDoc?: number;
   }
 }
 
@@ -16,17 +16,17 @@ const ARIA_MAX_CHARS = 60_000;
 
 /**
  * Records the time of the last DOM mutation in every new document of `target` (a page, or a context so popups
- * inherit it), so settle() can tell a page that is already quiet. `__plainwrightDoc` identifies the document:
+ * inherit it), so settle() can tell a page that is already quiet. `__plainDoc` identifies the document:
  * a mark taken before a navigation is never compared with the next document's clock. Only mutations after the
  * load event count: building the page is not a rendering burst to wait out once it has loaded.
  */
 export async function installSettleObserver(target: Page | BrowserContext): Promise<void> {
   await target.addInitScript((own) => {
-    window.__plainwrightDoc = Math.random();
-    window.__plainwrightLastMutation = -1e9;
+    window.__plainDoc = Math.random();
+    window.__plainLastMutation = -1e9;
     new MutationObserver((records) => {
       if (document.readyState !== 'complete') return;
-      if (records.some((record) => record.attributeName !== own)) window.__plainwrightLastMutation = performance.now();
+      if (records.some((record) => record.attributeName !== own)) window.__plainLastMutation = performance.now();
     }).observe(document, { childList: true, subtree: true, attributes: true });
   }, OWN_ATTRIBUTE);
 }
@@ -36,8 +36,8 @@ export interface DocTime { doc: number; t: number }
 
 /** Now, on the main document's clock; null without the observer or while the document is still loading. */
 export function mark(page: Page): Promise<DocTime | null> {
-  return page.evaluate(() => (typeof window.__plainwrightDoc === 'number' && document.readyState === 'complete'
-    ? { doc: window.__plainwrightDoc, t: performance.now() }
+  return page.evaluate(() => (typeof window.__plainDoc === 'number' && document.readyState === 'complete'
+    ? { doc: window.__plainDoc, t: performance.now() }
     : null));
 }
 
@@ -56,12 +56,12 @@ export function settle(page: Page, quietMs = 500, maxMs = 3000): Promise<DocTime
     ({ quietMs, maxMs, own }) =>
       new Promise<DocTime | null>((resolve) => {
         const lastMutation = () => {
-          const doc = window.__plainwrightDoc;
-          const t = window.__plainwrightLastMutation;
+          const doc = window.__plainDoc;
+          const t = window.__plainLastMutation;
           return typeof doc === 'number' && typeof t === 'number' ? { doc, t } : null;
         };
         // A document still loading is never quiet already: the parser's inserts are not counted.
-        const last = document.readyState === 'complete' ? window.__plainwrightLastMutation : undefined;
+        const last = document.readyState === 'complete' ? window.__plainLastMutation : undefined;
         if (typeof last === 'number' && performance.now() - last >= quietMs) return resolve(lastMutation());
         const firstWait = typeof last === 'number' ? quietMs - (performance.now() - last) : quietMs;
         let timer = setTimeout(done, firstWait);

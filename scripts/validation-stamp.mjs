@@ -10,12 +10,12 @@ import { join } from 'node:path';
 
 const git = (dir, args, env = process.env) =>
   execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-const stampFile = (dir) => git(dir, ['rev-parse', '--path-format=absolute', '--git-path', 'plainwright-validated.json']);
+const stampFile = (dir) => git(dir, ['rev-parse', '--path-format=absolute', '--git-path', 'plain-validated.json']);
 
 /** The tree hash of the working files, from a scratch index so the real index is never touched. */
 export function workingTree() {
   const dir = process.cwd();
-  const scratch = mkdtempSync(join(tmpdir(), 'plainwright-stamp-'));
+  const scratch = mkdtempSync(join(tmpdir(), 'plain-stamp-'));
   try {
     const env = { ...process.env, GIT_INDEX_FILE: join(scratch, 'index') };
     git(dir, ['read-tree', 'HEAD'], env);

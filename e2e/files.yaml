@@ -1,7 +1,7 @@
 name: upload a file and download a file
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /files
   - upload: { target: the File to send input, files: [fixtures/hello.txt] }

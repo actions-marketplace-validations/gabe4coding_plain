@@ -3,11 +3,11 @@
 name: Android native preview
 platform: android
 device: "${env.device}"
-app: dev.plainwright.fixture
+app: dev.plain.fixture
 capabilities:
   appium:appActivity: .MobileAndroidFixture
 env:
-  device: $PLAINWRIGHT_MOBILE_DEVICE
+  device: $PLAIN_MOBILE_DEVICE
 hooks: ../hooks/mobile-fixture.mjs
 steps:
   - fill: { target: the Message text field, value: Android adapter works }

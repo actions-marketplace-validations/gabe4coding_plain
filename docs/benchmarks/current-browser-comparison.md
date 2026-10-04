@@ -1,16 +1,16 @@
-# Current plainwright versus Playwright MCP
+# Current plain versus Playwright MCP
 
-This is a fresh, direct comparison of current plainwright (contextual action candidates and
+This is a fresh, direct comparison of current plain (contextual action candidates and
 batching enabled) against Playwright MCP 0.0.82. It measures complete browser workflows and
 does not combine percentages from the earlier implementation experiments.
 
 ## Results
 
 The completed run recorded **$2.167853682** across 108 trials, with complete usage accounting.
-Costs include Jev and main-agent calls. Ratios below are plainwright / Playwright MCP; intervals
+Costs include Jev and main-agent calls. Ratios below are plain / Playwright MCP; intervals
 resample the six task types while preserving repetitions and paired arms.
 
-| Main model | Cost change [95% ratio interval] | Mean time change [95% ratio interval] | Strict oracle: plainwright / baseline |
+| Main model | Cost change [95% ratio interval] | Mean time change [95% ratio interval] | Strict oracle: plain / baseline |
 |---|---:|---:|---:|
 | Luna | +6.5% [0.967–1.163×] | −52.1% [0.368–0.622×] | 18/18 / 18/18 |
 | Terra | −23.8% [0.664–0.907×] | −25.5% [0.662–0.943×] | 18/18 / 17/18 |
@@ -28,7 +28,7 @@ See the [complete tables](2026-09-21-current/README.md),
 
 ## Protocol
 
-The measured plainwright revision is `0c1698e`. Both stacks run all six local workflows with
+The measured plain revision is `0c1698e`. Both stacks run all six local workflows with
 the same small, medium and top main-agent models, three repetitions per task/model/stack:
 **108 trials, comprising 54 paired comparisons**. Both implementations and the corrected execution harness were
 frozen throughout the run. Analysis and publication code was extended to flag incomplete billing
@@ -38,7 +38,7 @@ The seed `210926` determines pair order and which stack runs first.
 The task variants and randomized schedule match the original full benchmark. Playwright MCP's
 version, guide, tool set and dependency versions are unchanged. The artifact reader now
 canonicalizes both the allowed directory and requested path; earlier runs incorrectly rejected
-valid snapshot files when macOS resolved `/tmp` to `/private/tmp`. Plainwright's guide now explains
+valid snapshot files when macOS resolved `/tmp` to `/private/tmp`. Plain's guide now explains
 batching, and its tool set includes `batch`. Both agents may issue multiple tool calls in one
 model turn. The baseline retains bulk form filling and its normal snapshot-file behavior.
 
@@ -69,10 +69,10 @@ After installing the dependencies, Chromium and the pinned baseline as described
 
 ```sh
 node scripts/workflow-benchmark/run.mjs --comparison=playwright \
-  --baseline=/tmp/plainwright-benchmark-baseline/node_modules/@playwright/mcp/cli.js \
-  --out=/tmp/plainwright-current-results --repeats=3 --seed=210926 --budget=10
-node scripts/workflow-benchmark/analyze.mjs /tmp/plainwright-current-results
-node scripts/workflow-benchmark/report.mjs /tmp/plainwright-current-results /tmp/plainwright-current-report
+  --baseline=/tmp/plain-benchmark-baseline/node_modules/@playwright/mcp/cli.js \
+  --out=/tmp/plain-current-results --repeats=3 --seed=210926 --budget=10
+node scripts/workflow-benchmark/analyze.mjs /tmp/plain-current-results
+node scripts/workflow-benchmark/report.mjs /tmp/plain-current-results /tmp/plain-current-report
 ```
 
 The original [108-trial report](2026-09-21/README.md),
@@ -89,7 +89,7 @@ no final usage, so this is a lower bound on preparation charges. The whole attem
 is excluded from the corrected comparison. The [exclusion record](2026-09-21-current/preparation/exclusion.json)
 and [compressed traces](2026-09-21-current/preparation/traces.jsonl.gz) preserve that attempt.
 The Luna baseline timeout is retained in that record;
-the final plainwright trial was interrupted deliberately to fix the harness.
+the final plain trial was interrupted deliberately to fix the harness.
 
 The original 108-trial report had eight rejected artifact reads, and the contextual-targeting
 follow-up had two. Their baseline agents recovered using inline snapshots, but recovery could

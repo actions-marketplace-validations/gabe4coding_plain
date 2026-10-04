@@ -17,15 +17,15 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const device = process.env.PLAINWRIGHT_MOBILE_DEVICE;
-assert.ok(device, 'Set PLAINWRIGHT_MOBILE_DEVICE to a booted iOS simulator UDID');
+const device = process.env.PLAIN_MOBILE_DEVICE;
+assert.ok(device, 'Set PLAIN_MOBILE_DEVICE to a booted iOS simulator UDID');
 const live = process.argv.includes('--live-jev');
 if (live) for (const file of [join(root, '.env'), USER_ENV_FILE]) { try { process.loadEnvFile(file); } catch {} }
-const output = mkdtempSync(join(tmpdir(), 'plainwright-ios-results-'));
+const output = mkdtempSync(join(tmpdir(), 'plain-ios-results-'));
 const app = fixtureApp;
 let uninstall;
 const restart = () => execFileSync('xcrun', ['simctl', 'terminate', device, app]);
-const adapter = new AppiumAdapter(process.env.PLAINWRIGHT_APPIUM_URL, 240000);
+const adapter = new AppiumAdapter(process.env.PLAIN_APPIUM_URL, 240000);
 const message = 'iOS adapter works';
 const deterministic = {
   pick: async (candidates, targets) => targets.map((target, i) => {
@@ -93,7 +93,7 @@ try {
   await call('save', { path: specPath, name: 'Native iOS preview' });
   await call('close');
   restart(); // Reset only this disposable fixture before replay.
-  const replay = await runMobileSpec(loadMobileSpec(specPath), new MobileSession(new AppiumAdapter(process.env.PLAINWRIGHT_APPIUM_URL, 240000), 240000, ai));
+  const replay = await runMobileSpec(loadMobileSpec(specPath), new MobileSession(new AppiumAdapter(process.env.PLAIN_APPIUM_URL, 240000), 240000, ai));
   writeFileSync(join(output, 'report.json'), JSON.stringify({ device, liveJev: live, authoring: results, replay }, null, 2));
   assert.equal(replay.status, 'pass', JSON.stringify(replay));
   console.log(`Native iOS authoring and replay passed (${live ? 'real Jev' : 'injected intelligence'}). Results: ${output}`);

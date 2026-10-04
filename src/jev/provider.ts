@@ -12,7 +12,7 @@ export const MODEL_BY_PROVIDER: Record<Provider, string> = {
 };
 
 /** A key file outside any project: Codex starts plugin MCP servers without the shell environment. */
-export const USER_ENV_FILE = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'plainwright', '.env');
+export const USER_ENV_FILE = join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'plain', '.env');
 
 /** Loads `.env` from the cwd, then the user file. A variable already in the environment is never overridden. */
 export function loadEnvFiles(): void {

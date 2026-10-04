@@ -19,7 +19,7 @@ import type { SuiteEngine } from './types.js';
 const opts = { headed: false, timeout: 10000 };
 after(closeSharedBrowser);
 function fixture(t: import('node:test').TestContext) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-timeout-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-timeout-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const hooks = path.join(dir, 'hooks.mjs');
   const events = path.join(dir, 'events.json');

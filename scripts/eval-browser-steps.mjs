@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Browser step-time eval: how long plainwright's own work takes per step, in spec runs and in an
+// Browser step-time eval: how long plain's own work takes per step, in spec runs and in an
 // agent-style MCP session, and whether every step still ends the same way. Built for a hillclimb
 // loop (baseline, v1, v2, ... under one flow directory); the report builder reads what it writes.
 //
@@ -235,7 +235,7 @@ async function specRep(rep, recordExpected) {
       }
       for (const [k, v] of Object.entries(st.ms)) if (k !== 'polls') sum[k] = (sum[k] ?? 0) + v;
     }
-    // `idle` is the page's own delay seen by a wait (the demo's 5 s loader), not plainwright's work.
+    // `idle` is the page's own delay seen by a wait (the demo's 5 s loader), not plain's work.
     const overhead = (sum.total ?? 0) - (sum.action ?? 0) - (sum.idle ?? 0);
     const yaml = readFileSync(`examples/${specFiles[i]}`, 'utf8');
     writeRow({

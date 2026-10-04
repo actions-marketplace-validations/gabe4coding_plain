@@ -9,7 +9,7 @@ import { loadMobileSpec } from '../mobile/spec.js';
 import { label } from '../core/results.js';
 
 const write = (body: string): string => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-suite-spec-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-suite-spec-'));
   const file = path.join(dir, 'case.yaml'); fs.writeFileSync(file, body); return file;
 };
 
@@ -36,11 +36,11 @@ test('step origin prefixes labels; user-written and MCP origin is rejected', () 
 });
 
 test('onMissingEnv collects missing values while preserving the literal reference', () => {
-  const file = write('name: x\nurl: https://example.com\nauth: {user: $PLAINWRIGHT_TEST_MISSING_USER, pass: ok}\nenv: {token: $PLAINWRIGHT_TEST_MISSING_TOKEN}\nsteps:\n  - goto: https://example.com\n');
+  const file = write('name: x\nurl: https://example.com\nauth: {user: $PLAIN_TEST_MISSING_USER, pass: ok}\nenv: {token: $PLAIN_TEST_MISSING_TOKEN}\nsteps:\n  - goto: https://example.com\n');
   const warnings: string[] = [];
   const spec = loadSpec(file, { onMissingEnv: (message) => warnings.push(message) });
-  assert.equal(spec.auth?.user, '$PLAINWRIGHT_TEST_MISSING_USER');
-  assert.equal(spec.env?.token, '$PLAINWRIGHT_TEST_MISSING_TOKEN');
+  assert.equal(spec.auth?.user, '$PLAIN_TEST_MISSING_USER');
+  assert.equal(spec.env?.token, '$PLAIN_TEST_MISSING_TOKEN');
   assert.equal(warnings.length, 2);
   assert.throws(() => loadSpec(file), /env var is not set/);
 });
