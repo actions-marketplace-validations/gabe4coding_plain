@@ -84,9 +84,9 @@ A claim is one fact about something that is visible when the condition is true.
 - **Do not use vague words.** Jev also sees console errors, dialogs and downloads. If a console error contains
   the words "error message", then `an error message is shown` can match it. Write `the form shows a message
   saying the username is invalid`.
-- **Check that something is not there with a positive claim.** With the `ask` tool, ask
-  `the Password textbox contains any text` and read a clear no. Do not ask `the Password textbox is empty`. An
-  empty field has no value in the tree that Jev can point to.
+- **Claim the state of a text field directly.** A text field with no value shows
+  [`[empty]`](snapshots.mdx#field-state), and a read-only one shows `[readonly]`. Thus
+  `the Password textbox is empty` is a good claim.
 
 ## Fix an inconclusive step
 
