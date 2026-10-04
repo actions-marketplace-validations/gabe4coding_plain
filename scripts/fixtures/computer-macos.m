@@ -4,9 +4,11 @@
 @property NSTextField *input;
 @property NSTextField *output;
 - (void)preview:(id)sender;
+- (void)choose:(NSButton *)sender;
 @end
 @implementation PreviewHandler
 - (void)preview:(id)sender { self.output.stringValue = [@"Preview: " stringByAppendingString:self.input.stringValue]; }
+- (void)choose:(NSButton *)sender { self.output.stringValue = [@"Chosen: " stringByAppendingString:sender.title]; }
 @end
 
 int main(void) {
@@ -28,7 +30,12 @@ int main(void) {
     handler.input = input; handler.output = output;
     NSButton *button = [NSButton buttonWithTitle:@"Preview" target:handler action:@selector(preview:)];
     button.frame = NSMakeRect(220, 110, 100, 32);
-    for (NSView *view in @[input, output, check, button]) [window.contentView addSubview:view];
+    // Spatial targets: Alpha comes first in the tree but is drawn on the right of Beta.
+    NSButton *alpha = [NSButton buttonWithTitle:@"Alpha" target:handler action:@selector(choose:)];
+    alpha.frame = NSMakeRect(220, 75, 100, 32);
+    NSButton *beta = [NSButton buttonWithTitle:@"Beta" target:handler action:@selector(choose:)];
+    beta.frame = NSMakeRect(30, 75, 100, 32);
+    for (NSView *view in @[input, output, check, button, alpha, beta]) [window.contentView addSubview:view];
     [window makeKeyAndOrderFront:nil];
     [app activateIgnoringOtherApps:YES];
     [app run];

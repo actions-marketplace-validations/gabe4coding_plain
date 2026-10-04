@@ -1,4 +1,5 @@
 import { MAX_CANDIDATES } from '../jev/pick.js';
+import { MAX_LAYOUT_ELEMENTS, nativeLayout } from '../core/layout.js';
 export function matchesKind(el, kind) {
     if (kind === 'region')
         return el.visible;
@@ -12,6 +13,8 @@ export function matchesKind(el, kind) {
         return el.checked !== null;
     return el.actions.length > 0 || el.focusable || /button|link|menu_item|tab|row|cell|image/.test(el.role);
 }
+/** xa11y bounds are desktop coordinates: points on macOS, physical pixels on Windows. */
+export const DESKTOP_COORDINATES = 'desktop screen coordinates';
 const TEXT_ROLE = /^(static_text|text)$/;
 /** Parts of a control, not controls of their own: inside a candidate they are no candidates (a row's cells too). */
 const PART_ROLE = /^(static_text|text|group|image|generic|table_cell|cell)$/;
@@ -29,8 +32,9 @@ const MAX_DEPTH = 32;
  * inside one, such as a row's button, still is), and an unnamed candidate is described by the text inside it.
  * The context leaves out "in application X" always and "in window X" when the app has one window.
  */
-export async function captureTree(root, kind, timeout) {
+export async function captureTree(root, kind, timeout, { spatial = false } = {}) {
     const candidates = [];
+    const layout = [];
     const elements = new Map();
     const inWebView = new Set();
     const lines = [];
@@ -57,11 +61,18 @@ export async function captureTree(root, kind, timeout) {
         const line = `${'  '.repeat(depth)}${desc}\n`;
         lines.push(line.slice(0, MAX_TREE_CHARS - chars));
         chars += line.length;
+        const candidate = matchesKind(el, kind) && !(inCandidate && PART_ROLE.test(el.role));
+        // One accessibility read, only in a spatial capture and only for a node that is listed.
+        const bounds = spatial && el.visible && (candidate || el.name || el.value) ? edges(el.bounds) : undefined;
+        // One row past the cap tells nativeLayout() the layout was cut.
+        if (bounds && (el.name || el.value) && layout.length <= MAX_LAYOUT_ELEMENTS) {
+            layout.push({ description: shortDesc, name: named, bounds });
+        }
         let id;
-        if (matchesKind(el, kind) && !(inCandidate && PART_ROLE.test(el.role))) {
+        if (candidate) {
             if (candidates.length < MAX_CANDIDATES) {
                 id = candidates.length;
-                candidates.push({ id, desc: `${shortDesc}${context ? ` in ${context}` : ''}` });
+                candidates.push({ id, desc: `${shortDesc}${context ? ` in ${context}` : ''}`, ...(bounds ? { bounds } : {}) });
                 elements.set(id, el);
                 if (inWeb)
                     inWebView.add(el);
@@ -96,7 +107,13 @@ export async function captureTree(root, kind, timeout) {
         return text;
     };
     await walk(root, 0, '', false);
-    return { snapshot: { aria: lines.join(''), truncated }, candidates, elements, inWebView };
+    const snapshot = { aria: lines.join(''), truncated, ...(spatial ? { layout: nativeLayout(layout, DESKTOP_COORDINATES, truncated) } : {}) };
+    return { snapshot, candidates, elements, inWebView };
+}
+function edges(rect) {
+    if (!rect || !(rect.width > 0) || !(rect.height > 0))
+        return undefined;
+    return { left: rect.x, top: rect.y, right: rect.x + rect.width, bottom: rect.y + rect.height };
 }
 /** The desktop through xa11y, imported on first use: browser runs and MCP discovery need no native binaries. */
 export class Xa11yAdapter {
@@ -142,12 +159,13 @@ export class Xa11yAdapter {
         this.app = app;
         return { name: app.name, pid: app.pid };
     }
-    async capture(kind, within) {
+    async capture(kind, within, { spatial = false } = {}) {
         const app = this.attachedApp();
-        const { inWebView, ...frame } = await captureTree(within ?? app.asElement(), kind, this.timeout);
+        const { inWebView, ...frame } = await captureTree(within ?? app.asElement(), kind, this.timeout, { spatial });
         for (const el of inWebView)
             this.webViewElements.add(el);
-        return { ...frame, snapshot: { url: `desktop://${app.pid ?? encodeURIComponent(app.name)}`, title: app.name, ...frame.snapshot } };
+        return { ...frame, snapshot: { url: `desktop://${app.pid ?? encodeURIComponent(app.name)}`, title: app.name, ...frame.snapshot },
+            ...(spatial ? { coordinates: DESKTOP_COORDINATES } : {}) };
     }
     /** Input simulation, only while the attached app is still in front. */
     async foreground() {

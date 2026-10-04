@@ -32,7 +32,7 @@ function installAndroid(device) {
     mkdirSync(join(build, 'classes')); mkdirSync(join(build, 'dex'));
     writeFileSync(join(build, 'AndroidManifest.xml'), `<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="${app}">
       <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="36"/>
-      <application android:label="Plainwright Fixture" android:debuggable="true" android:testOnly="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+      <application android:label="Plainwright Fixture" android:debuggable="true" android:testOnly="true" android:supportsRtl="true" android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity android:name=".MobileAndroidFixture" android:exported="true"><intent-filter>
           <action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/>
         </intent-filter></activity>
@@ -94,4 +94,42 @@ function installIOS(device) {
     simctl('install', device, bundle);
     return () => { simctl('uninstall', device, app); };
   } finally { rmSync(build, { recursive: true, force: true }); }
+}
+
+// Spatial evidence on a real device: Alpha comes first in the fixture's tree but is drawn on the right of Beta.
+const spatialTarget = 'the left button of the Alpha and Beta pair';
+const spatialClaim = 'The Beta button is left of the Alpha button';
+const falseSpatialClaim = 'The Alpha button is left of the Beta button';
+const measuredLeftOf = (layout, claim) => {
+  const [, left, right] = /^The (\w+) button is left of the (\w+) button$/.exec(claim);
+  return new RegExp(`"${left}" is left of [^\\n]*"${right}"`).test(layout ?? '');
+};
+
+/** Deterministic intelligence plus a route: a prompt that says "left" is spatial and must arrive with geometry. */
+export function withSpatial(deterministic) {
+  return {
+    ask: async ({ groups }, questions) => ({ tokens: 1, answers: questions.map((_, i) => ({
+      choice: groups[i].some((prompt) => /\bleft\b/.test(prompt)) ? 'spatial' : 'semantic', confidence: 1 })) }),
+    pick: async (candidates, targets, page) => {
+      if (!targets.includes(spatialTarget)) return deterministic.pick(candidates, targets, page);
+      const pair = candidates.filter((c) => /^\S*Button "(Alpha|Beta)"/.test(c.desc));
+      assert.equal(pair.length, 2, `Expected the Alpha and Beta buttons: ${JSON.stringify(candidates)}`);
+      assert.ok(pair.every((c) => c.bounds) && page.layout && page.coordinates, 'A spatial pick carries bounds, a layout and coordinates');
+      const left = pair.sort((a, b) => a.bounds.left - b.bounds.left)[0];
+      return [{ id: left.id, probability: 1, probabilities: { [left.id]: 1 }, tokens: 1 }];
+    },
+    judge: async (state, claims) => (claims.every((claim) => [spatialClaim, falseSpatialClaim].includes(claim))
+      ? { probabilities: claims.map((claim) => (measuredLeftOf(state.layout, claim) ? 1 : 0)), tokens: 1 }
+      : deterministic.judge(state, claims)),
+  };
+}
+
+/** A spatial tap, a true spatial claim, and a false one that must not pass. */
+export async function checkSpatial(step, call) {
+  await step({ tap: spatialTarget });
+  assert.ok((await call('snapshot')).aria.includes('Chosen: Beta'), 'The spatial tap chose the visually left button');
+  await step({ expect: spatialClaim });
+  const [asked] = (await call('ask', { claims: [falseSpatialClaim] })).answers;
+  assert.notEqual(asked.answer, 'yes', `A false spatial claim passed: ${JSON.stringify(asked)}`);
+  console.log(`ask "${falseSpatialClaim}": ${asked.answer} (p=${asked.p})`);
 }

@@ -14,6 +14,8 @@ export const CandidateSchema = z.object({
     editable: z.boolean().optional(),
     /** The element's UI state in the browser (checked, expanded...), for the pick cache. Never sent to Jev. */
     state: z.string().optional(),
+    /** Rendered edges, requested for spatial targets: main viewport CSS pixels in the browser, screen coordinates on native. */
+    bounds: z.object({ left: z.number(), top: z.number(), right: z.number(), bottom: z.number() }).optional(),
 });
 export const SnapshotSchema = z.object({
     url: z.string(),
@@ -22,6 +24,8 @@ export const SnapshotSchema = z.object({
     truncated: z.boolean(),
     /** The tree of one region (`within`), not of the whole page. */
     region: z.boolean().optional(),
+    /** Read-only rendered geometry, requested for spatial claims. */
+    layout: z.string().optional(),
 });
 /** A pick from an approximate frame is covered or off screen: the caller picks again from an exact capture. */
 export class HiddenTargetError extends Error {
@@ -87,6 +91,8 @@ export async function askSettled(options) {
     return { frame, result, reasked };
 }
 const MIN_ARIA_TO_HALVE = 4000;
+/** Sent with every layout: names, values, visibility and relations must all hold for the same elements. */
+const SPATIAL_CLAIM_RULES = 'A spatial claim requires all its named text, current values, displayed selections, visibility and spatial relations to hold for the same elements. If any named text, value or selection differs, or required visible text belongs to an invisible element, the entire claim is false. A correct spatial relation alone does not make a claim with a mismatched name or value true. An available unselected option in the accessibility tree is not displayed by a collapsed select. Read the rendered evidence for physical position and visibility.';
 /**
  * Judges claims against a snapshot. A state over the token limit is cut in half until it fits. A region goes
  * without the page URL: with it, Jev doubts a claim that a short region tree plainly shows. Without the title
@@ -97,7 +103,8 @@ export async function judgeState(snap, claims, events = [], ai = intelligence) {
     const page = snap.region ? { title: snap.title } : { url: snap.url, title: snap.title };
     for (;;) {
         try {
-            const result = await ai.judge({ ...page, aria, events }, claims);
+            const result = await ai.judge({ ...page, aria, events,
+                ...(snap.layout ? { layout: snap.layout, layoutRules: SPATIAL_CLAIM_RULES } : {}) }, claims);
             if (result.probabilities.length !== claims.length)
                 throw new Error('Jev returned fewer judgments than claims');
             return result;

@@ -9,6 +9,7 @@ import { observerCalls } from '../suite/observe.js';
 import { specDeadline } from '../suite/spec-timeout.js';
 import type { CaptureTarget, RunObserver, SpecInfo } from '../suite/types.js';
 import { runStepSafely } from './steps.js';
+import { prepareEvidence } from './evidence.js';
 import { openSession, type RunOptions, type Session } from './session.js';
 
 /** A capture can hang on a page that a step cut by the spec timeout still holds. */
@@ -72,6 +73,7 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
       const interpolated = interpolate({ url: spec.url, steps: spec.steps }, { env: spec.env ?? {}, hooks: data }, spec.name);
       session.ctx.spec = { ...spec, url: interpolated.url };
       runSteps = interpolated.steps;
+      prepareEvidence(session.ctx, runSteps);
     } catch (error) {
       overall = 'error';
       await record({ step: 'interpolate', status: 'error', detail: errorMessage(error) });

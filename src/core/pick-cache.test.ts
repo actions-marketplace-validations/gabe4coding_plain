@@ -57,34 +57,50 @@ test('value= is ignored only on text-entry fields: a submit or native value iden
   const field: Candidate = { id: 0, desc: 'input[type=text] value="alice" name="user"', editable: true };
   assert.equal(normalizeDesc(field), 'input[type=text] name="user"');
   const submit = cands('input[type=submit] value="Subscribe"', 'a "Home"');
-  const entry = makeEntry(submit[0], submit, state)!;
+  const entry = makeEntry(submit[0], submit, state, 0.99)!;
   assert.equal(matchEntry(entry, cands('input[type=submit] value="Unsubscribe"', 'a "Home"'), state), undefined);
   const native = cands('static_text "" value="Draft"', 'button "Send"');
-  assert.equal(matchEntry(makeEntry(native[0], native, state)!, cands('static_text "" value="Sent"', 'button "Send"'), state), undefined);
+  assert.equal(matchEntry(makeEntry(native[0], native, state, 0.99)!, cands('static_text "" value="Sent"', 'button "Send"'), state), undefined);
   // A fill changes only the editable field's value: the entry and the list hash still match.
   const before: Candidate[] = [{ id: 0, desc: 'input name="q"', editable: true }, { id: 1, desc: 'button "Go"' }];
   const after: Candidate[] = [{ id: 0, desc: 'input value="books" name="q"', editable: true }, { id: 1, desc: 'button "Go"' }];
-  assert.equal(matchEntry(makeEntry(before[1], before, state)!, after, state)?.id, 1);
-  assert.equal(matchEntry(makeEntry(before[0], before, state)!, after, state)?.id, 0);
-  assert.equal(DESC_FORMAT, 4);
+  assert.equal(matchEntry(makeEntry(before[1], before, state, 0.99)!, after, state)?.id, 1);
+  assert.equal(matchEntry(makeEntry(before[0], before, state, 0.99)!, after, state)?.id, 0);
+  assert.equal(DESC_FORMAT, 5);
 });
 
 test('ordinal and rejected picks are never stored; every entry carries the list hash', () => {
   const list = cands('button "Save" context: form heading="Profile"', 'img alt="Avatar" #1', 'img alt="Avatar" #2', 'button "Go"');
-  assert.equal(makeEntry(list[1], list, state), null);
-  assert.equal(makeEntry(list[2], list, state), null);
-  assert.deepEqual(makeEntry(list[0], list, state), { desc: list[0].desc, frame: '', page: PAGE, list: listHash(list) });
-  assert.equal(makeEntry(list[3], list, state)!.list, listHash(list));
+  assert.equal(makeEntry(list[1], list, state, 0.99), null);
+  assert.equal(makeEntry(list[2], list, state, 0.99), null);
+  assert.deepEqual(makeEntry(list[0], list, state, 0.99), { desc: list[0].desc, frame: '', page: PAGE, list: listHash(list) });
+  assert.equal(makeEntry(list[3], list, state, 0.99)!.list, listHash(list));
   // Two text fields that differ only by value would both match: not stored.
   const twins: Candidate[] = [{ id: 0, desc: 'input value="a" name="q"', editable: true }, { id: 1, desc: 'input value="b" name="q"', editable: true }];
-  assert.equal(makeEntry(twins[0], twins, state), null);
+  assert.equal(makeEntry(twins[0], twins, state, 0.99), null);
   const framed = cands('[iframe checkout] button "Pay" context: form heading="Card"');
-  assert.equal(makeEntry(framed[0], framed, state)!.frame, 'checkout');
+  assert.equal(makeEntry(framed[0], framed, state, 0.99)!.frame, 'checkout');
   // A pick replaced by an unstorable one deletes the old entry.
   const store = new PickStore('on', MODEL, memoryIO());
-  store.set(ref(), PAGE, makeEntry(list[0], list, state));
+  store.set(ref(), PAGE, makeEntry(list[0], list, state, 0.99));
   const run = store.attempt(0);
-  run.accept(ref(), list[1], list, state);
+  run.accept(ref(), list[1], list, state, 0.99);
+  run.endStep('pass');
+  run.finish(true);
+  assert.equal(store.get(ref(), PAGE), undefined);
+});
+
+test('a reusable pick needs high confidence; marginal picks evict older entries', () => {
+  const list = cands('button "Save"');
+  for (const score of [NaN, Infinity, -1, 0.49, 0.5, 0.61, 0.899, 1.01]) {
+    assert.equal(makeEntry(list[0], list, state, score), null, String(score));
+  }
+  assert.ok(makeEntry(list[0], list, state, 0.9));
+  assert.ok(makeEntry(list[0], list, state, 1));
+  const store = new PickStore('on', MODEL, memoryIO());
+  store.set(ref(), PAGE, makeEntry(list[0], list, state, 0.99));
+  const run = store.attempt(1);
+  run.accept(ref(), list[0], list, state, 0.61);
   run.endStep('pass');
   run.finish(true);
   assert.equal(store.get(ref(), PAGE), undefined);
@@ -92,7 +108,7 @@ test('ordinal and rejected picks are never stored; every entry carries the list 
 
 test('lookup needs the same page, the same whole list, and exactly one equal desc in the same frame', () => {
   const list = cands('a "Home"', 'a "View" context: tr text="Order 1234"', 'button "Go"');
-  const entry = makeEntry(list[1], list, state)!;
+  const entry = makeEntry(list[1], list, state, 0.99)!;
   assert.equal(matchEntry(entry, list, { ...state, url: 'https://shop.test/cart?y=2' })?.id, 1);
   assert.equal(matchEntry(entry, list, { ...state, url: 'https://shop.test/checkout' }), undefined);
   // A newer, better-matching row ("the newest order's View link") changes the list: miss.
@@ -131,10 +147,11 @@ test('the file is ignored on another version, model or desc format; output is de
   const file = JSON.parse(text);
   assert.equal(parseFile(JSON.stringify({ ...file, desc: DESC_FORMAT - 1 }), MODEL), null);
   assert.equal(parseFile(JSON.stringify({ ...file, version: PICK_FILE_VERSION + 1 }), MODEL), null);
+  assert.equal(parseFile(JSON.stringify({ ...file, version: 1 }), MODEL), null, 'older entries lack the storage confidence guarantee');
   assert.equal(parseFile('{not json', MODEL), null);
 
   const list = cands('button "Save"');
-  const io = memoryIO({ '/specs/a.picks.json': formatFile(MODEL, new Map([[entryKey(ref(), PAGE), makeEntry(list[0], list, state)!]])) });
+  const io = memoryIO({ '/specs/a.picks.json': formatFile(MODEL, new Map([[entryKey(ref(), PAGE), makeEntry(list[0], list, state, 0.99)!]])) });
   const store = new PickStore('on', MODEL, io);
   const run = store.attempt(0);
   assert.equal(run.lookup(ref(), list, state)?.id, 0);
@@ -147,7 +164,7 @@ test('the file is ignored on another version, model or desc format; output is de
 
 test('attempt > 0 never reads; read mode never writes; off neither reads nor stores', () => {
   const list = cands('button "Save" context: form heading="Profile"');
-  const entry = makeEntry(list[0], list, state)!;
+  const entry = makeEntry(list[0], list, state, 0.99)!;
   const seeded = () => memoryIO({ '/specs/a.picks.json': formatFile(MODEL, new Map([[entryKey(ref(), PAGE), entry]])) });
   const on = new PickStore('on', MODEL, seeded());
   assert.equal(on.attempt(0).lookup(ref(), list, state)?.id, 0);
@@ -156,7 +173,7 @@ test('attempt > 0 never reads; read mode never writes; off neither reads nor sto
   const read = new PickStore('read', MODEL, readIO);
   const r = read.attempt(0);
   assert.equal(r.lookup(ref(1), list, state), undefined);
-  r.accept(ref(1), list[0], list, state); r.endStep('pass'); r.finish(true);
+  r.accept(ref(1), list[0], list, state, 0.99); r.endStep('pass'); r.finish(true);
   assert.equal(read.get(ref(1), PAGE), undefined, 'read mode adds nothing, not even in memory');
   assert.deepEqual(read.write(), []);
   assert.deepEqual(Object.keys(readIO.files), ['/specs/a.picks.json']);
@@ -203,14 +220,14 @@ class Screen implements ComputerAdapter<number> {
   async close() {}
 }
 
-function brain(screen: Screen, verdicts: number[] = []) {
+function brain(screen: Screen, verdicts: number[] = [], confidence?: number) {
   const calls = { pick: 0, judge: 0 };
   const ai: Intelligence = {
     pick: async (candidates, targets) => {
       calls.pick++;
       return targets.map((target, i) => {
         const hit = candidates.find((c) => c.desc.includes(`"${target}"`));
-        return { id: hit?.id ?? null, probability: hit ? 0.95 : 0.9, probabilities: {}, tokens: i === 0 ? 100 : 0 };
+        return { id: hit?.id ?? null, probability: hit ? 0.95 : 0.9, confidence, probabilities: {}, tokens: i === 0 ? 100 : 0 };
       });
     },
     judge: async (_s, claims) => { calls.judge++; return { probabilities: claims.map(() => verdicts.shift() ?? 0.95), tokens: 5 }; },
@@ -240,6 +257,21 @@ async function suite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, provider: 't
   finally { process.chdir(cwd); console.log = log; console.error = error; }
 }
 const steps = (report: RunReport, spec = 0, attempt = -1) => report.specs[spec].attempts.at(attempt)!.steps;
+
+test('native: a marginal confidence acts but every run asks Jev again', async (t) => {
+  const dir = workspace(t);
+  const file = path.join(dir, 'save.yaml');
+  fs.writeFileSync(file, SPEC);
+  const b = brain(new Screen(), [], 0.61);
+  for (let run = 0; run < 2; run++) {
+    const report = await suite(desktop(b), options([file]));
+    assert.equal(report.status, 'pass');
+    assert.equal(steps(report)[0].cached, undefined);
+    assert.equal(b.calls.pick, run + 1);
+    assert.equal(fs.existsSync(path.join(dir, 'save.picks.json')), false);
+  }
+  assert.deepEqual(b.screen.acted, ['click button "Save"', 'click button "Save"']);
+});
 
 test('cold run picks and writes the sidecar; warm run makes zero pick calls and marks the step cached', async (t) => {
   const dir = workspace(t);
@@ -353,7 +385,7 @@ test('an included flow writes its own sidecar, shared by the specs that include 
 test('a templated step keeps no page path or element text in the sidecar, and still matches', () => {
   const state = { url: 'https://shop.test/u/alice@example.com', title: 'Alice' };
   const list = cands('a "Alice Smith" href="/u/alice"', 'button "Log out"');
-  const entry = makeEntry(list[0], list, state, true)!;
+  const entry = makeEntry(list[0], list, state, 0.99, true)!;
   assert.ok(entry.desc.startsWith('sha256:') && entry.page.startsWith('sha256:') && entry.frame.startsWith('sha256:'));
   assert.ok(!JSON.stringify(entry).includes('alice'));
   assert.equal(matchEntry(entry, list, state, true)?.id, 0);
@@ -363,7 +395,7 @@ test('a templated step keeps no page path or element text in the sidecar, and st
 test('a UI state flip on an otherwise unchanged page is a miss', () => {
   const tabs = (selected: number): Candidate[] => [0, 1].map((id) => ({ id, desc: `[role=tab] "Tab ${id}"`,
     ...(id === selected ? { state: 'aria-selected=true' } : { state: 'aria-selected=false' }) }));
-  const entry = makeEntry(tabs(0)[1], tabs(0), state)!;
+  const entry = makeEntry(tabs(0)[1], tabs(0), state, 0.99)!;
   assert.equal(matchEntry(entry, tabs(0), state)?.id, 1);
   assert.equal(matchEntry(entry, tabs(1), state), undefined);
 });

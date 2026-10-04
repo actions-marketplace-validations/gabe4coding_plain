@@ -5,7 +5,7 @@
 // "unchanged" is the same page again. Three small built-in pages add the changes the saved pages lack: a
 // button identified by its value (Subscribe → Unsubscribe), a newer row that fits the target better, and a
 // dialog over the page. For every target: Jev picks on "before" (the run that wrote the cache); the
-// accepted pick becomes the entry (src/core/pick-cache.ts makeEntry); the lookup runs on "after" (matchEntry). Every
+// accepted high-confidence pick becomes the entry (src/core/pick-cache.ts makeEntry); the lookup runs on "after" (matchEntry). Every
 // hit is checked against a fresh Jev pick on "after":
 //   right        the fresh pick accepts the same element
 //   wrong        the fresh pick accepts another element or says none, or the hit is another element
@@ -74,6 +74,18 @@ const CHANGES = {
   duplicate: { safe: false, apply: (items, targets) => items.flatMap((it) => targets.has(it.key) ? [it, { key: `${it.key}-copy`, desc: it.desc }] : [it]) },
   context: { safe: false, apply: (items, targets) => items.map((it) => targets.has(it.key) && it.desc.includes(' context: ')
     ? { ...it, desc: it.desc.replace(/ context: .*$/, ' context: tr text="another row"') } : it) },
+  'layout-changed': { safe: false, apply: (items) => {
+    const positioned = items.filter((item) => item.bounds);
+    if (positioned.length < 2) return items;
+    return items.map((item) => item === positioned[0] ? { ...item, bounds: positioned[1].bounds }
+      : item === positioned[1] ? { ...item, bounds: positioned[0].bounds } : item);
+  } },
+  'reference-changed': { safe: false, apply: (items) => items, updateState: (state) => {
+    const before = pages['spatial-reference'], after = pages['spatial-reference-moved'];
+    if (!before || !after) return state;
+    const layout = state.layout === before.layout ? after.layout : state.layout === after.layout ? before.layout : undefined;
+    return layout === undefined ? state : { ...state, layout };
+  } },
 };
 
 // Built-in pages: each has one change, unsafe by construction (the right element is another one, or covered).
@@ -98,11 +110,13 @@ const accepted = (p) => p.id !== null && decide(p.confidence ?? p.probability, '
 let tokens = 0, requests = 0;
 async function pick(candidates, targets, state, goal) {
   requests++;
-  const picks = await pickElements(candidates, targets, { url: state.url, title: state.title, ...(goal ? { goal } : {}) });
+  const picks = await pickElements(candidates, targets, { url: state.url, title: state.title,
+    ...(state.layout ? { layout: state.layout } : {}), ...(goal ? { goal } : {}) });
   for (const p of picks) tokens += p.tokens;
   return picks;
 }
-const sameList = (a, b) => a.length === b.length && a.every((c, i) => c.desc === b[i].desc);
+const sameList = (a, b) => a.length === b.length && a.every((c, i) => c.desc === b[i].desc &&
+  JSON.stringify(c.bounds) === JSON.stringify(b[i].bounds));
 
 // One group: a "before" page, its targets, and the changes to try on it.
 const useGoal = values.goal !== 'off';
@@ -110,7 +124,7 @@ const groups = [
   ...Object.values(Object.groupBy(cases, (c) => `${c.page}|${useGoal ? c.goal : ''}`)).map((cs) => ({
     name: cs[0].page, state: pages[cs[0].page], cases: cs, goal: useGoal ? cs[0].goal : undefined,
     changes: Object.entries(CHANGES).filter(([, spec]) => !spec.kinds || spec.kinds.includes(pages[cs[0].page].kind))
-      .map(([change, spec]) => ({ change, safe: spec.safe, apply: spec.apply })),
+      .map(([change, spec]) => ({ change, safe: spec.safe, apply: spec.apply, updateState: spec.updateState })),
   })),
   ...BUILT_IN.map((b) => ({ name: b.name, state: { url: b.url, title: b.title, kind: b.kind, candidates: b.before },
     cases: [{ target: b.target, expect: b.expect }], goal: useGoal ? b.goal : undefined,
@@ -128,20 +142,22 @@ for (let run = 0; run < Number(values.runs); run++) {
     const entries = group.cases.map((c, i) => {
       const p = picked[i];
       if (!accepted(p)) return { c, status: 'before-rejected' };
-      const entry = makeEntry(before.find((x) => x.id === p.id), before, state);
-      return entry ? { c, entry, picked: p.id } : { c, status: 'not-stored', picked: p.id };
+      const entry = makeEntry(before.find((x) => x.id === p.id), before, state, p.confidence ?? p.probability);
+      return entry ? { c, entry, picked: p.id, score: p.confidence ?? p.probability } : { c, status: 'not-stored', picked: p.id };
     });
     const stored = entries.filter((e) => e.entry);
     for (const e of entries.filter((e) => !e.entry)) rows.push({ run, page: name, target: e.c.target, change: '-', outcome: e.status });
-    for (const { change, safe, apply } of group.changes) {
-      const items = apply(before.map((c) => ({ key: c.id, desc: c.desc })), new Set(stored.map((e) => e.picked)));
-      const after = withEditable(renumber(items.map((it) => it.desc)).map((desc, id) => ({ id, desc })));
-      if (change !== 'unchanged' && sameList(after, before)) continue;
-      const looked = stored.map((e) => ({ e, hit: matchEntry(e.entry, after, state) }));
+    for (const { change, safe, apply, updateState } of group.changes) {
+      const items = apply(before.map((c) => ({ key: c.id, desc: c.desc, ...(c.bounds ? { bounds: c.bounds } : {}) })), new Set(stored.map((e) => e.picked)));
+      const after = withEditable(renumber(items.map((it) => it.desc)).map((desc, id) => ({ id, desc,
+        ...(items[id].bounds ? { bounds: items[id].bounds } : {}) })));
+      const afterState = updateState ? updateState(state) : state;
+      if (change !== 'unchanged' && sameList(after, before) && state.layout === afterState.layout) continue;
+      const looked = stored.map((e) => ({ e, hit: matchEntry(e.entry, after, afterState) }));
       const hits = looked.filter((l) => l.hit);
-      const fresh = hits.length ? await pick(after, hits.map((l) => l.e.c.target), state, goal) : [];
+      const fresh = hits.length ? await pick(after, hits.map((l) => l.e.c.target), afterState, goal) : [];
       for (const l of looked) {
-        const row = { run, page: name, target: l.e.c.target, change, safe };
+        const row = { run, page: name, target: l.e.c.target, change, safe, beforeScore: l.e.score };
         if (!l.hit) { rows.push({ ...row, outcome: 'miss' }); continue; }
         const p = fresh[hits.indexOf(l)];
         // The hit must name the element the entry was made from (same identity key) and the fresh pick must agree.

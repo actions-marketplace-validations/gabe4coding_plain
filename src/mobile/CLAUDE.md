@@ -22,6 +22,12 @@ Built on the native core (`src/native/CLAUDE.md`).
   are also picked from the approximate tree (containers only, `NativeSession.region(within, true)`); the first
   exact look must show a visible node or `HiddenTargetError` re-picks. Reads exclude `accessible` except for click
   candidates; iOS lookups use class chains (`MobileNode.chain`). Measure with `examples/mobile/ios-calendar.yaml`.
+- iOS keyboard: XCUITest does not wait for the keyboard. On iOS 27 it stays below the screen (`visible="false"`)
+  for ~1-1.5 s after `elementSendKeys` returns, so the next capture would have no keys.
+  `AppiumAdapter.keyboardShown()` runs after an iOS `fill` and after a click on a text-entry role
+  (`IOS_TEXT_ENTRY`): it polls the `**/XCUIElementTypeKeyboard` class-chain lookup (its `attribute/visible`, ~60 ms
+  per lookup) until visible or absent, at most `KEYBOARD_MS` (3 s, capped by the action timeout). The return key
+  is `XCUIElementTypeButton` name `Done`, label `done` (drawn as a checkmark).
 - Android early reads: `AppiumAdapter.captureEarly` sets `waitForIdleTimeout` 0 for one read, then restores it
   (see `src/native/CLAUDE.md`).
 - `discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with

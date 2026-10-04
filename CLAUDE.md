@@ -82,13 +82,14 @@ Source layout (tests sit next to their module; details live in each module's com
 - `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`,
   `step-kind.ts`, `unknown-key.ts`), the shared targeting/judging boundary (`automation.ts`), results, labels and
   debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), the pick cache (`pick-cache.ts`), `read`,
-  snapshot views and `changed` diffs (`aria-changes.ts`).
+  snapshot views and `changed` diffs (`aria-changes.ts`), and the spatial evidence shared by all engines: prompt
+  routes (`evidence.ts`, with `src/jev/evidence.ts`) and layout text (`layout.ts`).
 - `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
   `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
 - `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`),
   `steps.ts` (step handlers), `activity.ts` (settling, request tracking), `settled-ask.ts`, `locate.ts` (targets),
   `judge-page.ts` (claims), `candidates.ts`, `frames.ts`, `layer.ts`, `page.ts` (snapshots, DOM clock),
-  `context-options.ts`, `notes.ts` (console noise), `mcp.ts` (the browser MCP server).
+  `evidence.ts` (observation routing), `layout.ts` (read-only rendered bounds), `context-options.ts`, `notes.ts` (console noise), `mcp.ts` (the browser MCP server).
 - `src/native/` — the shared desktop/mobile core; `src/computer/` and `src/mobile/` — each platform on top of it.
   Each of these three folders has its own `CLAUDE.md` (also `AGENTS.md`): read it before you change that engine.
 - `src/suite/` — what all three CLIs share for spec suites: `run-suite.ts`, `types.ts`, `options.ts`, `config.ts`,
