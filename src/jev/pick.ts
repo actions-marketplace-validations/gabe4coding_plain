@@ -1,7 +1,7 @@
 import type { Candidate } from '../core/automation.js';
 import { ask, choiceChunks, isTooLong, MAX_CHOICE_OPTIONS, type Question } from './ask.js';
 import { decide } from './decide.js';
-import { boundsText, roundBounds } from '../core/layout.js';
+import { boundsText } from '../core/layout.js';
 
 /** At most four parallel requests per pick. Candidates are ordered so that a cut drops nav and footer links first. */
 export const MAX_CANDIDATES = MAX_CHOICE_OPTIONS * 4;
@@ -89,9 +89,10 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
       geometry: `Bounds are rendered edges in ${coordinates}. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.`,
     } : {}),
     instructions,
-    // `editable` and `state` are for the pick cache only: Jev never sees them.
-    elements: candidates.map(({ id, desc, frameIndex, bounds }) => ({ id, desc,
-      ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds: roundBounds(bounds) } : {}) })),
+    // One `id: description` line per element: JSON objects cost tokens per key and pick no better; bounds only in
+    // the criteria, since a second copy here lowers spatial confidence. An iframe element's description starts with
+    // its frame. `editable` and `state` are for the pick cache only.
+    elements: candidates.map(({ id, desc }) => `${id}: ${desc}`).join('\n'),
   };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',
