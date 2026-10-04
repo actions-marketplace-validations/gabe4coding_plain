@@ -10,10 +10,16 @@ import { dumpDebug, errorMessage, type StepResult } from './results.js';
  * call while the page's whole candidate list is unchanged (typed text aside) and exactly one candidate has the stored
  * description. Jev decided once; code only reuses that decision on a strict match. One sidecar per source file
  * (`login.yaml` → `login.picks.json`), committed next to the specs. A retry never reads; a failed attempt
- * evicts the entries it used.
+ * evicts the entries it used. Suite runs only (`--picks`, config `picks`): an MCP session never uses it.
+ * Check a change with scripts/benchmark-pick-cache.mjs (stale pages: wrong and unconfirmed hits must stay 0);
+ * results in docs/benchmarks/pick-cache.md.
  */
+/** A sidecar of another version is ignored whole (`parseFile`): its picks miss and Jev picks again. */
 export const PICK_FILE_VERSION = 2;
-/** Reusing a decision across runs needs more certainty than acting once (0.5). */
+/**
+ * Reusing a decision across runs needs more certainty than acting once (0.5). The score is the confidence, or the
+ * probability when the provider returns no confidence.
+ */
 const PICK_CACHE_ACCEPT_AT = 0.9;
 /**
  * Bump whenever a candidate description changes (src/browser/candidates.ts or a native adapter).
@@ -53,7 +59,11 @@ export const normalizeDesc = (c: Candidate): string => (c.editable ? c.desc.repl
 const frameOf = (desc: string): string => /^\[iframe ([^\]]*)\] /.exec(desc)?.[1] ?? '';
 /** ` #n`: one of several identical descriptions, by DOM order. When the list changes it names another row. */
 const hasOrdinal = (desc: string): boolean => / #\d+(?= context: |$)/.test(desc);
-/** Candidate identity, state and bounds, plus spatial references when requested. */
+/**
+ * Candidate identity, state and bounds, plus spatial references when requested. `layout` lists elements a target
+ * can name that are not candidates (a heading a button is below): a moved reference misses although the candidate
+ * list is equal.
+ */
 export const listHash = (candidates: Candidate[], layout?: string): string =>
   createHash('sha1').update(candidates.map((c) => `${normalizeDesc(c)}${c.state ? `\u0000${c.state}` : ''}` +
     (c.bounds ? `\u0000${JSON.stringify(c.bounds)}` : '')).join('\n') +

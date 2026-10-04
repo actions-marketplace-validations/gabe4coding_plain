@@ -23,8 +23,8 @@ const isInside = (child: string, parent: string): boolean => {
 
 /**
  * Makes `root` ours: never a folder that holds the project (the cwd or a parent, home, the filesystem root, or one
- * with a spec in it), never one plainwright did not create. Then deletes only what an earlier run made: spec slugByFile
- * that hold nothing but attempt-N slugByFile.
+ * with a spec in it), never one plainwright did not create. Then deletes only what an earlier run made: spec folders
+ * that hold nothing but attempt-N folders.
  */
 function prepareResultsFolder(root: string, cwd: string, specFiles: string[]): void {
   if (root === path.parse(root).root || root === os.homedir() || isInside(cwd, root)) {
