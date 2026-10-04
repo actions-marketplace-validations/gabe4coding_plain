@@ -65,7 +65,7 @@ const TASKS = {
     answer: /report ready/i, budget: 7,
   },
   record: {
-    prompt: (dir) => `Write a plain end-to-end test: at ${site.url}/login, log in as ${USER.name} with password ` +
+    prompt: (dir) => `Use plain to write an end-to-end test: at ${site.url}/login, log in as ${USER.name} with password ` +
       `${USER.pass}, and check that the Secure Area is shown. Save it as ${join(dir, 'login.yaml')}.`,
     answer: /login\.yaml/, budget: 10, saves: 'login.yaml',
   },
