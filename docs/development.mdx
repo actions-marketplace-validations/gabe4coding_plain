@@ -136,7 +136,7 @@ with the change. The `Test` workflow fails if they are different from the build 
 
 ## Releases
 
-The npm package `plainwright` contains `bin/`, the compiled `dist/` without tests, and the root lockfile as
+The npm package `@gabe4coding/plain` contains `bin/`, the compiled `dist/` without tests, and the root lockfile as
 `npm-shrinkwrap.json`. Thus an install from npm uses the locked dependency graph. `npm pack` and `npm publish`
 compile a clean `dist/` first.
 
@@ -154,7 +154,7 @@ this version, the workflow runs `npm run verify`, publishes the package with pro
 Then the workflow installs the published version from npm. It fails if a direct dependency does not have its
 lockfile version, because then npm did not use the shrinkwrap. It also runs the CLI once.
 
-The plugins run `npx -y --package=plainwright@<version>`. Thus a merged version bump starts to work in the plugins
+The plugins run `npx -y --package=@gabe4coding/plain@<version>`. Thus a merged version bump starts to work in the plugins
 when the `Publish` workflow is complete.
 
 The workflow uses npm trusted publishing. The first publish needs the `NPM_TOKEN` repository secret, because
@@ -196,7 +196,7 @@ Each plugin directory contains:
 - The skill in `skills/`.
 - The generated `bin/npx.mjs`, `LICENSE` and session pane mod in `hooks/`.
 
-The MCP configs run `node bin/npx.mjs -y --package=plainwright@<version> <cli> ...`. `<version>` is the
+The MCP configs run `node bin/npx.mjs -y --package=@gabe4coding/plain@<version> <cli> ...`. `<version>` is the
 `package.json` version, and the plugin version is the same. `bin/npx.mjs` is a copy of `scripts/plugin-npx.mjs`.
 It starts `npx` with the MCP channel as its input and output. On Windows, it starts `npx` through `cmd /c`,
 because some plugin hosts cannot start `npx` directly. A plugin host updates a cached plugin only when its

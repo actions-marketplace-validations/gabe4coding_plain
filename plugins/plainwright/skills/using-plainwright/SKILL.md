@@ -167,7 +167,7 @@ A third rephrasing of the same fact is never the next move.
 
 For saved tests, add `tags` and use `include: ./flows/login.yaml` for shared
 steps-only flows; included steps use the root spec’s env/hooks. Run
-`npx -y plainwright@1.0.0 validate spec.yaml` before replay. For CI, add
+`npx -y -p @gabe4coding/plain@1.0.0 plainwright validate spec.yaml` before replay. For CI, add
 `--reporter junit:out/junit.xml --artifacts plainwright-results` (and
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
 `step`/`batch` cannot execute an `include`. Spec runs write a pick cache
