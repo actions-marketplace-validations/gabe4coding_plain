@@ -12,7 +12,7 @@ import { mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators, resolveOne } from './locate.js';
 import { judgeClaims, judgeRegion, judgeSettled, type Observed } from './judge-page.js';
 import { sleep, timed, type StepContext } from './context.js';
-import { prepareEvidence } from './evidence.js';
+import { prepareEvidence, scrollEdge } from './evidence.js';
 
 type StepOf<K extends Step['kind']> = Extract<Step, { kind: K }>;
 
@@ -183,13 +183,6 @@ async function setChecked(element: Locator, on: boolean): Promise<string> {
   const after = await read().catch(() => null); // a re-render may have replaced the element
   if (after !== null && after !== on) throw new Error(`clicked, but the element is still ${after ? 'checked' : 'unchecked'}`);
   return `now ${wanted}`;
-}
-
-/** `scroll: bottom`, `top`, and the ways an agent writes them ("the bottom of the page", "page end"). */
-function scrollEdge(target: string): 'top' | 'bottom' | null {
-  const match = /^(?:the )?(?:page )?(top|bottom|end)(?: of the page)?$/i.exec(target.trim());
-  if (!match) return null;
-  return match[1].toLowerCase() === 'top' ? 'top' : 'bottom';
 }
 
 /**

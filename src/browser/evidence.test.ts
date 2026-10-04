@@ -116,3 +116,19 @@ test('an optional failed batch route leaves later groups available for one retry
   assert.equal(result.steps[1].status, 'skipped');
   assert.equal(calls, 2);
 });
+
+test('a scroll to the page edge is not routed with the other descriptions', async (t) => {
+  const { ask, pick } = intelligence;
+  t.after(() => { intelligence.ask = ask; intelligence.pick = pick; });
+  const routed: unknown[] = [];
+  intelligence.ask = async (state, questions) => {
+    routed.push(state);
+    return { answers: questions.map(() => ({ choice: 'semantic', confidence: 1 })), tokens: 1 };
+  };
+  intelligence.pick = async (candidates) => [{ id: candidates.find((candidate) => candidate.desc.includes('Email'))!.id,
+    probability: 1, probabilities: {}, tokens: 1 }];
+  const result = await runSpec(spec([{ kind: 'goto', url }, { kind: 'scroll', target: 'bottom' },
+    { kind: 'fill', target: 'the second field', value: 'entry' }]), options);
+  assert.equal(result.status, 'pass', JSON.stringify(result.steps));
+  assert.deepEqual(routed, [{ groups: [['the second field']] }]);
+});
