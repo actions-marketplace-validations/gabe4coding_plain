@@ -48,7 +48,8 @@ type ScannedCandidate = [desc: string, editable: boolean, state: string];
  * Runs inside the page or frame, so every helper lives in here. Walks the document, open shadow roots included,
  * tags each kept element with `data-jev-id` and describes it.
  * Order before the cap: an open dialog's content first (it blocks the rest), then the page, then nav and footer
- * (link farms); within each layer, selector matches before extras, in DOM order.
+ * (link farms); within each layer, selector matches before extras, in DOM order. So the cap never cuts a cookie
+ * banner appended at the end of the body.
  */
 function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, max, startId }: ScanOptions):
   ScannedCandidate[] {
@@ -72,6 +73,7 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     const style = styleOf(el);
     return style.visibility !== 'hidden' && style.display !== 'none';
   }
+  // `:disabled` also covers the controls of a disabled fieldset, except those in its first legend.
   const enabled = (el: Element) => !el.matches(':disabled') && el.getAttribute('aria-disabled') !== 'true';
   function truncate(text: string, max: number): string {
     const flat = text.trim().replace(/\s+/g, ' ');
@@ -103,7 +105,8 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     const parts = [el.tagName.toLowerCase() + (type ? `[type=${type}]` : '') + (role ? `[role=${role}]` : '')];
     const ownText = (el as HTMLElement).innerText ?? el.textContent ?? '';
     const text = ownText.trim() || !el.querySelector('slot') ? ownText : slottedText(el);
-    // Only form controls have a string value: an <li>'s or a <progress>'s is a number.
+    // Only form controls have a string value: an <li>'s or a <progress>'s is a number. A throw here would empty the
+    // whole frame's scan, since candidates() skips a frame whose evaluate fails.
     const rawValue = (el as HTMLInputElement).value;
     const value = typeof rawValue === 'string' ? rawValue : '';
     if (text && text.trim()) parts.push(`"${truncate(text, MAX_TEXT)}"`);

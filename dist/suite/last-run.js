@@ -13,6 +13,7 @@ const LastRun = z.object({
         flaky: z.boolean(),
     })),
 });
+/** The absolute spec files that did not pass in the last run; `undefined` when there is no record or it is invalid. */
 export function readLastFailed(cwd) {
     const file = join(cwd, '.plainwright', 'last-run.json');
     try {
@@ -25,6 +26,10 @@ export function readLastFailed(cwd) {
         return undefined;
     }
 }
+/**
+ * Replaces `<cwd>/.plainwright/last-run.json` atomically (temporary file, then rename) with each spec's absolute
+ * path, final status and `flaky`. Only a real run writes it: `--list` and `validate` never replace it.
+ */
 export function writeLastRun(cwd, report) {
     const dir = join(cwd, '.plainwright');
     const temporary = join(dir, `last-run-${randomUUID()}.tmp`);

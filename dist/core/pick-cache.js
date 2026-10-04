@@ -7,7 +7,9 @@ import { dumpDebug, errorMessage } from './results.js';
  * while the page's whole candidate list is unchanged (typed text aside) and exactly one candidate has the stored
  * description. Jev decided once; code only reuses that decision on a strict match. One sidecar per source file
  * (`login.yaml` → `login.picks.json`), committed next to the specs. A retry never reads; a failed attempt
- * evicts the entries it used.
+ * evicts the entries it used. Suite runs only (`--picks`, config `picks`): an MCP session never uses it.
+ * Check a change with scripts/benchmark-pick-cache.mjs (stale pages: wrong and unconfirmed hits must stay 0);
+ * results in docs/benchmarks/pick-cache.md.
  */
 export const PICK_FILE_VERSION = 1;
 /**
