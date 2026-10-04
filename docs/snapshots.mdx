@@ -160,6 +160,13 @@ In browser trees, a checkbox, radio, switch or checkable menu item that is not c
 checked one shows `[checked]`, and a mixed one shows `[checked=mixed]`. Thus each line always shows the state. Jev,
 the snapshot views and the `changed` lines all see this mark.
 
+### Field state
+
+In browser trees, a text field with no value shows `[empty]`, and a read-only field shows `[readonly]`. A
+`role=textbox` editor shows its text, also when the text is not in a paragraph. Without the text, the editor
+looks empty. Jev, the snapshot views and the `changed` lines all see these marks. plain marks the first 40 such
+fields of each tree.
+
 ### Long link targets
 
 In browser trees, a link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200

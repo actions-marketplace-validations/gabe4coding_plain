@@ -44,8 +44,8 @@ The rules below apply to both.
     blocked resources', which notes only count), dialogs and downloads,
     so "An error message is shown" is unsure on a page with a console error, or whose instructions mention
     errors. "The form shows a message saying the username is invalid" gets a clear `no`.
-  - For absence, ask the positive claim and read a sure `no`: "The Password textbox contains any text" →
-    `no`, where "The Password textbox is empty" stays unsure (an empty field has no value in the tree).
+  - Empty text fields are marked `[empty]` and read-only ones `[readonly]`, so "The Password textbox is
+    empty" gets a sure answer.
   - Scope with `within` to cut noise; `css=` regions never miss, but must
     match exactly one element (several matches return `found: false` with the count). Ask "The browser console reported an
     error" on its own when console errors matter.

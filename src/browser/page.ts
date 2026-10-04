@@ -116,6 +116,104 @@ export function markUnchecked(aria: string): string {
     attributes.includes('[checked') ? line : `${head}${attributes} [checked=false]`);
 }
 
+/**
+ * A text field's state that Playwright's tree leaves out. An empty field and a read-only one get no mark, and the
+ * text of a `role=textbox` editor is dropped unless it sits in a paragraph: a Draft.js or plain contenteditable
+ * editor full of text reads as empty. Jev then judged "the editor is empty" a pass at p=0.92 on an editor with
+ * text, and stayed unsure on empty and read-only fields (docs/benchmarks/claims.md). `head` is the field's own
+ * first tree line, which finds its line in the whole tree.
+ */
+export interface FieldFact { head: string; empty?: boolean; readonly?: boolean; text?: string }
+
+/** A field line: indentation, `- `, an optional YAML quote, the role, the quoted name and `[...]` attributes. */
+const FIELD_HEAD = /^(\s*- '?[a-z]+(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]*\])*)(.*)$/;
+const MAX_FIELD_TEXT = 300;
+
+/** Plain YAML text where Playwright would write it plain, quoted otherwise. */
+const yamlText = (text: string) => /^[\s'"\-[{&*!|>%@`#]|: | #|[\r\n]|\s$/.test(text) ? JSON.stringify(text) : text;
+
+/**
+ * Writes each fact onto the first unused line equal to its head: `[empty]`, `[readonly]`, and a dropped editor text
+ * as the line's value, or as a `- text:` child when the line has children. Facts come in selector order, which can
+ * differ from tree order around shadow roots. A fact whose line is not found (the page changed between the looks)
+ * is left out: a missing mark is no worse than before.
+ */
+export function markFields(aria: string, facts: FieldFact[]): string {
+  if (!facts.length) return aria;
+  const lines = aria.split('\n');
+  for (const fact of facts) {
+    // A marked line no longer equals its head, so the first equal line is the first unused one.
+    const at = lines.findIndex((line) => line.trim() === fact.head.trim());
+    if (at < 0) continue;
+    const parts = FIELD_HEAD.exec(lines[at]);
+    if (!parts) continue;
+    const [, head, rest] = parts;
+    const marks = `${fact.empty && !head.includes('[empty]') ? ' [empty]' : ''}${fact.readonly && !head.includes('[readonly]') ? ' [readonly]' : ''}`;
+    if (!fact.text) {
+      lines[at] = `${head}${marks}${rest}`;
+    } else if (rest === '' || rest === "'") {
+      lines[at] = `${head}${marks}${rest}: ${yamlText(fact.text)}`;
+    } else if (rest === ':' || rest === "':") {
+      lines[at] = `${head}${marks}${rest}`;
+      lines.splice(at + 1, 0, `${lines[at].match(/^\s*/)![0]}  - text: ${yamlText(fact.text)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Elements that can be a text field in the tree, the root included (a `within` region can be the field itself).
+ * Playwright's CSS pierces open shadow roots, like the tree.
+ */
+const FIELD_TAGS = 'input, textarea, [role=textbox], [role=searchbox]';
+const FIELD = `:scope:is(${FIELD_TAGS}), ${FIELD_TAGS}`;
+/** Each fact costs one tree of its field; a form rarely has more fields to mark. */
+const MAX_FIELDS = 40;
+const FIELD_ARIA_MS = 1_000;
+
+/** The facts of the fields of `root` that need one, in selector order. */
+async function fieldFacts(root: Locator): Promise<FieldFact[]> {
+  const fields = root.locator(FIELD);
+  let found: ({ index: number; editor: boolean; empty: boolean; readonly: boolean; text: string } | null)[];
+  try {
+    found = await fields.evaluateAll((elements, maxText) => elements.map((el, index) => {
+      if (el.closest('[aria-hidden=true]') || !el.checkVisibility({ visibilityProperty: true })) return null;
+      const readonly = el.getAttribute('aria-readonly') === 'true';
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        if (el instanceof HTMLInputElement && /^(checkbox|radio|file|hidden|button|submit|reset|image|range|color)$/.test(el.type)) return null;
+        const empty = el.value === '';
+        return empty || el.readOnly || readonly ? { index, editor: false, empty, readonly: el.readOnly || readonly, text: '' } : null;
+      }
+      const text = (el instanceof HTMLElement ? el.innerText : el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, maxText);
+      return { index, editor: true, empty: text === '', readonly, text };
+    }), MAX_FIELD_TEXT);
+  } catch {
+    return []; // the page navigated during the look
+  }
+  const marked = found.filter((fact) => fact !== null).slice(0, MAX_FIELDS);
+  const facts = await Promise.all(marked.map(async (fact): Promise<FieldFact | null> => {
+    const own = await fields.nth(fact.index).ariaSnapshot({ timeout: FIELD_ARIA_MS }).catch(() => '');
+    const [head, ...children] = own.split('\n');
+    if (!head) return null; // not in the tree
+    const hasChild = children.some((line) => !/^\s*- \/placeholder:/.test(line));
+    if (!fact.editor) {
+      // The page can change between the two looks: an input whose own line shows a value is not empty.
+      const value = !['', "'", ':', "':"].includes(FIELD_HEAD.exec(head)?.[2] ?? '') || hasChild;
+      return { head, empty: fact.empty && !value, readonly: fact.readonly };
+    }
+    // An editor whose tree keeps none of its text (no child besides the placeholder) lost it.
+    const dropped = fact.text && !hasChild;
+    return { head, empty: fact.empty, readonly: fact.readonly, text: dropped ? fact.text : undefined };
+  }));
+  return facts.filter((fact): fact is FieldFact => fact !== null && Boolean(fact.empty || fact.readonly || fact.text));
+}
+
+/** The tree of `root` with its field facts written in (markFields). */
+async function fieldAria(root: Locator, options?: { timeout?: number }): Promise<string> {
+  const aria = await root.ariaSnapshot(options);
+  return markFields(aria, await fieldFacts(root));
+}
+
 /** Longer link targets are ad and tracking links, by measure: real ones on the saved content pages stay under 250. */
 const MAX_URL_CHARS = 200;
 const URL_LINE = /^(\s*- \/url: )(.*)$/gm;
@@ -168,7 +266,7 @@ const MAX_DIALOG_CHARS = ARIA_MAX_CHARS / 2;
 async function openDialogs(page: Page): Promise<string[]> {
   try {
     const dialogs = await page.locator(OPEN_DIALOG).filter({ visible: true }).all();
-    return await Promise.all(dialogs.slice(0, MAX_DIALOGS).map((dialog) => dialog.ariaSnapshot({ timeout: IFRAME_ARIA_MS }).catch(() => '')));
+    return await Promise.all(dialogs.slice(0, MAX_DIALOGS).map((dialog) => fieldAria(dialog, { timeout: IFRAME_ARIA_MS }).catch(() => '')));
   } catch {
     return []; // the page navigated during the look
   }
@@ -190,7 +288,7 @@ async function iframeAria(frame: Frame): Promise<string | null> {
   try {
     const state = await frame.evaluate(() => (document.body ? 'body' : document.readyState));
     if (state !== 'body' && state !== 'loading') return null;
-    return await frame.locator('body').ariaSnapshot({ timeout: IFRAME_ARIA_MS });
+    return await fieldAria(frame.locator('body'), { timeout: IFRAME_ARIA_MS });
   } catch {
     return null; // detached or cross-origin, or no body within IFRAME_ARIA_MS
   }
@@ -201,7 +299,7 @@ export async function snapshot(page: Page): Promise<Snapshot> {
   const iframes = page.frames().slice(1);
   const [title, bodyAria, iframeArias] = await Promise.all([
     page.title(),
-    page.locator('body').ariaSnapshot(),
+    fieldAria(page.locator('body')),
     Promise.all(iframes.map(iframeAria)),
   ]);
   const iframeSections = iframes.map((frame, i) => iframeArias[i] ? `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}` : '');
@@ -212,6 +310,6 @@ export async function snapshot(page: Page): Promise<Snapshot> {
 
 /** snapshot() of one region, for `within`. */
 export async function snapshotRegion(page: Page, region: Locator): Promise<Snapshot> {
-  const [title, aria] = await Promise.all([page.title(), region.ariaSnapshot()]);
+  const [title, aria] = await Promise.all([page.title(), fieldAria(region)]);
   return { ...toSnapshot(page, title, aria), region: true };
 }
