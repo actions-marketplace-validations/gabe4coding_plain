@@ -5,7 +5,7 @@ description: Write a browser spec. This page lists the file format, every top-le
 
 # Spec reference
 
-A spec is one YAML file. It has a name, a base URL, optional settings and a list of steps. plainwright runs
+A spec is one YAML file. It has a name, a base URL, optional settings and a list of steps. plain runs
 the steps in order.
 
 This page describes browser specs. [Desktop specs](computer-use.mdx#desktop-specs) and
@@ -31,16 +31,16 @@ steps:
 ```
 
 Start every spec with a `goto` step. Without it, the first step acts on an empty page and comes back
-`inconclusive`. To check a spec without a browser or an API key, run `plainwright validate <file>`.
+`inconclusive`. To check a spec without a browser or an API key, run `plain validate <file>`.
 
 ## Top-level keys
 
 | Key | Meaning |
 |---|---|
 | `name` | Required. The label in the report. |
-| `url` | Required. The base URL for `goto` steps. plainwright does not open it. |
+| `url` | Required. The base URL for `goto` steps. plain does not open it. |
 | `goal` | One sentence that says what the spec does. Every pick sees it. Claims never see it. |
-| `dialogs` | `accept` (default) or `dismiss`. How plainwright answers `alert`, `confirm` and `prompt`. |
+| `dialogs` | `accept` (default) or `dismiss`. How plain answers `alert`, `confirm` and `prompt`. |
 | `auth` | `{ user, pass }`. Credentials for an HTTP Basic or Digest prompt. |
 | `geolocation` | `{ lat, lon }`. Sets a GPS position and grants the `geolocation` permission. |
 | `env` | Static data for the spec, nested as you like. Steps use it as `${env.*}`. |
@@ -75,12 +75,12 @@ env:
     password: $TEST_PASSWORD     # used in steps as ${env.account.password}
 ```
 
-- plainwright replaces each string that starts with `$`, at any depth of `auth` and `env`, when the spec loads.
+- plain replaces each string that starts with `$`, at any depth of `auth` and `env`, when the spec loads.
 - The full string is the name. `$HOME/x` looks for a variable with the name `HOME/x`.
 - An unset or empty variable is an error. `validate` shows it as a warning.
 - A `$NAME` inside a list stays as text.
 
-plainwright also reads [`.env` files](getting-started.mdx).
+plain also reads [`.env` files](getting-started.mdx).
 
 ### Browser context
 
@@ -104,10 +104,10 @@ To log in once and reuse the session in other specs:
 
 1. Write a login spec with `saveState: ./.auth/user.json`.
 2. Write the other specs with `storageState: ./.auth/user.json`.
-3. Run the login spec first. plainwright does not order specs by their dependencies.
+3. Run the login spec first. plain does not order specs by their dependencies.
 
 - Both paths are relative to the spec file.
-- plainwright writes `saveState` only after a passing attempt and its `teardown`. If the save fails, the
+- plain writes `saveState` only after a passing attempt and its `teardown`. If the save fails, the
   attempt ends `error`.
 - If the `storageState` file is missing, the session does not open.
 
@@ -212,7 +212,7 @@ steps:
   - click: the Login button
 ```
 
-- plainwright expands each `include` when the spec loads. A flow can include other flows.
+- plain expands each `include` when the spec loads. A flow can include other flows.
 - An `include` path is relative to the file that contains it.
 - A flow file with any key other than `steps:` is an error.
 - Placeholders in a flow use the `env` and `hooks` data of the root spec. Other paths, such as `upload`
@@ -232,7 +232,7 @@ an element that is not always there, such as a cookie banner.
 Before Jev picks or judges, a step waits until the DOM is quiet and no request is open, for up to 3 s. If the
 page needs more time, add a `wait` step.
 
-- The step sends its first look at the page to Jev at once. If the page then changes, plainwright asks Jev
+- The step sends its first look at the page to Jev at once. If the page then changes, plain asks Jev
   again about the settled page. This costs more tokens.
 - `click`, `dblclick`, `rightclick`, `press` and `fill` wait for a page that they open to load.
 - After `fill`, the next step also waits for a debounced request, such as an autocomplete.
@@ -272,7 +272,7 @@ can act on. It also gets the page URL and title, the date and the spec `goal`. A
 Jev does not get the accessibility tree for a pick. The list puts an open dialog first, then the page, then
 `nav` and `footer`, then each iframe with the prefix `[iframe <label>]` (see [iframes](snapshots.mdx#iframes)).
 For `click` and `hover`, clickable cards, labels and elements with `tabindex` follow the real controls.
-plainwright also looks inside open shadow roots. A control in a shadow root gets the text of its slotted content.
+plain also looks inside open shadow roots. A control in a shadow root gets the text of its slotted content.
 Identical descriptions get `#1`, `#2` in page order.
 
 Jev classifies each distinct prompt group as semantic or spatial once per browser session.
@@ -284,15 +284,15 @@ These bounds use main viewport CSS pixels and include iframes and open shadow ro
 The reference capture includes at most 254 text elements and controls.
 [Pick cache](running.mdx#pick-cache) describes the checks before reuse.
 
-Over about 1000 candidates, plainwright drops the last ones (iframes, `nav` and `footer` first). On such a
+Over about 1000 candidates, plain drops the last ones (iframes, `nav` and `footer` first). On such a
 page, use `within` or `css=`.
 
 ### For a claim
 
 For `expect` and `wait`, Jev gets the accessibility snapshot of the settled page, with the tree of each
 iframe, and the page URL and title. With `within`, Jev gets only the tree of that region and the page title,
-without the URL. plainwright cuts the snapshot at 60,000 characters, and the step detail then shows
-`(aria truncated at 60k chars)`. If the cut removes an open dialog, plainwright adds the full tree of that
+without the URL. plain cuts the snapshot at 60,000 characters, and the step detail then shows
+`(aria truncated at 60k chars)`. If the cut removes an open dialog, plain adds the full tree of that
 dialog at the end, under `--- open dialog ---`.
 
 A spatial claim also gets rendered bounds for up to 254 text elements and controls.
@@ -312,22 +312,22 @@ cannot pass. Claim the link text instead. Agent mode gets the same short form (s
 
 Jev also gets the last 30 page events, which the tree does not show:
 
-- dialogs, and how plainwright answered them
+- dialogs, and how plain answered them
 - new tabs
 - downloads, with the path of the saved file
 - uncaught page errors and `console.error` messages of the page.
 
-Thus Jev can judge `expect: a file was downloaded`. plainwright deletes the downloads when the browser
+Thus Jev can judge `expect: a file was downloaded`. plain deletes the downloads when the browser
 closes, after `teardown`. Console errors about blocked resources or from scripts of other sites are not events.
 
 ## Placeholders
 
-plainwright replaces `${env.*}` and `${hooks.*}` in `url` and in every string of every step. It does not
+plain replaces `${env.*}` and `${hooks.*}` in `url` and in every string of every step. It does not
 replace them in `goal`, `auth`, `geolocation`, `dialogs` or `browser`.
 
 - `${env.a.b}` reads the `env` block. `${hooks.a.b}` reads what `setup` returned. See [hooks](hooks.mdx).
 - The path must name a text, number or boolean value. An object, a list, a missing value, a list index
   (`${env.users.0}`) or another namespace is an error.
 
-plainwright replaces placeholders after `setup` and before the first step. An unresolved placeholder ends the
+plain replaces placeholders after `setup` and before the first step. An unresolved placeholder ends the
 attempt `error` before the first step. `teardown` still runs.

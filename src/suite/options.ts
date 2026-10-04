@@ -19,7 +19,7 @@ type Config = Partial<SuiteOptions & EngineFlags> & { artifacts?: Partial<NonNul
 
 /** Flags whose value may also come from an existing environment variable. */
 const ENV_FALLBACKS: Record<string, string> = {
-  profile: 'PLAINWRIGHT_PROFILE', cdp: 'PLAINWRIGHT_CDP', channel: 'PLAINWRIGHT_CHANNEL', server: 'PLAINWRIGHT_APPIUM_URL',
+  profile: 'PLAIN_PROFILE', cdp: 'PLAIN_CDP', channel: 'PLAIN_CHANNEL', server: 'PLAIN_APPIUM_URL',
 };
 const BROWSER_ONLY_FLAGS = ['headless', 'profile', 'channel', 'cdp', 'timing'] as const;
 
@@ -83,7 +83,7 @@ export function expandFiles(positionals: string[], cwd = process.cwd()): string[
   });
 }
 
-/** Every value: CLI flag, then an existing PLAINWRIGHT_* variable, then the config file, then the default. */
+/** Every value: CLI flag, then an existing PLAIN_* variable, then the config file, then the default. */
 export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.ProcessEnv = process.env, cwd = process.cwd(),
   readConfig: typeof loadConfig = loadConfig): ParsedSuiteArgs {
   // A bare `--bail` means `--bail=1`.
@@ -106,7 +106,7 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
   // Worker conflicts fail here, before any spec loads or a browser opens.
   if (workers > 1 && engine !== 'browser') throw new Error('--workers > 1 is not supported for desktop or mobile');
   if (workers > 1 && (profile || cdp)) {
-    throw new Error('plainwright: --workers > 1 needs isolated browsers; --profile opens one persistent profile (cannot be opened twice) ' +
+    throw new Error('plain: --workers > 1 needs isolated browsers; --profile opens one persistent profile (cannot be opened twice) ' +
       'and --cdp attaches to one shared browser context. Run those with --workers 1.');
   }
 
@@ -148,7 +148,7 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
   const browserOnly = BROWSER_ONLY_FLAGS.find((name) => values[name] !== undefined);
   if (engine !== 'browser' && browserOnly) throw new Error(`--${browserOnly} is browser-only`);
   if (engine !== 'mobile' && values.server) throw new Error('--server is mobile-only');
-  if (ignored.length) console.error(`plainwright: ${engine} ignores these config values: ${ignored.join(', ')}`);
+  if (ignored.length) console.error(`plain: ${engine} ignores these config values: ${ignored.join(', ')}`);
   return { command, opts, flags };
 }
 
@@ -191,7 +191,7 @@ function artifactOptions(engine: Engine, values: { artifacts?: string; screensho
   const screenshot = captureMode('screenshot', values.screenshot ?? config.artifacts?.screenshot ?? 'on-failure');
   const trace = captureMode('trace', values.trace ?? config.artifacts?.trace ?? (engine === 'browser' ? 'on-failure' : 'off'));
   if (!dir && (values.screenshot !== undefined || values.trace !== undefined)) {
-    console.error('plainwright: --screenshot and --trace have no effect without --artifacts <dir>');
+    console.error('plain: --screenshot and --trace have no effect without --artifacts <dir>');
   }
   return dir ? { dir, screenshot, trace } : undefined;
 }

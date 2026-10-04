@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 20
     env:
       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
-      # Jev debug dumps go to $TMPDIR/plainwright; pin TMPDIR so the upload step finds them.
+      # Jev debug dumps go to $TMPDIR/plain; pin TMPDIR so the upload step finds them.
       TMPDIR: /tmp
       # A pull request from a fork gets no secrets: skip there, fail everywhere else.
       FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository && github.event_name == 'pull_request' }}
@@ -67,5 +67,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jev-dumps
-          path: /tmp/plainwright/
+          path: /tmp/plain/
           if-no-files-found: ignore

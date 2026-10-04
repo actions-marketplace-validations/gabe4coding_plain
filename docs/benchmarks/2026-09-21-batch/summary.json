@@ -5,7 +5,7 @@
   "totalCost": 0.769964034,
   "byModel": {
     "openai/gpt-5.6-luna": {
-      "plainwright": {
+      "plain": {
         "trials": 6,
         "successes": 6,
         "naturalCompletions": 6,
@@ -37,7 +37,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 5.421010862427522e-20
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 6,
         "successes": 6,
         "naturalCompletions": 6,
@@ -84,7 +84,7 @@
       }
     },
     "openai/gpt-5.6-terra": {
-      "plainwright": {
+      "plain": {
         "trials": 6,
         "successes": 6,
         "naturalCompletions": 6,
@@ -117,7 +117,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 8.673617379884035e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 6,
         "successes": 6,
         "naturalCompletions": 6,
@@ -163,7 +163,7 @@
       }
     },
     "openai/gpt-6-astra": {
-      "plainwright": {
+      "plain": {
         "trials": 6,
         "successes": 6,
         "naturalCompletions": 6,
@@ -195,7 +195,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 1.734723475976807e-18
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 6,
         "successes": 6,
         "naturalCompletions": 6,
@@ -243,7 +243,7 @@
   },
   "byTask": {
     "openai/gpt-5.6-luna/contact": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -275,7 +275,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.710505431213761e-20
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -309,7 +309,7 @@
       }
     },
     "openai/gpt-5.6-luna/preferences": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -341,7 +341,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 0
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -375,7 +375,7 @@
       }
     },
     "openai/gpt-5.6-luna/catalog": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -407,7 +407,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.710505431213761e-20
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -441,7 +441,7 @@
       }
     },
     "openai/gpt-5.6-luna/record": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -473,7 +473,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 5.421010862427522e-20
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -507,7 +507,7 @@
       }
     },
     "openai/gpt-5.6-luna/wizard": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -539,7 +539,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 5.421010862427522e-20
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -573,7 +573,7 @@
       }
     },
     "openai/gpt-5.6-luna/validation": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -605,7 +605,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.710505431213761e-20
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -639,7 +639,7 @@
       }
     },
     "openai/gpt-5.6-terra/contact": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -671,7 +671,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.168404344971009e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -705,7 +705,7 @@
       }
     },
     "openai/gpt-5.6-terra/preferences": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -737,7 +737,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 0
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -771,7 +771,7 @@
       }
     },
     "openai/gpt-5.6-terra/catalog": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -803,7 +803,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.168404344971009e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -837,7 +837,7 @@
       }
     },
     "openai/gpt-5.6-terra/record": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -869,7 +869,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 8.673617379884035e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -903,7 +903,7 @@
       }
     },
     "openai/gpt-5.6-terra/wizard": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -935,7 +935,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.168404344971009e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -969,7 +969,7 @@
       }
     },
     "openai/gpt-5.6-terra/validation": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1001,7 +1001,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 2.168404344971009e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1035,7 +1035,7 @@
       }
     },
     "openai/gpt-6-astra/contact": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1067,7 +1067,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 8.673617379884035e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1101,7 +1101,7 @@
       }
     },
     "openai/gpt-6-astra/preferences": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1133,7 +1133,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 1.734723475976807e-18
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1167,7 +1167,7 @@
       }
     },
     "openai/gpt-6-astra/catalog": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1199,7 +1199,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 4.336808689942018e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1233,7 +1233,7 @@
       }
     },
     "openai/gpt-6-astra/record": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1265,7 +1265,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 0
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1299,7 +1299,7 @@
       }
     },
     "openai/gpt-6-astra/wizard": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1331,7 +1331,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 0
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1365,7 +1365,7 @@
       }
     },
     "openai/gpt-6-astra/validation": {
-      "plainwright": {
+      "plain": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,
@@ -1397,7 +1397,7 @@
         "nonObjectToolArguments": 0,
         "maxReportedCostDrift": 8.673617379884035e-19
       },
-      "plainwright-unbatched": {
+      "plain-unbatched": {
         "trials": 1,
         "successes": 1,
         "naturalCompletions": 1,

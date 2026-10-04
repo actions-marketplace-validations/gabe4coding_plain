@@ -1,0 +1,19 @@
+{
+  "name": "plain-mobile",
+  "version": "2.0.0",
+  "description": "Native iOS and Android automation with Appium actions and Jev decisions; record and replay natural-language YAML tests",
+  "author": {
+    "name": "Gabriele Pavanello"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Plain Mobile",
+    "shortDescription": "Drive and test native iOS and Android apps.",
+    "longDescription": "Use Appium to drive native iOS and Android apps, including React Native. Jev resolves natural-language targets and assertions from native UI trees. Record and replay YAML specs on simulators, emulators or physical devices.",
+    "developerName": "Gabriele Pavanello",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Test a mobile app with plain-mobile."
+  },
+  "mcpServers": "./.mcp.json"
+}

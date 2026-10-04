@@ -38,9 +38,9 @@ const ConfigSchema = z.object({
   picks: z.enum(PICKS_MODES).optional(),
 }).strict();
 
-const CONFIG_FILES = ['plainwright.config.yaml', 'plainwright.config.yml'];
+const CONFIG_FILES = ['plain.config.yaml', 'plain.config.yml'];
 
-/** `--config <file>`, else the cwd's plainwright.config.yaml/.yml. Paths in it resolve against its folder. */
+/** `--config <file>`, else the cwd's plain.config.yaml/.yml. Paths in it resolve against its folder. */
 export function loadConfig(cwd: string, explicit?: string): Partial<SuiteOptions & EngineFlags> {
   const file = explicit !== undefined
     ? path.resolve(cwd, explicit)

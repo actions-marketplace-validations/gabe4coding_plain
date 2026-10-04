@@ -1,7 +1,7 @@
 name: Spatial prompts follow rendered geometry
 url: ${env.site}/spatial
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial
   - expect: the button on the left is B and the button on the right is A

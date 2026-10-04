@@ -13,7 +13,7 @@ export type Status = z.infer<typeof StatusSchema>;
 export const isFailure = (status: Status): boolean => status !== 'pass' && status !== 'skipped';
 
 /** Where rejected picks and failed claims are dumped; the artifacts observer copies from here. */
-export const DUMP_DIR = path.join(os.tmpdir(), 'plainwright');
+export const DUMP_DIR = path.join(os.tmpdir(), 'plain');
 
 export const StepResultSchema = z.object({
   step: z.string(),

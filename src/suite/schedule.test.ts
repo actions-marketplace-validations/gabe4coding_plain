@@ -199,7 +199,7 @@ test('last-failed is accepted without filtering in the scheduler', async () => {
 });
 
 test('suite keeps load errors out of retries and retries thrown runs as error attempts', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'plainwright-schedule-'));
+  const dir = mkdtempSync(join(tmpdir(), 'plain-schedule-'));
   const cwd = process.cwd();
   const calls: number[] = [];
   const loads: string[] = [];

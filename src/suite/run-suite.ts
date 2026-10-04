@@ -51,7 +51,7 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, se
       const chosen = services.provider();
       providerName = chosen;
       model = MODEL_BY_PROVIDER[chosen];
-      if (engine.engine === 'browser') console.error(`plainwright: Jev via ${chosen} (${model})`);
+      if (engine.engine === 'browser') console.error(`plain: Jev via ${chosen} (${model})`);
       services.warmUp();
       // One model id for both providers: switching provider keeps the sidecars, a model upgrade drops them.
       picks = new PickStore(opts.picks ?? 'on', MODEL_BY_PROVIDER.typesafe);
@@ -164,7 +164,7 @@ function observerCaller(): NotifyObserver {
     } catch (error) {
       if (!warned.has(observer.observer)) {
         warned.add(observer.observer);
-        console.error(`plainwright: ${observer.name}: ${errorMessage(error)}`);
+        console.error(`plain: ${observer.name}: ${errorMessage(error)}`);
       }
       return undefined;
     }

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { readArtifact } from './artifacts.mjs';
 
 test('artifact reader accepts linked output roots and rejects sibling/traversal/symlink escapes', () => {
-  const root = mkdtempSync(join(tmpdir(), 'plainwright-artifacts-'));
+  const root = mkdtempSync(join(tmpdir(), 'plain-artifacts-'));
   try {
     const real = join(root, 'real'), alias = join(root, 'alias');
     mkdirSync(real);

@@ -73,8 +73,8 @@ export function junitXml(report: RunReport): string {
     `skipped="${countOf('skipped')}" time="${seconds(report.durationMs)}"`;
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    `<testsuites name="plainwright ${attr(report.engine)}" ${counts}>`,
-    `  <testsuite name="plainwright" timestamp="${attr(report.startedAt)}" ${counts}>`,
+    `<testsuites name="plain ${attr(report.engine)}" ${counts}>`,
+    `  <testsuite name="plain" timestamp="${attr(report.startedAt)}" ${counts}>`,
     properties({ jevCalls: report.totals.jevCalls, tokens: report.totals.tokens, cachedPicks: report.totals.cachedPicks,
       provider: report.provider, model: report.model, attempts: report.specs.reduce((sum, spec) => sum + spec.attempts.length, 0) }),
     ...report.specs.map((spec) => testCase(spec, report)),

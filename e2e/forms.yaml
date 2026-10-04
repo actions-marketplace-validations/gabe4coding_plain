@@ -1,7 +1,7 @@
 name: select, check, uncheck, hover and a key press
 url: ${env.site}
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /forms
   - select: { target: the Size list, value: Large }

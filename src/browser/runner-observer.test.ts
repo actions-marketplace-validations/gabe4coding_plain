@@ -9,7 +9,7 @@ import { closeSharedBrowser } from './session.js';
 import type { RunObserver } from '../suite/types.js';
 
 test('browser observer sees session and step, captures screenshot before close', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-observer-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-observer-'));
   const file = path.join(dir, 'spec.yaml'), screenshot = path.join(dir, 'shot.png');
   fs.writeFileSync(file, 'name: observer\nurl: data:text/html,ok\nsteps:\n  - goto: data:text/html,ok\n');
   const calls: string[] = [];

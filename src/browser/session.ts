@@ -100,7 +100,7 @@ async function openPage(spec: Spec, opts: RunOptions): Promise<{ page: Page; clo
 export async function openSession(spec: Spec, opts: RunOptions, track: (tokens: number) => void): Promise<Session> {
   const opened = await openPage(spec, opts);
   // Each session has its own folder, so specs never see each other's downloads.
-  const downloadsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-downloads-'));
+  const downloadsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-downloads-'));
 
   // The active page: a popup replaces it (see `attach`).
   let page = opened.page;

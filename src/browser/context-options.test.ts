@@ -13,7 +13,7 @@ const opts = { headed: false, timeout: 5000 };
 const blank = { name: 'context', dir: '.', url: 'about:blank', dialogs: 'accept', steps: [{ kind: 'goto', url: 'about:blank' }] } satisfies Spec;
 after(closeSharedBrowser);
 function fixture(t: import('node:test').TestContext) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-context-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-context-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return { ...blank, dir };
 }

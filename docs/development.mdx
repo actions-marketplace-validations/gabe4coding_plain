@@ -1,11 +1,11 @@
 ---
 title: Development
-description: Build and test plainwright from a checkout, run the opt-in native smoke tests, package the plugins and publish to npm.
+description: Build and test plain from a checkout, run the opt-in native smoke tests, package the plugins and publish to npm.
 ---
 
 # Development
 
-This page is for contributors. To use plainwright, start with [getting started](getting-started.mdx).
+This page is for contributors. To use plain, start with [getting started](getting-started.mdx).
 [CLAUDE.md](../CLAUDE.md) describes the architecture and the code conventions.
 
 ## Build and test
@@ -73,7 +73,7 @@ runs, also in a git worktree.
 ### Live e2e suite
 
 The live checks need a Jev key. They use no remote site. `e2e/site.mjs` serves all the pages on `127.0.0.1`
-from the process of the runner. Thus a failure comes from plainwright or Jev, not from the network.
+from the process of the runner. Thus a failure comes from plain or Jev, not from the network.
 
 - Each `e2e/*.yaml` spec must pass. A spec with the tag `expect-fail` must end `fail`. A pass there is a false
   pass.
@@ -102,7 +102,7 @@ Use `--observe` to record findings without a failed exit status.
 agent. It grades each run:
 
 - The final answer must contain the text that the page shows.
-- The agent must reach the page only through the plainwright tools, with no failed tool call.
+- The agent must reach the page only through the plain tools, with no failed tool call.
 - The number of tool calls must stay in the budget of the task.
 - A spec that the agent saves must pass when the CLI runs it.
 
@@ -128,7 +128,7 @@ node --test --test-name-pattern "<name>" dist/jev/pick.test.js
 ## Build output
 
 The repository does not contain `dist/`. Run `npm run build` after a clone and after each change in `src/`.
-Then the launchers in `bin/` run the checkout, for example `node bin/plainwright.mjs examples/todo.yaml`.
+Then the launchers in `bin/` run the checkout, for example `node bin/plain.mjs examples/todo.yaml`.
 
 `npm run build` also writes the generated plugin files: the MCP configs, the npx shim, the plugin versions, the
 version in the `npx` commands of the skills, the license and the session pane mod. Do not edit these files by hand. Commit them
@@ -174,9 +174,9 @@ package.json                 all dependencies, the three CLI binaries, build and
 src/                         browser, desktop, mobile and shared code, with tests next to each module
 bin/                         CLI launchers, the bin entries of the npm package
 plugins/
-  plainwright/               browser plugin: manifests, MCP config, skill
-  plainwright-computer/      desktop plugin
-  plainwright-mobile/        mobile plugin
+  plain/               browser plugin: manifests, MCP config, skill
+  plain-computer/      desktop plugin
+  plain-mobile/        mobile plugin
 scripts/                     plugin build, smoke tests, benchmarks, evals, the validation loop
 e2e/                         the live e2e suite: its local site and specs
 examples/                    browser specs against public demo sites; examples/mobile/ for mobile
@@ -223,10 +223,10 @@ Pitfalls:
   `~/.codex/plugins/cache/`.
 - A plugin from a clone runs the npm version in its MCP config, not the code of the clone. To try a change in the
   code with an agent, register the server of the checkout, for example
-  `claude mcp add plainwright-dev -- node /absolute/path/to/plainwright/bin/plainwright.mjs --headless mcp`.
+  `claude mcp add plain-dev -- node /absolute/path/to/plain/bin/plain.mjs --headless mcp`.
 - To try a change in a skill or the session pane mod, run
-  `claude --plugin-dir /absolute/path/to/plainwright/plugins/plainwright`. Use the same command for
-  `plugins/plainwright-computer` and `plugins/plainwright-mobile`.
+  `claude --plugin-dir /absolute/path/to/plain/plugins/plain`. Use the same command for
+  `plugins/plain-computer` and `plugins/plain-mobile`.
 - `AGENTS.md` is a symlink to `CLAUDE.md`. Codex reads the same repository guidance as Claude Code.
 
 ## Verification
@@ -253,19 +253,19 @@ Windows and Linux need the same kind of run on their own hosts before you claim 
 This test connects to your installed test app, reads the tree and takes a PNG screenshot. It needs no API key.
 
 ```sh
-PLAINWRIGHT_MOBILE_PLATFORM=android \
-PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 \
-PLAINWRIGHT_MOBILE_APP=com.example.fixture \
+PLAIN_MOBILE_PLATFORM=android \
+PLAIN_MOBILE_DEVICE=emulator-5554 \
+PLAIN_MOBILE_APP=com.example.fixture \
 npm run test:mobile
 ```
 
 | Variable | Meaning |
 |---|---|
-| `PLAINWRIGHT_MOBILE_PLATFORM` | `android` or `ios`. |
-| `PLAINWRIGHT_MOBILE_DEVICE` | Device ID: ADB serial or UDID. |
-| `PLAINWRIGHT_MOBILE_APP` | App package or bundle ID. |
-| `PLAINWRIGHT_MOBILE_CAPABILITIES` | Optional. A JSON object of extra Appium capabilities. |
-| `PLAINWRIGHT_APPIUM_URL` | Optional. The Appium server. Default `http://127.0.0.1:4723`. |
+| `PLAIN_MOBILE_PLATFORM` | `android` or `ios`. |
+| `PLAIN_MOBILE_DEVICE` | Device ID: ADB serial or UDID. |
+| `PLAIN_MOBILE_APP` | App package or bundle ID. |
+| `PLAIN_MOBILE_CAPABILITIES` | Optional. A JSON object of extra Appium capabilities. |
+| `PLAIN_APPIUM_URL` | Optional. The Appium server. Default `http://127.0.0.1:4723`. |
 
 This test does not check taps, input or gestures.
 
@@ -286,14 +286,14 @@ Prepare the host:
 You do not need Gradle or an application project.
 
 ```sh
-PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 npm run test:mobile:android
-PLAINWRIGHT_MOBILE_DEVICE=emulator-5554 npm run test:mobile:android -- --live-jev
+PLAIN_MOBILE_DEVICE=emulator-5554 npm run test:mobile:android
+PLAIN_MOBILE_DEVICE=emulator-5554 npm run test:mobile:android -- --live-jev
 ```
 
 - The default run injects deterministic decisions. `--live-jev` uses real Jev picks and judgments, with your key
   from the repository `.env` or the user env file.
 - At the end, the test prints a temporary folder with `recorded.yaml`, `report.json` and `preview.png`.
-- To use a different installed Build-Tools version, set `PLAINWRIGHT_ANDROID_BUILD_TOOLS`.
+- To use a different installed Build-Tools version, set `PLAIN_ANDROID_BUILD_TOOLS`.
 
 This test checks native Android controls. It does not prove React Native or iOS parity.
 
@@ -312,13 +312,13 @@ Prepare the host:
 
 ```sh
 xcrun simctl list devices booted
-PLAINWRIGHT_MOBILE_DEVICE=<simulator-udid> npm run test:mobile:ios
-PLAINWRIGHT_MOBILE_DEVICE=<simulator-udid> npm run test:mobile:ios -- --live-jev
+PLAIN_MOBILE_DEVICE=<simulator-udid> npm run test:mobile:ios
+PLAIN_MOBILE_DEVICE=<simulator-udid> npm run test:mobile:ios -- --live-jev
 ```
 
 - The first session builds WebDriverAgent. This can take some minutes. The test allows 4 minutes for each Appium
   request.
-- Set `PLAINWRIGHT_APPIUM_URL` if your server uses a different address or port.
+- Set `PLAIN_APPIUM_URL` if your server uses a different address or port.
 - At the end, the test prints a temporary folder with `recorded.yaml`, `report.json` and `preview.png`.
 - The fixture closes its keyboard with its Done key. A generic `press: HideKeyboard` can fail on iPhone.
 

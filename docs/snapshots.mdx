@@ -32,7 +32,7 @@ what to do next. Use a raw snapshot of one region to read exact data. To read on
 - `within`: a region, for example `the results list`. Jev finds the region. In the browser, `css=main` uses a CSS
   selector and needs no Jev call. `within` can contain `${hooks.*}` placeholders.
 - `intent`: the task, in up to 2,000 characters, for example `Change the delivery address`. It is for smart mode
-  only: with another mode, the call returns an error. plainwright uses the text as written, with no placeholders.
+  only: with another mode, the call returns an error. plain uses the text as written, with no placeholders.
 
 If no region matches `within`, the browser server returns `found: false` and a `detail`. The desktop and mobile
 servers return a tool error. `save` does not record a snapshot.
@@ -45,7 +45,7 @@ a `within` region.
 A raw snapshot has `url`, `title`, `aria` and `truncated`, plus `region` when you use `within`. It has no
 `jevTokens` or `ms` fields, also when Jev found the region.
 
-plainwright captures at most 60,000 characters of the tree. `truncated: true` means that the capture or the
+plain captures at most 60,000 characters of the tree. `truncated: true` means that the capture or the
 `maxChars` limit cut the text. If the capture cuts an open dialog, the full tree of that dialog comes at the
 end, under `--- open dialog ---`.
 
@@ -59,7 +59,7 @@ whole lines in this order until the `maxChars` limit:
 3. Other content.
 4. Navigation and footer content.
 
-Each selected line keeps its text, states, values, named ancestors, iframe and position in the tree. plainwright
+Each selected line keeps its text, states, values, named ancestors, iframe and position in the tree. plain
 never cuts a line in the middle. If a line and its ancestors do not fit, the view leaves them out.
 
 ## Smart mode
@@ -83,7 +83,7 @@ A signal is never `absent` when the capture was truncated or when some regions w
 
 ### Focus on a task with `intent`
 
-With `intent`, plainwright divides the tree into regions: forms, search regions, landmarks, named groups, lists,
+With `intent`, plain divides the tree into regions: forms, search regions, landmarks, named groups, lists,
 tables and heading sections. Jev judges, for each region, if the task needs it. All regions go in one request.
 
 - The view keeps the regions with a relevance of 0.5 or more, with their ancestors and section headings.

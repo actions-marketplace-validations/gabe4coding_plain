@@ -232,7 +232,7 @@ test('captureTree: a label inside a control is not a second candidate; an unname
 
 test('captureTree: a row is one candidate named by its cells; one window and the app are not repeated as context', async () => {
   const cell = (text: string) => node('table_cell', '', null, [node('static_text', '', text, [], [])], ['focus']);
-  const tree = node('application', 'Fork', null, [node('window', 'plainwright', null, [
+  const tree = node('application', 'Fork', null, [node('window', 'plain', null, [
     node('table_row', '', null, [cell('Fix the parser'), cell('Ann'), cell('813f225'), cell('Today at 22:55')], []),
     node('text_area', '', 'x'.repeat(500), [], ['set_value']),
     node('list', 'Folders', null, [node('button', 'Notes', null)]),

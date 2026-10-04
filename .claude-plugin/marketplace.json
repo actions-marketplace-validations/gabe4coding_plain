@@ -1,23 +1,23 @@
 {
-  "name": "plainwright-marketplace",
+  "name": "plain-marketplace",
   "description": "Browser, computer-use and mobile plugins for natural-language testing",
   "owner": {
     "name": "Gabriele Pavanello"
   },
   "plugins": [
     {
-      "name": "plainwright",
-      "source": "./plugins/plainwright",
+      "name": "plain",
+      "source": "./plugins/plain",
       "description": "YAML e2e tests where Playwright acts and the Jev model decides; MCP server for agents to drive a browser step by step"
     },
     {
-      "name": "plainwright-computer",
-      "source": "./plugins/plainwright-computer",
+      "name": "plain-computer",
+      "source": "./plugins/plain-computer",
       "description": "Native desktop automation with xa11y actions and Jev decisions; record and replay natural-language YAML tests"
     },
     {
-      "name": "plainwright-mobile",
-      "source": "./plugins/plainwright-mobile",
+      "name": "plain-mobile",
+      "source": "./plugins/plain-mobile",
       "description": "Native iOS and Android automation with Appium actions and Jev decisions; record and replay natural-language YAML tests"
     }
   ]

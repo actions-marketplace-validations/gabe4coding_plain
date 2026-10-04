@@ -2,7 +2,7 @@ name: Transparent text does not prove a spatial visible name
 tags: [expect-fail]
 url: ${env.site}/spatial-transparent
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: ${env.site}/spatial-transparent
   - expect:

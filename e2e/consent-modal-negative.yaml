@@ -2,7 +2,7 @@ name: a background button behind a modal dialog does not run
 url: ${env.site}
 tags: [expect-fail]
 env:
-  site: $PLAINWRIGHT_E2E_SITE
+  site: $PLAIN_E2E_SITE
 steps:
   - goto: /consent
   - click: the Accept All button

@@ -11,12 +11,12 @@ Built on the native core (`src/native/CLAUDE.md`). Desktop specs have `app`, not
 - `spec.ts`, `session.ts`, `mcp.ts`, `cli.ts` provide desktop parsing, actions, the `apps`/`open` tools (ten
   serialized MCP tools in all), and sequential batch replay.
 - `planner.ts` turns one sentence into plan items (code proposes splits/actions/word spans, Jev picks, arguments
-  are copied verbatim); `plainwright-computer plan|do "<sentence>"` in `cli.ts`. Change it only when
+  are copied verbatim); `plain-computer plan|do "<sentence>"` in `cli.ts`. Change it only when
   `scripts/benchmark-planner.mjs` improves; results in `docs/benchmarks/planner.md`.
-- `plugins/plainwright-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates its
+- `plugins/plain-computer/` is a separate portable/Codex/Claude plugin. `npm run build` regenerates its
   generated files (MCP config, versions, mod) via `scripts/build-plugins.mjs`; never edit generated files directly.
 - Keep desktop tool names, thresholds and step support synchronized in `docs/computer-use.mdx` and the plugin's
-  `skills/using-plainwright-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
+  `skills/using-plain-computer/SKILL.md`. Browser-only steps must fail explicitly on desktop.
 - Regular `npm test` uses injected desktop adapters and no model keys. `npm run test:computer:mac` is the opt-in
   native smoke (`docs/development.mdx`, "Desktop on macOS"). Windows/Linux native parity requires testing on those
   platforms.

@@ -12,7 +12,7 @@ import { loadMobileSpec, mobileLabel } from '../mobile/spec.js';
 import { label } from './results.js';
 
 function fixture(t: import('node:test').TestContext) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-include-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plain-include-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const write = (name: string, raw: unknown) => {
     const file = path.join(dir, name);

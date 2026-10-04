@@ -10,11 +10,11 @@ import { Xa11yAdapter } from '../dist/computer/adapter.js';
 import { ComputerSession } from '../dist/computer/session.js';
 if (process.platform !== 'darwin') throw new Error('This fixture requires macOS; the adapter API is cross-platform');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const dir = mkdtempSync(join(tmpdir(), 'plainwright-native-'));
+const dir = mkdtempSync(join(tmpdir(), 'plain-native-'));
 let fixture;
 const adapter = new Xa11yAdapter(15000);
 try {
-  const binary = join(dir, 'PlainwrightFixture');
+  const binary = join(dir, 'PlainFixture');
   execFileSync('xcrun', ['clang', '-fobjc-arc', '-framework', 'Cocoa', join(root, 'scripts/fixtures/computer-macos.m'), '-o', binary], { stdio: 'inherit' });
   fixture = spawn(binary, [], { stdio: 'ignore' });
   await once(fixture, 'spawn');

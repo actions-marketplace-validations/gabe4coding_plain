@@ -12,7 +12,7 @@ const observer = (dir: string): RunObserver => artifactsObserver({ ...base, arti
 const target: CaptureTarget = { engine: 'browser', async screenshot(file) { fs.writeFileSync(file, 'PNG'); } };
 const start = (o: RunObserver, files: string[]) => o.runStart!({ engine: 'browser', specs: files.map((file) => ({ file, name: file, tags: [] })) });
 function inTemp(t: TestContext): string {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plainwright-artifacts-safety-')));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plain-artifacts-safety-')));
   const cwd = process.cwd();
   process.chdir(dir);
   t.after(() => { process.chdir(cwd); fs.rmSync(dir, { recursive: true, force: true }); });
@@ -38,12 +38,12 @@ test('a marked folder keeps everything a run did not make', async (t) => {
   fs.writeFileSync('out/notes.txt', 'mine');
   fs.mkdirSync('out/keep'); fs.writeFileSync('out/keep/data.json', '{}');
   await start(observer('out'), ['tests/a.yaml']);
-  assert.deepEqual(fs.readdirSync('out').sort(), ['.plainwright-results', 'keep', 'notes.txt']);
+  assert.deepEqual(fs.readdirSync('out').sort(), ['.plain-results', 'keep', 'notes.txt']);
 });
 
 test('copies pick dumps (candidates:) as well as claim dumps (state:)', async (t) => {
   inTemp(t);
-  const dumps = path.join(os.tmpdir(), 'plainwright');
+  const dumps = path.join(os.tmpdir(), 'plain');
   fs.mkdirSync(dumps, { recursive: true });
   const pick = path.join(dumps, `safety-${process.pid}-pick.json`); fs.writeFileSync(pick, '{}');
   const claim = path.join(dumps, `safety-${process.pid}-claim.json`); fs.writeFileSync(claim, '{}');
@@ -75,10 +75,10 @@ test('folder names never collide by case only', async (t) => {
 
 test('desktop and mobile default to --trace off, so --artifacts alone works', () => {
   for (const engine of ['desktop', 'mobile'] as const) {
-    const { opts } = parseSuiteArgs(['--artifacts', 'out', 'case.yaml'], engine, {}, '/tmp/plainwright-options-absent');
+    const { opts } = parseSuiteArgs(['--artifacts', 'out', 'case.yaml'], engine, {}, '/tmp/plain-options-absent');
     assert.equal(opts.artifacts?.trace, 'off');
     assert.ok(artifactsObserver(opts, engine));
-    const traced = parseSuiteArgs(['--artifacts', 'out', '--trace', 'always', 'case.yaml'], engine, {}, '/tmp/plainwright-options-absent').opts;
+    const traced = parseSuiteArgs(['--artifacts', 'out', '--trace', 'always', 'case.yaml'], engine, {}, '/tmp/plain-options-absent').opts;
     assert.throws(() => artifactsObserver(traced, engine), /--trace is browser-only/);
   }
 });

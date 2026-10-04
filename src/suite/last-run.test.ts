@@ -12,7 +12,7 @@ const report = (specs: SpecReport[], engine: Engine = 'browser'): RunReport =>
   ({ engine, specs, provider: 'typesafe', model: 'test', startedAt: new Date().toISOString(), durationMs: 100,
     status: 'fail', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, cachedPicks: 0 } });
 function fixture(t: TestContext) {
-  const dir = mkdtempSync(join(tmpdir(), 'plainwright-last-run-'));
+  const dir = mkdtempSync(join(tmpdir(), 'plain-last-run-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -32,14 +32,14 @@ for (const engine of ['browser', 'desktop', 'mobile'] as const) {
       spec(join(cwd, 'absolute.yaml'), 'fail')];
     const before = Date.now();
     writeLastRun(cwd, report(entries, engine));
-    const saved = JSON.parse(readFileSync(join(cwd, '.plainwright', 'last-run.json'), 'utf8'));
+    const saved = JSON.parse(readFileSync(join(cwd, '.plain', 'last-run.json'), 'utf8'));
     assert.deepEqual(Object.keys(saved).sort(), ['engine', 'finishedAt', 'schemaVersion', 'specs']);
     assert.equal(saved.schemaVersion, 1);
     assert.equal(saved.engine, engine);
     assert.ok(Date.parse(saved.finishedAt) >= before && Date.parse(saved.finishedAt) <= Date.now());
     assert.deepEqual(saved.specs, entries.map(({ file, status, flaky }) => ({ file: resolve(cwd, file), status, flaky })));
     assert.deepEqual(readLastFailed(cwd), new Set(entries.slice(2).map(({ file }) => resolve(cwd, file))));
-    assert.deepEqual(readdirSync(join(cwd, '.plainwright')), ['last-run.json']);
+    assert.deepEqual(readdirSync(join(cwd, '.plain')), ['last-run.json']);
   });
 }
 
@@ -61,7 +61,7 @@ test('missing last run returns undefined without warning (selection prints the f
 
 test('unreadable last-run path returns undefined with one warning', (t) => {
   const cwd = fixture(t);
-  mkdirSync(join(cwd, '.plainwright', 'last-run.json'), { recursive: true });
+  mkdirSync(join(cwd, '.plain', 'last-run.json'), { recursive: true });
   const lines = warnings(t);
   assert.equal(readLastFailed(cwd), undefined);
   assert.equal(lines.length, 1);
@@ -70,7 +70,7 @@ test('unreadable last-run path returns undefined with one warning', (t) => {
 
 test('malformed JSON, schemas and spec records cannot silently become no failures', (t) => {
   const cwd = fixture(t);
-  mkdirSync(join(cwd, '.plainwright'));
+  mkdirSync(join(cwd, '.plain'));
   const lines = warnings(t);
   const valid = { schemaVersion: 1, finishedAt: new Date().toISOString(), engine: 'browser',
     specs: [{ file: join(cwd, 'case.yaml'), status: 'fail', flaky: false }] };
@@ -80,7 +80,7 @@ test('malformed JSON, schemas and spec records cannot silently become no failure
       { file: join(cwd, 'case.yaml'), status: 'unknown', flaky: false },
       { file: join(cwd, 'case.yaml'), status: 'fail' }, null].map((record) => JSON.stringify({ ...valid, specs: [record] }))];
   for (const [index, value] of invalid.entries()) {
-    writeFileSync(join(cwd, '.plainwright', 'last-run.json'), value);
+    writeFileSync(join(cwd, '.plain', 'last-run.json'), value);
     assert.equal(readLastFailed(cwd), undefined);
     assert.equal(lines.length, index + 1);
   }
@@ -94,7 +94,7 @@ test('duplicate failed paths are returned only once', (t) => {
 
 test('write failures warn without changing the suite result', (t) => {
   const cwd = fixture(t);
-  writeFileSync(join(cwd, '.plainwright'), 'not a directory');
+  writeFileSync(join(cwd, '.plain'), 'not a directory');
   const lines = warnings(t);
   assert.doesNotThrow(() => writeLastRun(cwd, report([spec('case.yaml', 'pass')])));
   assert.equal(lines.length, 1);

@@ -12,7 +12,7 @@ interface Capture {
   tracing?: BrowserContext['tracing'];
 }
 
-const MARKER = '.plainwright-results';
+const MARKER = '.plain-results';
 /** Stays below common file name limits, with room for a suffix. */
 const MAX_SLUG = 180;
 
@@ -23,7 +23,7 @@ const isInside = (child: string, parent: string): boolean => {
 
 /**
  * Makes `root` ours: never a folder that holds the project (the cwd or a parent, home, the filesystem root, or one
- * with a spec in it), never one plainwright did not create. Then deletes only what an earlier run made: spec folders
+ * with a spec in it), never one plain did not create. Then deletes only what an earlier run made: spec folders
  * that hold nothing but attempt-N folders.
  */
 function prepareResultsFolder(root: string, cwd: string, specFiles: string[]): void {
@@ -36,7 +36,7 @@ function prepareResultsFolder(root: string, cwd: string, specFiles: string[]): v
   if (fs.existsSync(root)) {
     const owned = fs.existsSync(marker) && fs.lstatSync(marker).isFile();
     if (fs.lstatSync(root).isSymbolicLink() || !fs.statSync(root).isDirectory() || (!owned && fs.readdirSync(root).length)) {
-      throw new Error(`${root} exists and was not created by plainwright`);
+      throw new Error(`${root} exists and was not created by plain`);
     }
     if (owned) {
       for (const entry of fs.readdirSync(root)) {
@@ -50,7 +50,7 @@ function prepareResultsFolder(root: string, cwd: string, specFiles: string[]): v
   } else {
     fs.mkdirSync(root, { recursive: true });
   }
-  fs.writeFileSync(marker, 'plainwright results\n');
+  fs.writeFileSync(marker, 'plain results\n');
 }
 
 /**
@@ -76,7 +76,7 @@ export function artifactsObserver(opts: SuiteOptions, engine?: Engine): RunObser
   const warn = (error: unknown): void => {
     if (warned) return;
     warned = true;
-    console.error(`plainwright: artifacts: ${errorMessage(error)}`);
+    console.error(`plain: artifacts: ${errorMessage(error)}`);
   };
   const slugFor = (file: string): string => {
     const relative = path.relative(cwd, path.resolve(cwd, file));
@@ -140,7 +140,7 @@ export function artifactsObserver(opts: SuiteOptions, engine?: Engine): RunObser
       if (event.target.cdp) {
         if (!cdpNoted) {
           cdpNoted = true;
-          console.error('plainwright: artifacts: tracing skipped for --cdp (attached browser tabs)');
+          console.error('plain: artifacts: tracing skipped for --cdp (attached browser tabs)');
         }
         return;
       }

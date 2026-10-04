@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "plain": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "bin/npx.mjs",
+        "-y",
+        "--package=@gabe4coding/plain@2.0.0",
+        "plain",
+        "--headless",
+        "mcp"
+      ],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

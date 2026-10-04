@@ -1,6 +1,6 @@
 # Interpretation and audit of the corrected comparison
 
-This is a fresh comparison of plainwright at `0c1698e` against Playwright MCP 0.0.82:
+This is a fresh comparison of plain at `0c1698e` against Playwright MCP 0.0.82:
 six workflows × three repetitions × three main models × two stacks = **108 trials**.
 The production implementation includes contextual action candidates and batching. It is not a
 snapshot-only test or an isolated causal measurement of Jev. See the
@@ -8,7 +8,7 @@ snapshot-only test or an isolated causal measurement of Jev. See the
 
 ## What the measurements support
 
-Plainwright's measured API cost per task was **6.5% higher for Luna, 23.8% lower for Terra and
+Plain's measured API cost per task was **6.5% higher for Luna, 23.8% lower for Terra and
 10.3% lower for Astra**. Mean elapsed time was **52.1%, 25.5% and 51.2% lower**, respectively.
 All costs include recorded main-agent and Jev calls, including recovery and verification.
 All 108 trials returned complete usage and finished naturally; none reached the output cap.
@@ -31,7 +31,7 @@ This comparison alone cannot attribute all differences to one implementation fea
 
 ## The strict-oracle failure
 
-Plainwright passed 54/54 strict checks and the baseline 53/54. In baseline `run-064`
+Plain passed 54/54 strict checks and the baseline 53/54. In baseline `run-064`
 (Terra, account editing, repeat 2), the agent selected the correct account and saved the exact
 requested email, observed the success confirmation, navigated away and back, and saved the
 same account again. Both saved events contain `row: "12"` and `alex33@example.test`.
@@ -41,11 +41,11 @@ The fixture reloads its initial display rather than persisting edits into a subs
 load. This limitation can provoke extra verification and repeated work. Both stacks reached
 the requested values or answer in **54/54 trials** if identical repeated saves are allowed.
 The original strict score is retained; do not describe this result as a wrong-account edit or
-claim that plainwright is generally more reliable.
+claim that plain is generally more reliable.
 
 The primary cost and time totals retain this trial and every other trial. A diagnostic removes
 both `run-063` and `run-064`: on Terra's remaining 17 successful, naturally completed pairs
-with complete usage, plainwright cost **19.9% less** and took **21.7% less time**. The respective
+with complete usage, plain cost **19.9% less** and took **21.7% less time**. The respective
 ratio intervals are 0.677–0.931× and 0.695–0.977×. Thus the aggregate Terra advantage is not
 entirely caused by this repeated-save case. Luna and Astra's subsets are unchanged.
 
@@ -58,7 +58,7 @@ traversal and symlink escapes. The previously rejected real snapshot and a regre
 Five artifact reads in the corrected sample all succeeded.
 
 The initial attempt was stopped after 23 recorded trials. Its complete data, including the
-baseline timeout and deliberately interrupted last plainwright trial, are retained in
+baseline timeout and deliberately interrupted last plain trial, are retained in
 [preparation](preparation/exclusion.json), with [checksums](preparation/sha256.json).
 Every trial from that attempt was excluded before a fresh 108-trial run on the corrected commit.
 This is a harness correction, not an outcome-based removal of individual failures.
