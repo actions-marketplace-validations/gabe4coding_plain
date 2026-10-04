@@ -12,13 +12,17 @@ export async function evidenceFor(prompts: string[], request = ask): Promise<{ s
  * asks Jev: the list only removes requests whose answer is certain.
  */
 const SPATIAL_CUE = new RegExp(`\\b(${[
-  'left', 'right', 'above', 'below', 'top', 'bottom', 'upper', 'lower', 'beside', 'between', 'near', 'nearest',
-  'nearby', 'next', 'adjacent', 'close', 'closer', 'closest', 'far', 'farther', 'farthest', 'further', 'under',
-  'underneath', 'beneath', 'over', 'overlaps?', 'overlapping', 'cover(s|ed|ing)?', 'behind', 'front', 'corners?',
-  'edges?', 'sides?', 'cent(er|re|ral)', 'middle', 'align(ed|ment)?', 'first', 'last', 'second', 'third', 'before',
-  'after', 'previous', 'preceding', 'following', 'columns?', 'rows?', 'horizontal(ly)?', 'vertical(ly)?', 'east',
-  'west', 'north', 'south', '\\w+most', 'higher', 'highest', 'lowest', 'position(ed)?', 'order', 'around', 'beyond',
-  'across', 'opposite', 'surrounding', 'end', 'start', 'beginning', 'visual(ly)?',
+  'left', 'right', 'above', 'below', 'top', 'bottom', 'upper', 'lower', 'beside', 'between', 'near', 'nearer',
+  'nearest', 'nearby', 'next', 'adjacent', 'alongside', 'diagonal(ly)?', 'close', 'closer', 'closest', 'far',
+  'farther', 'farthest', 'further', 'under', 'underneath', 'beneath', 'over', 'overlaps?', 'overlapping',
+  'cover(s|ed|ing)?', 'behind', 'front', 'corners?', 'edges?', 'sides?', 'cent(er|re|ral)', 'middle',
+  'align(ed|ment)?', 'first', 'last', 'second', 'third', 'before', 'after', 'previous', 'preceding', 'following',
+  'columns?', 'rows?', 'horizontal(ly)?', 'vertical(ly)?', 'east', 'west', 'north', 'south', '\\w+most', 'higher',
+  'highest', 'lowest', 'position(ed)?', 'order', 'around', 'beyond', 'across', 'opposite', 'surrounding', 'end',
+  'start', 'beginning', 'visual(ly)?',
+  // Size is rendered geometry too.
+  'big(ger|gest)?', 'small(er|est)?', 'large(r|st)?', 'wide(r|st)?', 'tall(er|est)?', 'short(er|est)?',
+  'narrow(er|est)?', 'size[sd]?',
 ].join('|')})\\b`, 'i');
 const ENGLISH = /\b(the|a|an|is|are|shows?|says|with|of|and|button|field|link|heading|text|message)\b/i;
 

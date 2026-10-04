@@ -67,8 +67,12 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
   }
 }
 
-/** A browser description's container part (src/browser/candidates.ts): last, and often a whole row's text. */
-const CONTEXT = / context: .*$/;
+/**
+ * A browser description's container part (src/browser/candidates.ts): last, often a whole row's text, and always
+ * ` context: <kind> name=|heading=|text=`, so a name that contains the word ` context: ` stays whole.
+ */
+const CONTEXT = / context: [\w-]+ (?:name|heading|text)=.*$/;
+export const withoutContext = (desc: string): string => desc.replace(CONTEXT, '');
 
 /**
  * One Choice question per instruction, all in one request. The descriptions are in both `elements` and the
@@ -82,7 +86,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
   const coordinates = page.coordinates ?? 'main viewport CSS pixels';
   // The coordinate space and the tree-order rule are said once, in `geometry`, not after every candidate's bounds.
-  for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc.replace(CONTEXT, '') +
+  for (const candidate of candidates) criteria[String(candidate.id)] = withoutContext(candidate.desc) +
     (candidate.bounds ? ` bounds=${boundsText(candidate.bounds)}` : '');
 
   const state = {

@@ -57,6 +57,7 @@ test('plain English prompts without a spatial cue route as semantic without a re
     assert.equal(maySpatial(prompt), false, prompt);
   }
   for (const prompt of ['the button on the left', 'the topmost card', 'the field next to Email', 'the last row',
+    'the larger Save button', 'the field nearer the logo',
     'le bouton à gauche', 'Senden-Knopf', 'the button named "Left"']) {
     assert.equal(maySpatial(prompt), true, prompt);
   }

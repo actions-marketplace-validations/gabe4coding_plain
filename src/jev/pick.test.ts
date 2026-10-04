@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BadRequestError } from '@typesafe-ai/sdk';
 import { decide } from './decide.js';
-import { mergePicks, pickElements, type PickPage, type PickResult } from './pick.js';
+import { mergePicks, pickElements, withoutContext, type PickPage, type PickResult } from './pick.js';
 
 test('pickElements halves a request that is over the token limit and merges the answers', async () => {
   const candidates = Array.from({ length: 8 }, (_, id) => ({ id, desc: `button ${id}` }));
@@ -105,4 +105,11 @@ test('mergePicks: several instructions merge independently, only the first carri
   ]);
   assert.deepEqual(rs.map((r) => r.id), [1, 300]);
   assert.deepEqual(rs.map((r) => r.tokens), [1000, 0]);
+});
+
+test('withoutContext drops the container part and keeps quoted names that contain the word', () => {
+  assert.equal(withoutContext('a "new" href=/newest context: tr text="Hacker News | past"'), 'a "new" href=/newest');
+  assert.equal(withoutContext('button "Show context: details" context: section name="A"'), 'button "Show context: details"');
+  assert.equal(withoutContext('input value="see context: notes" label="X" context: form name="Y"'), 'input value="see context: notes" label="X"');
+  assert.equal(withoutContext('android.widget.Button "A" in android.widget.FrameLayout "B"'), 'android.widget.Button "A" in android.widget.FrameLayout "B"');
 });
