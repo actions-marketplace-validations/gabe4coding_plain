@@ -115,7 +115,7 @@ steps:
   - expect: "The preview contains the test message"
 ```
 
-Run `npx -y -p plainwright@1.0.0 plainwright-computer <spec.yaml>` (the same package version as
+Run `npx -y -p @gabe4coding/plain@1.0.0 plainwright-computer <spec.yaml>` (the same package version as
 the MCP server). Desktop specs run sequentially.
 Hooks use the same isolated setup/teardown child contract as plainwright. Explicit assertion
 failures are never skipped by `optional: true`; only errors/inconclusive results can be skipped.
@@ -128,7 +128,7 @@ results between steps.
 
 For YAML suites, add `tags: [smoke]` and share steps with
 `include: ./flows/login.yaml` (a steps-only file; placeholders use root env/hooks).
-Keep flows outside spec input globs. Run `npx -y -p plainwright@1.0.0 plainwright-computer validate spec.yaml`
+Keep flows outside spec input globs. Run `npx -y -p @gabe4coding/plain@1.0.0 plainwright-computer validate spec.yaml`
 before replay; missing secrets are warnings and no session/model key is needed.
 For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plainwright-results`.
 Commit the pick cache (`*.picks.json` next to specs and flows) and run CI with `--picks read`.

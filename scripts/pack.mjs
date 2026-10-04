@@ -2,7 +2,7 @@
 //   prepack:  compile a clean dist/, check that the shipped runtime resolves, and add npm-shrinkwrap.json
 //   postpack: remove npm-shrinkwrap.json again
 // The shrinkwrap is the root lockfile: npm honors it when it installs the published package (a package-lock.json
-// is ignored there), so `npx plainwright@<version>` gets the dependency graph that CI tested.
+// is ignored there), so `npx -p @gabe4coding/plain@<version> plainwright` gets the dependency graph that CI tested.
 import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
