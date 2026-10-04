@@ -102,8 +102,9 @@ Use `batch` for actions that you know, for example to fill a form and submit it.
 ]}
 ```
 
-`batch` decreases the number of agent calls, not the number of Jev picks. If the next action depends on the result,
-end the batch there.
+`batch` decreases the number of agent calls, not the number of Jev picks. Each target resolves when its entry
+runs. Thus a target can name an element that an earlier entry adds, moves or shows. If the agent must read a result
+to choose the next action or its value, end the batch there.
 
 Before the first action, plain checks the shape and the placeholders of all entries. If one entry is not
 valid, the call returns a tool error and no action runs. Then the entries run in order. The first entry that does
@@ -193,6 +194,9 @@ If Jev finds no `within` region, `snapshot`, `read` and `ask` return `found: fal
 - `goal` is the last goal that `open` received.
 - Only the steps that passed are in the file, as the agent wrote them.
 - `${hooks.*}` placeholders stay as written. `hooks` is a path relative to the saved file.
+- `save` never writes a value that the agent typed into a password field. The step gets `${env.password}`, and the
+  spec gets `env: { password: $PASSWORD }`. A second password value gets `password2` and `$PASSWORD_2`. The
+  result of `save` shows this `env` block.
 
 A saved spec looks like this:
 
@@ -207,7 +211,8 @@ steps:
       - The page shows the book's price
 ```
 
-To use environment values, add an `env` block to the saved file. Do not write credentials in the file. See
+Before you replay a spec with a saved password, set the `PASSWORD` environment variable. For other
+environment values, add them to the `env` block of the saved file. Do not write credentials in the file. See
 [spec reference](spec-reference.mdx). To replay the spec, see [running suites](running.mdx).
 
 ## End the session

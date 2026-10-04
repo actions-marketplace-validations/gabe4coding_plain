@@ -5,7 +5,8 @@
 // 1. Specs: runs e2e/*.yaml in one suite run and checks each final status. A spec tagged `expect-fail` must end
 //    `fail` (a pass there is a false pass); every other spec must pass. A pass on a retry counts, and is listed.
 // 2. Agent path: an MCP session opens the login page, logs in with one `batch`, checks the result with `ask` and
-//    `read`, saves the flow, and the saved spec must pass when the CLI runs it.
+//    `read`, saves the flow (the password as an env reference, never the literal), and the saved spec must pass
+//    when the CLI runs it with that variable set.
 //
 //   node scripts/e2e.mjs [--retries 1] [--only <substring of a spec file>] [--skip-mcp]
 //
@@ -35,8 +36,8 @@ const site = await startSite();
 const env = { ...process.env, PLAIN_E2E_SITE: site.url };
 // Async on purpose: the site is served from this process, so a sync child would block every request it makes.
 // --picks off: every pick goes to Jev (a cached pick would test the cache, not Jev), and no sidecar is written.
-const runCli = (args) => new Promise((done, fail) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', ...args], { cwd: root, env, stdio: 'inherit' })
-  .on('error', fail).on('exit', (code) => done(code)));
+const runCli = (args, extraEnv = {}) => new Promise((done, fail) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', ...args],
+  { cwd: root, env: { ...env, ...extraEnv }, stdio: 'inherit' }).on('error', fail).on('exit', (code) => done(code)));
 
 try {
   await checkSpecs();
@@ -108,7 +109,10 @@ async function agentSession(saved) {
     if (answers !== 'yes,no') return `ask answered ${answers}, expected yes,no: ${JSON.stringify(asked.answers)}`;
     const read = await call('read', { question: 'What does the status message say?' });
     if (!/logged into a secure area/i.test(JSON.stringify(read))) return `read did not return the status message: ${JSON.stringify(read)}`;
-    await call('save', { path: saved, name: 'recorded login' });
+    const save = await call('save', { path: saved, name: 'recorded login' });
+    if (readFileSync(saved, 'utf8').includes(USER.pass) || save.env?.password !== '$PASSWORD') {
+      return `save wrote the password, not an env reference: ${JSON.stringify(save)}`;
+    }
     await call('open', { url: `${site.url}/boxes` }); // after save: not part of the replayed spec
     const { aria } = await call('snapshot', {});
     if (!aria.includes('- /url: https://ads.example/aclk…') || aria.includes('Xy7Xy7')) return `snapshot did not cut the long ad link: ${aria}`;
@@ -120,6 +124,6 @@ async function agentSession(saved) {
   } finally {
     await client.close();
   }
-  const code = await runCli(['--reporter', 'text', saved]);
+  const code = await runCli(['--reporter', 'text', saved], { PASSWORD: USER.pass });
   return code === 0 ? undefined : `the saved spec did not pass on replay (exit ${code})`;
 }
