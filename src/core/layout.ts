@@ -10,6 +10,14 @@ export const MAX_LAYOUT_CHARS = 24_000;
 export const LAYOUT_TRUNCATED = 'Layout truncated: do not infer absence or extremes across omitted elements.';
 
 /**
+ * Bounds as Jev reads them: whole pixels. A fraction costs Jev tokens and changes no relation it can judge; measured
+ * relations (neighborRelations) use the exact edges.
+ */
+export const roundBounds = (b: Bounds): Bounds =>
+  ({ left: Math.round(b.left), top: Math.round(b.top), right: Math.round(b.right), bottom: Math.round(b.bottom) });
+export const boundsText = (b: Bounds): string => JSON.stringify(roundBounds(b));
+
+/**
  * Qualitative neighbors expose measured order without asking Jev to infer it from tree order or arithmetic. Only
  * the nearest element per direction with perpendicular overlap is named: the raw bounds stay in the layout for the
  * other relations.
@@ -63,7 +71,7 @@ export function nativeLayout(items: LayoutItem[], coordinates: string, truncated
     `Rendered bounds in ${coordinates}: x increases right, y increases down.`,
     'Use bounds for spatial claims. Tree order is not visual order. Missing required geometry is insufficient evidence.',
     'Each row is an accessibility element: its role, its name in quotes and its current value. A claimed name or value and its spatial relation must all match the same elements.',
-    ...listed.map((item) => `${item.description} bounds=${JSON.stringify(item.bounds)}`),
+    ...listed.map((item) => `${item.description} bounds=${boundsText(item.bounds)}`),
     ...(neighbors.length ? ['Measured neighbors (nearest with perpendicular overlap; other relations still use bounds):', ...neighbors] : []),
     ...(truncated || items.length > listed.length ? [LAYOUT_TRUNCATED] : []),
   ]);
