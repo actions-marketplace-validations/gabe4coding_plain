@@ -2,6 +2,7 @@ import type { ElementHandle, Frame, JSHandle, Locator, Page } from 'playwright';
 import type { Candidate } from '../core/automation.js';
 import { joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations, type LayoutItem } from '../core/layout.js';
 import { frameLabel } from './frames.js';
+import { PASSWORD_MASK } from './page.js';
 
 const MAX_LAYOUT_TEXT = 120;
 const MAX_LAYOUT_NODES = 10_000;
@@ -101,10 +102,11 @@ function layoutElements(root: Element, limits: { elements: number; nodes: number
 /**
  * `desc` keeps native values and the accessible name apart from the rendered text. Transparent descendants count in a
  * content-derived name but not in the rendered text; `name` states both when they differ, so a name never passes
- * for visible text. A collapsed select shows only its displayed selection and value.
+ * for visible text. A collapsed select shows only its displayed selection and value. A filled password field's value
+ * is PASSWORD_MASK.
  */
 async function describeElement(element: ElementHandle<Element>, maxText: number) {
-  return element.evaluate((el, max) => {
+  return element.evaluate((el, { max, passwordMask }) => {
     const role = el.getAttribute('role');
     const tree = el.getRootNode();
     const referenced = (el.getAttribute('aria-labelledby') ?? '').split(/\s+/).filter(Boolean)
@@ -151,7 +153,8 @@ async function describeElement(element: ElementHandle<Element>, maxText: number)
     const label = explicitLabel || (accessibleText !== text ? accessibleText : '') ||
       (text ? '' : el.getAttribute('title') || el.getAttribute('placeholder'));
     const value = el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement &&
-      !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'hidden'].includes(el.type)) ? el.value : undefined;
+      !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'hidden'].includes(el.type))
+      ? (el.value && el instanceof HTMLInputElement && el.type === 'password' ? passwordMask : el.value) : undefined;
     const type = el instanceof HTMLInputElement ? `[type=${el.type}]` : '';
     const notDisplayed = el instanceof HTMLSelectElement && collapsedSelect(el)
       ? Array.from(el.options).filter((option) => !option.selected &&
@@ -175,7 +178,7 @@ async function describeElement(element: ElementHandle<Element>, maxText: number)
       name = `${kind} with visible text ${JSON.stringify(text)} and accessible name ${JSON.stringify(label.slice(0, max))}`;
     }
     return { desc, name };
-  }, maxText);
+  }, { max: maxText, passwordMask: PASSWORD_MASK });
 }
 
 async function captureLayout(root: Locator, label: string, remaining: number, timeout?: number) {
