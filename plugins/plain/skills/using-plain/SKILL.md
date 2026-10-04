@@ -115,11 +115,13 @@ A claim is one fact about something that is visible when the condition holds. `e
 
 ## Snapshot views
 
-For a sequence of already-known actions, use `batch {steps:[...]}` with 1–16 ordinary step objects.
-It validates the whole request before acting, resolves fresh targets for each action, and stops
-on the first non-pass, including `skipped`. Read the indexed results and `stoppedAt` before recovery;
-earlier actions are not rolled back. Only passing actions are saved, as individual YAML steps.
-When a later action depends on reading new information, end the batch and inspect first.
+For a sequence of actions you can write now, use `batch {steps:[...]}` with 1–16 ordinary step objects.
+It validates the whole request before acting and stops on the first non-pass, including `skipped`.
+Each target resolves when its action runs, so a target may name an element that an earlier action in the
+batch adds, moves or reveals (the field under a heading that moved, a button in the dialog a click opens).
+Read the indexed results and `stoppedAt` before recovery; earlier actions are not rolled back. Only passing
+actions are saved, as individual YAML steps. End the batch only when choosing the next action or its value
+needs a result you have not read yet.
 
 Known actions need no preliminary snapshot; `step` finds its own targets. For discovery,
 `snapshot {mode:"compact"}` returns exact excerpts without a classification call;

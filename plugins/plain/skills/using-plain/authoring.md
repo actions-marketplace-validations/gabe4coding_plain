@@ -7,13 +7,16 @@
    keeps them as written. Pass `goal`, the flow's purpose in one sentence; `save` writes it into the spec.
 2. Drive with `step`, one action or one check per call. Read `status`, `detail`, `notes`, `url` and `changed` (what
    the action added to the page) after every call. Only steps that pass go in the spec, so an inconclusive attempt costs nothing but a retry.
-   Use `batch {steps:[...]}` for up to 16 known actions; it stops on the first non-pass (even `skipped`).
-   Inspect the indexed results before recovery. Successful entries save as ordinary individual steps,
-   with hook placeholders preserved. End a batch before a decision that requires new page information.
-3. `save` when the flow is complete.
+   Use `batch {steps:[...]}` for up to 16 actions you can write now; it stops on the first non-pass (even
+   `skipped`). Inspect the indexed results before recovery. Successful entries save as ordinary individual steps,
+   with hook placeholders preserved. End a batch only when choosing the next action or its value needs a result
+   you have not read yet.
+3. `save` when the flow is complete. A value typed into a password field is saved as `${env.password}`, with
+   `env: {password: $PASSWORD}` (`password2`, `$PASSWORD_2` for a second value); the `save` result lists the block.
+   Set those variables before replay.
 4. Edit the YAML: `optional: true` where the page is nondeterministic (a cookie banner, a promo), a `#` comment
-   where a phrasing is non-obvious, a `wait` step before anything that appears after a delay. Credentials become
-   `$VAR` references in the `env` block, used as `${env.*}` in steps.
+   where a phrasing is non-obvious, a `wait` step before anything that appears after a delay. Other credentials
+   (an API key in a text field) become `$VAR` references in the `env` block by hand, used as `${env.*}` in steps.
 5. Add `tags: [smoke]` for selection. Move shared steps into a YAML file containing only `steps:`
    and use `include: ./flows/login.yaml`; placeholders use the root spec’s env/hooks. Keep flow files
    outside spec input globs. Run `npx -y -p @gabe4coding/plain@2.0.1 plain validate spec.yaml` before replay;

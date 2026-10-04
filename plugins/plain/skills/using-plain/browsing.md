@@ -7,9 +7,11 @@ Steps act, `read` reads, nothing is saved. There is no test here: do not `save`,
 1. `open` the URL. Pass `headed: true` when the user wants to watch, or when the site blocks a headless browser
    (title "Access Denied", an empty page). Pass `goal`: the user's task in one sentence ("read the discussion
    about F-Droid 2.0"); picks use it to settle vague targets. Do not `snapshot` first: `step` and `find` do the looking.
-2. Drive with `step`, one action per call, or `batch {steps:[...]}` for up to 16 already-known actions.
+2. Drive with `step`, one action per call, or `batch {steps:[...]}` for up to 16 actions you can write now.
    Batch runs sequentially and stops on the first non-pass, including `skipped`; inspect its indexed
-   results and `stoppedAt`. End the batch before a decision that needs new page information.
+   results and `stoppedAt`. Each target resolves when its action runs, so it may name an element an earlier
+   action moves or reveals. End the batch only when choosing the next action or its value needs a result you
+   have not read yet.
    Read `status`, `detail`, `notes`, `url` and `changed` after every call: `changed.added` holds the new
    page lines (a message, a menu, the top of a new page), often the answer itself. A cookie
    or consent dialog comes first: `step {click: "the button that accepts all cookies"}`.

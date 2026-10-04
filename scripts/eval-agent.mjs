@@ -5,7 +5,8 @@
 //   - the tools:    the page is reached only through this checkout's plain (a shell may run its CLI, never
 //                   curl the page), no tool call failed or named a missing tool, and the plain call count
 //                   stays inside the task's budget;
-//   - the artifact: for `record`, the spec the agent saved must pass when the CLI runs it.
+//   - the artifact: for `record`, the spec the agent saved holds no literal password and must pass when the CLI
+//                   runs it.
 // Local only (it costs Claude and Codex usage), never in CI. Each agent runs isolated from the user's setup:
 // Claude with --strict-mcp-config and no setting sources, Codex with a temporary CODEX_HOME that holds only the
 // test server and a link to the user's Codex login.
@@ -66,8 +67,10 @@ const TASKS = {
   },
   record: {
     prompt: (dir) => `Use plain to write an end-to-end test: at ${site.url}/login, log in as ${USER.name} with password ` +
-      `${USER.pass}, and check that the Secure Area is shown. Save it as ${join(dir, 'login.yaml')}.`,
-    answer: /login\.yaml/, budget: 10, saves: 'login.yaml',
+      `${USER.pass}, and check that the Secure Area is shown. Save it as ${join(dir, 'login.yaml')}. Put any notes ` +
+      'first, and end with one line that gives the path of the saved spec.',
+    // The replay gets the password as CI would: `save` writes it as an env reference, never the literal.
+    answer: /login\.yaml/, budget: 10, saves: 'login.yaml', secret: USER.pass, replayEnv: { PASSWORD: USER.pass },
   },
 };
 
@@ -156,9 +159,10 @@ async function grade(spec, outcome, dir) {
     const saved = join(dir, spec.saves);
     if (!existsSync(saved)) problems.push(`no spec saved at ${spec.saves}`);
     else if (!/expect|wait/.test(readFileSync(saved, 'utf8'))) problems.push('the saved spec checks nothing (no expect or wait)');
+    else if (spec.secret && readFileSync(saved, 'utf8').includes(spec.secret)) problems.push('the saved spec holds the literal password');
     else {
-      const code = await new Promise((done) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', '--reporter', 'text', saved], { env, stdio: 'inherit' })
-        .on('exit', done));
+      const code = await new Promise((done) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', '--reporter', 'text', saved],
+        { env: { ...env, ...spec.replayEnv }, stdio: 'inherit' }).on('exit', done));
       if (code !== 0) problems.push(`the saved spec did not pass on replay (exit ${code})`);
     }
   }
