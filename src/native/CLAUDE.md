@@ -23,4 +23,8 @@
   idle-waiting `capture()` runs; the answer is kept only if both frames are identical, else re-asked
   (`ms.reasked`). Android implements it; iOS returns null (no gain measured). The pre-action identity revalidation
   is unchanged.
+- `save` never writes a password: a `fill` into an element the adapter's `secret()` reports (macOS subrole
+  `AXSecureTextField`, iOS `XCUIElementTypeSecureTextField`, Android `password="true"`), and any later fill of the
+  same value, is saved as `${env.password}` (`password2`, ...) with an `env` block.
+  `NativeSession.filledSecret` carries the answer from `act` to the MCP server.
 - Native engines require `--workers 1`.

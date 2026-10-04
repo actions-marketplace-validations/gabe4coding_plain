@@ -20,6 +20,8 @@ export interface NativeAdapter<T, K extends string> {
   readonly approximateTargets?: boolean;
   /** A capture that skips the platform's wait for an idle UI, or null where that is not faster. */
   captureEarly?(kind: K | 'region', within?: T, options?: CaptureOptions): Promise<Frame<T> | null>;
+  /** Whether the element is a secure text field: a value typed into it is a secret. */
+  secret?(element: T): boolean;
   press(key: string): Promise<void>;
   screenshot(): Promise<Buffer>;
   close(): Promise<void>;
@@ -53,6 +55,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
   picks?: PickAttempt;
   /** The first whole-screen capture of the current step, before it acted: the MCP `changed` diffs against it. */
   firstSnapshot?: Frame<T>['snapshot'];
+  /** The current step fills a secure text field: the MCP `save` writes an `${env.*}` placeholder, never its value. */
+  filledSecret = false;
   /** Returned as the result's `ms`. */
   protected phaseMs: Record<string, number> = {};
   /** Its source and kind key the pick cache. */
@@ -96,6 +100,7 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     const start = Date.now();
     this.phaseMs = {};
     this.firstSnapshot = undefined;
+    this.filledSecret = false;
     this.currentStep = step;
     let result: StepResult;
     try {
@@ -189,6 +194,11 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     }
     if (resolved.element === null) throw new Error(resolved.detail);
     return resolved.element;
+  }
+
+  /** Notes whether a fill step's picked element is a secure text field. */
+  protected noteFill(step: S, element: T) {
+    this.filledSecret = step.kind === 'fill' && this.adapter.secret?.(element) === true;
   }
 
   protected retarget() {

@@ -164,6 +164,16 @@ An MCP session has only `${hooks.*}` placeholders, from `open {hooks}`. Use them
 `device`, `app`, and `capabilities` when you gave them. `save` writes `device` and `app` as you gave them to `open`.
 If you gave a literal UDID, change it to `${env.device}` and add an `env` block before you commit the spec.
 
+`save` does not write a value that a `fill` step typed into a password field. A password field is an iOS
+`XCUIElementTypeSecureTextField` or an Android field with `password="true"`.
+
+- The step gets `${env.password}`, and the spec gets the `env` block `{password: $PASSWORD}`.
+- A second value gets `password2` and `$PASSWORD_2`, and so on.
+- A later `fill` with the same value gets the same placeholder, also in a field that is not a password field.
+- A value with a `${...}` placeholder stays as you wrote it.
+
+The `save` result has the `env` block. Set the variables before you replay the spec.
+
 In Claude Code, the plugin shows a session pane (`/plain-mobile-pane`). Read
 [Session pane in Claude Code](agent-mode.mdx#session-pane-in-claude-code).
 

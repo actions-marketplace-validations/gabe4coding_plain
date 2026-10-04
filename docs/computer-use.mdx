@@ -233,6 +233,16 @@ The tools work as in the browser ([agent mode](agent-mode.mdx)). The desktop dif
 `hooks` path relative to the saved file. It keeps `${hooks.*}` placeholders. MCP has no `${env.*}`. Add an
 `env` block to the saved spec before you run it as a suite. `save` rejects a recording with no passing steps.
 
+`save` does not write a value that a `fill` step typed into a secure text field (a password field):
+
+- The step gets `${env.password}`, and the spec gets the `env` block `{password: $PASSWORD}`.
+- A second value gets `password2` and `$PASSWORD_2`, and so on.
+- A later `fill` with the same value gets the same placeholder, also in a field that is not secure.
+- A value with a `${...}` placeholder stays as you wrote it.
+
+The `save` result has the `env` block. Set the variables before you replay the spec. Plain finds secure text
+fields only on macOS. On Windows and Linux, `save` writes the value as you typed it.
+
 The server runs one request at a time, reads included. Do not run two desktop sessions at the same time: they
 share one keyboard, one pointer and one focus. Use a dedicated test desktop for unattended runs, because the
 focus can change between the focus check and the input.

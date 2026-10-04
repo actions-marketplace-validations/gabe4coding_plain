@@ -25,6 +25,8 @@ export interface MobileElement {
   approximate?: boolean;
   /** iOS: a class chain lookup is quicker than an XPath one. */
   chain?: string;
+  /** A secure text field (iOS XCUIElementTypeSecureTextField, Android password="true"). */
+  secret?: true;
 }
 
 const MAX_SOURCE_CHARS = 5_000_000;
@@ -247,7 +249,8 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
         } else {
           const id = candidates.length;
           candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}`, ...(bounds ? { bounds } : {}) });
-          elements.set(id, { path: node.path, identity: nodeIdentity(node), generation, ...(node.chain ? { chain: node.chain } : {}) });
+          elements.set(id, { path: node.path, identity: nodeIdentity(node), generation, ...(node.chain ? { chain: node.chain } : {}),
+            ...(isPassword(node.attrs, node.role) ? { secret: true as const } : {}) });
         }
       }
       walk(node.children, depth + 1, node.name ? `${node.role} ${JSON.stringify(node.name)}` : context, node);

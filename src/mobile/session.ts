@@ -51,6 +51,7 @@ export class MobileSession<T = unknown> extends NativeSession<T, MobileKind, Mob
       }
       if (resolved.element === null) return { step: stepLabel, status: 'inconclusive', detail: resolved.detail };
       const element = resolved.element;
+      this.noteFill(step, element);
       try {
         if (step.kind === 'scroll') {
           const direction = step.target.split(':')[0] as Direction;
