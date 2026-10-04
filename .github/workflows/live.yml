@@ -5,8 +5,8 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     paths:
       - src/**
-      - dist/**
       - bin/**
+      - tsconfig.json
       - e2e/**
       - scripts/e2e.mjs
       - scripts/benchmark-claims.mjs
@@ -54,7 +54,8 @@ jobs:
         run: npm ci
       - if: steps.key.outputs.run == 'true'
         run: npx playwright install --with-deps chromium
-      # dist/ is committed and the Test workflow checks that it matches src/, so no build here.
+      - if: steps.key.outputs.run == 'true'
+        run: npm run build
       - name: E2E on the local site (CLI and MCP)
         if: steps.key.outputs.run == 'true'
         run: node scripts/e2e.mjs

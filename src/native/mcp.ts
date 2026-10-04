@@ -256,5 +256,8 @@ export async function serveNative({ server, close }: { server: McpServer; close:
   }
   server.server.onclose = () => void shutdown();
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.once(signal, () => void shutdown());
+  // The SDK's stdio transport does not close on end of input, and a host's signal does not always arrive: under
+  // npx, a shell sits between the host and this process. A closed input means the host is gone.
+  process.stdin.once('end', () => void shutdown());
   await server.connect(new StdioServerTransport());
 }

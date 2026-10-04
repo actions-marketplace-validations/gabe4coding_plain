@@ -5,7 +5,10 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "bin/launch.mjs",
+        "bin/npx.mjs",
+        "-y",
+        "--package=plainwright@1.0.0",
+        "plainwright-computer",
         "mcp"
       ],
       "cwd": "${PLUGIN_ROOT}"

@@ -27,7 +27,7 @@ Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compil
 npm test                                                    # build + node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'
 npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
 npm run check:examples                                      # validate examples/, e2e/ and the doc YAML, per engine
-npm run test:plugins                                        # install each plugin archive in isolation, list MCP tools
+npm run test:plugins                                        # npm pack, then run each plugin's npx MCP command on the tarball
 npm run verify                                              # all of the above: the key-free gate CI runs
 node --test dist/browser/runner.test.js                     # one file, after a build
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
@@ -64,9 +64,12 @@ node dist/cli.js --list --tag smoke tests/                # list selected specs;
 - Benchmarks and area evals: `docs/development.mdx`, "Performance checks"; method and results in
   `docs/benchmarks/`. Compare a change against a saved run of main.
 
-`dist/` is committed on purpose — this repo is also a Claude Code plugin and ships its built output
-(`bin/plainwright.mjs` runs `dist/cli.js` directly; on first run it also lazy-installs npm deps and Chromium).
-`dist/**/*.test.js` is gitignored. Rebuild before committing a `src/` change so `dist/` matches it.
+`dist/` is gitignored, never committed: build after a clone and after each `src/` change. The npm package
+`plainwright` ships `bin/`, `dist/` without tests and the root lockfile as `npm-shrinkwrap.json` (`files` in
+`package.json`; `scripts/pack.mjs` runs on `prepack`/`postpack`). `bin/plainwright.mjs` runs `dist/cli.js` and
+installs Chromium on first run. Releases: `.github/workflows/publish.yml` publishes the `package.json` version on a
+push to main when npm lacks it, then tags `v<version>`; `action.yml` and the `Dockerfile` install that npm release
+(`docs/development.mdx`, "Releases").
 
 ## Architecture
 
@@ -103,13 +106,16 @@ Rules that cross modules:
 - Plugins live at `plugins/plainwright/` (browser), `plugins/plainwright-computer/` (desktop) and
   `plugins/plainwright-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
   (layout in `docs/development.mdx`, "Plugin packaging"). Browser skill: `plugins/plainwright/skills/using-plainwright/`.
+- The plugins hold no runtime code: their MCP configs run `node bin/npx.mjs -y --package=plainwright@<version>`
+  (the shim is `scripts/plugin-npx.mjs`: `cmd /c npx` on Windows), pinned to the `package.json` version, so a
+  plugin from a clone still runs the npm release. Plugin version = package version.
 - One root `package.json` and lockfile own all dependencies and all CLI binaries. Never add per-plugin package
-  manifests, symlinks or parent-directory runtime imports. Never edit generated files (`dist/`,
-  `plugins/*/runtime.tgz`, `plugins/*/bin/launch.mjs`).
+  manifests, symlinks or parent-directory runtime imports. Never edit the files `npm run build` generates: the
+  plugins' MCP configs, `bin/npx.mjs`, versions, `plainwright@<version>` in the skills, `LICENSE` and `hooks/`.
 - `mods/session-pane/` — a Claude Code mod that draws each plugin's MCP tool results; `hooks/session-pane/` holds
   `model.ts` (pure state), `view.ts` (pure tree) and `register.ts` (the only mods API user).
   `scripts/build-plugins.mjs` copies `hooks/` into each plugin; never edit `plugins/*/hooks/`. Not compiled by
-  `tsc`, not in `runtime.tgz`, invisible to Codex. Tests: `npm run test:mods` (needs the `claude` CLI).
+  `tsc`, not in the npm package, invisible to Codex. Tests: `npm run test:mods` (needs the `claude` CLI).
 
 ## Documentation
 

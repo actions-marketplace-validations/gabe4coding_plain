@@ -15,15 +15,14 @@ draws its controls on a canvas with no accessible names, Jev cannot target them.
 ## Install
 
 [Getting started](getting-started.mdx) tells how to set the API key and install the
-`plainwright-computer` plugin for Claude Code or Codex. The plugin installs its runtime on the first run
-and writes the install progress to stderr.
+`plainwright-computer` plugin for Claude Code or Codex. The plugin runs the plainwright npm package with `npx`.
+On the first run, npx installs the package, xa11y included.
 
-To run the desktop CLI from a checkout, use the launcher. On the first run, it installs the npm dependencies,
-xa11y included, and writes the install progress to stderr:
+To run the desktop CLI without the plugin, give the package name to npx:
 
 ```sh
-node bin/plainwright-computer.mjs mcp
-node bin/plainwright-computer.mjs --timeout 15000 path/to/desktop.yaml
+npx -y -p plainwright plainwright-computer mcp
+npx -y -p plainwright plainwright-computer --timeout 15000 path/to/desktop.yaml
 ```
 
 xa11y is an optional dependency with native platform packages. Do not install with `--omit=optional`. Without xa11y, every desktop operation stops with an error that
