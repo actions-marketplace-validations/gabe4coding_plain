@@ -125,7 +125,9 @@ button carries the previous screen's title ("the Summary button in the Step Coun
 bar", not "the Back button"). Segmented controls expose full names ("the Week segment", not "W").
 On inconclusive, the detail's top guesses show the tree's names: reuse the right one.
 
-iOS has no generic Back/Enter step: tap the visible navigation or keyboard control. `check`/
+iOS has no generic Back/Enter step: tap the visible navigation or keyboard control. On iOS, `fill`
+and a tap on a text field return once the keyboard is on screen (at most 3 s), so the next step can
+tap a key; the return key is often labeled "done" even when drawn as a checkmark. `check`/
 `uncheck` read boolean checked state and tap only when it differs; unknown/mixed states error.
 `fill` also selects iOS picker-wheel values without clearing the control. Inspect the native
 value/format first, then verify the resulting value; date/time formats depend on the app/locale.

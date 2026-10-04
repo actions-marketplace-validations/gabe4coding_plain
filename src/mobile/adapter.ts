@@ -30,6 +30,11 @@ const CHANGED = 'Mobile UI changed after targeting; inspect the screen and retry
 const NOT_ACTIONABLE = 'Mobile control is no longer visible/enabled';
 const ANDROID_KEY_CODES: Record<string, number> = { Back: 4, Home: 3, Enter: 66 };
 const DEFAULT_IDLE_TIMEOUT_MS = 10000;
+/** iOS controls that bring up the keyboard when tapped. */
+const IOS_TEXT_ENTRY = /^XCUIElementType(TextField|SecureTextField|TextView|SearchField)$/;
+/** The longest wait for the iOS keyboard to come on screen after typing or tapping a text control. */
+const KEYBOARD_MS = 3000;
+const KEYBOARD_POLL_MS = 100;
 export const DEFAULT_APPIUM_URL = 'http://127.0.0.1:4723';
 
 export function mobileCapabilities(target: MobileTarget): Record<string, unknown> & { platformName: string } {
@@ -273,6 +278,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
       // XCUITest sets picker wheels through the value endpoint: they cannot be cleared like text fields.
       if (!(this.ios && role === 'XCUIElementTypePickerWheel')) await driver.elementClear(id);
       await driver.elementSendKeys(id, value ?? '');
+      if (this.ios) await this.keyboardShown();
     } else if (kind === 'check' || kind === 'uncheck') {
       const state = String(await driver.getElementAttribute(id, this.ios ? 'value' : 'checked'));
       if (!['true', 'false', '1', '0'].includes(state)) throw new Error('Control does not expose a boolean checked state');
@@ -283,6 +289,25 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
       await driver.executeScript(`mobile: ${this.ios ? 'doubleTap' : 'doubleClickGesture'}`, [{ elementId: id }]);
     } else {
       await driver.elementClick(id);
+      if (this.ios && IOS_TEXT_ENTRY.test(role)) await this.keyboardShown();
+    }
+  }
+
+  /**
+   * iOS 27 keeps the keyboard below the screen, `visible="false"`, for up to about 1.5 s after typing or a tap on a
+   * text control has returned, and XCUITest does not wait for it. A capture in that time shows no keys, so the next
+   * step could not target the keyboard (its return key, for example). This waits until the keyboard is visible or
+   * absent (a hardware keyboard, a picker), at most KEYBOARD_MS. One lookup when there is nothing to wait for.
+   */
+  private async keyboardShown() {
+    const driver = this.connectedDriver();
+    const deadline = Date.now() + Math.min(KEYBOARD_MS, this.timeout);
+    for (;;) {
+      // The action already happened: a failed lookup ends the wait, and the next step meets the error if it lasts.
+      const found = await driver.findElement('-ios class chain', '**/XCUIElementTypeKeyboard')
+        .catch(() => ({})) as FoundElement & { error?: string };
+      if (!found[ELEMENT_KEY] || reportedVisible(found['attribute/visible']) !== false || Date.now() >= deadline) return;
+      await new Promise((resolve) => setTimeout(resolve, KEYBOARD_POLL_MS));
     }
   }
 
