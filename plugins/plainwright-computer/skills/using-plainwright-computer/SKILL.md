@@ -93,6 +93,9 @@ are unavailable. Operate native menus and file dialogs through their accessible 
 A pick passes at confidence >= 0.5 (probability when confidence is absent); a claim passes at
 p >= 0.9, fails at p <= 0.1, otherwise is inconclusive. `wait` polls up to eight Jev calls within
 the configured polling deadline. An in-flight model/native call may outlast that deadline.
+Use explicit spatial relations ("the button left of Cancel", "A is above B"): targets and claims that
+need layout get accessibility bounds in desktop screen coordinates and measured neighbors (at most 254
+named elements). Specs classify their known prompts in one request; tree order is not visual order.
 
 ## Record and replay
 

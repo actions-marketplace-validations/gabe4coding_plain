@@ -140,7 +140,7 @@ Each run replaces it. All three CLIs share this file. Add `.plainwright/` to you
 ## Pick cache
 
 A spec run remembers high-confidence picks. If the page did not change, the next run reuses the pick.
-This avoids a new request to pick an element. Jev still judges claims (`expect`, `wait`) and classifies browser prompts.
+This avoids a new request to pick an element. Jev still judges claims (`expect`, `wait`) and classifies prompts.
 The cache works for browser, desktop and mobile spec runs, not for agent mode (MCP).
 
 | Mode | Behavior |
@@ -168,7 +168,7 @@ plainwright uses a stored pick only when:
 - The page has the same origin and path. The query and the hash part of the address can change.
 - The list of elements that Jev can pick from is the same. Element states (checked, selected, pressed, expanded,
   disabled) are part of the list. Typed field text does not change semantic browser picks.
-- Spatial browser picks also require equal captured text, values and bounds for candidates and reference elements.
+- Spatial picks also require equal bounds of the candidates and an equal layout (text, values and bounds) of the reference elements.
 - Exactly one element has the stored description.
 
 A new row, a dialog over the page, or a button with a new name (`Subscribe` becomes `Unsubscribe`) causes a miss.

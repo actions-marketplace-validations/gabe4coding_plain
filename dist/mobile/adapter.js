@@ -111,11 +111,12 @@ export class AppiumAdapter {
      * without XCUITest's `visible` attribute, most of its cost, and judges visibility by bounds. That view also
      * shows covered elements, so resolve() confirms the pick's own `visible` before acting, and a hidden pick is
      * targeted again from an exact capture. Claims and regions always see the exact tree, read without
-     * `accessible`, which only click candidates use.
+     * `accessible`, which only click candidates use. A spatial capture is exact: covered elements would be
+     * measured as visible references.
      */
-    async capture(kind, within, { regionPick = false } = {}) {
+    async capture(kind, within, { regionPick = false, spatial = false } = {}) {
         const driver = this.connectedDriver();
-        const fast = this.fastTargets && this.ios && (kind !== 'region' || regionPick) && !within;
+        const fast = this.fastTargets && this.ios && (kind !== 'region' || regionPick) && !within && !spatial;
         if (fast && !this.exactNext) {
             const source = await this.iosSource(driver, kind === 'click' ? 'visible' : 'visible,accessible');
             return this.frame(source, kind, undefined, true);
@@ -123,7 +124,7 @@ export class AppiumAdapter {
         if (fast)
             this.exactNext = false;
         const source = this.ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource();
-        return this.frame(source, kind, within);
+        return this.frame(source, kind, within, false, spatial);
     }
     preferExact() { this.exactNext = true; }
     get approximateTargets() { return this.fastTargets && this.target?.platform === 'ios'; }
@@ -132,7 +133,7 @@ export class AppiumAdapter {
      * action. Jev works on it while capture() waits, and the answer is kept only if the settled tree is the same.
      * Null on iOS: XCUITest already waits inside the action, and a quick read there was never faster.
      */
-    async captureEarly(kind, within) {
+    async captureEarly(kind, within, { spatial = false } = {}) {
         if (this.target?.platform !== 'android')
             return null;
         const driver = this.connectedDriver();
@@ -145,12 +146,14 @@ export class AppiumAdapter {
         finally {
             await driver.updateSettings({ waitForIdleTimeout: this.idleTimeout });
         }
-        return this.frame(source, kind, within);
+        return this.frame(source, kind, within, false, spatial);
     }
     async iosSource(driver, excludedAttributes) {
         return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
     }
-    frame(source, kind, within, boundsVisibility = false) {
+    /** Appium reports iOS frames in points and Android bounds in pixels. */
+    get coordinates() { return this.ios ? 'iOS screen points' : 'Android screen pixels'; }
+    frame(source, kind, within, boundsVisibility = false, spatial = false) {
         const tree = parseMobileTree(source, { boundsVisibility });
         const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
         // A region picked from an approximate capture must show something in the exact tree. Not its own flag:
@@ -161,7 +164,7 @@ export class AppiumAdapter {
         }
         const state = { url: `mobile://${this.target.platform}/${encodeURIComponent(this.target.app)}`, title: this.target.app };
         // An approximate region pick lists containers only: covered views would double the nodes past one Jev request.
-        const frame = mobileFrame(roots, kind, state, this.generation, tree.truncated, { containersOnly: boundsVisibility && kind === 'region' });
+        const frame = mobileFrame(roots, kind, state, this.generation, tree.truncated, { containersOnly: boundsVisibility && kind === 'region', ...(spatial ? { coordinates: this.coordinates } : {}) });
         if (!boundsVisibility)
             return frame;
         const elements = new Map([...frame.elements].map(([id, element]) => [id, { ...element, approximate: true }]));

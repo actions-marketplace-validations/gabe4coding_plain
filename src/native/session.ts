@@ -4,21 +4,28 @@ import type { PickAttempt, PickRef } from '../core/pick-cache.js';
 import { readAnswer } from '../core/read.js';
 import type { Step, StepSource } from '../core/spec.js';
 import { decideAll } from '../jev/decide.js';
+import { evidenceForGroups } from '../jev/evidence.js';
+import { evidenceRoutes, prepareRoutes, promptGroups, routeNeedsLayout, type DescribedStep } from '../core/evidence.js';
 
 /** What a desktop or mobile platform implements; Jev targeting and judging stay in NativeSession. */
 export interface NativeAdapter<T, K extends string> {
-  /** `regionPick`: the capture only picks a region, so an approximate frame may do. */
-  capture(kind: K | 'region', within?: T, options?: { regionPick?: boolean }): Promise<Frame<T>>;
+  /**
+   * `regionPick`: the capture only picks a region, so an approximate frame may do. `spatial`: candidates carry
+   * bounds and the snapshot a layout (src/core/layout.ts), with the frame's coordinate space.
+   */
+  capture(kind: K | 'region', within?: T, options?: CaptureOptions): Promise<Frame<T>>;
   /** The next target capture is exact: a pick from an approximate one was rejected or hidden. */
   preferExact?(): void;
   /** Target captures may be approximate (iOS fast targets): they never serve as a step's `changed` baseline. */
   readonly approximateTargets?: boolean;
   /** A capture that skips the platform's wait for an idle UI, or null where that is not faster. */
-  captureEarly?(kind: K | 'region', within?: T): Promise<Frame<T> | null>;
+  captureEarly?(kind: K | 'region', within?: T, options?: CaptureOptions): Promise<Frame<T> | null>;
   press(key: string): Promise<void>;
   screenshot(): Promise<Buffer>;
   close(): Promise<void>;
 }
+
+export interface CaptureOptions { regionPick?: boolean; spatial?: boolean }
 
 type Assertion = Extract<Step, { kind: 'expect' | 'wait' }>;
 export type NativeStep = { kind: string; optional?: boolean };
@@ -51,6 +58,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
   /** Its source and kind key the pick cache. */
   private currentStep?: S & { at?: StepSource };
   private lastStepEnd = 0;
+  /** Which prompts need geometry (src/core/evidence.ts), queued per spec and per step. */
+  private routes = evidenceRoutes();
 
   constructor(readonly adapter: A, readonly timeout = 15000, protected ai: Intelligence = intelligence) {}
 
@@ -72,6 +81,17 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
 
   step(raw: unknown): Promise<StepResult> { return this.run(this.parse(raw)); }
 
+  /** Queues the steps' descriptions, so the first step that needs a route classifies all of them in one request. */
+  prepareEvidence(steps: DescribedStep[]) { prepareRoutes(this.routes, steps.flatMap(promptGroups)); }
+
+  /** Injected intelligence without `ask` (tests) never routes: every prompt keeps the accessibility tree alone. */
+  private needsLayout(prompts: string[]): Promise<boolean> {
+    const request = this.ai.ask;
+    if (!request || !prompts.length) return Promise.resolve(false);
+    return routeNeedsLayout(this.routes, prompts, (groups) =>
+      this.timed('jev', () => evidenceForGroups(groups, request, (tokens) => this.track(tokens))).then((result) => result.spatial));
+  }
+
   async run(step: S): Promise<StepResult> {
     const start = Date.now();
     this.phaseMs = {};
@@ -80,6 +100,7 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     let result: StepResult;
     try {
       const valid = this.validate(step);
+      this.prepareEvidence([valid]);
       result = isAssertion(valid) ? await this.assert(valid) : await this.act(valid, this.label(valid));
     } catch (error) {
       result = { step: this.label(step), status: 'error', detail: errorMessage(error) };
@@ -99,9 +120,10 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     const refs = picks && step?.at
       ? targets.map((target): PickRef => ({ at: step.at!, kind: step.kind, target, goal: this.goal }))
       : undefined;
+    const spatial = await this.needsLayout(targets);
     const pick = (frame: Frame<T>) => resolveTargets({
       candidates: frame.candidates,
-      state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}) },
+      state: { ...frame.snapshot, ...(this.goal ? { goal: this.goal } : {}), ...(frame.coordinates ? { coordinates: frame.coordinates } : {}) },
       element: (candidate) => {
         const element = frame.elements.get(candidate.id);
         if (element === undefined) throw new Error('Candidate handle missing');
@@ -111,7 +133,7 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     }, targets, this.ai);
 
     for (;;) {
-      const { frame, result } = await this.settled({ kind, ask: pick, discard: (unused) => this.trackResolved(unused), regionPick });
+      const { frame, result } = await this.settled({ kind, ask: pick, discard: (unused) => this.trackResolved(unused), regionPick, spatial });
       if (frame.candidates.length === 0 && Date.now() < deadline) {
         await this.timed('idle', () => new Promise((resolve) => setTimeout(resolve, APPEAR_POLL_MS)));
         continue;
@@ -138,8 +160,10 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
   /** The MCP `ask` tool: judges claims once against the settled UI or a region of it; no polling, not recorded. */
   async ask(claims: string[], within?: string) {
     this.phaseMs = {};
-    const { frame, result } = await this.inRegion(within, (region) =>
-      this.settled({ kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens) }));
+    this.prepareEvidence([{ kind: 'expect', expectations: claims, within }]);
+    const { frame, result } = await this.inRegion(within, async (region) =>
+      this.settled({ kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens),
+        spatial: await this.needsLayout(claims) }));
     this.track(result!.tokens);
     return { snapshot: frame.snapshot, probabilities: result!.probabilities, ms: this.phaseMs };
   }
@@ -189,20 +213,21 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
    * Captures the settled UI and asks Jev about it. Right after the previous step, where the adapter offers an
    * early capture (Android), Jev already works on it while the adapter waits for the UI to go idle.
    */
-  private async settled<R>({ kind, within, ask, discard, skip, regionPick = false }: {
+  private async settled<R>({ kind, within, ask, discard, skip, regionPick = false, spatial = false }: {
     kind: K | 'region';
     within?: T;
     ask: (frame: Frame<T>) => Promise<R>;
     discard: (result: R) => void;
     skip?: (frame: Frame<T>) => boolean;
     regionPick?: boolean;
+    spatial?: boolean;
   }) {
     const recent = Date.now() - this.lastStepEnd < EARLY_WINDOW_MS;
     const captureEarly = recent ? this.adapter.captureEarly?.bind(this.adapter) : undefined;
     const { frame, result, reasked } = await askSettled({
-      early: captureEarly && (() => this.timed('capture', () => captureEarly(kind, within))),
+      early: captureEarly && (() => this.timed('capture', () => captureEarly(kind, within, spatial ? { spatial } : undefined))),
       settled: async () => {
-        const options = regionPick ? { regionPick } : undefined;
+        const options = regionPick || spatial ? { ...(regionPick ? { regionPick } : {}), ...(spatial ? { spatial } : {}) } : undefined;
         const frame = await this.timed('capture', () => this.adapter.capture(kind, within, options));
         if (within === undefined && !frame.approximate) this.firstSnapshot ??= frame.snapshot;
         return frame;
@@ -230,12 +255,13 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     let status: Status = 'inconclusive';
     let lastSnapshot;
     let region = step.within ? await this.region(step.within, true) : undefined;
+    const spatial = await this.needsLayout(claims);
     const unchangedSinceNo = (frame: Frame<T>) => JSON.stringify(frame.snapshot) === lastSnapshotJson && status === 'fail';
     do {
       let looked;
       try {
         looked = await this.settled({
-          kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens), skip: unchangedSinceNo,
+          kind: 'region', within: region, ask: this.judge(claims), discard: (unused) => this.track(unused.tokens), skip: unchangedSinceNo, spatial,
         });
       } catch (error) {
         // A region picked from an approximate capture turned out covered: pick it once more from an exact one.

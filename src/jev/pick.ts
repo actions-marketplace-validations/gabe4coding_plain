@@ -17,7 +17,14 @@ export interface PickResult {
 }
 
 /** What a pick knows about the page, plus the flow's goal when the spec or the MCP session has one. */
-export interface PickPage { url: string; title: string; goal?: string; layout?: string }
+export interface PickPage {
+  url: string;
+  title: string;
+  goal?: string;
+  layout?: string;
+  /** The coordinate space of candidate bounds; the browser's main viewport when absent. */
+  coordinates?: string;
+}
 
 type AskChunk = (candidates: Candidate[], instructions: string[], page: PickPage) => Promise<PickResult[]>;
 
@@ -63,8 +70,9 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
  */
 async function pickChunk(candidates: Candidate[], instructions: string[], page: PickPage): Promise<PickResult[]> {
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
+  const coordinates = page.coordinates ?? 'main viewport CSS pixels';
   for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc +
-    (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (main viewport CSS pixels; tree order is not visual order)` : '');
+    (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (${coordinates}; tree order is not visual order)` : '');
 
   const state = {
     url: page.url,
@@ -73,7 +81,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
     ...(page.goal ? { goal: page.goal } : {}),
     ...(page.layout ? { layout: page.layout } : {}),
     ...(candidates.some((candidate) => candidate.bounds) ? {
-      geometry: 'Bounds are rendered edges in main viewport CSS pixels. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.',
+      geometry: `Bounds are rendered edges in ${coordinates}. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.`,
     } : {}),
     instructions,
     // `editable` and `state` are for the pick cache only: Jev never sees them.

@@ -2,6 +2,7 @@ package dev.plainwright.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -48,6 +49,21 @@ public class MobileAndroidFixture extends Activity {
         details.setText("Details are hidden");
         content.addView(details);
         hold.setOnLongClickListener(view -> { details.setText("Details are visible"); return true; });
+        // Spatial targets: right-to-left, so Alpha comes first in the tree but is drawn on the right of Beta.
+        LinearLayout choices = new LinearLayout(this);
+        choices.setOrientation(LinearLayout.HORIZONTAL);
+        choices.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        content.addView(choices);
+        TextView chosen = new TextView(this);
+        chosen.setText("Chosen: none");
+        content.addView(chosen);
+        for (String name : new String[] {"Alpha", "Beta"}) {
+            Button choice = new Button(this);
+            choice.setText(name);
+            choice.setAllCaps(false);
+            choice.setOnClickListener(view -> chosen.setText("Chosen: " + name));
+            choices.addView(choice, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        }
         for (int i = 1; i <= 25; i++) {
             TextView row = new TextView(this);
             row.setText("Fixture row " + i);

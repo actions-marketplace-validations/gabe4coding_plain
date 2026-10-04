@@ -42,9 +42,10 @@ async function pickSplittingWhenTooLong(candidates, instructions, page, askChunk
  */
 async function pickChunk(candidates, instructions, page) {
     const criteria = { none: 'No listed element matches the instruction' };
+    const coordinates = page.coordinates ?? 'main viewport CSS pixels';
     for (const candidate of candidates)
         criteria[String(candidate.id)] = candidate.desc +
-            (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (main viewport CSS pixels; tree order is not visual order)` : '');
+            (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (${coordinates}; tree order is not visual order)` : '');
     const state = {
         url: page.url,
         title: page.title,
@@ -52,7 +53,7 @@ async function pickChunk(candidates, instructions, page) {
         ...(page.goal ? { goal: page.goal } : {}),
         ...(page.layout ? { layout: page.layout } : {}),
         ...(candidates.some((candidate) => candidate.bounds) ? {
-            geometry: 'Bounds are rendered edges in main viewport CSS pixels. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.',
+            geometry: `Bounds are rendered edges in ${coordinates}. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.`,
         } : {}),
         instructions,
         // `editable` and `state` are for the pick cache only: Jev never sees them.

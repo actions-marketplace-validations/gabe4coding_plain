@@ -1,8 +1,7 @@
+import { joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations } from '../core/layout.js';
 import { frameLabel } from './frames.js';
-const MAX_LAYOUT_ELEMENTS = 254;
 const MAX_LAYOUT_TEXT = 120;
 const MAX_LAYOUT_NODES = 10_000;
-const MAX_LAYOUT_CHARS = 24_000;
 const IFRAME_LAYOUT_MS = 2_000;
 function edges(box) {
     return { left: box.x, top: box.y, right: box.x + box.width, bottom: box.y + box.height };
@@ -183,42 +182,6 @@ async function describeElement(element, maxText) {
         return { desc, name };
     }, maxText);
 }
-/** Qualitative neighbors expose measured order without asking Jev to infer it from DOM order or arithmetic. */
-function neighborRelations(items) {
-    const relations = new Set();
-    for (const item of items) {
-        const nearest = {};
-        for (const other of items) {
-            if (item === other)
-                continue;
-            const a = item.bounds;
-            const b = other.bounds;
-            const horizontal = Math.min(a.right, b.right) > Math.max(a.left, b.left);
-            const vertical = Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
-            const measured = [];
-            if (horizontal && a.bottom <= b.top)
-                measured.push(['above', b.top - a.bottom]);
-            if (horizontal && a.top >= b.bottom)
-                measured.push(['below', a.top - b.bottom]);
-            if (vertical && a.right <= b.left)
-                measured.push(['left of', b.left - a.right]);
-            if (vertical && a.left >= b.right)
-                measured.push(['right of', a.left - b.right]);
-            for (const [direction, gap] of measured) {
-                const known = nearest[direction];
-                if (!known || gap < known.gap)
-                    nearest[direction] = { gap, items: [other] };
-                else if (gap === known.gap)
-                    known.items.push(other);
-            }
-        }
-        for (const [direction, found] of Object.entries(nearest)) {
-            for (const other of found.items)
-                relations.add(`${item.name} is ${direction} ${other.name}.`);
-        }
-    }
-    return [...relations];
-}
 async function captureLayout(root, label, remaining, timeout) {
     const capture = await root.evaluateHandle(layoutElements, { elements: remaining, nodes: MAX_LAYOUT_NODES }, { timeout });
     const handles = [capture];
@@ -267,7 +230,7 @@ export async function layoutSnapshot(page, within) {
     let remaining = MAX_LAYOUT_ELEMENTS;
     for (const { root, label, iframe, frame } of roots) {
         if (!remaining) {
-            lines.push('Layout truncated: do not infer absence or extremes across omitted elements.');
+            lines.push(LAYOUT_TRUNCATED);
             break;
         }
         try {
@@ -283,7 +246,7 @@ export async function layoutSnapshot(page, within) {
             const captured = await captureLayout(root, label, remaining, iframe ? IFRAME_LAYOUT_MS : undefined);
             items.push(...captured.items);
             if (captured.truncated)
-                lines.push('Layout truncated: do not infer absence or extremes across omitted elements.');
+                lines.push(LAYOUT_TRUNCATED);
             remaining -= Math.min(captured.count, remaining);
         }
         catch (error) {
@@ -299,12 +262,5 @@ export async function layoutSnapshot(page, within) {
     const neighbors = neighborRelations(items);
     if (neighbors.length)
         observations.push('Measured neighbors (nearest with perpendicular overlap; other relations still use bounds):', ...neighbors);
-    let text = '';
-    for (const line of [...lines.slice(0, headerLines), ...observations, ...lines.slice(headerLines)]) {
-        if (text.length + line.length > MAX_LAYOUT_CHARS) {
-            return `${text}\nLayout truncated: do not infer absence or extremes across omitted elements.`;
-        }
-        text += `${text ? '\n' : ''}${line}`;
-    }
-    return text;
+    return joinLayout([...lines.slice(0, headerLines), ...observations, ...lines.slice(headerLines)]);
 }

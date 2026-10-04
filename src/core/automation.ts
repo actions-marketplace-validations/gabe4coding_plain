@@ -16,7 +16,7 @@ export const CandidateSchema = z.object({
   editable: z.boolean().optional(),
   /** The element's UI state in the browser (checked, expanded...), for the pick cache. Never sent to Jev. */
   state: z.string().optional(),
-  /** Rendered edges in the main viewport's CSS pixels, requested for spatial targets. */
+  /** Rendered edges, requested for spatial targets: main viewport CSS pixels in the browser, screen coordinates on native. */
   bounds: z.object({ left: z.number(), top: z.number(), right: z.number(), bottom: z.number() }).optional(),
 });
 export type Candidate = z.infer<typeof CandidateSchema>;
@@ -40,6 +40,8 @@ export interface Frame<T> {
   elements: Map<number, T>;
   /** A cheaper capture that may also list covered elements (iOS): a pick from it is checked before acting. */
   approximate?: boolean;
+  /** The coordinate space of candidate bounds and the layout, in a spatial capture. */
+  coordinates?: string;
 }
 
 /** A pick from an approximate frame is covered or off screen: the caller picks again from an exact capture. */
@@ -52,7 +54,7 @@ export class HiddenTargetError extends Error {
 
 export interface TargetAdapter<T> {
   candidates: Candidate[];
-  state: { url: string; title: string; goal?: string; layout?: string };
+  state: { url: string; title: string; goal?: string; layout?: string; coordinates?: string };
   element(candidate: Candidate): T;
   /** The candidate a stored pick strictly matches in this frame (src/core/pick-cache.ts). Pure. */
   cached?(target: string, index: number): Candidate | undefined;
