@@ -208,6 +208,13 @@
     {"page": "spatial-controls-selected", "type": "spatial", "evidence": "spatial", "expect": "pass", "claim": "the Plan dropdown displays Annual to the left of the Continue button"},
     {"page": "spatial-controls-selected", "type": "spatial", "evidence": "spatial", "expect": "fail", "claim": "the Plan dropdown displays Monthly to the left of the Continue button"},
     {"page": "spatial-iframe-hidden", "type": "spatial", "evidence": "spatial", "expect": "fail", "claim": "the button with visible text Frame action is to the left of the Visible anchor button"},
-    {"page": "spatial-iframe-visible", "type": "spatial", "evidence": "spatial", "expect": "pass", "claim": "the button with visible text Frame action is to the left of the Visible anchor button"}
+    {"page": "spatial-iframe-visible", "type": "spatial", "evidence": "spatial", "expect": "pass", "claim": "the button with visible text Frame action is to the left of the Visible anchor button"},
+    {"page": "password-filled", "type": "state", "expect": "pass", "claim": "the password field is filled"},
+    {"page": "password-filled", "type": "state", "expect": "fail", "claim": "the password field is empty"},
+    {"page": "password-filled", "type": "compound", "expect": "pass", "claim": "the username and password fields are both filled"},
+    {"page": "password-filled", "type": "near", "expect": "fail", "claim": "the password field contains wrong-password"},
+    {"page": "password-empty", "type": "state", "expect": "pass", "claim": "the password field is empty"},
+    {"page": "password-empty", "type": "state", "expect": "fail", "claim": "the password field is filled"},
+    {"page": "password-empty", "type": "compound", "expect": "fail", "claim": "the username and password fields are both filled"}
   ]
 }

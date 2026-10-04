@@ -135,16 +135,73 @@ export function shortenUrls(aria: string): string {
 }
 
 /**
+ * What Jev, agents and debug dumps see in place of a filled password field's value, which is a spec's secret
+ * (`${env.*}`): in trees, candidate descriptions and layout text. An empty field still shows no value. A word, not
+ * dots: on dots Jev was less sure that the field is filled and read "contains any text" as unsure.
+ */
+export const PASSWORD_MASK = '[filled]';
+/** The mask as Playwright prints that text in a tree: `[` needs quotes in YAML. */
+const ARIA_PASSWORD_MASK = JSON.stringify(PASSWORD_MASK);
+
+/** A textbox's line, its key maybe single-quoted (YAML), with its value when the value is on the line. */
+const TEXTBOX_LINE = /^(\s*)- '?textbox(?: "(?:[^"\\]|\\.)*")?(?: \[[^\]]*\])*'?:(?: (.*))?$/;
+const TEXT_LINE = /^(\s*)- text: (.*)$/;
+const ESCAPES: Record<string, string> = { b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' };
+
+/** A value as Playwright prints it (yamlEscapeValueIfNeeded), back to its text. */
+function unquote(value: string): string {
+  if (!/^".*"$/.test(value)) return value;
+  return value.slice(1, -1).replace(/\\(x[0-9a-f]{2}|.)/g, (_, c: string) =>
+    c.length === 3 ? String.fromCharCode(parseInt(c.slice(1), 16)) : ESCAPES[c] ?? c);
+}
+
+/**
+ * Puts the mask in place of each textbox value that is one of `secrets` (passwordValues()). The tree does not
+ * say which textbox is a password field, so the value tells. Playwright prints it after the textbox's key, or on a
+ * `- text:` line right under it when the field has a placeholder. A plain field with the same text gets the mask too.
+ */
+export function maskPasswords(aria: string, secrets: ReadonlySet<string>): string {
+  if (!secrets.size) return aria;
+  let textboxIndent = -1; // the textbox whose child lines are read, or -1
+  return aria.split('\n').map((line) => {
+    const textbox = TEXTBOX_LINE.exec(line);
+    if (textbox) {
+      textboxIndent = textbox[1].length;
+      const value = textbox[2];
+      return value && secrets.has(unquote(value)) ? line.slice(0, -value.length) + ARIA_PASSWORD_MASK : line;
+    }
+    const indent = line.length - line.trimStart().length;
+    if (indent <= textboxIndent) textboxIndent = -1;
+    const text = TEXT_LINE.exec(line);
+    return text && textboxIndent >= 0 && indent === textboxIndent + 2 && secrets.has(unquote(text[2]))
+      ? `${text[1]}- text: ${ARIA_PASSWORD_MASK}` : line;
+  }).join('\n');
+}
+
+/**
+ * The values of the page's filled password fields, in every frame and open shadow root, with whitespace normalized
+ * as Playwright prints a value. A frame that cannot be read (detached, navigating) adds none.
+ */
+async function passwordValues(page: Page): Promise<Set<string>> {
+  const values = await Promise.all(page.frames().map((frame) => frame.locator('input').evaluateAll((inputs) =>
+    inputs.flatMap((input) => input instanceof HTMLInputElement && input.type === 'password' && input.value ? [input.value] : []))
+    .catch(() => [])));
+  return new Set(values.flat().map((value) => value.replace(/[\u200b\u00ad]/g, '').trim().replace(/\s+/g, ' ')).filter(Boolean));
+}
+
+/**
  * Long link targets are cut (shortenUrls) before the 60k cap, so ad links do not push page content out. An open
  * dialog the cap would cut is added whole after the page's tree, which is cut shorter to make room: a site often
- * appends its popup at the end of the body, where a long page leaves it out.
+ * appends its popup at the end of the body, where a long page leaves it out. Password values are masked
+ * (maskPasswords) in every tree.
  */
-function toSnapshot(page: Page, title: string, aria: string, dialogs: string[] = []): Snapshot {
-  const marked = markUnchecked(shortenUrls(aria));
+function toSnapshot(page: Page, title: string, aria: string, secrets: ReadonlySet<string>, dialogs: string[] = []): Snapshot {
+  const view = (tree: string) => maskPasswords(markUnchecked(shortenUrls(tree)), secrets);
+  const marked = view(aria);
   const head = marked.slice(0, ARIA_MAX_CHARS);
   // A dialog nested in the page's tree is indented there: whole trees are compared without the indentation.
   const flat = (tree: string) => tree.split('\n').map((line) => line.trim()).join('\n');
-  const trees = dialogs.map((dialog) => markUnchecked(shortenUrls(dialog))).filter(Boolean)
+  const trees = dialogs.map(view).filter(Boolean)
     .filter((dialog, i, all) => !all.some((other, j) => j !== i && other.length > dialog.length && flat(other).includes(flat(dialog))));
   // Room for the added dialogs shortens the page part, which can cut a dialog that fit: check against the kept part.
   let kept = head;
@@ -199,19 +256,20 @@ async function iframeAria(frame: Frame): Promise<string | null> {
 /** The page's accessibility tree, each iframe's tree appended under its own header. An empty iframe has none. */
 export async function snapshot(page: Page): Promise<Snapshot> {
   const iframes = page.frames().slice(1);
-  const [title, bodyAria, iframeArias] = await Promise.all([
+  const [title, bodyAria, iframeArias, secrets] = await Promise.all([
     page.title(),
     page.locator('body').ariaSnapshot(),
     Promise.all(iframes.map(iframeAria)),
+    passwordValues(page),
   ]);
   const iframeSections = iframes.map((frame, i) => iframeArias[i] ? `\n--- iframe ${frameLabel(frame)} ---\n${iframeArias[i]}` : '');
   const aria = bodyAria + iframeSections.join('');
-  const snap = toSnapshot(page, title, aria);
-  return snap.truncated ? toSnapshot(page, title, aria, await openDialogs(page)) : snap;
+  const snap = toSnapshot(page, title, aria, secrets);
+  return snap.truncated ? toSnapshot(page, title, aria, secrets, await openDialogs(page)) : snap;
 }
 
 /** snapshot() of one region, for `within`. */
 export async function snapshotRegion(page: Page, region: Locator): Promise<Snapshot> {
-  const [title, aria] = await Promise.all([page.title(), region.ariaSnapshot()]);
-  return { ...toSnapshot(page, title, aria), region: true };
+  const [title, aria, secrets] = await Promise.all([page.title(), region.ariaSnapshot(), passwordValues(page)]);
+  return { ...toSnapshot(page, title, aria, secrets), region: true };
 }

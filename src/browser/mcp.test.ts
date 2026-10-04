@@ -180,6 +180,18 @@ test('canceling a batch allows its in-flight action to finish but prevents later
   }
 });
 
+test('a typed password reaches step changes and snapshots only as a mask', async () => {
+  await call('open', { url: html('<form><label>Password <input type="password" id="pw"></label></form>') });
+  const step = await call('step', { step: { fill: { target: 'css=#pw', value: 'hunter2' } } });
+  assert.equal(step.status, 'pass');
+  assert.deepEqual(step.changed, { added: ['- textbox "Password": "[filled]"'], addedOmitted: 0, removed: 1 });
+  for (const args of [{}, { within: 'css=form' }, { mode: 'compact' }]) {
+    const snap = JSON.stringify(await call('snapshot', args));
+    assert.doesNotMatch(snap, /hunter2/);
+    assert.match(snap, /textbox \\"Password\\": \\"\[filled\]\\"/);
+  }
+});
+
 test('step results carry what the action changed; open keeps a goal that save writes', async () => {
   const page = 'data:text/html,' + encodeURIComponent(`<!doctype html><title>Menu</title><button onclick="document.body.insertAdjacentHTML('beforeend','<p>Saved: 3 items</p>')">Save</button>`);
   await call('open', { url: page, goal: 'save the list' });

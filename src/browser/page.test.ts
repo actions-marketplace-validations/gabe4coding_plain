@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
 import { intelligence } from '../core/automation.js';
 import { candidates, elementById } from './candidates.js';
-import { installSettleObserver, mark, markUnchecked, settle, shortenUrls, snapshot, snapshotRegion, unchangedSince, waitForMutation } from './page.js';
+import { installSettleObserver, mark, markUnchecked, maskPasswords, settle, shortenUrls, snapshot, snapshotRegion, unchangedSince, waitForMutation } from './page.js';
 import { holdActivity, mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators } from './locate.js';
 import { settledAsk } from './settled-ask.js';
@@ -492,4 +492,65 @@ test('snapshot: room made for a cut dialog never drops another dialog that fit i
   assert.ok(snap.aria.length <= 60_000);
   assert.ok(snap.aria.includes('button "Keep me"'));
   assert.ok(snap.aria.includes('button "Option 59 of the offer list"'));
+});
+
+test('snapshot: a filled password field shows a mask in every tree, never its value; an empty one shows no value', async () => {
+  const secret = 'hunter2: Pw#1';
+  await page.goto(html(`<form><label>Password <input type="password" id="main"></label>` +
+    '<label>Hinted <input type="password" id="hinted" placeholder="Your password"></label>' +
+    '<label>Unused <input type="password"></label><label>Name <input id="name"></label></form><div id="host"></div>' +
+    '<iframe name="login" srcdoc="<label>Frame password <input type=password></label>"></iframe>' +
+    `<script>document.getElementById('host').attachShadow({mode:'open'}).innerHTML='<label>Shadow password <input type=password></label>'</script>`));
+  for (const field of ['#main', '#hinted', '#host input']) await page.locator(field).fill(secret);
+  await page.frameLocator('iframe[name=login]').locator('input').fill(secret);
+  await page.locator('#name').fill('Ada');
+  const snap = await snapshot(page);
+  assert.ok(!snap.aria.includes('hunter2'), snap.aria);
+  assert.match(snap.aria, /^- textbox "Password": "\[filled\]"$/m);
+  assert.match(snap.aria, /^- textbox "Hinted":\n {2}- \/placeholder: Your password\n {2}- text: "\[filled\]"$/m);
+  assert.match(snap.aria, /^- textbox "Unused"$/m);
+  assert.match(snap.aria, /^- textbox "Name": Ada$/m);
+  assert.match(snap.aria, /^- textbox "Shadow password": "\[filled\]"$/m);
+  assert.match(snap.aria, /--- iframe login ---\n- text: Frame password\n- textbox "Frame password": "\[filled\]"$/);
+  const region = await snapshotRegion(page, page.locator('form'));
+  assert.ok(!region.aria.includes('hunter2'), region.aria);
+  assert.match(region.aria, /^- textbox "Password": "\[filled\]"$/m);
+  const framed = await snapshotRegion(page, page.frameLocator('iframe[name=login]').locator('body'));
+  assert.equal(framed.aria, '- text: Frame password\n- textbox "Frame password": "[filled]"');
+
+  // A page over the cap adds its open dialog's own tree: masked too.
+  const long = Array.from({ length: 2500 }, (_, i) => `<p>Paragraph number ${i} of a long article body</p>`).join('');
+  await page.goto(html(`<main>${long}</main><div role="dialog" aria-label="Sign in"><label>Dialog password <input type="password"></label></div>`));
+  await page.locator('[role=dialog] input').fill(secret);
+  const truncated = await snapshot(page);
+  assert.equal(truncated.truncated, true);
+  assert.ok(!truncated.aria.includes('hunter2'), truncated.aria.slice(-300));
+  assert.ok(truncated.aria.endsWith('\n--- open dialog ---\n- dialog "Sign in":\n  - text: Dialog password\n  - textbox "Dialog password": "[filled]"'),
+    truncated.aria.slice(-300));
+});
+
+test('maskPasswords: replaces a textbox value or its text line that equals a password, in every quoting form', () => {
+  const secrets = new Set(['a: b', "it's", 'plain', 'x\\y']);
+  const aria = [
+    '- \'textbox "Pw: main"\': "a: b"',
+    '- \'textbox "It\'\'s" [disabled]\': it\'s',
+    '- textbox "Hinted":',
+    '  - /placeholder: Your password',
+    '  - text: plain',
+    '- textbox "Other": x\\y',
+    '- text: plain',
+    '- textbox "Name": Ada',
+  ].join('\n');
+  assert.equal(maskPasswords(aria, secrets), [
+    '- \'textbox "Pw: main"\': "[filled]"',
+    '- \'textbox "It\'\'s" [disabled]\': "[filled]"',
+    '- textbox "Hinted":',
+    '  - /placeholder: Your password',
+    '  - text: "[filled]"',
+    '- textbox "Other": "[filled]"',
+    '- text: plain', // page text, not a field value
+    '- textbox "Name": Ada',
+  ].join('\n'));
+  assert.equal(maskPasswords('- textbox "Q": "\\"x\\""', new Set(['"x"'])), '- textbox "Q": "[filled]"');
+  assert.equal(maskPasswords(aria, new Set()), aria);
 });

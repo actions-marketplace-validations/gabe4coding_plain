@@ -3,6 +3,7 @@ import type { Page, Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Candidate } from '../core/automation.js';
 import { blockersIn, frameLabel, frameIsInert, releaseBlockers, type BlockerCache } from './frames.js';
+import { PASSWORD_MASK } from './page.js';
 
 export const CandidateKindSchema = z.enum([StepKind.click, StepKind.hover, StepKind.fill, StepKind.select, StepKind.check, StepKind.upload, 'region']);
 export type CandidateKind = z.infer<typeof CandidateKindSchema>;
@@ -38,6 +39,8 @@ interface ScanOptions {
   skipVisibility: boolean;
   /** A script dialog's layer over the page (layer.ts): what is outside it is covered. */
   layer: Element | null;
+  /** PASSWORD_MASK: the scan runs in the page, so it gets the mask as an argument. */
+  passwordMask: string;
   max: number;
   startId: number;
 }
@@ -51,7 +54,7 @@ type ScannedCandidate = [desc: string, editable: boolean, state: string];
  * (link farms); within each layer, selector matches before extras, in DOM order. So the cap never cuts a cookie
  * banner appended at the end of the body.
  */
-function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, max, startId }: ScanOptions):
+function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, passwordMask, max, startId }: ScanOptions):
   ScannedCandidate[] {
   const DIALOG = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
   const PAGE_CHROME = 'nav, footer, [role=navigation], [role=contentinfo]';
@@ -106,9 +109,9 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     const ownText = (el as HTMLElement).innerText ?? el.textContent ?? '';
     const text = ownText.trim() || !el.querySelector('slot') ? ownText : slottedText(el);
     // Only form controls have a string value: an <li>'s or a <progress>'s is a number. A throw here would empty the
-    // whole frame's scan, since candidates() skips a frame whose evaluate fails.
+    // whole frame's scan, since candidates() skips a frame whose evaluate fails. A password field's value is a secret.
     const rawValue = (el as HTMLInputElement).value;
-    const value = typeof rawValue === 'string' ? rawValue : '';
+    const value = typeof rawValue !== 'string' ? '' : rawValue && el instanceof HTMLInputElement && el.type === 'password' ? passwordMask : rawValue;
     if (text && text.trim()) parts.push(`"${truncate(text, MAX_TEXT)}"`);
     else if (value) parts.push(`value="${truncate(value, MAX_TEXT)}"`);
     // An input's own text is empty: its <label> (wrapping or for=) is often the only name it has.
@@ -346,6 +349,7 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
     labelsOfToggles: kind === StepKind.check,
     listsOfThings: kind === 'region',
     skipVisibility: kind === StepKind.upload,
+    passwordMask: PASSWORD_MASK,
   };
   const found: Candidate[] = [];
   const blockers: BlockerCache = new Map();
