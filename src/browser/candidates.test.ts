@@ -147,3 +147,16 @@ test('disabled fieldsets suppress fields and hidden checkbox labels but preserve
   assert.deepEqual((await candidates(page, 'fill', 254)).map(c => c.desc), ['input aria-label="Legend" context: fieldset text="Locked"', 'input aria-label="Enabled"']);
   assert.deepEqual(await candidates(page, 'check', 254), []);
 });
+
+test('a filled password field is described with a mask, never its value; an empty one has no value', async () => {
+  await page.goto(html('<label>Password <input type="password" id="pw"></label><label>Repeat <input type="PASSWORD" id="again"></label>' +
+    '<input type="password" id="empty" placeholder="Unused"><div id="host"></div>' +
+    `<script>document.getElementById('host').attachShadow({mode:'open'}).innerHTML='<input type=password aria-label=Shadow>'</script>`));
+  for (const field of ['#pw', '#again', '#host input']) await page.locator(field).fill('hunter2');
+  assert.deepEqual((await candidates(page, 'fill', 254)).map((c) => c.desc), [
+    'input[type=password] value="[filled]" label="Password" id="pw"',
+    'input[type=PASSWORD] value="[filled]" label="Repeat" id="again"',
+    'input[type=password] placeholder="Unused" id="empty"',
+    'input[type=password] value="[filled]" aria-label="Shadow"',
+  ]);
+});

@@ -7,5 +7,7 @@ steps:
   - goto: /login
   - fill: { target: the Username field, value: "${hooks.user.name}" }
   - fill: { target: the Password field, value: "${hooks.user.pass}" }
+  # Jev sees the password field's mask, never the value.
+  - expect: the Password field is filled
   - click: the Login button
   - expect: the Secure Area heading is shown with a message that the user logged in
