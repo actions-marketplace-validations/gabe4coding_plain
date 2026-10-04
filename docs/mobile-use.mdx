@@ -232,6 +232,8 @@ A hook `setup` runs before the session opens. `teardown` also runs when the open
 Step rules:
 
 - `fill` on an iOS picker wheel selects the value and does not clear the control. Use the format that the control shows.
+- On iOS, a `fill` or a `tap` on a text field ends when the keyboard is on the screen, after at most 3 seconds.
+  The next step can then tap a keyboard key, for example the return key.
 - `check` and `uncheck` read Android `checked` or the iOS switch `value`. An unknown or mixed state is an error.
 - `scroll` needs a direction (`up`, `down`, `left` or `right`) before the container. The direction moves the content.
   One gesture does not always reach the end. `scroll: top` and `scroll: bottom` are not supported.

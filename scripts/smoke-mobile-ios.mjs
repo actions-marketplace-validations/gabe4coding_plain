@@ -69,7 +69,8 @@ try {
   await server.connect(a); await client.connect(b);
   await call('open', { platform: 'ios', device, app, capabilities: { 'appium:wdaLaunchTimeout': 180000 } });
   await step({ fill: { target: 'the Message text field', value: message } });
-  // XCUITest cannot generically dismiss every iPhone keyboard; use the app's explicit control.
+  // XCUITest cannot generically dismiss every iPhone keyboard; use the app's explicit control. Its return key is
+  // labeled "done" (iOS 27 draws it as a checkmark).
   await step({ tap: 'the Done keyboard button' });
   assert.ok((await call('snapshot')).aria.includes(`value="${message}"`));
   await step({ check: 'the Enable preview switch' });

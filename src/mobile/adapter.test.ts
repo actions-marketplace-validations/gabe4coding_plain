@@ -379,3 +379,63 @@ test('iOS resolve fails closed on string or missing lookup visibility, and does 
     assert.equal(exactSources(), exactBeforeStrip + 1, 'a missing tree visible flag forces an exact retarget');
   } finally { await fast.close(); server.close(); server.closeAllConnections(); await once(server, 'close'); }
 });
+
+test('iOS waits after fill and a tap on a text control until the keyboard is on screen, and only then', async () => {
+  // iOS 27 keeps the keyboard below the screen, visible="false", for about a second after typing returns.
+  const requests: { method: string; path: string; body: Record<string, any> }[] = [];
+  let keyboard: 'absent' | 'never' | number = 3; // a number: how many more lookups still report it hidden
+  const server = createServer(async (req, res) => {
+    let text = ''; for await (const chunk of req) text += chunk;
+    const body = text ? JSON.parse(text) : {};
+    const path = req.url!; requests.push({ method: req.method!, path, body });
+    let value: unknown = null;
+    if (path === '/wd/hub/session' && req.method === 'POST') value = { sessionId: 'fixture', capabilities: { platformName: 'iOS', 'appium:automationName': 'XCUITest' } };
+    else if (path.endsWith('/source')) value = ios;
+    else if (path.endsWith('/element') && body.value === '**/XCUIElementTypeKeyboard') {
+      if (keyboard === 'absent') value = { error: 'no such element' };
+      else {
+        const hidden = keyboard === 'never' || keyboard-- > 0;
+        value = { 'element-6066-11e4-a52e-4f735466cecf': 'keyboard', type: 'XCUIElementTypeKeyboard', enabled: true,
+          rect: { x: 0, y: hidden ? 891 : 590, width: 402, height: 226 }, 'attribute/visible': !hidden };
+      }
+    } else if (path.endsWith('/element') && req.method === 'POST') {
+      const all = (nodes: MobileNode[]): MobileNode[] => nodes.flatMap(n => [n, ...all(n.children)]);
+      const node = all(parseMobileTree(ios).roots).find(n => n.chain === body.value)!;
+      value = { 'element-6066-11e4-a52e-4f735466cecf': 'control', type: node.role, enabled: node.enabled, rect: { x: 0, y: 0, width: 10, height: 10 },
+        'attribute/name': node.attrs.name ?? null, 'attribute/label': node.attrs.label ?? null, 'attribute/visible': node.visible };
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ value }));
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const port = (server.address() as { port: number }).port;
+  const adapter = new AppiumAdapter(`http://127.0.0.1:${port}/wd/hub`, 1000);
+  const isLookup = (r: { body: Record<string, any> }) => r.body.value === '**/XCUIElementTypeKeyboard';
+  const lookups = () => requests.filter(isLookup).length;
+  const element = async (kind: MobileKind, label: string) => {
+    const frame = await adapter.capture(kind);
+    return frame.elements.get(frame.candidates.find(c => c.desc.startsWith(label))!.id)!;
+  };
+  try {
+    await adapter.open({ platform: 'ios', device: 'fixture-device', app: 'com.example.fixture' });
+    const field = await element('fill', 'XCUIElementTypeTextField "Email"');
+    await adapter.act('fill', field, 'hello');
+    assert.equal(lookups(), 4, 'fill returns once the keyboard reports visible, not while it waits below the screen');
+    assert.ok(requests.findIndex(isLookup) > requests.findIndex(r => r.path.endsWith('/value')), 'the wait follows the typing');
+
+    keyboard = 2;
+    await adapter.act('tap', await element('click', 'XCUIElementTypeTextField "Email"'));
+    assert.equal(lookups(), 7, 'a tap on a text control waits for the keyboard too');
+    await adapter.act('tap', await element('click', 'XCUIElementTypeButton "Sign in & continue"'));
+    assert.equal(lookups(), 7, 'a tap on any other control does not look for the keyboard');
+
+    keyboard = 'absent';
+    await adapter.act('fill', field, 'again');
+    assert.equal(lookups(), 8, 'no keyboard (a hardware keyboard): one lookup, no wait');
+
+    keyboard = 'never';
+    const started = Date.now();
+    await adapter.act('fill', field, 'capped');
+    const waited = Date.now() - started;
+    assert.ok(waited >= 1000 && waited < 2500, `a keyboard that never shows ends the wait at the action timeout (${waited} ms)`);
+  } finally { await adapter.close(); server.close(); server.closeAllConnections(); await once(server, 'close'); }
+});
