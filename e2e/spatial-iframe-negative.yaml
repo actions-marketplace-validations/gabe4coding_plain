@@ -1,0 +1,8 @@
+name: A transparent iframe does not contribute visible spatial text
+tags: [expect-fail]
+url: ${env.site}/spatial-iframe
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-iframe
+  - expect: the button with visible text Frame action is to the left of the Visible anchor button

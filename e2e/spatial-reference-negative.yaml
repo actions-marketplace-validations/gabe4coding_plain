@@ -1,0 +1,11 @@
+name: Reference motion does not overwrite the earlier spatial target
+tags: [expect-fail]
+url: ${env.site}/spatial-reference
+env:
+  site: $PLAINWRIGHT_E2E_SITE
+steps:
+  - goto: ${env.site}/spatial-reference
+  - fill: { target: the field immediately below the Shipping heading, value: Upper entry }
+  - click: the Move heading button
+  - fill: { target: the field immediately below the Shipping heading, value: Lower entry }
+  - expect: the Upper field contains Lower entry

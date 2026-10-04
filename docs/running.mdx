@@ -139,13 +139,13 @@ Each run replaces it. All three CLIs share this file. Add `.plainwright/` to you
 
 ## Pick cache
 
-A spec run remembers the element that Jev picked for each target. If the page did not change, the next run uses
-the same element again and does not ask Jev. This makes a run faster and uses fewer tokens. Jev always judges
-claims (`expect`, `wait`). The cache works for browser, desktop and mobile spec runs, not for agent mode (MCP).
+A spec run remembers high-confidence picks. If the page did not change, the next run reuses the pick.
+This avoids a new request to pick an element. Jev still judges claims (`expect`, `wait`) and classifies browser prompts.
+The cache works for browser, desktop and mobile spec runs, not for agent mode (MCP).
 
 | Mode | Behavior |
 |---|---|
-| `on` (default) | Uses stored picks and stores the picks of steps that passed. |
+| `on` (default) | Uses stored picks and stores high-confidence picks of passed steps. |
 | `read` | Uses stored picks and never writes a file. Use it in CI. |
 | `off` | Does not use or write the cache. Jev picks each target. |
 
@@ -167,7 +167,8 @@ plainwright uses a stored pick only when:
 - It is the first attempt of the spec. A retry always asks Jev.
 - The page has the same origin and path. The query and the hash part of the address can change.
 - The list of elements that Jev can pick from is the same. Element states (checked, selected, pressed, expanded,
-  disabled) are part of the list. Text that you typed in fields is not.
+  disabled) are part of the list. Typed field text does not change semantic browser picks.
+- Spatial browser picks also require equal captured text, values and bounds for candidates and reference elements.
 - Exactly one element has the stored description.
 
 A new row, a dialog over the page, or a button with a new name (`Subscribe` becomes `Unsubscribe`) causes a miss.
@@ -176,7 +177,9 @@ After a miss, Jev picks as usual. A step that used a stored pick has `(cached pi
 
 ### When entries change
 
-- plainwright stores picks only from passed steps in a passed attempt.
+- plainwright stores picks only from passed steps in a passed attempt, with confidence of at least 0.9.
+  If the provider gives no confidence, plainwright uses the probability.
+  A pick below 0.9 still acts at the pick threshold, but each run asks Jev again.
 - plainwright never stores a pick of one of many identical elements (a target that ends with ` #2`), or a pick
   that Jev rejected.
 - If an attempt does not pass, plainwright deletes the stored picks that it used. If the retry passes, its picks

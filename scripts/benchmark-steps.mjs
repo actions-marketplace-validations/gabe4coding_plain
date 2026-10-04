@@ -75,7 +75,7 @@ for (let i = 0; i < Number(values.runs); i++) {
   runs.push(run);
   const hitRate = run.cachedPicks + (jev.pickTargets ?? 0) ? run.cachedPicks / (run.cachedPicks + jev.pickTargets) : 0;
   console.error(`run ${i + 1}: wall=${run.wall} overhead=${run.overhead} jev=${run.phases.jev ?? 0} action=${run.phases.action ?? 0} skipped=${run.skippedMs} failedSpecs=${run.failed}` +
-    ` picks=${jev.pickCalls ?? '?'} pickTokens=${jev.pickTokens ?? '?'} claims=${jev.judgeCalls ?? '?'} claimTokens=${jev.judgeTokens ?? '?'} cached=${run.cachedPicks} hitRate=${(hitRate * 100).toFixed(0)}%`);
+    ` picks=${jev.pickCalls ?? '?'} pickTokens=${jev.pickTokens ?? '?'} claims=${jev.judgeCalls ?? '?'} claimTokens=${jev.judgeTokens ?? '?'} routes=${jev.routeCalls ?? '?'} routeGroups=${jev.routeGroups ?? '?'} cached=${run.cachedPicks} hitRate=${(hitRate * 100).toFixed(0)}%`);
 }
 
 const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
@@ -92,6 +92,9 @@ const summary = {
     pickCalls: median(runs.map((r) => r.jev.pickCalls ?? 0)),
     pickTokens: median(runs.map((r) => r.jev.pickTokens ?? 0)),
     claimTokens: median(runs.map((r) => r.jev.judgeTokens ?? 0)),
+    routeCalls: median(runs.map((r) => r.jev.routeCalls ?? 0)),
+    routeGroups: median(runs.map((r) => r.jev.routeGroups ?? 0)),
+    routeTokens: median(runs.map((r) => r.jev.routeTokens ?? 0)),
     cachedPicks: median(runs.map((r) => r.cachedPicks)),
   },
   // Same step statuses in every run (and, with --compare, as the base run).

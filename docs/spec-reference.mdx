@@ -275,6 +275,15 @@ For `click` and `hover`, clickable cards, labels and elements with `tabindex` fo
 plainwright also looks inside open shadow roots. A control in a shadow root gets the text of its slotted content.
 Identical descriptions get `#1`, `#2` in page order.
 
+Jev classifies each distinct prompt group as semantic or spatial once per browser session.
+For a spec or MCP batch, one request classifies all known groups when the first step needs a model.
+If the request exceeds the model limit, smaller requests classify the same groups.
+The classification uses resolved targets and claims. Later interactive prompts need another request if their classification is absent.
+An uncertain classification requests spatial evidence. A spatial target also gets rendered bounds for candidates and reference elements, such as headings.
+These bounds use main viewport CSS pixels and include iframes and open shadow roots. Tree order does not establish visual order.
+The reference capture includes at most 254 text elements and controls.
+[Pick cache](running.mdx#pick-cache) describes the checks before reuse.
+
 Over about 1000 candidates, plainwright drops the last ones (iframes, `nav` and `footer` first). On such a
 page, use `within` or `css=`.
 
@@ -285,6 +294,15 @@ iframe, and the page URL and title. With `within`, Jev gets only the tree of tha
 without the URL. plainwright cuts the snapshot at 60,000 characters, and the step detail then shows
 `(aria truncated at 60k chars)`. If the cut removes an open dialog, plainwright adds the full tree of that
 dialog at the end, under `--- open dialog ---`.
+
+A spatial claim also gets rendered bounds for up to 254 text elements and controls.
+The layout separates visible text from accessible names. An accessible name does not prove that its text is visible.
+A collapsed native dropdown contributes only its displayed selection. Iframe contents require a visible embedding element.
+With `within`, these bounds cover only that region.
+
+The observation does not change the page.
+If the layout is truncated, scope the claim with `within`. Bounds do not prove color or image appearance.
+The browser collects spatial evidence for `expect`, `wait` and MCP `ask`. Desktop and mobile claims use their accessibility trees.
 
 A link target longer than 200 characters keeps only its part before `?` or `#`, cut to 200 characters,
 followed by `…`. These long targets are usually ad and tracking links. Thus a claim about a long query string

@@ -17,7 +17,7 @@ export interface PickResult {
 }
 
 /** What a pick knows about the page, plus the flow's goal when the spec or the MCP session has one. */
-export interface PickPage { url: string; title: string; goal?: string }
+export interface PickPage { url: string; title: string; goal?: string; layout?: string }
 
 type AskChunk = (candidates: Candidate[], instructions: string[], page: PickPage) => Promise<PickResult[]>;
 
@@ -63,16 +63,22 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
  */
 async function pickChunk(candidates: Candidate[], instructions: string[], page: PickPage): Promise<PickResult[]> {
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
-  for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc;
+  for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc +
+    (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (main viewport CSS pixels; tree order is not visual order)` : '');
 
   const state = {
     url: page.url,
     title: page.title,
     today: new Date().toISOString().slice(0, 10),
     ...(page.goal ? { goal: page.goal } : {}),
+    ...(page.layout ? { layout: page.layout } : {}),
+    ...(candidates.some((candidate) => candidate.bounds) ? {
+      geometry: 'Bounds are rendered edges in main viewport CSS pixels. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.',
+    } : {}),
     instructions,
     // `editable` and `state` are for the pick cache only: Jev never sees them.
-    elements: candidates.map(({ id, desc, frameIndex }) => (frameIndex === undefined ? { id, desc } : { id, desc, frameIndex })),
+    elements: candidates.map(({ id, desc, frameIndex, bounds }) => ({ id, desc,
+      ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds } : {}) })),
   };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',

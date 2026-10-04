@@ -124,7 +124,7 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
           picks!.hit(refs[i], frame.snapshot);
           this.phaseMs.cached = (this.phaseMs.cached ?? 0) + 1;
         } else if (target.candidate) {
-          picks!.accept(refs[i], target.candidate, frame.candidates, frame.snapshot);
+          picks!.accept(refs[i], target.candidate, frame.candidates, frame.snapshot, target.score ?? 0);
         }
       }
       return frame.approximate ? resolved.map((target) => ({ ...target, approximate: true })) : resolved;

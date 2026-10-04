@@ -28,6 +28,55 @@ for (const box of document.querySelectorAll('[draggable]')) {
 }`;
 
 const PAGES = {
+  '/spatial-controls': () => page('Spatial native controls', `<h1>Spatial native controls</h1>
+<section aria-label="Plan controls" style="display:flex;justify-content:space-between;width:500px">
+<label>Plan <select><option value="monthly">Monthly</option><option value="annual">Annual</option></select></label>
+<button>Continue</button></section>`),
+  '/spatial-iframe': () => page('Spatial iframe visibility', `<h1>Spatial iframe visibility</h1>
+<section style="display:flex;justify-content:space-between;width:500px">
+<div id="frame-shell" style="opacity:0"><iframe title="Action frame" style="width:150px;height:80px"
+srcdoc="<button>Frame action</button>"></iframe></div><button>Visible anchor</button></section>
+<button onclick="document.querySelector('#frame-shell').style.opacity='1'">Reveal frame</button>`),
+  '/spatial-reference': () => page('Spatial references', `<style>
+#shipping { top:0 }
+.fields input, .fields h2 { position:absolute; left:0; margin:0 }
+</style><h1>Spatial references</h1><section class="fields" aria-label="Address fields" style="position:relative;height:350px">
+<h2 id="shipping">Shipping</h2><input aria-label="Upper field" style="top:80px">
+<input aria-label="Lower field" style="top:240px"></section>
+<button onclick="document.styleSheets[0].insertRule('#shipping { top:160px }', 1)">Move heading</button>
+<p role="status" id="result"></p>`, `function status() {
+  document.querySelector('#result').textContent = 'Upper field: ' + document.querySelector('[aria-label="Upper field"]').value +
+    '; Lower field: ' + document.querySelector('[aria-label="Lower field"]').value;
+}
+document.querySelectorAll('input').forEach(input => input.addEventListener('input', status));
+status();`),
+  '/spatial-transparent': () => page('Spatial transparent text', `<h1>Spatial transparent text</h1>
+<section aria-label="Transparent action pair" style="display:flex;justify-content:space-between;width:400px">
+<button><span style="opacity:0">Transparent action</span></button><button>Visible action</button></section>`),
+  '/spatial-values': () => page('Spatial field values', `<style>
+.pair { display:flex; justify-content:space-between; width:500px; margin:24px 0 }
+.fields { flex-direction:row-reverse }
+</style><h1>Spatial field values</h1><section class="pair fields" aria-label="Field pair">
+<input aria-label="Right field" value="Old input"><textarea aria-label="Left field">Old textarea</textarea></section>
+<section class="pair" aria-label="Action pair"><button><span hidden>Hidden action</span></button>
+<button>Visible action</button></section>`),
+  '/spatial-names': () => page('Spatial control names', `<style>
+.pair { display:flex; flex-direction:row-reverse; justify-content:space-between; width:320px; margin:24px 0 }
+</style><h1>Spatial control names</h1><section class="pair" aria-label="Native button pair">
+<input type="button" value="A"><input type="button" value="B"></section>
+<span hidden id="name-c">C</span><span hidden id="name-d">D</span>
+<section class="pair" aria-label="Referenced button pair">
+<button aria-labelledby="name-c"></button><button aria-labelledby="name-d"></button></section>`),
+  '/spatial': () => page('Spatial order', `<style>
+.pair, .boxes { display:flex; flex-direction:row-reverse; justify-content:space-between; width:320px; margin:24px 0 }
+.boxes div { border:1px solid; padding:16px }
+</style><h1>Spatial order</h1><section class="pair" aria-label="Button pair">
+<button onclick="choose('A')">A</button><button onclick="choose('B')">B</button></section>
+<div class="boxes"><div>X</div><div>Y</div></div><p role="status" id="result"></p>`,
+    `function choose(name) {
+  document.querySelector('#result').textContent = name + ' clicked';
+  if (name === 'A') setTimeout(() => document.styleSheets[0].insertRule('.pair { flex-direction:row }', 2), 400);
+}`),
   '/candidate-editor': () => page('Article editor', `<h1>Article editor</h1>
 <label>Title <input></label><div contenteditable role="textbox" aria-label="Article body" style="border:1px solid;padding:20px"></div>
 <div contenteditable="plaintext-only" role="textbox" aria-label="Notes" style="border:1px solid;padding:20px"></div>

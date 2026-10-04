@@ -40,6 +40,14 @@ const site = await startSite();
 
 // `budget` is the most plainwright tool calls a good run needs, with room for one look too many.
 const TASKS = {
+  reference: {
+    prompt: `Open ${site.url}/spatial-reference. Fill the field immediately below the Shipping heading with "Upper entry", click Move heading, then fill the field immediately below the Shipping heading with "Lower entry". Use a natural-language target relative to the heading for both fills. Tell me the exact status message shown.`,
+    answer: /Upper field:\s*Upper entry;\s*Lower field:\s*Lower entry/i, budget: 8, referenceFill: true,
+  },
+  spatial: {
+    prompt: `Open ${site.url}/spatial and click the button on the left using a natural-language target. Tell me the exact status message shown after the click.`,
+    answer: /B clicked/i, notAnswer: /A clicked/i, budget: 7, spatialClick: true,
+  },
   login: {
     prompt: `Open ${site.url}/login, log in with username ${USER.name} and password ${USER.pass}, and tell me the exact status message shown after the login.`,
     answer: /logged into a secure area/i, budget: 8,
@@ -117,6 +125,19 @@ async function grade(spec, outcome, dir) {
   if (!spec.answer.test(outcome.answer)) problems.push(`answer lacks ${spec.answer}: "${outcome.answer.slice(0, 160)}"`);
   if (spec.notAnswer?.test(outcome.answer)) problems.push(`answer claims ${spec.notAnswer}, which the page never showed`);
   if (!plainwright.some((c) => c.tool === 'open')) problems.push('never called the plainwright open tool');
+  const steps = plainwright.flatMap((call) => call.tool === 'step' ? [call.args?.step] : call.tool === 'batch' ? call.args?.steps ?? [] : []);
+  if (spec.spatialClick) {
+    if (!steps.some((step) => typeof step?.click === 'string' && !step.click.startsWith('css=') && /left/i.test(step.click))) {
+      problems.push('never clicked with a natural-language spatial target');
+    }
+  }
+  if (spec.referenceFill) {
+    const fills = steps.map((step) => typeof step?.fill === 'string' ? step.fill : step?.fill?.target);
+    if (fills.filter((target) => typeof target === 'string' && !target.startsWith('css=') &&
+      /shipping/i.test(target) && /below|under|beneath/i.test(target)).length < 2) {
+      problems.push('did not perform both fills with a natural-language target relative to the heading');
+    }
+  }
   // A shell may look around or run this checkout's CLI (the authoring skill replays specs that way), but the page
   // itself is reached only through plainwright, and only this checkout's plainwright.
   const shell = outcome.calls.filter((c) => c.server === 'shell');
@@ -144,7 +165,7 @@ async function grade(spec, outcome, dir) {
 
 function runClaude(prompt, dir) {
   const config = join(dir, 'mcp.json');
-  writeFileSync(config, JSON.stringify({ mcpServers: { pw: { ...server, env } } }));
+  writeFileSync(config, JSON.stringify({ mcpServers: { pw: { ...server, env } } }), { mode: 0o600 });
   const args = ['-p', prompt, '--model', values['claude-model'], '--output-format', 'stream-json', '--verbose',
     '--strict-mcp-config', '--mcp-config', config, '--tools', '', '--allowedTools', 'mcp__pw__*',
     '--setting-sources', '', '--append-system-prompt-file', skillFile, '--max-budget-usd', MAX_BUDGET_USD];
@@ -157,13 +178,20 @@ function runClaude(prompt, dir) {
       for (const content of event.message?.content ?? []) {
         if (content.type === 'tool_use') {
           const [, serverName, tool] = /^mcp__([^_]+)__(.+)$/.exec(content.name) ?? [null, 'claude', content.name];
-          const call = { server: serverName, tool };
+          const call = { server: serverName, tool, args: content.input };
           byId.set(content.id, call);
           calls.push(call);
         }
-        if (content.type === 'tool_result' && content.is_error) {
+        if (content.type === 'tool_result') {
           const call = byId.get(content.tool_use_id);
-          if (call) call.error = [].concat(content.content).map((c) => c?.text ?? c).join(' ');
+          const text = [].concat(content.content).map((c) => c?.text ?? c).join(' ');
+          if (call && content.is_error) call.error = text;
+          else if (call?.server === 'pw' && ['step', 'batch'].includes(call.tool)) {
+            try {
+              const { status } = JSON.parse(text);
+              if (status && status !== 'pass') call.error = `plainwright returned ${status}`;
+            } catch { /* Non-JSON results still use the client's is_error flag. */ }
+          }
         }
         if (content.type === 'text' && event.type === 'assistant') answer = content.text;
       }
@@ -196,7 +224,9 @@ function runCodex(prompt, dir) {
     'startup_timeout_sec = 120',
     '[mcp_servers.pw.env]',
     `PLAINWRIGHT_E2E_SITE = ${toml(site.url)}`,
-  ].join('\n') + '\n');
+    ...['TYPESAFE_API_KEY', 'AI_GATEWAY_API_KEY', 'JEV_PROVIDER'].filter((name) => env[name])
+      .map((name) => `${name} = ${toml(env[name])}`),
+  ].join('\n') + '\n', { mode: 0o600 });
   const args = ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'read-only', '--cd', dir,
     ...(values['codex-model'] ? ['-m', values['codex-model']] : []), `${readFileSync(skillFile, 'utf8')}\n\n# Task\n\n${prompt}`];
   return collect('codex', args, { cwd: dir, env: { ...process.env, CODEX_HOME: home }, stdin: 'ignore' }, (events) => {
@@ -205,7 +235,9 @@ function runCodex(prompt, dir) {
     let done = false;
     for (const { type, item, error } of events) {
       if (type === 'item.completed' && item.type === 'mcp_tool_call') {
-        calls.push({ server: item.server, tool: item.tool, ...(item.error ? { error: item.error.message } : {}) });
+        const status = item.result?.structured_content?.status;
+        const failed = item.error?.message ?? (status && status !== 'pass' ? `plainwright returned ${status}` : undefined);
+        calls.push({ server: item.server, tool: item.tool, args: item.arguments, ...(failed ? { error: failed } : {}) });
       }
       if (type === 'item.completed' && item.type === 'command_execution') calls.push({ server: 'shell', tool: item.command });
       if (type === 'item.completed' && item.type === 'agent_message') answer = item.text;
