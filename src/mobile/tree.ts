@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { MAX_CANDIDATES } from '../jev/pick.js';
 import type { Candidate, Frame } from '../core/automation.js';
+import { MAX_LAYOUT_ELEMENTS, nativeLayout, type Bounds, type LayoutItem } from '../core/layout.js';
 
 export type MobileKind = 'click' | 'fill' | 'check' | 'region' | 'scroll';
 
@@ -177,11 +178,17 @@ function isRoleMarker(node: MobileNode, parent?: MobileNode): boolean {
 
 const isCheckable = (node: MobileNode) => node.attrs.checkable === 'true' || CHECKABLE_ROLE.test(node.role);
 
+/** The value Jev sees: none for a password field. */
+function shownValue(node: MobileNode): string | undefined {
+  if (isPassword(node.attrs, node.role)) return undefined;
+  return node.attrs.value ?? (mobileMatches(node, 'fill') ? node.attrs.text : undefined);
+}
+
 function describeNode(node: MobileNode): string {
   const attrs = node.attrs;
   const password = isPassword(attrs, node.role);
-  const nativeValue = attrs.value ?? (mobileMatches(node, 'fill') ? attrs.text : undefined);
-  const value = !password && nativeValue !== undefined ? ` value=${JSON.stringify(nativeValue)}` : '';
+  const nativeValue = shownValue(node);
+  const value = nativeValue !== undefined ? ` value=${JSON.stringify(nativeValue)}` : '';
   const checkable = isCheckable(node);
   const flags = [
     !node.enabled && 'disabled',
@@ -193,10 +200,23 @@ function describeNode(node: MobileNode): string {
   return `${node.role} ${JSON.stringify(name)}${value}${flags ? ` [${flags}]` : ''}`;
 }
 
-/** The snapshot text and the candidates for `kind`. `containersOnly`: region candidates are nodes with children. */
+/** A node's frame: Android `bounds="[l,t][r,b]"`, iOS `x`, `y`, `width`, `height`. Undefined without an area. */
+export function nodeBounds(attrs: Record<string, string>): Bounds | undefined {
+  const android = /^\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]$/.exec(attrs.bounds ?? '');
+  const box = android ? { left: +android[1], top: +android[2], right: +android[3], bottom: +android[4] }
+    : attrs.x !== undefined && attrs.width !== undefined
+      ? { left: +attrs.x, top: +attrs.y, right: +attrs.x + +attrs.width, bottom: +attrs.y + +attrs.height } : undefined;
+  return box && Object.values(box).every(Number.isFinite) && box.right > box.left && box.bottom > box.top ? box : undefined;
+}
+
+/**
+ * The snapshot text and the candidates for `kind`. `containersOnly`: region candidates are nodes with children.
+ * `coordinates`: a spatial capture in that coordinate space, with candidate bounds and a layout.
+ */
 export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url: string; title: string }, generation: number, truncated = false,
-  { containersOnly = false } = {}): Frame<MobileElement> {
+  { containersOnly = false, coordinates }: { containersOnly?: boolean; coordinates?: string } = {}): Frame<MobileElement> {
   const candidates: Candidate[] = [];
+  const layout: LayoutItem[] = [];
   const elements = new Map<number, MobileElement>();
   const lines: string[] = [];
   let chars = 0;
@@ -216,12 +236,17 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
       if (chars + line.length > MAX_TREE_CHARS) truncated = true;
       lines.push(line.slice(0, MAX_TREE_CHARS - chars));
       chars += line.length;
+      const bounds = coordinates ? nodeBounds(node.attrs) : undefined;
+      // One row past the cap tells nativeLayout() the layout was cut.
+      if (bounds && (node.name || shownValue(node) !== undefined) && layout.length <= MAX_LAYOUT_ELEMENTS) {
+        layout.push({ description: desc, name: `${node.role} ${JSON.stringify(node.name)}`, bounds });
+      }
       if (mobileMatches(node, kind) && !(containersOnly && !node.children.length) && !isRoleMarker(node, parent)) {
         if (candidates.length >= MAX_CANDIDATES) {
           truncated = true;
         } else {
           const id = candidates.length;
-          candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}` });
+          candidates.push({ id, desc: `${desc}${context ? ` in ${context}` : ''}`, ...(bounds ? { bounds } : {}) });
           elements.set(id, { path: node.path, identity: nodeIdentity(node), generation, ...(node.chain ? { chain: node.chain } : {}) });
         }
       }
@@ -229,5 +254,6 @@ export function mobileFrame(roots: MobileNode[], kind: MobileKind, state: { url:
     }
   }
   walk(roots, 0, '');
-  return { snapshot: { ...state, aria: lines.join(''), truncated }, candidates, elements };
+  if (!coordinates) return { snapshot: { ...state, aria: lines.join(''), truncated }, candidates, elements };
+  return { snapshot: { ...state, aria: lines.join(''), truncated, layout: nativeLayout(layout, coordinates, truncated) }, candidates, elements, coordinates };
 }

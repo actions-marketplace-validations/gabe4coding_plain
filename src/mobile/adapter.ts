@@ -1,5 +1,5 @@
 import type { Browser } from 'webdriverio';
-import type { NativeAdapter } from '../native/session.js';
+import type { CaptureOptions, NativeAdapter } from '../native/session.js';
 import { HiddenTargetError } from '../core/automation.js';
 import { MobileTargetSchema, type MobileTarget, type Direction } from './spec.js';
 import { parseMobileTree, findMobileNode, nodeIdentity, parseIdentity, mobileFrame, type MobileElement, type MobileKind, type MobileNode } from './tree.js';
@@ -137,18 +137,19 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
    * without XCUITest's `visible` attribute, most of its cost, and judges visibility by bounds. That view also
    * shows covered elements, so resolve() confirms the pick's own `visible` before acting, and a hidden pick is
    * targeted again from an exact capture. Claims and regions always see the exact tree, read without
-   * `accessible`, which only click candidates use.
+   * `accessible`, which only click candidates use. A spatial capture is exact: covered elements would be
+   * measured as visible references.
    */
-  async capture(kind: MobileKind, within?: MobileElement, { regionPick = false } = {}) {
+  async capture(kind: MobileKind, within?: MobileElement, { regionPick = false, spatial = false }: CaptureOptions = {}) {
     const driver = this.connectedDriver();
-    const fast = this.fastTargets && this.ios && (kind !== 'region' || regionPick) && !within;
+    const fast = this.fastTargets && this.ios && (kind !== 'region' || regionPick) && !within && !spatial;
     if (fast && !this.exactNext) {
       const source = await this.iosSource(driver, kind === 'click' ? 'visible' : 'visible,accessible');
       return this.frame(source, kind, undefined, true);
     }
     if (fast) this.exactNext = false;
     const source = this.ios && kind === 'region' ? await this.iosSource(driver, 'accessible') : await driver.getPageSource();
-    return this.frame(source, kind, within);
+    return this.frame(source, kind, within, false, spatial);
   }
 
   preferExact() { this.exactNext = true; }
@@ -160,7 +161,7 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
    * action. Jev works on it while capture() waits, and the answer is kept only if the settled tree is the same.
    * Null on iOS: XCUITest already waits inside the action, and a quick read there was never faster.
    */
-  async captureEarly(kind: MobileKind, within?: MobileElement) {
+  async captureEarly(kind: MobileKind, within?: MobileElement, { spatial = false }: CaptureOptions = {}) {
     if (this.target?.platform !== 'android') return null;
     const driver = this.connectedDriver();
     this.idleTimeout ??= Number((await driver.getSettings())?.waitForIdleTimeout) || DEFAULT_IDLE_TIMEOUT_MS;
@@ -171,14 +172,17 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     } finally {
       await driver.updateSettings({ waitForIdleTimeout: this.idleTimeout });
     }
-    return this.frame(source, kind, within);
+    return this.frame(source, kind, within, false, spatial);
   }
 
   private async iosSource(driver: MobileDriver, excludedAttributes: ExcludedAttributes) {
     return String(await driver.executeScript('mobile: source', [{ format: 'xml', excludedAttributes }]));
   }
 
-  private frame(source: string, kind: MobileKind, within?: MobileElement, boundsVisibility = false) {
+  /** Appium reports iOS frames in points and Android bounds in pixels. */
+  private get coordinates() { return this.ios ? 'iOS screen points' : 'Android screen pixels'; }
+
+  private frame(source: string, kind: MobileKind, within?: MobileElement, boundsVisibility = false, spatial = false) {
     const tree = parseMobileTree(source, { boundsVisibility });
     const roots = within ? [this.checkHandle(within, tree.roots)] : tree.roots;
     // A region picked from an approximate capture must show something in the exact tree. Not its own flag:
@@ -189,7 +193,8 @@ export class AppiumAdapter implements MobileAdapter<MobileElement> {
     }
     const state = { url: `mobile://${this.target!.platform}/${encodeURIComponent(this.target!.app)}`, title: this.target!.app };
     // An approximate region pick lists containers only: covered views would double the nodes past one Jev request.
-    const frame = mobileFrame(roots, kind, state, this.generation, tree.truncated, { containersOnly: boundsVisibility && kind === 'region' });
+    const frame = mobileFrame(roots, kind, state, this.generation, tree.truncated,
+      { containersOnly: boundsVisibility && kind === 'region', ...(spatial ? { coordinates: this.coordinates } : {}) });
     if (!boundsVisibility) return frame;
     const elements = new Map([...frame.elements].map(([id, element]) => [id, { ...element, approximate: true }]));
     return { ...frame, elements, approximate: true };

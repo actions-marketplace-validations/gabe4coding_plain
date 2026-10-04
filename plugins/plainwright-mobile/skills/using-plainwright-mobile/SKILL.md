@@ -136,6 +136,9 @@ Picks need confidence >= 0.5 (probability fallback). Claims pass at p >= 0.9, fa
 otherwise are inconclusive. On inconclusive, rephrase or split the claim. Captures cap at 1,016
 candidates, 5,000 nodes / 32 levels and 60,000 text characters. Use scoped reads when truncated.
 `wait` makes at most eight model calls; native/model requests can outlast the polling deadline.
+Use explicit spatial relations ("the left button of the pair", "A is above B"): targets and claims that
+need layout get bounds (Android pixels, iOS points) and measured neighbors (at most 254 named elements).
+Specs classify their known prompts in one request; tree order is not visual order.
 On iOS, steps (spec replay and MCP) pick action targets from a faster tree that also lists covered elements (confidence
 there runs lower); a rejected pick, or one confirmed covered, is picked again from the exact tree (`ms.retargeted`).
 
