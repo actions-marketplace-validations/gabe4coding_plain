@@ -13,7 +13,7 @@ export const LAYOUT_TRUNCATED = 'Layout truncated: do not infer absence or extre
  * Bounds as Jev reads them: whole pixels. A fraction costs Jev tokens and changes no relation it can judge; measured
  * relations (neighborRelations) use the exact edges.
  */
-export const roundBounds = (b: Bounds): Bounds =>
+const roundBounds = (b: Bounds): Bounds =>
   ({ left: Math.round(b.left), top: Math.round(b.top), right: Math.round(b.right), bottom: Math.round(b.bottom) });
 export const boundsText = (b: Bounds): string => JSON.stringify(roundBounds(b));
 
