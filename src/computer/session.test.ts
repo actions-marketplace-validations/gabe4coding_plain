@@ -345,7 +345,8 @@ test('a desktop spec routes once; spatial prompts get bounds and a layout, seman
     const result = await runComputerSpec(loadComputerSpec(file), session);
     assert.equal(result.status, 'pass', JSON.stringify(result.steps));
     assert.deepEqual(clicked, ['B', 'A']);
-    assert.deepEqual(routed, [{ groups: [['the button named B'], ['the left button'], ['The A button is left of the Total label']] }]);
+    // 'the button named B' has no spatial cue: it is semantic without a request.
+    assert.deepEqual(routed, [{ groups: [['the left button'], ['The A button is left of the Total label']] }]);
     assert.equal(result.jevCalls, 4);
     // The semantic click read no bounds; the two spatial captures read each of the four nodes once.
     assert.equal(boundsReads, 8);

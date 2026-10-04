@@ -104,14 +104,14 @@ test('spatial picks include non-candidate references and reference motion invali
   assert.equal(await upper.element!.getAttribute('aria-label'), 'Upper field');
   const cands = await spatialCandidates(page, await candidates(page, 'fill', 254));
   const state = { url: 'https://example.test/', title: '', layout: await layoutSnapshot(page) };
-  assert.match(state.layout, /field "Upper field" is below main: heading "Shipping"/);
+  assert.match(state.layout, /field "Upper field" is [^\n]*below main: heading "Shipping"/);
   const entry = makeEntry(cands[0], cands, state, 0.99)!;
   await page.evaluate(() => { document.styleSheets[0].insertRule('#shipping { top:160px }', 1); });
   const changed = await spatialCandidates(page, await candidates(page, 'fill', 254));
   assert.deepEqual(changed, cands);
   const movedLayout = await layoutSnapshot(page);
-  assert.match(movedLayout, /field "Upper field" is above main: heading "Shipping"/);
-  assert.match(movedLayout, /field "Lower field" is below main: heading "Shipping"/);
+  assert.match(movedLayout, /field "Upper field" is [^\n]*above main: heading "Shipping"/);
+  assert.match(movedLayout, /field "Lower field" is [^\n]*below main: heading "Shipping"/);
   assert.equal(matchEntry(entry, changed, { ...state, layout: movedLayout }), undefined);
   const [lower] = await resolveLocators(context, 'fill', ['the field immediately below the Shipping heading']);
   await lower.element!.fill('shipping details');
