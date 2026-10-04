@@ -9,8 +9,8 @@ This folder has four mobile specs. Run all commands from the repository root.
 
 | Spec | App | What it does | Cleanup |
 |---|---|---|---|
-| [android.yaml](android.yaml) | The plain fixture | Text entry, keyboard, switches, tap, long press, scroll, swipe | The hook uninstalls the fixture. |
-| [ios.yaml](ios.yaml) | The plain fixture | The same steps on an iOS simulator | The hook uninstalls the fixture. |
+| [android.yaml](android.yaml) | The plain fixture app | Text entry, keyboard, switches, tap, long press, scroll, swipe | The hook uninstalls the fixture. |
+| [ios.yaml](ios.yaml) | The plain fixture app | The same steps on an iOS simulator | The hook uninstalls the fixture. |
 | [android-contacts.yaml](android-contacts.yaml) | Google Contacts | Creates and checks the contact Alex Example | None. Each run adds a contact. |
 | [ios-calendar.yaml](ios-calendar.yaml) | Apple Calendar | Creates an event and finds it with Search | None. Each run adds an event. |
 

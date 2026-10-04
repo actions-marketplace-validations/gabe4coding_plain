@@ -185,7 +185,7 @@ After a miss, Jev picks as usual. A step that used a stored pick has `(cached pi
 - If an attempt does not pass, plain deletes the stored picks that it used. If the retry passes, its picks
   replace them. If a step that used stored picks does not pass, its detail names a debug file with these picks
   (`cache: <file>.json`).
-- plain ignores a pick file from another Jev model, or from a plain version with another element
+- plain ignores a pick file from another Jev model, or from a version of plain with another element
   description format. The next passing run writes a new file.
 
 To reset the cache, delete the pick file or one entry in it, or run once with `--picks off`. If you move a step to

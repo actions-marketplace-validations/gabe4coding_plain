@@ -9,7 +9,7 @@ numbers is a change in the judging, not in the page.
   controls, and TodoMVC with three todos and one completed.
 - Regions (`region: true`, judged as an `expect` with `within` sees them), from practice.expandtesting.com and
   the-internet: each drag-and-drop box after the drag, both boxes, a login message, a table row and one cell.
-- Ad-funded pages (`ad-*`, practice.expandtesting.com, saved from a plain run on 2026-10-02, not
+- Ad-funded pages (`ad-*`, practice.expandtesting.com, saved from a run of plain on 2026-10-02, not
   re-capturable: ads change on each load): login success, a dropdown, checkboxes, and drag and drop.
 - Content pages, shared with the read benchmark (`scripts/read-states/`): Wikipedia, Hacker News, GitHub repo and
   issues, Open Library, the-internet tables, books.toscrape, quotes.toscrape.
