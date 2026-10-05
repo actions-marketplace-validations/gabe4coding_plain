@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { loadSpec, parseStep } from './spec.js';
 import { interpolate } from './interpolate.js';
 
-// The pick-cache source (`at`) is covered in pick-cache.test.ts; these tests compare the parsed steps without it.
+// The step source (`at`, the lock key) is covered in src/core/lock.test.ts; these tests compare the parsed steps without it.
 function stripped(spec: ReturnType<typeof loadSpec>) {
   return { ...spec, steps: spec.steps.map(({ at: _at, ...step }) => step) };
 }

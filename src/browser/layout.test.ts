@@ -102,13 +102,13 @@ test('spatial picks include non-candidate references and reference motion invali
   const [upper] = await resolveLocators(context, 'fill', ['the field immediately below the Shipping heading']);
   assert.equal(await upper.element!.getAttribute('aria-label'), 'Upper field');
   const cands = await spatialCandidates(page, await candidates(page, 'fill', 254));
-  assert.match(await layoutSnapshot(page), /field "Upper field" is below main: heading "Shipping"/);
+  assert.match(await layoutSnapshot(page), /field "Upper field" is [^\n]*below main: heading "Shipping"/);
   await page.evaluate(() => { document.styleSheets[0].insertRule('#shipping { top:160px }', 1); });
   const changed = await spatialCandidates(page, await candidates(page, 'fill', 254));
   assert.deepEqual(changed, cands);
   const movedLayout = await layoutSnapshot(page);
-  assert.match(movedLayout, /field "Upper field" is above main: heading "Shipping"/);
-  assert.match(movedLayout, /field "Lower field" is below main: heading "Shipping"/);
+  assert.match(movedLayout, /field "Upper field" is [^\n]*above main: heading "Shipping"/);
+  assert.match(movedLayout, /field "Lower field" is [^\n]*below main: heading "Shipping"/);
   const [lower] = await resolveLocators(context, 'fill', ['the field immediately below the Shipping heading']);
   await lower.element!.fill('shipping details');
   assert.equal(await page.getByLabel('Lower field').inputValue(), 'shipping details');
@@ -169,8 +169,8 @@ test('scoped spatial assertions receive geometry without outside evidence and re
     return { probabilities: [1], tokens: 1 };
   };
   const context = ctx();
-  await askPage(context, ['B is left of A'], 'css=#pair');
-  await askPage(context, ['B is left of A'], 'css=#pair');
+  await askPage(context, ['B comes before A visually'], 'css=#pair');
+  await askPage(context, ['B comes before A visually'], 'css=#pair');
   assert.equal(routes, 1);
 });
 
@@ -247,7 +247,7 @@ test('candidate capture refreshes after routing and does not auto-wait for an un
     assert.ok(observed[0].bounds);
     return [{ id: observed[0].id, probability: 1, probabilities: {}, tokens: 1 }];
   };
-  const [resolved] = await resolveLocators(ctx(), 'click', ['the left button']);
+  const [resolved] = await resolveLocators(ctx(), 'click', ['the button nearest the edge']);
   await resolved.element!.click();
   assert.equal(await resolved.element!.innerText(), 'Stable');
   // The obsolete scan cannot wait for its old ids to reappear.
@@ -448,4 +448,17 @@ test('layout text shows a filled password field with a mask, never its value', a
   assert.doesNotMatch(layout, /hunter2/);
   assert.match(layout, /main: input\[type=password\] "" label="Password" value="\[filled\]" bounds=/);
   assert.match(layout, /main: input\[type=password\] "" label="Unused" value="" bounds=/);
+});
+
+test('a judge layout drops the main label of a page without iframes and groups the neighbors per element', async () => {
+  await page.setContent('<h2>Shipping</h2><input aria-label="Upper field"><br><br><br><input aria-label="Lower field">');
+  const full = await layoutSnapshot(page);
+  const compact = await layoutSnapshot(page, undefined, { compact: true });
+  assert.match(full, /^main: field "Upper field" is above main: field "Lower field"\.$/m);
+  assert.match(full, /^main: field "Upper field" is below main: heading "Shipping"\.$/m);
+  assert.doesNotMatch(compact, /main: /);
+  assert.match(compact, /^field "Upper field" is above field "Lower field"; is below heading "Shipping"\.$/m);
+  await page.setContent('<button>A</button><iframe srcdoc="<button>B</button>"></iframe>');
+  await page.frames()[1]?.waitForLoadState();
+  assert.match(await layoutSnapshot(page, undefined, { compact: true }), /^main: button "A"/m);
 });

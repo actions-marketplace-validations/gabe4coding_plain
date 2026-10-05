@@ -26,6 +26,8 @@ export interface StepContext {
   locked?: { replayed: number; healed: number };
   /** The step runs again after it failed with a replayed locator: every target goes to Jev. */
   healing?: boolean;
+  /** The interpolated steps after it in a spec run or an MCP batch: an expect asks the next expects' claims too. */
+  upcoming?: Step[];
 }
 
 /** Adds the time `fn` takes to ctx.ms[phase]. */

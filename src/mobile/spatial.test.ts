@@ -68,10 +68,10 @@ for (const platform of ['android', 'ios'] as const) {
         routed.push(state);
         const { groups } = state as { groups: string[][] };
         return { tokens: 5, answers: questions.map((_, i) => ({
-          choice: /left|right/.test(groups[i].join(' ')) ? 'spatial' : 'semantic', confidence: 1 })) };
+          choice: /left|right|edge/.test(groups[i].join(' ')) ? 'spatial' : 'semantic', confidence: 1 })) };
       },
       pick: async (candidates, targets, page) => targets.map((target) => {
-        const spatial = target === 'the left button';
+        const spatial = target === 'the button nearest the edge';
         assert.equal(candidates.every((c) => c.bounds !== undefined), spatial, target);
         assert.equal(page.layout !== undefined, spatial);
         if (!spatial) {
@@ -86,7 +86,7 @@ for (const platform of ['android', 'ios'] as const) {
       }),
       judge: async (state, claims) => {
         const snap = state as Snapshot;
-        assert.match(snap.layout!, /Button "A" is left of [^\n]*Button "B"\./);
+        assert.match(snap.layout!, /Button "A" is [^\n]*left of [^\n]*Button "B"[.;]/);
         assert.match(snap.layout!, /Total" bounds=\{"left":20,"top":300,"right":100,"bottom":330\}/);
         return { probabilities: claims.map(() => 1), tokens: 3 };
       },
@@ -97,7 +97,7 @@ platform: ${platform}
 device: fixture-device
 app: com.example.fixture
 steps:
-  - tap: the left button
+  - tap: the button nearest the edge
   - tap: the button named B
   - expect: The A button is left of the B button
 `);
@@ -109,8 +109,8 @@ steps:
       assert.deepEqual(fixture.clicked, ['A', 'B']);
       // The fast tree also lists covered elements, so only the semantic tap may use it.
       assert.equal(fixture.fastReads.length, ios ? 1 : 0);
-      // One classifier request for the whole spec, groups in step order.
-      assert.deepEqual(routed, [{ groups: [['the left button'], ['the button named B'], ['The A button is left of the B button']] }]);
+      // One classifier request for the whole spec: 'the button named B' has no spatial cue, the claim a sure one.
+      assert.deepEqual(routed, [{ groups: [['the button nearest the edge']] }]);
       assert.equal(result.jevCalls, 4);
     } finally {
       fixture.close();

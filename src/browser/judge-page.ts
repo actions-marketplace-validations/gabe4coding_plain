@@ -20,22 +20,54 @@ export interface Observed { snap: Snapshot; events: string[] }
 /** `spatial`: the observation carried rendered geometry, as the lock must record. */
 interface Judged { state: Observed; probabilities: number[] | null; spatial: boolean }
 
+/**
+ * Answers an earlier expect's request gave for the claims of the expects right after it (lookahead), with the exact
+ * observation they are about. A later expect uses them only when its own settled observation is the same: then Jev
+ * would get the same input, so the request is skipped. Otherwise it asks as usual.
+ */
+interface Prefetched { observed: Observed; spatial: boolean; probabilities: Map<string, number> }
+const prefetched = new WeakMap<StepContext, Prefetched>();
+type Judgment = { probabilities: number[]; tokens: number; reused?: boolean };
+
 const sameObserved = (a: Observed, b: Observed): boolean =>
   a.snap.url === b.snap.url && a.snap.title === b.snap.title && a.snap.aria === b.snap.aria && a.snap.layout === b.snap.layout &&
   a.events.length === b.events.length && a.events.every((event, i) => event === b.events[i]);
 
-/** Judges claims against the whole settled page, in one request; null probabilities when `skip` says so. */
-export async function judgeSettled(ctx: StepContext, claims: string[], skip?: (observed: Observed) => boolean): Promise<Judged> {
+/**
+ * Judges claims against the whole settled page, in one request; null probabilities when `skip` says so. `ahead`:
+ * claims of later expects, asked in the same request for them to reuse.
+ */
+export async function judgeSettled(ctx: StepContext, claims: string[], skip?: (observed: Observed) => boolean,
+  ahead: string[] = []): Promise<Judged> {
   const spatial = await needsLayout(ctx, claims);
-  return judgeObservation(ctx, claims, spatial, undefined, skip);
+  return judgeObservation(ctx, claims, spatial, undefined, skip, ahead);
 }
 
-/** What a judgment sees: the page or the region, its geometry when spatial, and the events so far. */
+/** The claims of the whole-page expects right after this one that share its route, for one request with it. */
+async function claimsAhead(ctx: StepContext, claims: string[]): Promise<string[]> {
+  const ahead: string[] = [];
+  const spatial = await needsLayout(ctx, claims);
+  for (const step of ctx.upcoming ?? []) {
+    if (step.kind !== StepKind.expect || step.within !== undefined) break;
+    if (await needsLayout(ctx, step.expectations) !== spatial) break;
+    ahead.push(...step.expectations.filter((claim) => !claims.includes(claim) && !ahead.includes(claim)));
+  }
+  return ahead;
+}
+
+function reuse(ctx: StepContext, observed: Observed, claims: string[], spatial: boolean): Judgment | null {
+  const known = prefetched.get(ctx);
+  if (!known || known.spatial !== spatial || !sameObserved(known.observed, observed)) return null;
+  if (!claims.every((claim) => known.probabilities.has(claim))) return null;
+  return { probabilities: claims.map((claim) => known.probabilities.get(claim)!), tokens: 0, reused: true };
+}
+
+/** What a judgment sees: the page or the region, its compact geometry when spatial, and the events so far. */
 export async function observe(ctx: StepContext, spatial: boolean, within?: Locator): Promise<Observed> {
   return { snap: await timed(ctx, 'snapshot', async () => {
     const page = ctx.page;
     const snap = await (within ? snapshotRegion(page, within) : snapshot(page));
-    return spatial ? { ...snap, layout: await layoutSnapshot(page, within) } : snap;
+    return spatial ? { ...snap, layout: await layoutSnapshot(page, within, { compact: true }) } : snap;
   }), events: [...ctx.events] };
 }
 
@@ -43,8 +75,8 @@ export async function observe(ctx: StepContext, spatial: boolean, within?: Locat
  * The recorded form of a judged state (src/core/lock.ts): a hash, so no page text lands in the lock. Without the
  * origin and the query, and without where a download was saved (a fresh temp folder per run): a lock recorded on
  * one host or port replays on another. A spatial claim keeps the layout's relations, not its bounds: a bound moves
- * by a point between two renders of the same screen. The run's values are placeholders in it: a page that shows this run's title
- * where the recorded run showed its own is the same state.
+ * by a point between two renders of the same screen. The run's values are placeholders in it: a page that shows this
+ * run's title where the recorded run showed its own is the same state.
  */
 export function stateHash({ snap, events }: Observed, parameters: RunValues = []): string {
   const generic = (text: string) => parameterize(text, parameters);
@@ -64,17 +96,24 @@ function pathOf(url: string): string {
 }
 
 async function judgeObservation(ctx: StepContext, claims: string[], spatial: boolean, within?: Locator,
-  skip?: (observed: Observed) => boolean): Promise<Judged> {
+  skip?: (observed: Observed) => boolean, ahead: string[] = []): Promise<Judged> {
   const { state, result } = await settledAsk(ctx, {
     // A scoped region can live in a shadow root, outside the main document's mutation observer.
     reobserve: spatial || within !== undefined,
     observe: () => observe(ctx, spatial, within),
     same: sameObserved,
-    ask: ({ snap, events }) => judgeState(snap, claims, events),
-    discard: (unused) => ctx.track(unused.tokens),
+    ask: async (observed): Promise<Judgment> => {
+      const known = within ? null : reuse(ctx, observed, claims, spatial);
+      if (known) return known;
+      const asked = [...claims, ...ahead];
+      const result = await judgeState(observed.snap, asked, observed.events);
+      if (ahead.length) prefetched.set(ctx, { observed, spatial, probabilities: new Map(asked.map((claim, i) => [claim, result.probabilities[i]])) });
+      return { probabilities: result.probabilities.slice(0, claims.length), tokens: result.tokens };
+    },
+    discard: (unused) => { if (!unused.reused) ctx.track(unused.tokens); },
     skip,
   });
-  if (result) ctx.track(result.tokens);
+  if (result && !result.reused) ctx.track(result.tokens);
   return { state, probabilities: result?.probabilities ?? null, spatial };
 }
 
@@ -98,7 +137,7 @@ export async function judgeClaims(ctx: StepContext, claims: string[], within?: s
     return { snap: state.snap, probabilities: probabilities!, state, spatial };
   }
   // Settled, because a client-side route change reaches `load` at once and the claim is about the content.
-  const { state, probabilities, spatial } = await judgeSettled(ctx, claims);
+  const { state, probabilities, spatial } = await judgeSettled(ctx, claims, undefined, await claimsAhead(ctx, claims));
   return { snap: state.snap, probabilities: probabilities!, state, spatial };
 }
 

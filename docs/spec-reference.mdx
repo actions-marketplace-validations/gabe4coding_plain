@@ -180,6 +180,9 @@ An action step names a **target**: a sentence that Jev resolves to one element. 
 
 With several claims, one `fail` makes the step `fail`. Else one `inconclusive` claim makes it `inconclusive`.
 
+In a spec or an MCP batch, an `expect` also sends the claims of the next `expect` steps that have no `within`.
+If the page is the same when such a step runs, plain uses that answer and sends no new request.
+
 A `within` target names a region, for example `main`, a `dialog`, a `form`, a `table` or a list of results.
 Use it on a page that shows more than one thing. It also costs fewer tokens on a large page.
 
@@ -276,7 +279,13 @@ plain also looks inside open shadow roots. A control in a shadow root gets the t
 Identical descriptions get `#1`, `#2` in page order.
 
 Jev classifies each distinct prompt group as semantic or spatial once per browser session.
-For a spec or MCP batch, one request classifies all known groups when the first step needs a model.
+Some groups need no request:
+
+- An English prompt without a word that can name a position, such as left, below, first or next, is semantic.
+- An English prompt with a relation word in lowercase outside quotes, such as left, above or between, is spatial.
+
+A prompt in another language, or a capitalized name such as `the Left field`, goes to Jev.
+For a spec or MCP batch, one request classifies all other known groups when the first step needs a model.
 If the request exceeds the model limit, smaller requests classify the same groups.
 The classification uses resolved targets and claims. Later interactive prompts need another request if their classification is absent.
 An uncertain classification requests spatial evidence. A spatial target also gets rendered bounds for candidates and reference elements, such as headings.
