@@ -4,7 +4,7 @@ import { parse } from 'yaml';
 import { z } from 'zod';
 import { errorMessage } from '../core/results.js';
 import { TagsSchema } from '../core/spec.js';
-import { PICKS_MODES } from '../core/pick-cache.js';
+import { RUN_MODES } from '../core/lock.js';
 import { CAPTURE_MODES, type EngineFlags, type SuiteOptions } from './types.js';
 
 const text = z.string().min(1);
@@ -35,7 +35,7 @@ const ConfigSchema = z.object({
   channel: text.optional(),
   cdp: text.optional(),
   server: text.optional(),
-  picks: z.enum(PICKS_MODES).optional(),
+  mode: z.enum(RUN_MODES).optional(),
 }).strict();
 
 const CONFIG_FILES = ['plain.config.yaml', 'plain.config.yml'];

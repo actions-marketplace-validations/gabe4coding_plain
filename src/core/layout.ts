@@ -68,3 +68,54 @@ export function nativeLayout(items: LayoutItem[], coordinates: string, truncated
     ...(truncated || items.length > listed.length ? [LAYOUT_TRUNCATED] : []),
   ]);
 }
+
+/** Edges this close count as touching, and gaps this close as equal: a bound moves by a point between renders. */
+const TOLERANCE = 4;
+type Direction = 'above' | 'below' | 'left of' | 'right of';
+
+/**
+ * What a recorded spatial target or claim depends on (src/core/lock.ts): for each element of a layout, its nearest
+ * neighbor in each direction ("A is above B"), measured from the bounds with TOLERANCE, without the bounds. A
+ * scroll or a one-point move changes nothing; a swap or a moved reference changes a relation. Names lose their
+ * value and state (typed text, `[checked]`). `subject`: only the lines about that element, so a clock elsewhere on
+ * the screen changes nothing.
+ */
+export function layoutRelations(layout: string, subject?: string): string {
+  const items: { name: string; bounds: Bounds }[] = [];
+  for (const line of layout.split('\n')) {
+    const at = line.lastIndexOf(' bounds=');
+    if (at < 0) continue;
+    try {
+      const bounds = JSON.parse(line.slice(at + ' bounds='.length)) as Bounds;
+      items.push({ name: line.slice(0, at).replace(/ value="(?:[^"\\]|\\.)*"/g, '').replace(/ \[[^\]]*\]/g, '').trim(), bounds });
+    } catch {
+      // a cut line at the end of a truncated layout
+    }
+  }
+  const relations = new Set<string>();
+  for (const item of items) {
+    const nearest: Partial<Record<Direction, { gap: number; names: { name: string; gap: number }[] }>> = {};
+    for (const other of items) {
+      if (item === other) continue;
+      const a = item.bounds;
+      const b = other.bounds;
+      const horizontal = Math.min(a.right, b.right) - Math.max(a.left, b.left) > TOLERANCE;
+      const vertical = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > TOLERANCE;
+      const measured: [Direction, number][] = [];
+      if (horizontal && a.bottom <= b.top + TOLERANCE) measured.push(['above', Math.max(0, b.top - a.bottom)]);
+      if (horizontal && a.top >= b.bottom - TOLERANCE) measured.push(['below', Math.max(0, a.top - b.bottom)]);
+      if (vertical && a.right <= b.left + TOLERANCE) measured.push(['left of', Math.max(0, b.left - a.right)]);
+      if (vertical && a.left >= b.right - TOLERANCE) measured.push(['right of', Math.max(0, a.left - b.right)]);
+      for (const [direction, gap] of measured) {
+        const known = (nearest[direction] ??= { gap, names: [] });
+        known.gap = Math.min(known.gap, gap);
+        known.names.push({ name: other.name, gap });
+      }
+    }
+    for (const [direction, found] of Object.entries(nearest)) {
+      for (const other of found.names) if (other.gap <= found.gap + TOLERANCE) relations.add(`${item.name} is ${direction} ${other.name}.`);
+    }
+  }
+  const about = (line: string) => subject === undefined || line.startsWith(`${subject} is `) || line.endsWith(` ${subject}.`);
+  return [...relations].filter(about).sort().join('\n');
+}

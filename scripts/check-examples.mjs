@@ -19,7 +19,7 @@ const userDocs = [
   ...readdirSync(join(root, 'docs')).filter((n) => n.endsWith('.mdx')).map((n) => join(root, 'docs', n)),
 ];
 // Keys only a config file has (a spec also has `tags` and `timeout`).
-const CONFIG_KEYS = /^(files|workers|retries|bail|maxTokens|grep|grepInvert|reporters|timing|artifacts|specTimeout|headless|profile|channel|cdp|server|picks):/m;
+const CONFIG_KEYS = /^(files|workers|retries|bail|maxTokens|grep|grepInvert|reporters|timing|artifacts|specTimeout|headless|profile|channel|cdp|server|mode):/m;
 const problems = [];
 
 const engineOf = (text) => /^platform:/m.test(text) ? 'mobile' : /^app:/m.test(text) ? 'desktop' : 'browser';

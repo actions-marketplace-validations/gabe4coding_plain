@@ -287,7 +287,7 @@ screen before you try again: text was possibly cleared or typed already. `--time
 
 ### Step timing
 
-The `ms` field of a step result has `total`, `capture` (the tree read), `jev`, `act`, `idle` and `cached`, as on desktop.
+The `ms` field of a step result has `total`, `capture` (the tree read), `jev`, `act` and `idle`, as on desktop.
 Mobile adds two keys:
 
 - `reasked`: Jev asked again on a settled tree because the screen changed (Android).
@@ -307,6 +307,6 @@ Read [Running suites](running.mdx) for all flags, the config file and the exit c
 | Config file | The mobile CLI ignores the browser-only keys, `workers` more than `1`, `timeout: 0` and a trace mode. It prints one note. Read the [shared config file](running.mdx#desktop-and-mobile-in-the-same-folder). |
 | `--retries` | A retry opens a new session and runs the hooks again. It does not reset the app. |
 
-The [pick cache](running.mdx#pick-cache) works as in the browser.
+[Run modes](running.mdx#run-modes) and lock files work as on desktop.
 
 Read [Reporting](reporting.mdx) and [Failure artifacts](artifacts.mdx). Device smoke tests are in [Development](development.mdx).

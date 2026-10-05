@@ -76,8 +76,8 @@ An example summary line:
 ```
 
 `passed` includes the flaky specs. `failed` includes `inconclusive`, `error` and load errors. The calls and tokens
-include all attempts. The time is the total time of the run. If the [pick cache](running.mdx#pick-cache) supplied
-picks, the line also shows `N cached picks` after the tokens.
+include all attempts. The time is the total time of the run. If steps used a lock file, the line also shows
+`N replayed` and `N healed` after the tokens. Refer to [run modes](running.mdx#run-modes).
 
 ## JSONL output
 
@@ -135,8 +135,8 @@ with the detail:
 Only final results count in `failures` and `errors`. Thus a flaky pass stays a pass.
 
 `<properties>` on the suite and on each testcase hold `jevCalls`, `tokens`, `provider`, `model` and `attempts`.
-The suite properties also hold `cachedPicks`, the number of picks from the
-[pick cache](running.mdx#pick-cache). The testcase values include all retries.
+The suite properties also hold `replayed` and `healed`, the number of steps that replayed a lock file entry and
+that Jev healed. Refer to [run modes](running.mdx#run-modes). The testcase values include all retries.
 
 `<system-out>` holds the step lines, with the same icons and labels as `text`. When a spec has more than one
 attempt, each attempt starts with `attempt N:` (from `1`). Each artifact of each attempt adds an attachment line
@@ -153,20 +153,20 @@ plain escapes XML special characters and removes characters that XML 1.0 does no
 
 ## JSON report
 
-The JSON file holds the full run report, with `schemaVersion: 1` at the top level:
+The JSON file holds the full run report, with `schemaVersion: 2` at the top level:
 
 | Field | Contents |
 |---|---|
-| `schemaVersion` | `1` |
+| `schemaVersion` | `2` |
 | `engine` | `browser`, `desktop` or `mobile` |
 | `provider`, `model` | The Jev provider and model |
 | `startedAt`, `durationMs` | Start time (ISO) and run time in milliseconds |
 | `status` | `pass` or `fail`. A flaky pass counts as `pass`. |
-| `totals` | `jevCalls`, `tokens`, `passed`, `failed`, `flaky`, `skipped`, `cachedPicks` |
+| `totals` | `jevCalls`, `tokens`, `passed`, `failed`, `flaky`, `skipped`, `replayed`, `healed` |
 | `stopped` | `bail` or `max-tokens`, only when a spec never started |
 | `specs[]` | `file`, `name`, `tags`, `status`, `flaky`, `attempts`, and `loadError` or `skipReason` when they apply |
 | `specs[].attempts[]` | `attempt` (from `0`), `name`, `status`, `steps`, `jevCalls`, `totalTokens`, `durationMs`, `artifacts`, and `error` when the spec stopped before its first step |
-| `steps[]` | `step` (label), `status`, `detail`, `ms` (time per phase), and `cached: true` for a pick from the pick cache |
+| `steps[]` | `step` (label), `status`, `detail`, `ms` (time per phase), `replayed: true` when the step used its recorded locators, and `healed: true` when Jev repaired the step |
 | `artifacts[]` | `kind` (`screenshot`, `trace` or `dump`), absolute `path`, and `step` (from `0`) when a step made it |
 
 A step status is `pass`, `fail`, `inconclusive`, `error` or `skipped`. `flaky` is a separate boolean. A spec that

@@ -30,10 +30,10 @@ Do not put the API key or a personal device ID in the YAML. The specs read the d
 Appium listens on `http://127.0.0.1:4723` by default. If your server uses another address, set
 `PLAIN_APPIUM_URL` or add `--server http://127.0.0.1:4725` to the command.
 
-A run writes a pick cache file next to the spec, for example `examples/mobile/android.picks.json`.
-The next run uses the stored picks, and its step details show `(cached pick)`.
-If you do not want these files in the checkout, add `--picks off` to the command.
-Read [Pick cache](../../docs/running.mdx#pick-cache).
+A passing run writes a lock file next to the spec, for example `examples/mobile/android.lock.json`.
+The next run replays the recorded elements, and its step details show `(replayed)`.
+If you do not want these files in the checkout, add `--mode judge` to the command and delete the file.
+Read [Run modes](../../docs/running.mdx#run-modes).
 
 ## Fixture examples
 
@@ -121,8 +121,9 @@ Before the first run:
 - Complete the onboarding and accept the permissions.
 - Set the device language to English and open the contact list.
 
-The spec expects that the phone field starts with `+1`. Its first step taps "Navigate up" with `optional: true`,
-so a run can start on the contact page that the last run left. Each run adds one more Alex Example contact.
+The spec expects that the phone field starts with `+1`. Its first two steps are optional: "Navigate up" leaves the
+contact page that the last run left, and "Discard" closes a form that a stopped run left open. Each run adds one
+more Alex Example contact.
 
 ### Apple Calendar on iOS
 
@@ -131,7 +132,10 @@ so a run can start on the contact page that the last run left. Each run adds one
 Before the first run:
 
 - Use an iOS simulator with the English (UK) locale. The day and month names must match British English.
-- Open Calendar on its main view, with the Add and Search buttons visible.
+
+Calendar opens on the last screen that it showed. Thus the last steps of the spec close the event and Search, and
+tap Today: the next run starts on the main view. The first steps are optional: they close an event, Search or an
+unsaved event that a stopped run left open. You can run the spec again and again with no manual steps.
 
 The hook [ios-calendar.mjs](../hooks/ios-calendar.mjs) makes the test data for each run:
 

@@ -75,7 +75,7 @@ export function junitXml(report: RunReport): string {
     '<?xml version="1.0" encoding="UTF-8"?>',
     `<testsuites name="plain ${attr(report.engine)}" ${counts}>`,
     `  <testsuite name="plain" timestamp="${attr(report.startedAt)}" ${counts}>`,
-    properties({ jevCalls: report.totals.jevCalls, tokens: report.totals.tokens, cachedPicks: report.totals.cachedPicks,
+    properties({ jevCalls: report.totals.jevCalls, tokens: report.totals.tokens, replayed: report.totals.replayed, healed: report.totals.healed,
       provider: report.provider, model: report.model, attempts: report.specs.reduce((sum, spec) => sum + spec.attempts.length, 0) }),
     ...report.specs.map((spec) => testCase(spec, report)),
     '  </testsuite>', '</testsuites>', '',

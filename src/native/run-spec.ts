@@ -1,9 +1,9 @@
+import { parametersOf } from '../core/parameters.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { startHooks, type HooksRunner, type HookSpec } from '../core/hooks.js';
 import type { PlaceholderValues } from '../core/interpolate.js';
 import { isFailure, type Status, type StepResult, type TestResult } from '../core/results.js';
-import { withCacheDump } from '../core/pick-cache.js';
 import { observerCalls } from '../suite/observe.js';
 import { specDeadline } from '../suite/spec-timeout.js';
 import type { CaptureTarget, RunObserver, SpecInfo } from '../suite/types.js';
@@ -20,8 +20,8 @@ export async function runNativeSpec<S extends NativeStep, P extends NativeSpec<S
   observer?: RunObserver, info?: SpecInfo, specTimeout?: number): Promise<TestResult> {
   const deadline = specDeadline(spec.timeout ?? specTimeout, performance.now());
   const steps: StepResult[] = [];
-  const { picks, ...specInfo }: SpecInfo = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
-  session.picks = picks;
+  const { lock, ...specInfo }: SpecInfo = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
+  session.lock = lock;
   session.goal = spec.goal;
   const observe = observerCalls(observer, specInfo);
   const target: CaptureTarget = {
@@ -48,12 +48,13 @@ export async function runNativeSpec<S extends NativeStep, P extends NativeSpec<S
     }
     setupDone = true;
     const runSteps = await open({ env: spec.env, hooks: data });
+    session.parameters = parametersOf({ env: spec.env, hooks: data });
     session.prepareEvidence(runSteps);
     opened = true;
     await observe('sessionOpen', { target });
     for (const step of runSteps) {
-      const ran = await deadline.step(() => session.run(step), () => session.label(step));
-      const result = withCacheDump(ran, picks?.endStep(ran.status));
+      const result = await deadline.step(() => session.run(step), () => session.label(step));
+      lock?.endStep(result);
       await record(result);
       if (isFailure(result.status)) {
         status = result.status;

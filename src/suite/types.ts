@@ -1,7 +1,7 @@
 import type { Page } from 'playwright';
 import type { Status, StepResult, TestResult } from '../core/results.js';
 import type { LoadOptions } from '../core/spec.js';
-import type { PickAttempt, PicksMode } from '../core/pick-cache.js';
+import type { LockAttempt, RunMode } from '../core/lock.js';
 
 export type Engine = 'browser' | 'desktop' | 'mobile';
 export type StopReason = 'bail' | 'max-tokens';
@@ -38,7 +38,7 @@ export interface RunReport {
   startedAt: string;
   durationMs: number;
   specs: SpecReport[];
-  totals: { jevCalls: number; tokens: number; passed: number; failed: number; flaky: number; skipped: number; cachedPicks: number };
+  totals: { jevCalls: number; tokens: number; passed: number; failed: number; flaky: number; skipped: number; replayed: number; healed: number };
   stopped?: StopReason;
   status: 'pass' | 'fail';
 }
@@ -57,8 +57,8 @@ export interface SpecInfo {
   name: string;
   tags: string[];
   attempt: number;
-  /** This attempt's pick cache, from the suite; engines take it off before observers see the info. */
-  picks?: PickAttempt;
+  /** This attempt's lock, from the suite; the engine takes it off before observers see the info. */
+  lock?: LockAttempt;
 }
 
 export interface RunObserver {
@@ -104,8 +104,8 @@ export interface SuiteOptions {
   timing: boolean;
   artifacts?: { dir: string; screenshot: CaptureMode; trace: CaptureMode };
   specTimeout?: number;
-  /** `on` (default) reads and writes the pick cache, `read` never writes, `off` neither. */
-  picks?: PicksMode;
+  /** judge, no-judge or auto-healing (src/core/lock.ts). */
+  mode?: RunMode;
 }
 
 export type EngineFlags = Record<string, string | boolean | undefined>;
