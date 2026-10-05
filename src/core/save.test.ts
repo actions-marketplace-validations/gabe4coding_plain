@@ -51,17 +51,19 @@ test('writeSaved locks only the saved steps, removes a lock with no entry left, 
   }
 });
 
-test('writeSaved gives an existing spec and lock its mode, not only new files', { skip: process.platform === 'win32' }, () => {
+test('writeSaved gives an existing spec and lock its mode and replaces all their text', { skip: process.platform === 'win32' }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'plain-save-'));
   try {
     const file = join(dir, 'flow.yaml');
     for (const path of [file, lockPath(file)]) {
-      writeFileSync(path, 'old\n');
+      writeFileSync(path, 'x'.repeat(4096));
       chmodSync(path, 0o644);
     }
     writeSaved(file, { name: 'flow', steps }, recorded, 0o600);
     assert.equal(statSync(file).mode & 0o777, 0o600);
     assert.equal(statSync(lockPath(file)).mode & 0o777, 0o600);
+    assert.deepEqual(parse(readFileSync(file, 'utf8')), { name: 'flow', steps });
+    assert.equal(parseLock(readFileSync(lockPath(file), 'utf8'))?.size, 2);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
