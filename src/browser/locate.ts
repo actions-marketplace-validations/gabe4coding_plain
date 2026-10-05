@@ -61,17 +61,19 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
     const misses: number[] = [];
     for (const i of jevIndices) {
       const entry = lock.lookup(refOf(targets[i]));
-      const replayed = !entry || !isTargetEntry(entry) ? { element: null, detail: 'no recorded locator for this step' }
-        : entry.marginal && lock.judges ? { element: null, detail: 'a marginal recorded pick' }
-          : await timed(ctx, 'replay', () => replayTarget(ctx, kind, entry))
-            // A lock file edited by hand or merged badly: a miss that Jev repairs, not a step error.
-            .catch((error: unknown) => ({ element: null, detail: `recorded locator ${entry.text} is unusable: ${actionError(error)}` }));
+      // A marginal pick replays only where Jev cannot be asked again.
+      const recorded = entry && isTargetEntry(entry) && !(entry.marginal && lock.judges) ? entry : undefined;
+      const replayed = !recorded ? { element: null, detail: 'no recorded locator for this step' }
+        : await timed(ctx, 'replay', () => replayTarget(ctx, kind, recorded))
+          // A lock file edited by hand or merged badly: a miss that Jev repairs, not a step error.
+          .catch((error: unknown) => ({ element: null, detail: `recorded locator ${recorded.text} is unusable: ${actionError(error)}` }));
       if (replayed.element) {
         results[i] = { element: replayed.element, detail: replayed.detail, tokens: 0, usedJev: false };
         if (ctx.locked) ctx.locked.replayed++;
       } else if (lock.judges) {
         misses.push(i);
-        missed.set(i, replayed.detail);
+        // Only a recorded locator that missed is healed: with no entry or a marginal pick, Jev picks as in judge mode.
+        if (recorded) missed.set(i, replayed.detail);
       } else {
         results[i] = { element: null, detail: `no-judge: ${replayed.detail}; run with --mode auto-healing or judge to record it`,
           tokens: 0, usedJev: false };
