@@ -1,6 +1,6 @@
 import type { ElementHandle, Frame, JSHandle, Locator, Page } from 'playwright';
 import type { Candidate } from '../core/automation.js';
-import { joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations, type LayoutItem } from '../core/layout.js';
+import { boundsText, joinLayout, LAYOUT_TRUNCATED, MAX_LAYOUT_ELEMENTS, neighborRelations, type LayoutItem } from '../core/layout.js';
 import { frameLabel } from './frames.js';
 import { PASSWORD_MASK } from './page.js';
 
@@ -204,8 +204,12 @@ async function captureLayout(root: Locator, label: string, remaining: number, ti
   }
 }
 
-/** Bounded spatial evidence for a page or exactly one region, including its open shadow roots. */
-export async function layoutSnapshot(page: Page, within?: Locator): Promise<string> {
+/**
+ * Bounded spatial evidence for a page or exactly one region, including its open shadow roots. `compact`, for a judge:
+ * a page without iframes drops the `main: ` label from its rows, and the neighbors are grouped per element. Judgments
+ * were the same on the e2e spatial claims; picks lost confidence, so they keep the full text.
+ */
+export async function layoutSnapshot(page: Page, within?: Locator, { compact = false } = {}): Promise<string> {
   // A region's frame goes through the same embedding visibility check as a whole page's frames.
   let regionFrame: Frame | null | undefined;
   if (within) {
@@ -249,11 +253,17 @@ export async function layoutSnapshot(page: Page, within?: Locator): Promise<stri
       lines.push(`Layout unavailable for ${label}: missing geometry is insufficient evidence.`);
     }
   }
-  const observations = items.map((item) => `${item.description} bounds=${JSON.stringify(item.bounds)}`);
+  if (compact && roots.length === 1 && roots[0].label === 'main') {
+    for (const item of items) {
+      item.description = item.description.replace(/^main: /, '');
+      item.name = item.name.replace(/^main: /, '');
+    }
+  }
+  const observations = items.map((item) => `${item.description} bounds=${boundsText(item.bounds)}`);
   if (items.some((item) => item.description.includes(' collapsed='))) {
     observations.unshift('For a collapsed native select, displayed_selection is the only displayed option; options_not_displayed are not visible. Its label is the control name, separate from its displayed selection.');
   }
-  const neighbors = neighborRelations(items);
+  const neighbors = neighborRelations(items, compact);
   if (neighbors.length) observations.push('Measured neighbors (nearest with perpendicular overlap; other relations still use bounds):', ...neighbors);
   return joinLayout([...lines.slice(0, headerLines), ...observations, ...lines.slice(headerLines)]);
 }

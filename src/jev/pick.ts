@@ -1,6 +1,7 @@
 import type { Candidate } from '../core/automation.js';
 import { ask, choiceChunks, isTooLong, MAX_CHOICE_OPTIONS, type Question } from './ask.js';
 import { decide } from './decide.js';
+import { boundsText } from '../core/layout.js';
 
 /** At most four parallel requests per pick. Candidates are ordered so that a cut drops nav and footer links first. */
 export const MAX_CANDIDATES = MAX_CHOICE_OPTIONS * 4;
@@ -67,16 +68,26 @@ async function pickSplittingWhenTooLong(candidates: Candidate[], instructions: s
 }
 
 /**
+ * A browser description's container part (src/browser/candidates.ts): last, often a whole row's text, and always
+ * ` context: <kind> name=|heading=|text=`, so a name that contains the word ` context: ` stays whole.
+ */
+const CONTEXT = / context: [\w-]+ (?:name|heading|text)=.*$/;
+export const withoutContext = (desc: string): string => desc.replace(CONTEXT, '');
+
+/**
  * One Choice question per instruction, all in one request. The descriptions are in both `elements` and the
- * criteria on purpose: sending them only once saves tokens but lowers the pick probability.
+ * criteria on purpose: sending them only once saves tokens but lowers the pick probability (benchmark-picks, 2026-10:
+ * 9 fewer right with the goal). The criteria leave out the container context, which `elements` keeps: the same picks
+ * for 20% fewer tokens on content pages.
  * `instructions` are a list in the state, plus `today`, so "the earliest day after today" has one answer.
  * `goal` is state only, never named in the question: the target's words still win when they disagree with it.
  */
 async function pickChunk(candidates: Candidate[], instructions: string[], page: PickPage): Promise<PickResult[]> {
   const criteria: Record<string, string> = { none: 'No listed element matches the instruction' };
   const coordinates = page.coordinates ?? 'main viewport CSS pixels';
-  for (const candidate of candidates) criteria[String(candidate.id)] = candidate.desc +
-    (candidate.bounds ? ` bounds=${JSON.stringify(candidate.bounds)} (${coordinates}; tree order is not visual order)` : '');
+  // The coordinate space and the tree-order rule are said once, in `geometry`, not after every candidate's bounds.
+  for (const candidate of candidates) criteria[String(candidate.id)] = withoutContext(candidate.desc) +
+    (candidate.bounds ? ` bounds=${boundsText(candidate.bounds)}` : '');
 
   const state = {
     url: page.url,
@@ -88,9 +99,10 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
       geometry: `Bounds are rendered edges in ${coordinates}. x increases right and y increases down. Equal vertical bounds are neither above nor below each other. Use bounds for physical relations, not tree order. Missing required geometry cannot establish a spatial match.`,
     } : {}),
     instructions,
-    // `editable` and `state` are for the pick cache only: Jev never sees them.
-    elements: candidates.map(({ id, desc, frameIndex, bounds }) => ({ id, desc,
-      ...(frameIndex === undefined ? {} : { frameIndex }), ...(bounds ? { bounds } : {}) })),
+    // One `id: description` line per element: JSON objects cost tokens per key and pick no better; bounds only in
+    // the criteria, since a second copy here lowers spatial confidence. An iframe element's description starts with
+    // its frame. `editable` and `state` are for the pick cache only.
+    elements: candidates.map(({ id, desc }) => `${id}: ${desc}`).join('\n'),
   };
   const questions: Question[] = instructions.map((_, i) => ({
     kind: 'choice',

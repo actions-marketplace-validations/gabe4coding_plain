@@ -287,7 +287,8 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     const outcomes = [];
     for (const [index, step] of steps.entries()) {
       signal.throwIfAborted(); // an action in flight may finish; cancellation stops the later ones
-      const result = await execute(step, parsed[index]);
+      current.ctx.upcoming = resolved.slice(index + 1);
+      const result = await execute(step, parsed[index]).finally(() => { current.ctx.upcoming = undefined; });
       outcomes.push({ index, ...result });
       if (result.status !== 'pass') break;
     }
