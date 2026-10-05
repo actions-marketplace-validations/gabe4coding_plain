@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, writeFileSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ComputerSession, runComputerSpec } from './session.js';
@@ -231,11 +231,13 @@ test('save writes a value typed into a secure text field as ${env.password}, and
     assert.deepEqual(replay.log.filter((e) => Array.isArray(e) && e[0] === 'fill').map((e) => (e as string[])[2]),
       ['replayed-1', 'replayed-1', 'Hello', 'replayed-2']);
 
-    // A new recording forgets the passwords of the last one.
+    // A new recording forgets the passwords of the last one. Its save narrows the existing file to owner-only.
     await call('open', { app: 'Fixture', activate: false });
     await fill('Message', 'hunter2', false);
+    chmodSync(path, 0o644);
     assert.equal((await call('save', { path })).env, undefined);
     assert.match(readFileSync(path, 'utf8'), /hunter2/);
+    if (process.platform !== 'win32') assert.equal(statSync(path).mode & 0o777, 0o600);
   } finally {
     for (const [key, value] of Object.entries(saved)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
     await close(); await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true });
