@@ -161,6 +161,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     if (result.status !== 'pass' && !isAssertion(step) && this.locked.replayed && this.lock?.mode === 'auto-healing') {
       const failed = result.detail;
       this.lock.restartStep();
+      // The result is the second attempt's, and it picks every target with Jev: nothing replayed.
+      this.locked.replayed = 0;
       this.healing = true;
       try {
         result = await once();
@@ -220,7 +222,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
           this.locked.replayed++;
         } else if (lock.judges) {
           asked.push(i);
-          missed.set(i, replayed.detail);
+          // Only a recorded element that missed is healed: with no entry or a marginal pick, Jev picks as in judge mode.
+          if (entry) missed.set(i, replayed.detail);
         } else {
           results[i] = { element: null, detail: `no-judge: ${replayed.detail}; run with --mode auto-healing or judge to record it`, tokens: 0, usedJev: false };
         }
