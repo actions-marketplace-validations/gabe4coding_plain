@@ -100,3 +100,26 @@ What the device runs found and fixed:
   the computer that recorded it.
 - The examples left the app on another screen than the one they start on: they now end where they start, with
   optional first steps that recover from a run that stopped halfway.
+
+## Step time against main (2026-10-05)
+
+`scripts/benchmark-steps.mjs --runs 3` on the 21 passing e2e specs (`e2e/*.yaml` without `expect-fail`, 109
+steps), served by `e2e/site.mjs` on this computer, so a difference is plain's and not a remote site's. `main`
+(de9c4c1, `--picks off`) against this branch merged with it, `--mode judge`, then `--mode no-judge` on the lock files
+the judge runs wrote. Medians per run:
+
+| | main | judge | no-judge |
+|---|---:|---:|---:|
+| Wall time | 51.6 s | 54.6 s | **33.7 s** |
+| Overhead (step time minus the page's own action time) | 33.4 s | 36.7 s | **15.5 s** |
+| Jev time | 18.0 s | 18.6 s | 0 |
+| Locator recording | | 0.8 s | |
+| Locator replay | | | 1.5 s |
+| Pick calls, pick + claim tokens | 48, 83k | 48, 83k | **0, 0** |
+
+Every one of the 109 step statuses passed in all nine runs. Recording costs about 17 ms per Jev pick; the rest of
+the judge median's 3.0 s is Jev latency and settle time on code paths this change does not touch (one judge run took
+142.9 s, 108 s of it in Jev). No-judge removes 35% of the wall time and all Jev cost.
+
+The same benchmark on `examples/` measured nothing: the-internet.herokuapp.com, which 16 of its specs use, failed to
+load for 11 to 15 of them in every run, on main and on the branch.
