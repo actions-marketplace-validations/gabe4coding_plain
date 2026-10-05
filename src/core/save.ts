@@ -1,4 +1,4 @@
-import { closeSync, fchmodSync, openSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, fchmodSync, ftruncateSync, openSync, rmSync, writeFileSync } from 'node:fs';
 import { stringify } from 'yaml';
 import { entryKey, formatLock, lockPath, type LockEntry, type LockRef } from './lock.js';
 
@@ -68,15 +68,19 @@ export function writeSaved(
   return { lock: lockFile };
 }
 
-/** writeFileSync applies `mode` only to a file it creates: an existing file is narrowed before it gets the text. */
+/**
+ * writeFileSync applies `mode` only to a file it creates. An existing file is narrowed first and emptied only after
+ * that, so a chmod that fails (a file of another user) leaves it as it was.
+ */
 function write(file: string, text: string, mode: number | undefined): void {
   if (mode === undefined) {
     writeFileSync(file, text);
     return;
   }
-  const fd = openSync(file, 'w', mode);
+  const fd = openSync(file, constants.O_WRONLY | constants.O_CREAT, mode);
   try {
     fchmodSync(fd, mode);
+    ftruncateSync(fd);
     writeFileSync(fd, text);
   } finally {
     closeSync(fd);
