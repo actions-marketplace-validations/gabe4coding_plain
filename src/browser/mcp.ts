@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';
 import { z } from 'zod';
 import { stringify } from 'yaml';
@@ -7,8 +7,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StepKind } from '../core/step-kind.js';
 import { parseStep, type Spec, type Step } from '../core/spec.js';
 import { interpolate } from '../core/interpolate.js';
+import { parametersOf } from '../core/parameters.js';
 import { startHooks, placeholderPaths, type HooksRunner } from '../core/hooks.js';
 import type { StepResult } from '../core/results.js';
+import { entryKey, formatLock, lockPath, LockStore } from '../core/lock.js';
 import type { Snapshot } from '../core/automation.js';
 import { ariaChanges, CHANGES_ENABLED, CHANGES_NOTE, type AriaChanges } from '../core/aria-changes.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from '../core/snapshot-view.js';
@@ -98,7 +100,9 @@ const SAVE_DESCRIPTION =
   'and ${hooks.*} placeholders are kept as written. `path` is relative to the server\'s working directory; an existing ' +
   'file there is overwritten without warning. `name` defaults to the session name. A value typed into a password ' +
   'field is never written: the step gets ${env.password} and the spec an `env` block, {password: $PASSWORD} ' +
-  '(password2 and $PASSWORD_2 for a second value); the result lists that block. Set the variables before replay.';
+  '(password2 and $PASSWORD_2 for a second value); the result lists that block. Set the variables before replay. ' +
+  'It also writes the lock file next to the spec (`lock` in the result): the locators and passing states of the saved ' +
+  'steps, so `plain --mode no-judge` replays the spec with no Jev call.';
 
 type PageCapture = { title: string; url: string; aria: string };
 
@@ -115,6 +119,11 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   const transcript: Record<string, unknown>[] = [];
   /** Each value typed into a password field, with the `env` key that `save` writes in its place. */
   const secretKeys = new Map<string, string>();
+  /**
+   * What each passing step needed from Jev, keyed by its transcript position: `save` writes it as the spec's lock
+   * file, so the saved spec replays in no-judge at once (src/core/lock.ts).
+   */
+  const recorder = new LockStore('judge').attempt();
   /** Every step result, pass or not: what teardown sees. */
   const results: StepResult[] = [];
   let totalTokens = 0;
@@ -167,7 +176,16 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   async function execute(step: Record<string, unknown>, parsed: Step) {
     const current = activeSession();
     const before = totalTokens;
-    const result = await runStepSafely(current.ctx, parsed, (resolved) => withPlaceholders(resolved));
+    // The position the step takes in the transcript if it passes; the file is set by `save`.
+    const at = { file: '', index: transcript.length };
+    current.ctx.parameters = parametersOf({ env: {}, hooks: data });
+    let result: StepResult;
+    try {
+      result = await runStepSafely(current.ctx, { ...parsed, at }, (resolved) => withPlaceholders(resolved));
+    } finally {
+      current.ctx.step = undefined; // a later `find` or `ask` must not record under this step
+    }
+    recorder.endStep(result);
     results.push(result);
     if (result.status === 'pass') transcript.push(await asSaved(step, parsed)); // placeholders kept for `save`
     return {
@@ -229,6 +247,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     if (!session) {
       if (headed !== undefined) sessionOpts.headed = headed;
       session = await openSession(spec, sessionOpts, track);
+      session.ctx.lock = recorder;
       spec.url = url;
     }
     if (goal) spec.goal = goal;
@@ -369,7 +388,12 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     const secrets = [...secretKeys.values()].map((key, i) => [key, i ? `$PASSWORD_${i + 1}` : '$PASSWORD']);
     const env = secrets.length ? { env: Object.fromEntries(secrets) } : {};
     writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...goal, ...hooks, ...env, steps: transcript }));
-    return ok({ path: filePath, steps: transcript.length, ...env });
+    const entries = new Map(recorder.recorded.filter(({ ref }) => ref.at.index < transcript.length)
+      .map(({ ref, entry }) => [entryKey(ref), entry] as const));
+    const lockFile = lockPath(filePath);
+    if (entries.size) writeFileSync(lockFile, formatLock(entries));
+    else rmSync(lockFile, { force: true });
+    return ok({ path: filePath, steps: transcript.length, ...(entries.size ? { lock: lockFile } : {}), ...env });
   }));
 
   let shuttingDown = false;

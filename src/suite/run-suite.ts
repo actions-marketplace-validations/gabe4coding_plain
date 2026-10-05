@@ -1,6 +1,6 @@
 import { provider, MODEL_BY_PROVIDER } from '../jev/provider.js';
 import { warmUp } from '../jev/ask.js';
-import { PickStore } from '../core/pick-cache.js';
+import { LockStore } from '../core/lock.js';
 import { errorMessage } from '../core/results.js';
 import { artifactsObserver } from './artifacts.js';
 import { createReporters } from './reporters/index.js';
@@ -42,25 +42,28 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, se
   let providerName = '';
   let model = '';
   const reports: SpecReport[] = [];
-  // One pick cache per run; its sidecars are written once, after the last spec.
-  let picks: PickStore | undefined;
-  let cachedPicks = 0;
+  // One lock per run; its sidecars are written once, after the last spec.
+  const mode = opts.mode ?? 'auto-healing';
+  let lock: LockStore | undefined;
+  let replayed = 0;
+  let healed = 0;
   try {
     await emit('runStart', { engine: engine.engine, specs: selected.map(({ file, name, tags }) => ({ file, name, tags })) });
-    if (selected.length) {
+    if (selected.length && mode === 'no-judge') {
+      console.error('plain: no-judge: replaying lock files, no Jev call');
+    } else if (selected.length) {
       const chosen = services.provider();
       providerName = chosen;
       model = MODEL_BY_PROVIDER[chosen];
-      if (engine.engine === 'browser') console.error(`plain: Jev via ${chosen} (${model})`);
+      if (engine.engine === 'browser') console.error(`plain: Jev via ${chosen} (${model}), mode ${mode}`);
       services.warmUp();
-      // One model id for both providers: switching provider keeps the sidecars, a model upgrade drops them.
-      picks = new PickStore(opts.picks ?? 'on', MODEL_BY_PROVIDER.typesafe);
     }
+    if (selected.length) lock = new LockStore(mode);
 
     const runAttempt = async (loaded: Loaded<S>, attemptNumber: number): Promise<Attempt> => {
       const began = Date.now();
-      const handle = picks?.attempt(attemptNumber);
-      const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber, ...(handle ? { picks: handle } : {}) };
+      const handle = lock?.attempt(attemptNumber);
+      const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber, ...(handle ? { lock: handle } : {}) };
       const captured: Artifact[] = [];
       let status = 'error';
       try {
@@ -71,9 +74,10 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, se
         return { name: loaded.name, status: 'error', steps: [], jevCalls: 0, totalTokens: 0, error: `${error}`,
           attempt: attemptNumber, durationMs: Date.now() - began, artifacts: captured };
       } finally {
-        // A passing attempt stores its new picks; a failing one drops the cached picks it used, so Jev judges the retry.
+        // Only a passing attempt writes what it recorded: a failed run must not overwrite a good lock.
         if (handle) {
-          cachedPicks += handle.cachedPicks;
+          replayed += handle.replayed;
+          healed += handle.healed;
           handle.finish(status === 'pass');
         }
       }
@@ -96,7 +100,7 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, se
   } finally {
     await engine.close?.();
   }
-  picks?.write();
+  lock?.write();
 
   // The first spec the scheduler did not start (in input order) names the stop.
   const stopped = reports.find((spec) => spec.skipReason)?.skipReason;
@@ -107,7 +111,7 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, se
     startedAt,
     durationMs: Date.now() - start,
     specs: reports,
-    totals: totalsOf(reports, cachedPicks),
+    totals: totalsOf(reports, replayed, healed),
     ...(stopped ? { stopped } : {}),
     status: reports.every((spec) => spec.status === 'pass') ? 'pass' : 'fail',
   };
@@ -140,7 +144,7 @@ function listReport<S>(engine: SuiteEngine<S>, entries: LoadOutcome<S>[], starte
     durationMs: Date.now() - start,
     specs: broken,
     status: broken.length ? 'fail' : 'pass',
-    totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0, cachedPicks: 0 },
+    totals: { jevCalls: 0, tokens: 0, passed: 0, failed: broken.length, flaky: 0, skipped: 0, replayed: 0, healed: 0 },
   };
 }
 
@@ -191,8 +195,8 @@ function sessionObserver(observers: NamedObserver[], notify: NotifyObserver, cap
   };
 }
 
-function totalsOf(reports: SpecReport[], cachedPicks: number): Totals {
-  const totals: Totals = { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, cachedPicks };
+function totalsOf(reports: SpecReport[], replayed: number, healed: number): Totals {
+  const totals: Totals = { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, replayed, healed };
   for (const spec of reports) {
     for (const attempt of spec.attempts) {
       totals.jevCalls += attempt.jevCalls;

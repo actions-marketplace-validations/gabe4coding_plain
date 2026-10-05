@@ -5,13 +5,13 @@
 // are reported apart, since a wait that runs to its timeout by design is not overhead.
 //
 //   node scripts/benchmark-steps.mjs [--cli dist/cli.js] [--runs 3] [--out result.json] [--compare base.json]
-//     [--picks on|read|off] [--dir examples] [spec.yaml ...]
+//     [--mode judge|no-judge|auto-healing] [--dir examples] [spec.yaml ...]
 //
 // Defaults to every <dir>/*.yaml (examples/) except google-flights (live third-party site) and login-fails
 // (fails by design). Needs a Jev key, like any spec run. Build first (npm run build).
-// --picks is passed to the CLI (pick cache, docs/running.mdx); a run with it on writes *.picks.json next to the
+// --mode is passed to the CLI (run modes, docs/running.mdx); judge and auto-healing write *.lock.json next to the
 // specs, so point --dir at a scratch copy of examples/, never at the repository's. Each run also reports
-// pick/claim calls and tokens (scripts/count-jev.mjs), cached picks and every step's status (JSON report).
+// pick/claim calls and tokens (scripts/count-jev.mjs), replayed and healed steps and every step's status (JSON report).
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -20,7 +20,7 @@ import { parseArgs } from 'node:util';
 
 const { values, positionals } = parseArgs({
   options: { cli: { type: 'string', default: 'dist/cli.js' }, runs: { type: 'string', default: '3' }, out: { type: 'string' }, compare: { type: 'string' },
-    picks: { type: 'string' }, dir: { type: 'string', default: 'examples' } },
+    mode: { type: 'string' }, dir: { type: 'string', default: 'examples' } },
   allowPositionals: true,
 });
 const specs = positionals.length
@@ -28,12 +28,12 @@ const specs = positionals.length
   : readdirSync(values.dir).filter((f) => f.endsWith('.yaml') && !/google-flights|login-fails/.test(f)).map((f) => path.join(values.dir, f));
 const counter = new URL('./count-jev.mjs', import.meta.url).href;
 
-// Pick cache and per-step outcome from the JSON report: cached picks, and every step's status in order.
+// Lock use and per-step outcome from the JSON report: replayed and healed steps, and every step's status in order.
 function outcome(file) {
   let report;
-  try { report = JSON.parse(readFileSync(file, 'utf8')); } catch { return { cachedPicks: 0, statuses: [] }; }
+  try { report = JSON.parse(readFileSync(file, 'utf8')); } catch { return { replayed: 0, healed: 0, statuses: [] }; }
   const statuses = report.specs.flatMap((spec) => (spec.attempts.at(-1)?.steps ?? []).map((step) => `${spec.name} › ${step.step}: ${step.status}`));
-  return { cachedPicks: report.totals.cachedPicks ?? 0, statuses };
+  return { replayed: report.totals.replayed ?? 0, healed: report.totals.healed ?? 0, statuses };
 }
 
 function parse(stdout) {
@@ -66,16 +66,15 @@ for (let i = 0; i < Number(values.runs); i++) {
   const json = path.join(scratch, 'report.json'), count = path.join(scratch, 'count.json');
   const start = Date.now();
   const res = spawnSync('node', ['--import', counter, values.cli, '--headless', '--timing', '--reporter', 'text', '--reporter', `json:${json}`,
-    ...(values.picks ? ['--picks', values.picks] : []), ...specs],
+    ...(values.mode ? ['--mode', values.mode] : []), ...specs],
   { encoding: 'utf8', maxBuffer: 64 << 20, env: { ...process.env, PLAIN_BENCH_COUNT: count, PLAIN_BENCH_DIST: path.dirname(path.resolve(values.cli)) } });
   let jev = {};
   try { jev = JSON.parse(readFileSync(count, 'utf8')); } catch {}
   const run = { wall: Date.now() - start, ...parse(res.stdout), jev, ...outcome(json) };
   rmSync(scratch, { recursive: true, force: true });
   runs.push(run);
-  const hitRate = run.cachedPicks + (jev.pickTargets ?? 0) ? run.cachedPicks / (run.cachedPicks + jev.pickTargets) : 0;
   console.error(`run ${i + 1}: wall=${run.wall} overhead=${run.overhead} jev=${run.phases.jev ?? 0} action=${run.phases.action ?? 0} skipped=${run.skippedMs} failedSpecs=${run.failed}` +
-    ` picks=${jev.pickCalls ?? '?'} pickTokens=${jev.pickTokens ?? '?'} claims=${jev.judgeCalls ?? '?'} claimTokens=${jev.judgeTokens ?? '?'} routes=${jev.routeCalls ?? '?'} routeGroups=${jev.routeGroups ?? '?'} cached=${run.cachedPicks} hitRate=${(hitRate * 100).toFixed(0)}%`);
+    ` picks=${jev.pickCalls ?? '?'} pickTokens=${jev.pickTokens ?? '?'} claims=${jev.judgeCalls ?? '?'} claimTokens=${jev.judgeTokens ?? '?'} routes=${jev.routeCalls ?? '?'} routeGroups=${jev.routeGroups ?? '?'} replayed=${run.replayed} healed=${run.healed}`);
 }
 
 const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
@@ -95,7 +94,8 @@ const summary = {
     routeCalls: median(runs.map((r) => r.jev.routeCalls ?? 0)),
     routeGroups: median(runs.map((r) => r.jev.routeGroups ?? 0)),
     routeTokens: median(runs.map((r) => r.jev.routeTokens ?? 0)),
-    cachedPicks: median(runs.map((r) => r.cachedPicks)),
+    replayed: median(runs.map((r) => r.replayed)),
+    healed: median(runs.map((r) => r.healed)),
   },
   // Same step statuses in every run (and, with --compare, as the base run).
   statuses: runs[0]?.statuses ?? [],

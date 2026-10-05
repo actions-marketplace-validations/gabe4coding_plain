@@ -20,8 +20,10 @@ export const StepResultSchema = z.object({
   status: StatusSchema,
   detail: z.string().optional(),
   ms: z.record(z.string(), z.number()).optional(),
-  /** A target came from the pick cache: no Jev pick for it. */
-  cached: z.boolean().optional(),
+  /** A target acted on its recorded locator (src/core/lock.ts): no Jev pick for it. */
+  replayed: z.boolean().optional(),
+  /** A recorded locator missed or failed, and Jev picked the element again (auto-healing). */
+  healed: z.boolean().optional(),
 });
 export type StepResult = z.infer<typeof StepResultSchema>;
 

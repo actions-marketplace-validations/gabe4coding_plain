@@ -157,8 +157,9 @@ Before a live run, check your specs without a key or a session:
 npx -p @gabe4coding/plain plain validate tests/
 ```
 
-A spec run writes a pick cache file next to each spec file, for example `login.picks.json` for `login.yaml`.
-Refer to the [pick cache](running.mdx#pick-cache). For all flags, refer to [running suites](running.mdx).
+A passing spec run writes a lock file next to each spec file, for example `login.lock.json` for `login.yaml`.
+A later run replays it with fewer Jev calls. Refer to [run modes](running.mdx#run-modes). For all flags, refer to
+[running suites](running.mdx).
 
 To run plain from a clone of the repository, build it first. Refer to [development](development.mdx).
 

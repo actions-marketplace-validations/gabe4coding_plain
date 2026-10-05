@@ -7,8 +7,10 @@ app: com.google.android.contacts
 env:
   device: $PLAIN_MOBILE_DEVICE
 steps:
-  # Return from a contact detail screen when replaying after a previous run.
+  # Return from a contact detail screen, or from a form that a stopped run left open, when replaying.
   - tap: Navigate up
+    optional: true
+  - tap: the Discard button in the discard changes dialog
     optional: true
   - tap: Create contact
   - wait: The Create contact form shows a First name text field
@@ -26,7 +28,7 @@ steps:
   - fill:
       target: the Email address text field
       value: alex.example@example.com
-  - tap: the Save button in the Create contact toolbar
+  - tap: Save
   - wait: The saved contact details page shows Alex Example
   - expect:
       - The contact name is Alex Example

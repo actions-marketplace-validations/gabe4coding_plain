@@ -35,7 +35,7 @@ test('suite observer lifecycle is ordered and errors never change status', async
   try {
     const report = await runSuite(engine, opts, { provider: () => 'typesafe', warmUp: () => {}, observers: [observer] });
     assert.equal(report.status, 'pass');
-    assert.deepEqual(report.totals, { jevCalls: 1, tokens: 3, passed: 1, failed: 0, flaky: 0, skipped: 0, cachedPicks: 0 });
+    assert.deepEqual(report.totals, { jevCalls: 1, tokens: 3, passed: 1, failed: 0, flaky: 0, skipped: 0, replayed: 0, healed: 0 });
   } finally { console.error = oldError; console.log = oldLog; }
   assert.deepEqual(calls, ['runStart', 'sessionOpen', 'stepEnd', 'sessionClose', 'specEnd', 'runEnd']);
   assert.equal(warnings.filter((s) => s.includes('observer failed')).length, 1);

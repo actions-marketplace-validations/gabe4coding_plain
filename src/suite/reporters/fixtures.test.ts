@@ -24,7 +24,7 @@ export function run(specs: SpecReport[] = [spec('pass')]): RunReport {
       passed: specs.filter((spec) => spec.status === 'pass').length,
       failed: specs.filter((spec) => ['fail', 'inconclusive', 'error'].includes(spec.status)).length,
       flaky: specs.filter((spec) => spec.flaky).length,
-      skipped: specs.filter((spec) => spec.status === 'skipped').length, cachedPicks: 0,
+      skipped: specs.filter((spec) => spec.status === 'skipped').length, replayed: 0, healed: 0,
     } };
 }
 

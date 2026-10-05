@@ -1,4 +1,5 @@
-import { writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
+import { entryKey, formatLock, lockPath, LockStore } from '../core/lock.js';
 import { resolve, dirname, relative } from 'node:path';
 import { z } from 'zod';
 import { stringify } from 'yaml';
@@ -6,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Intelligence, Snapshot } from '../core/automation.js';
 import { interpolate } from '../core/interpolate.js';
+import { parametersOf } from '../core/parameters.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from '../core/snapshot-view.js';
 import { startHooks, placeholderPaths, type HooksRunner, type HookSpec } from '../core/hooks.js';
 import { isFailure, type StepResult, type Status } from '../core/results.js';
@@ -51,6 +53,8 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
   let opened = false;
   let spec = config.spec;
   let transcript: Record<string, unknown>[] = [];
+  /** What each passing step needed from Jev, keyed by its transcript position: `save` writes it as the lock file. */
+  let recorder = new LockStore('judge').attempt();
   /** Each value typed into a secure text field, with the `env` key that `save` writes in its place. */
   let secretKeys = new Map<string, string>();
   let hooks: HooksRunner<S> | undefined;
@@ -86,6 +90,8 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     async open(next, attach) {
       await close();
       transcript = [];
+      recorder = new LockStore('judge').attempt();
+      session.lock = recorder;
       secretKeys = new Map();
       results = [];
       overall = 'pass';
@@ -148,7 +154,10 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     const parsed = session.parse(step);
     const tokensBefore = session.tokens;
     const ownBaseline = await screenBefore(parsed as { kind: string; within?: string });
-    const result = await session.run(withPlaceholders(parsed));
+    // The position the step takes in the transcript if it passes; the file is set by `save`.
+    session.parameters = parametersOf({ env: {}, hooks: data });
+    const result = await session.run({ ...withPlaceholders(parsed), at: { file: '', index: transcript.length } } as typeof parsed);
+    recorder.endStep(result);
     results.push(result);
     if (isFailure(result.status)) overall = result.status;
     if (result.status === 'pass') transcript.push(asSaved(step, parsed as { kind: string; value?: string }));
@@ -252,7 +261,12 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
       steps: transcript,
     };
     writeFileSync(file, stringify(doc), { mode: 0o600 });
-    return ok({ path: file, steps: transcript.length, ...env });
+    const entries = new Map(recorder.recorded.filter(({ ref }) => ref.at.index < transcript.length)
+      .map(({ ref, entry }) => [entryKey(ref), entry] as const));
+    const lockFile = lockPath(file);
+    if (entries.size) writeFileSync(lockFile, formatLock(entries), { mode: 0o600 });
+    else rmSync(lockFile, { force: true });
+    return ok({ path: file, steps: transcript.length, ...(entries.size ? { lock: lockFile } : {}), ...env });
   }));
 
   server.registerTool('close', { description: config.describe.close, inputSchema: {} }, () => queue(async () => {

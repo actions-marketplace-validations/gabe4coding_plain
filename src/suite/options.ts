@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { homedir } from 'node:os';
-import { PICKS_MODES, type PicksMode } from '../core/pick-cache.js';
+import { RUN_MODES, type RunMode } from '../core/lock.js';
 import { loadConfig } from './config.js';
 import { CAPTURE_MODES, type CaptureMode, type Engine, type EngineFlags, type ReporterSpec, type SuiteOptions } from './types.js';
 
@@ -31,7 +31,7 @@ const ARG_OPTIONS = {
   artifacts: { type: 'string' }, screenshot: { type: 'string' }, trace: { type: 'string' },
   'spec-timeout': { type: 'string' }, timing: { type: 'boolean' }, timeout: { type: 'string' },
   headless: { type: 'boolean' }, profile: { type: 'string' }, channel: { type: 'string' }, cdp: { type: 'string' },
-  server: { type: 'string' }, picks: { type: 'string' },
+  server: { type: 'string' }, mode: { type: 'string' },
 } as const;
 
 function captureMode(name: string, value: unknown): CaptureMode {
@@ -114,8 +114,8 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
   const artifacts = artifactOptions(engine, values, config);
   const files = expandFiles(paths, cwd);
   if (command !== 'mcp' && files.length === 0) throw new Error('no YAML files matched the given paths');
-  const picks = setting('picks', values.picks, 'on');
-  if (!PICKS_MODES.includes(picks as PicksMode)) throw new Error(`--picks must be one of ${PICKS_MODES.join(', ')}, got "${picks}"`);
+  const mode = setting('mode', values.mode, 'auto-healing');
+  if (!RUN_MODES.includes(mode as RunMode)) throw new Error(`--mode must be one of ${RUN_MODES.join(', ')}, got "${mode}"`);
 
   const opts: SuiteOptions = {
     files,
@@ -132,7 +132,7 @@ export function parseSuiteArgs(argv: string[], engine: Engine, env: NodeJS.Proce
     timing: engine === 'browser' && isTrue(setting('timing', values.timing, false)),
     artifacts,
     specTimeout: optionalPositive('spec-timeout', setting('specTimeout', values['spec-timeout'], undefined)),
-    picks: picks as PicksMode,
+    mode: mode as RunMode,
   };
 
   const timeout = String(setting('timeout', values.timeout, '15000'));

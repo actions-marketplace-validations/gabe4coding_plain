@@ -10,12 +10,13 @@ inputs:
     description: Extra Plain CLI flags
     required: false
     default: ''
-  picks:
+  mode:
     description: >-
-      Pick cache mode (on, read or off); read reuses committed *.picks.json
-      sidecars without writing them. Empty passes no --picks flag
+      Run mode (judge, no-judge or auto-healing). no-judge replays the
+      committed *.lock.json files and needs no API key. Empty passes no
+      --mode flag
     required: false
-    default: read
+    default: auto-healing
   junit:
     description: >-
       JUnit XML output path, uploaded on every run; empty disables the
@@ -84,7 +85,7 @@ runs:
         PLAIN_ACTION_BIN: ${{ steps.install.outputs.bin }}
         PLAIN_ACTION_ARGS: ${{ inputs.args }}
         PLAIN_ACTION_SPECS: ${{ inputs.specs }}
-        PLAIN_ACTION_PICKS: ${{ inputs.picks }}
+        PLAIN_ACTION_MODE: ${{ inputs.mode }}
         PLAIN_ACTION_JUNIT: ${{ steps.paths.outputs.junit }}
         PLAIN_ACTION_ARTIFACTS: ${{ steps.paths.outputs.artifacts }}
       run: |
@@ -94,20 +95,20 @@ runs:
         import subprocess
         import sys
 
-        picks = os.environ['PLAIN_ACTION_PICKS'].strip()
+        mode = os.environ['PLAIN_ACTION_MODE'].strip()
         junit = os.environ['PLAIN_ACTION_JUNIT']
         artifacts = os.environ['PLAIN_ACTION_ARTIFACTS']
         command = [
             f"{os.environ['PLAIN_ACTION_BIN']}/plain",
             '--headless', '--reporter', 'text',
         ]
-        if picks:
-            command += ['--picks', picks]
+        if mode:
+            command += ['--mode', mode]
         if junit:
             command += ['--reporter', f'junit:{junit}']
         if artifacts:
             command += ['--artifacts', artifacts]
-        # Extra args come after the action's flags, so a --picks in args wins.
+        # Extra args come after the action's flags, so a --mode in args wins.
         command += shlex.split(os.environ['PLAIN_ACTION_ARGS'])
         command += shlex.split(os.environ['PLAIN_ACTION_SPECS'])
         sys.exit(subprocess.call(command))

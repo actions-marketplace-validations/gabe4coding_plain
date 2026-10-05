@@ -27,4 +27,8 @@
   `AXSecureTextField`, iOS `XCUIElementTypeSecureTextField`, Android `password="true"`), and any later fill of the
   same value, is saved as `${env.password}` (`password2`, ...) with an `env` block.
   `NativeSession.filledSecret` carries the answer from `act` to the MCP server.
+- Run modes (`src/core/lock.ts`): `NativeSession.find` replays a recorded candidate when exactly one candidate on
+  the screen has its `nativeIdentity` (the description without `value=` and `[state]` flags), records the
+  accepted picks, and `assert` records or (no-judge) compares the hashed passing state; `run` reruns a step that
+  failed with a replayed element (auto-healing). The MCP `save` writes the session's records as the lock file.
 - Native engines require `--workers 1`.

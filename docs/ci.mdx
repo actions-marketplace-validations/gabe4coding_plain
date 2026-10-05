@@ -56,7 +56,7 @@ action fails for some minutes after a new version reaches main, until npm has it
 |---|---|---|---|
 | `specs` | Yes | None | Spec files, folders or globs, separated by spaces |
 | `args` | No | Empty | More CLI options, for example `--workers 2 --retries 1` |
-| `picks` | No | `read` | [Pick cache](running.mdx#pick-cache) mode: `on`, `read` or `off`. Empty gives no `--picks` option |
+| `mode` | No | `auto-healing` | [Run mode](running.mdx#run-modes): `judge`, `no-judge` or `auto-healing`. Empty gives no `--mode` option |
 | `junit` | No | `plain-results/junit.xml` | Path of the JUnit XML file. Empty disables the JUnit report and its upload |
 | `artifacts` | No | `plain-results` | Output folder for screenshots, traces and debug files. Empty disables capture and its upload |
 | `artifact-name` | No | `plain-results` | Name of the uploaded artifacts folder. The JUnit file has the name `<artifact-name>-junit` |
@@ -69,7 +69,7 @@ It does not run them as a shell script.
 
 1. It installs Node.js, the plain npm package at the `version` in the `package.json` of the action ref,
    and Chromium with its system packages.
-2. It runs `plain --headless --reporter text`. It adds `--picks <picks>`, `--reporter junit:<junit>` and
+2. It runs `plain --headless --reporter text`. It adds `--mode <mode>`, `--reporter junit:<junit>` and
    `--artifacts <artifacts>` for each of these inputs that is not empty. Then it adds the `args` and the `specs`.
 3. If `junit` is not empty, it uploads the JUnit file with the name `<artifact-name>-junit`. It does this after
    each run, also when the run passes. If the run stops before it writes the file, the upload gives a warning.
@@ -80,13 +80,14 @@ The action does not publish the JUnit results as a check. To publish them, add a
 below).
 
 The action runs in the folder of your checkout. Thus it reads `plain.config.yaml` from there. The action's
-`--reporter` options replace the config `reporters`, and `specs` replaces the config `files`. The `picks` input
-replaces the config `picks`. To use the config `picks`, set the `picks` input to an empty value. The other
+`--reporter` options replace the config `reporters`, and `specs` replaces the config `files`. The `mode` input
+replaces the config `mode`. To use the config `mode`, set the `mode` input to an empty value. The other
 config keys apply.
 
-With the default `picks: read`, the run uses the committed pick files and does not write pick files. To update
-the pick files, run with `--picks on` on your computer and commit the files. A `--picks` option in `args`
-replaces the `picks` input, because `args` comes after it.
+With the default `mode: auto-healing`, the run replays the committed lock files, and Jev repairs the steps that
+changed. The healed lock files stay in the CI working copy. To update the committed lock files, run `plain` on your
+computer and commit the files. With `mode: no-judge`, the run makes no Jev call and needs no API key. A `--mode`
+option in `args` replaces the `mode` input, because `args` comes after it.
 
 `args` can add a file reporter, for example `--reporter json:plain-results/run.json`. `args` cannot add a
 stdout reporter, because the action already uses `text`.
@@ -134,7 +135,7 @@ browser-specs:
   variables:
     PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
   script:
-    - npx -y -p @gabe4coding/plain@<version> plain --headless --picks read --reporter text --reporter junit:plain-results/junit.xml --artifacts plain-results tests/
+    - npx -y -p @gabe4coding/plain@<version> plain --headless --mode no-judge --reporter text --reporter junit:plain-results/junit.xml --artifacts plain-results tests/
   artifacts:
     when: always
     paths:
