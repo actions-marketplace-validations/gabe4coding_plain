@@ -1,5 +1,6 @@
 import { rmSync, writeFileSync } from 'node:fs';
-import { entryKey, formatLock, lockPath, LockStore } from '../core/lock.js';
+import { formatLock, lockPath, LockStore } from '../core/lock.js';
+import { savedLockEntries, secretEnv, secretKeyName } from '../core/save.js';
 import { resolve, dirname, relative } from 'node:path';
 import { z } from 'zod';
 import { stringify } from 'yaml';
@@ -174,7 +175,7 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     let key = secretKeys.get(parsed.value);
     if (!key) {
       if (!session.filledSecret) return step;
-      key = secretKeys.size ? `password${secretKeys.size + 1}` : 'password';
+      key = secretKeyName(secretKeys.size);
       secretKeys.set(parsed.value, key);
     }
     return { ...step, fill: { ...(step.fill as Record<string, unknown>), value: `\${env.${key}}` } };
@@ -249,9 +250,7 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     requireOpen();
     if (!transcript.length) throw new Error('No successful steps to save');
     const file = resolve(path);
-    // password: $PASSWORD, password2: $PASSWORD_2, ...
-    const secrets = [...secretKeys.values()].map((key, i) => [key, i ? `$PASSWORD_${i + 1}` : '$PASSWORD']);
-    const env = secrets.length ? { env: Object.fromEntries(secrets) } : {};
+    const env = secretEnv(secretKeys.values());
     const doc = {
       name: name ?? spec.name,
       ...config.saved(spec),
@@ -261,8 +260,7 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
       steps: transcript,
     };
     writeFileSync(file, stringify(doc), { mode: 0o600 });
-    const entries = new Map(recorder.recorded.filter(({ ref }) => ref.at.index < transcript.length)
-      .map(({ ref, entry }) => [entryKey(ref), entry] as const));
+    const entries = savedLockEntries(recorder.recorded, transcript.length);
     const lockFile = lockPath(file);
     if (entries.size) writeFileSync(lockFile, formatLock(entries), { mode: 0o600 });
     else rmSync(lockFile, { force: true });

@@ -10,7 +10,8 @@ import { interpolate } from '../core/interpolate.js';
 import { parametersOf } from '../core/parameters.js';
 import { startHooks, placeholderPaths, type HooksRunner } from '../core/hooks.js';
 import type { StepResult } from '../core/results.js';
-import { entryKey, formatLock, lockPath, LockStore } from '../core/lock.js';
+import { formatLock, lockPath, LockStore } from '../core/lock.js';
+import { savedLockEntries, secretEnv, secretKeyName } from '../core/save.js';
 import type { Snapshot } from '../core/automation.js';
 import { ariaChanges, CHANGES_ENABLED, CHANGES_NOTE, type AriaChanges } from '../core/aria-changes.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from '../core/snapshot-view.js';
@@ -206,7 +207,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     let key = secretKeys.get(parsed.value);
     if (!key) {
       if (!(await inPasswordField(activeSession().ctx.page, parsed.value).catch(() => false))) return step;
-      key = secretKeys.size ? `password${secretKeys.size + 1}` : 'password';
+      key = secretKeyName(secretKeys.size);
       secretKeys.set(parsed.value, key);
     }
     return { ...step, fill: { ...(step.fill as Record<string, unknown>), value: `\${env.${key}}` } };
@@ -385,12 +386,9 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     const hooksPath = hooksFile && relative(dirname(filePath), hooksFile);
     const hooks = hooksPath ? { hooks: hooksPath.startsWith('.') ? hooksPath : './' + hooksPath } : {};
     const goal = spec.goal ? { goal: spec.goal } : {};
-    // password: $PASSWORD, password2: $PASSWORD_2, ...
-    const secrets = [...secretKeys.values()].map((key, i) => [key, i ? `$PASSWORD_${i + 1}` : '$PASSWORD']);
-    const env = secrets.length ? { env: Object.fromEntries(secrets) } : {};
+    const env = secretEnv(secretKeys.values());
     writeFileSync(filePath, stringify({ name: name ?? spec.name, url: spec.url, ...goal, ...hooks, ...env, steps: transcript }));
-    const entries = new Map(recorder.recorded.filter(({ ref }) => ref.at.index < transcript.length)
-      .map(({ ref, entry }) => [entryKey(ref), entry] as const));
+    const entries = savedLockEntries(recorder.recorded, transcript.length);
     const lockFile = lockPath(filePath);
     if (entries.size) writeFileSync(lockFile, formatLock(entries));
     else rmSync(lockFile, { force: true });
