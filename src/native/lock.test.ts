@@ -98,6 +98,7 @@ test('desktop: judge records, no-judge replays with no Jev call, auto-healing he
   const healed = await s.run(renamed, 'auto-healing');
   assert.equal(healed.status, 'pass', JSON.stringify(healed.steps));
   assert.equal(healed.steps[1].healed, true);
+  assert.match(healed.steps[1].detail!, /\(healed; recorded element .*matched 0 elements, 1 expected\)$/);
   assert.equal(healed.steps[0].replayed, true);
   assert.equal(s.calls.pick, before.pick + 1);
   assert.match(s.lock(), /button \\"Submit\\"/);

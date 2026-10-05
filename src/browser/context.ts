@@ -22,8 +22,11 @@ export interface StepContext {
   step?: Step;
   /** The values this run filled in, written back as placeholders in what the lock records (src/core/parameters.ts). */
   parameters?: RunValues;
-  /** What the current step did with the lock, reset by runStep: targets replayed, targets Jev healed. */
-  locked?: { replayed: number; healed: number };
+  /**
+   * What the current step did with the lock, reset by runStep: targets replayed, and for each target Jev healed,
+   * why its recorded locator missed.
+   */
+  locked?: { replayed: number; healed: string[] };
   /** The step runs again after it failed with a replayed locator: every target goes to Jev. */
   healing?: boolean;
   /** The interpolated steps after it in a spec run or an MCP batch: an expect asks the next expects' claims too. */

@@ -54,7 +54,8 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   const lock = step?.at ? ctx.lock : undefined;
   const parameters = ctx.parameters ?? [];
   const refOf = (target: string): LockRef => ({ at: step!.at!, kind: step!.kind, slot: targetSlot(parameterize(target, parameters)) });
-  const missed = new Set<number>();
+  /** Why the recorded locator of each target that goes to Jev missed. */
+  const missed = new Map<number, string>();
   if (lock?.replays && !ctx.healing) {
     await timed(ctx, 'settle', () => waitHold(ctx.page));
     const misses: number[] = [];
@@ -70,7 +71,7 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
         if (ctx.locked) ctx.locked.replayed++;
       } else if (lock.judges) {
         misses.push(i);
-        missed.add(i);
+        missed.set(i, replayed.detail);
       } else {
         results[i] = { element: null, detail: `no-judge: ${replayed.detail}; run with --mode auto-healing or judge to record it`,
           tokens: 0, usedJev: false };
@@ -85,7 +86,8 @@ export async function resolveLocators(ctx: StepContext, kind: CandidateKind, tar
   // Recorded before the action: an action can navigate away from the tagged elements.
   if (lock?.judges) for (const [j, pick] of picks.entries()) {
     if (!pick.candidate || !pick.element) continue;
-    if (missed.has(jevIndices[j]) && ctx.locked) ctx.locked.healed++;
+    const miss = missed.get(jevIndices[j]);
+    if (miss !== undefined && ctx.locked) ctx.locked.healed.push(miss);
     const recorded = await timed(ctx, 'record', () => recordLocator(page, pick.candidate!, parameters));
     if (recorded.ok) {
       const relations = layout === undefined ? undefined : parameterize(layoutRelations(layout), parameters);
