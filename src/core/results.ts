@@ -32,6 +32,9 @@ export interface TestResult { name: string; status: Status; steps: StepResult[];
 
 export const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+/** A step detail with a note in parentheses at its end: "→ button "Go" (healed; …)". */
+export const noted = (detail: string | undefined, note: string): string => `${detail ? `${detail} ` : ''}(${note})`;
+
 /** Adds the time `fn` takes to ms[phase]; a phase adds up over the calls of one step. */
 export async function timedInto<T>(ms: Record<string, number>, phase: string, fn: () => Promise<T>): Promise<T> {
   const start = Date.now();

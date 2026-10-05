@@ -107,12 +107,22 @@ test('a renamed button: no-judge is inconclusive, auto-healing picks again and r
   const healed = await s.run('auto-healing');
   assert.equal(healed.report.status, 'pass', JSON.stringify(healed.steps));
   assert.equal(healed.steps[1].healed, true);
+  assert.match(healed.steps[1].detail!, /\(healed; recorded locator .*'Go'.* matched no element\)$/);
   assert.equal(healed.report.totals.healed, 1);
   assert.deepEqual(s.calls, { pick: 2, judge: 2 }, 'Jev picked once more and judged the claim');
   assert.match(JSON.stringify(s.lock()), /name: 'Start'/);
 
   const again = await s.run('no-judge');
   assert.equal(again.report.status, 'pass', JSON.stringify(again.steps));
+});
+
+test('a healed step names each reason once, also when two targets missed for the same one', async (t) => {
+  const s = setup(t);
+  s.write(page(), '  - drag: { source: the first action button, target: the name field }\n');
+  const healed = await s.run('auto-healing');
+  assert.equal(healed.report.status, 'pass', JSON.stringify(healed.steps));
+  assert.equal(healed.steps[1].healed, true);
+  assert.match(healed.steps[1].detail!, /\(healed; no recorded locator for this step\)$/);
 });
 
 test('auto-healing replays a passing locator and still lets Jev judge every claim', async (t) => {

@@ -235,8 +235,10 @@ In `auto-healing` mode, Jev picks again when:
 - The recorded locator misses.
 - The step does not pass with the recorded locator. Then plain runs the step once more, and Jev picks each target.
 
-If the step then passes, its detail ends with `(healed; …)` and the JSON report has `healed: true`. When the
-attempt passes, plain writes the new locator to the lock file. If the step still does not pass, the spec fails.
+If the step then passes, its detail ends with `(healed; …)` and the JSON report has `healed: true`. The note tells
+why Jev picked again, for example
+`(healed; recorded locator getByRole('button', { name: 'Go', exact: true }) matched no element)`. When the attempt
+passes, plain writes the new locator to the lock file. If the step still does not pass, the spec fails.
 
 An `expect` or `wait` that Jev judged false does not run again. A retry (`--retries`) does not replay the lock
 file: Jev picks each target again, because the failed attempt possibly acted on a wrong element.
