@@ -84,9 +84,10 @@ Source layout (tests sit next to their module; details live in each module's com
 - `src/cli.ts` — the browser CLI entry (`plain`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
 - `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`,
   `step-kind.ts`, `unknown-key.ts`), the shared targeting/judging boundary (`automation.ts`), results, labels and
-  debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), run modes and lock files (`lock.ts`), `read`,
-  snapshot views and `changed` diffs (`aria-changes.ts`), and the spatial evidence shared by all engines: prompt
-  routes (`evidence.ts`, with `src/jev/evidence.ts`) and layout text (`layout.ts`).
+  debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), run modes and lock files (`lock.ts`), what every
+  MCP `save` writes: secret placeholders, the spec and its lock (`save.ts`), `read`, snapshot views and `changed`
+  diffs (`aria-changes.ts`), and the spatial evidence shared by all engines: prompt routes (`evidence.ts`, with
+  `src/jev/evidence.ts`) and layout text (`layout.ts`).
 - `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
   `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
 - `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`),
