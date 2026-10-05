@@ -107,12 +107,47 @@ test('a renamed button: no-judge is inconclusive, auto-healing picks again and r
   const healed = await s.run('auto-healing');
   assert.equal(healed.report.status, 'pass', JSON.stringify(healed.steps));
   assert.equal(healed.steps[1].healed, true);
+  assert.match(healed.steps[1].detail!, /\(healed; recorded locator .*'Go'.* matched no element\)$/);
   assert.equal(healed.report.totals.healed, 1);
   assert.deepEqual(s.calls, { pick: 2, judge: 2 }, 'Jev picked once more and judged the claim');
   assert.match(JSON.stringify(s.lock()), /name: 'Start'/);
 
   const again = await s.run('no-judge');
   assert.equal(again.report.status, 'pass', JSON.stringify(again.steps));
+});
+
+test('a step with no lock entry is a Jev pick, not a heal', async (t) => {
+  const s = setup(t);
+  s.write(page());
+  const fresh = await s.run('auto-healing');
+  assert.equal(fresh.report.status, 'pass', JSON.stringify(fresh.steps));
+  assert.equal(fresh.steps[1].healed, undefined);
+  assert.doesNotMatch(fresh.steps[1].detail!, /healed/);
+  assert.equal(fresh.report.totals.healed, 0);
+});
+
+test('a healed step names its reason once, also when it resolves the target again', async (t) => {
+  const s = setup(t);
+  // Once a pick tags the section, the page renders it again (a new element): the wait resolves its region again,
+  // and the recorded locator misses again for the same reason.
+  const panel = (name: string) => `<main><section aria-label="${name}"><h2>Orders</h2><p>Loading</p></section></main><script>` +
+    "let done = false; new MutationObserver(() => { const s = document.querySelector('section'); " +
+    "if (done || !s.hasAttribute('data-jev-id')) return; done = true; setTimeout(() => { const n = document.createElement('section'); " +
+    "n.setAttribute('aria-label', s.getAttribute('aria-label')); n.innerHTML = '<h2>Orders</h2><p>Ready</p>'; s.replaceWith(n); }, 1000); })" +
+    ".observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-jev-id'] });</script>";
+  intelligence.pick = async (candidates, targets) => targets.map(() =>
+    ({ id: candidates.find((c) => c.desc.startsWith('section'))?.id ?? null, probability: 0.97, confidence: 0.97, probabilities: {}, tokens: 1 }));
+  intelligence.judge = async (state, claims) =>
+    ({ probabilities: claims.map(() => (/Ready/.test((state as { aria: string }).aria) ? 0.97 : 0.02)), tokens: 1 });
+  const steps = '  - wait:\n      that: the orders are ready\n      within: the orders panel\n';
+  s.write(panel('Orders'), steps);
+  const judged = await s.run('judge', 10000);
+  assert.equal(judged.report.status, 'pass', JSON.stringify(judged.steps));
+  s.write(panel('Order list'), steps);
+  const healed = await s.run('auto-healing', 10000);
+  assert.equal(healed.report.status, 'pass', JSON.stringify(healed.steps));
+  assert.equal(healed.steps[1].healed, true);
+  assert.match(healed.steps[1].detail!, /\(healed; recorded locator [^;]*'Orders'[^;]* matched no element\)$/);
 });
 
 test('auto-healing replays a passing locator and still lets Jev judge every claim', async (t) => {
@@ -141,6 +176,7 @@ test('a step that fails with its replayed locator is healed by Jev; a failed att
   const healed = await s.run('auto-healing', 1500);
   assert.equal(healed.report.status, 'pass', JSON.stringify(healed.steps));
   assert.equal(healed.steps[1].healed, true);
+  assert.equal(healed.steps[1].replayed, undefined, 'the passing attempt picked every target with Jev');
   assert.match(healed.steps[1].detail!, /\(healed; replayed locator failed: /);
   assert.notEqual(JSON.stringify(s.lock()), recorded);
   intelligence.pick = pickFullName;
@@ -174,6 +210,8 @@ test('no-judge: a claim whose page differs from the recorded state is inconclusi
   const healing = await fresh.run('auto-healing');
   assert.equal(healing.report.status, 'pass');
   assert.equal(fresh.calls.pick, 2, 'auto-healing asks Jev again for a marginal pick');
+  assert.equal(healing.steps[1].healed, undefined, 'a marginal pick asked again is not a heal');
+  assert.equal(healing.report.totals.healed, 0);
 });
 
 test('a value that changes each run: one entry per step, no value in the lock, and no-judge replays with the new value', async (t) => {

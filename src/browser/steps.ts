@@ -3,7 +3,7 @@ import type { Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Step } from '../core/spec.js';
 import type { Snapshot } from '../core/automation.js';
-import { label, dumpDebug, type Status, type StepResult } from '../core/results.js';
+import { label, dumpDebug, noted, type Status, type StepResult } from '../core/results.js';
 import { decide, decideAll } from '../jev/decide.js';
 import { waitForMutation } from './page.js';
 import { type CandidateKind } from './candidates.js';
@@ -55,8 +55,8 @@ export async function runStepSafely(ctx: StepContext, step: Step, prepare: (step
     }
     const note = `replayed locator failed: ${failed ?? result.status}`;
     result = result.status === 'pass'
-      ? { ...result, healed: true, detail: `${result.detail ? `${result.detail} ` : ''}(healed; ${note})` }
-      : { ...result, detail: `${result.detail ? `${result.detail} ` : ''}(Jev could not heal; ${note})` };
+      ? { ...result, healed: true, detail: noted(result.detail, `healed; ${note}`) }
+      : { ...result, detail: noted(result.detail, `Jev could not heal; ${note}`) };
   }
   const missed = result.status === 'inconclusive' || result.status === 'error';
   return step.optional && missed ? { ...result, status: 'skipped' } : result;
@@ -66,15 +66,18 @@ export async function runStepSafely(ctx: StepContext, step: Step, prepare: (step
 export async function runStep(ctx: StepContext, step: Step): Promise<StepResult> {
   ctx.ms = {};
   ctx.step = step;
-  ctx.locked = { replayed: 0, healed: 0 };
+  ctx.locked = { replayed: 0, healed: [] };
   prepareEvidence(ctx, [step]);
   const start = Date.now();
   if (!settlesFirst(step)) await timed(ctx, 'settle', () => waitHold(ctx.page));
   const result = await runKind(ctx, step);
   ctx.ms.total = Date.now() - start;
   const { replayed, healed } = ctx.locked;
-  const flags = { ...(replayed ? { replayed: true } : {}), ...(healed && result.status === 'pass' ? { healed: true } : {}) };
-  return { ...result, ...flags, ms: { ...ctx.ms } };
+  // A target whose recorded locator missed went to Jev: the step is healed when it passes. A target resolved again
+  // in the step (a re-rendered `within` region) misses again with the same reason.
+  const heal = healed.length && result.status === 'pass'
+    ? { healed: true, detail: noted(result.detail, `healed; ${[...new Set(healed)].join('; ')}`) } : {};
+  return { ...result, ...(replayed ? { replayed: true } : {}), ...heal, ms: { ...ctx.ms } };
 }
 
 /**
