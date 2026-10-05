@@ -7,7 +7,7 @@
       "args": [
         "bin/npx.mjs",
         "-y",
-        "--package=@gabe4coding/plain@2.0.1",
+        "--package=@gabe4coding/plain@3.0.0",
         "plain-computer",
         "mcp"
       ],
