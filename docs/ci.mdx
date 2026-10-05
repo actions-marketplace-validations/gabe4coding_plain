@@ -46,7 +46,7 @@ jobs:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
 ```
 
-Pin the action to a release tag, for example `@v1.0.0`, in place of `@main`. Each release gets the tag
+Pin the action to a release tag, for example `@v2.0.1`, in place of `@main`. Each release gets the tag
 `v<version>` after its npm publish. With `@main`, a new release changes your runs without a commit. Also, the
 action fails for some minutes after a new version reaches main, until npm has it.
 
@@ -166,7 +166,7 @@ docker run --rm -v "$PWD:/work" plain validate tests/
   it.
 - Set the API key in the host environment and give only its name with `-e`. Do not put the key in a spec or in
   the image. The build does not copy the `.env` file of the repository into the image.
-- The run writes reports, artifacts, pick files and `.plain/last-run.json` into the mounted folder. Make
+- The run writes reports, artifacts, lock files and `.plain/last-run.json` into the mounted folder. Make
   sure that `pwuser` in the container can write to it.
 - Without spec paths, the CLI runs the config `files`. If there is no `files` key, it prints a usage line and
   exits with `2`.
