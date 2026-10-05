@@ -17,7 +17,7 @@ claim. Jev reads the accessibility tree, not screenshots. Playwright, xa11y or A
 https://github.com/user-attachments/assets/87fdc301-93af-40bf-b19d-3637689e5c98
 
 <p align="center"><sub>plain, explained in 6 minutes: plain-English specs, how Jev picks and judges, the three engines,
-agent mode, the pick cache, what Jev costs, and how it compares with a classic test framework.</sub></p>
+agent mode, run modes and lock files, what Jev costs, and how it compares with a classic test framework.</sub></p>
 
 | | Browser | Desktop | Mobile |
 |---|---|---|---|
@@ -90,7 +90,7 @@ time than with Playwright MCP. The API cost changed from 24% lower to 7% higher,
 | [Spec reference](docs/spec-reference.mdx) | Spec format, browser steps, reusable flows, browser context, login state. |
 | [Phrasing](docs/phrasing.mdx) | Targets, claims, thresholds, inconclusive results. |
 | [Hooks](docs/hooks.mdx) | Setup and teardown, test data in `${hooks.*}`. |
-| [Running suites](docs/running.mdx) | CLI flags, config file, selection, retries, pick cache, exit codes. |
+| [Running suites](docs/running.mdx) | CLI flags, config file, selection, retries, run modes, exit codes. |
 | [Reporting](docs/reporting.mdx) | Text, JSONL, JUnit and JSON output. |
 | [Artifacts](docs/artifacts.mdx) | Screenshots, traces, debug dumps. |
 | [CI and containers](docs/ci.mdx) | GitHub Action, GitLab, Docker. |

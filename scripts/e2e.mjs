@@ -4,15 +4,20 @@
 //
 // 1. Specs: runs e2e/*.yaml in one suite run and checks each final status. A spec tagged `expect-fail` must end
 //    `fail` (a pass there is a false pass); every other spec must pass. A pass on a retry counts, and is listed.
-// 2. Agent path: an MCP session opens the login page, logs in with one `batch`, checks the result with `ask` and
-//    `read`, saves the flow (the password as an env reference, never the literal), and the saved spec must pass
-//    when the CLI runs it with that variable set.
+//    The specs run from a scratch copy of e2e/, in --mode judge: every pick and claim goes to Jev, and the lock
+//    files land in the copy, never in the repository.
+// 2. No-judge replay: the same copies run again in --mode no-judge on the locks the judge run wrote. No Jev call
+//    may happen, every spec that passed in judge must pass, and no `expect-fail` spec may pass (a recorded state
+//    must never turn a failure into a pass).
+// 3. Agent path: an MCP session opens the login page, logs in with one `batch`, checks the result with `ask` and
+//    `read`, saves the flow (the password as an env reference, never the literal) with its lock file, and the saved
+//    spec must pass when the CLI runs it with that variable set: in no-judge on the saved lock, then in judge.
 //
 //   node scripts/e2e.mjs [--retries 1] [--only <substring of a spec file>] [--skip-mcp]
 //
 // Needs a Jev key and a build (npm run build). Exit 1 when any check fails.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,9 +40,13 @@ const notes = [];
 const site = await startSite();
 const env = { ...process.env, PLAIN_E2E_SITE: site.url };
 // Async on purpose: the site is served from this process, so a sync child would block every request it makes.
-// --picks off: every pick goes to Jev (a cached pick would test the cache, not Jev), and no sidecar is written.
-const runCli = (args, extraEnv = {}) => new Promise((done, fail) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', ...args],
-  { cwd: root, env: { ...env, ...extraEnv }, stdio: 'inherit' }).on('error', fail).on('exit', (code) => done(code)));
+// --mode judge unless a check says otherwise: every pick goes to Jev (a replayed locator would test the lock, not Jev).
+const runCli = (args, extraEnv = {}, mode = 'judge') => new Promise((done, fail) => spawn(process.execPath,
+  [cli, '--headless', '--mode', mode, ...args], { cwd: root, env: { ...env, ...extraEnv }, stdio: 'inherit' })
+  .on('error', fail).on('exit', (code) => done(code)));
+// The specs run from a copy, so the lock files the judge run writes stay out of the repository.
+const specDir = join(scratch, 'e2e');
+cpSync(join(root, 'e2e'), specDir, { recursive: true });
 
 try {
   await checkSpecs();
@@ -55,8 +64,8 @@ if (problems.length) {
 console.log('\nE2E passed.');
 
 async function checkSpecs() {
-  const files = readdirSync(join(root, 'e2e')).filter((n) => n.endsWith('.yaml'))
-    .filter((n) => !values.only || n.includes(values.only)).map((n) => join('e2e', n));
+  const files = readdirSync(specDir).filter((n) => n.endsWith('.yaml'))
+    .filter((n) => !values.only || n.includes(values.only)).map((n) => join(specDir, n));
   if (!files.length) return void problems.push(`no e2e spec matches --only ${values.only}`);
   const reportFile = join(scratch, 'report.json');
   // The exit code is not the verdict: the expect-fail spec fails on purpose. The report is.
@@ -73,6 +82,29 @@ async function checkSpecs() {
     }
   }
   console.log(`specs: ${report.specs.length}, jev calls ${report.totals.jevCalls}, tokens ${report.totals.tokens}`);
+  await checkNoJudge(files, report);
+}
+
+async function checkNoJudge(files, judged) {
+  const reportFile = join(scratch, 'no-judge.json');
+  await runCli(['--reporter', 'text', '--reporter', `json:${reportFile}`, ...files], {}, 'no-judge');
+  let report;
+  try { report = JSON.parse(readFileSync(reportFile, 'utf8')); } catch { return void problems.push('the no-judge run wrote no JSON report'); }
+  if (report.totals.jevCalls !== 0) problems.push(`no-judge made ${report.totals.jevCalls} Jev calls; it must make none`);
+  const passedInJudge = new Set(judged.specs.filter((spec) => spec.status === 'pass').map((spec) => spec.file));
+  const missed = [];
+  for (const spec of report.specs) {
+    if (spec.tags.includes('expect-fail')) {
+      if (spec.status === 'pass') problems.push(`${spec.file}: expect-fail spec passed in no-judge (false pass)`);
+    } else if (passedInJudge.has(spec.file) && spec.status !== 'pass') {
+      const step = spec.attempts.at(-1)?.steps.find((s) => s.status !== 'pass' && s.status !== 'skipped');
+      missed.push(`${spec.file.split('/').pop()}: ${step ? `${step.step} — ${step.detail}` : spec.status}`);
+    }
+  }
+  const replayable = [...passedInJudge].filter((file) => !report.specs.find((s) => s.file === file)?.tags.includes('expect-fail'));
+  console.log(`no-judge: ${replayable.length - missed.length}/${replayable.length} specs replayed with no Jev call, ` +
+    `${report.totals.replayed} steps replayed`);
+  for (const miss of missed) problems.push(`no-judge did not replay ${miss}`);
 }
 
 async function checkAgentPath(attempts) {
@@ -107,12 +139,15 @@ async function agentSession(saved) {
     const asked = await call('ask', { claims: ['the Secure Area heading is shown', 'the login form is shown'] });
     const answers = asked.answers.map((a) => a.answer).join(',');
     if (answers !== 'yes,no') return `ask answered ${answers}, expected yes,no: ${JSON.stringify(asked.answers)}`;
+    const claim = await call('step', { step: { expect: 'the Secure Area heading is shown' } });
+    if (claim.status !== 'pass') return `expect ended ${claim.status}: ${claim.detail}`;
     const read = await call('read', { question: 'What does the status message say?' });
     if (!/logged into a secure area/i.test(JSON.stringify(read))) return `read did not return the status message: ${JSON.stringify(read)}`;
     const save = await call('save', { path: saved, name: 'recorded login' });
     if (readFileSync(saved, 'utf8').includes(USER.pass) || save.env?.password !== '$PASSWORD') {
       return `save wrote the password, not an env reference: ${JSON.stringify(save)}`;
     }
+    if (!save.lock || readFileSync(save.lock, 'utf8').includes(USER.pass)) return `save wrote no lock file, or one with the password: ${JSON.stringify(save)}`;
     await call('open', { url: `${site.url}/boxes` }); // after save: not part of the replayed spec
     const { aria } = await call('snapshot', {});
     if (!aria.includes('- /url: https://ads.example/aclk…') || aria.includes('Xy7Xy7')) return `snapshot did not cut the long ad link: ${aria}`;
@@ -124,6 +159,8 @@ async function agentSession(saved) {
   } finally {
     await client.close();
   }
+  const replayed = await runCli(['--reporter', 'text', saved], { PASSWORD: USER.pass }, 'no-judge');
+  if (replayed !== 0) return `the saved spec did not pass in no-judge on its saved lock (exit ${replayed})`;
   const code = await runCli(['--reporter', 'text', saved], { PASSWORD: USER.pass });
   return code === 0 ? undefined : `the saved spec did not pass on replay (exit ${code})`;
 }

@@ -161,7 +161,7 @@ async function grade(spec, outcome, dir) {
     else if (!/expect|wait/.test(readFileSync(saved, 'utf8'))) problems.push('the saved spec checks nothing (no expect or wait)');
     else if (spec.secret && readFileSync(saved, 'utf8').includes(spec.secret)) problems.push('the saved spec holds the literal password');
     else {
-      const code = await new Promise((done) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', '--reporter', 'text', saved],
+      const code = await new Promise((done) => spawn(process.execPath, [cli, '--headless', '--mode', 'judge', '--reporter', 'text', saved],
         { env: { ...env, ...spec.replayEnv }, stdio: 'inherit' }).on('exit', done));
       if (code !== 0) problems.push(`the saved spec did not pass on replay (exit ${code})`);
     }

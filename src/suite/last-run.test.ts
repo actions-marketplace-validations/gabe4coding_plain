@@ -10,7 +10,7 @@ const spec = (file: string, status: SpecReport['status'], flaky = false): SpecRe
   ({ file, name: file, tags: [], status, flaky, attempts: [] });
 const report = (specs: SpecReport[], engine: Engine = 'browser'): RunReport =>
   ({ engine, specs, provider: 'typesafe', model: 'test', startedAt: new Date().toISOString(), durationMs: 100,
-    status: 'fail', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, cachedPicks: 0 } });
+    status: 'fail', totals: { jevCalls: 0, tokens: 0, passed: 0, failed: 0, flaky: 0, skipped: 0, replayed: 0, healed: 0 } });
 function fixture(t: TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'plain-last-run-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

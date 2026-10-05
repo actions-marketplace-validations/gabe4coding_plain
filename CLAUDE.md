@@ -84,13 +84,14 @@ Source layout (tests sit next to their module; details live in each module's com
 - `src/cli.ts` — the browser CLI entry (`plain`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
 - `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`,
   `step-kind.ts`, `unknown-key.ts`), the shared targeting/judging boundary (`automation.ts`), results, labels and
-  debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), the pick cache (`pick-cache.ts`), `read`,
+  debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), run modes and lock files (`lock.ts`), `read`,
   snapshot views and `changed` diffs (`aria-changes.ts`), and the spatial evidence shared by all engines: prompt
   routes (`evidence.ts`, with `src/jev/evidence.ts`) and layout text (`layout.ts`).
 - `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
   `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
 - `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`),
-  `steps.ts` (step handlers), `activity.ts` (settling, request tracking), `settled-ask.ts`, `locate.ts` (targets),
+  `steps.ts` (step handlers), `activity.ts` (settling, request tracking), `settled-ask.ts`, `locate.ts` (targets: replay, heal, record),
+  `record-locator.ts` (the Playwright locator a passing pick records),
   `judge-page.ts` (claims), `candidates.ts`, `frames.ts`, `layer.ts`, `page.ts` (snapshots, DOM clock),
   `evidence.ts` (observation routing), `layout.ts` (read-only rendered bounds), `context-options.ts`, `notes.ts` (console noise), `mcp.ts` (the browser MCP server).
 - `src/native/` — the shared desktop/mobile core; `src/computer/` and `src/mobile/` — each platform on top of it.
@@ -100,8 +101,8 @@ Source layout (tests sit next to their module; details live in each module's com
 
 Rules that cross modules:
 
-- When `describe()`/`candidates()` or a native candidate description changes, bump `DESC_FORMAT` in
-  `src/core/pick-cache.ts`, so stored picks are ignored.
+- When the recorded locator format (`src/browser/record-locator.ts`) or the claim state hash (`stateHash` in
+  `src/browser/judge-page.ts`) changes, bump `LOCK_VERSION` in `src/core/lock.ts`, so old lock files are ignored.
 - MCP servers use stdout as the JSON-RPC channel: all logging goes to `console.error`.
 - Plugins live at `plugins/plain/` (browser), `plugins/plain-computer/` (desktop) and
   `plugins/plain-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
@@ -136,7 +137,7 @@ One owner per topic. Other docs link to the owner and do not repeat it:
 | Browser spec format, top-level keys, all step kinds, includes, browser context, what Jev sees, placeholders | `docs/spec-reference.mdx` |
 | Writing targets and claims, thresholds, fixing `inconclusive` | `docs/phrasing.mdx` |
 | Hooks | `docs/hooks.mdx` |
-| All CLI flags, config file and keys, precedence, selection, retries, bail, budgets, pick cache, `validate`, exit codes | `docs/running.mdx` |
+| All CLI flags, config file and keys, precedence, selection, retries, bail, budgets, run modes and lock files, `validate`, exit codes | `docs/running.mdx` |
 | Report formats | `docs/reporting.mdx` |
 | Screenshots, traces, debug dumps | `docs/artifacts.mdx` |
 | GitHub Action (inputs table from `action.yml`), GitLab, Docker | `docs/ci.mdx` |

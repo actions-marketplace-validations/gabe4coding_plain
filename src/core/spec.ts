@@ -9,12 +9,8 @@ import { unknownKey } from './unknown-key.js';
 const nonEmptyString = z.string().min(1);
 const optional = z.boolean().optional();
 const origin = z.string().optional();
-/**
- * Where a step was written (absolute file, index in it): the pick cache key. Set by the loaders, never by YAML or
- * MCP. `templated`: the step holds a `${...}` placeholder, so its target may carry data (a user name, a secret) and
- * the cache stores a hash of the interpolated target instead of its text.
- */
-const StepSourceSchema = z.object({ file: z.string(), index: z.number().int(), templated: z.boolean().optional() });
+/** Where a step was written (absolute file, index in it): the lock key. Set by the loaders, never by YAML. */
+const StepSourceSchema = z.object({ file: z.string(), index: z.number().int() });
 export type StepSource = z.infer<typeof StepSourceSchema>;
 const at = StepSourceSchema.optional();
 const target = nonEmptyString;
@@ -121,7 +117,7 @@ function loadSteps<S>(rawSteps: unknown[], file: string, parseOne: (raw: unknown
   return expandIncludes(rawSteps, file).map((expanded, i) => {
     const { step, source } = splitSource(expanded);
     const parsed = withOrigin(step, (raw) => parseOne(raw, source?.file ?? file, source?.index ?? i));
-    return withSource(parsed, step, file, source, i);
+    return withSource(parsed, file, source, i);
   });
 }
 
@@ -210,14 +206,10 @@ export function withOrigin<S>(raw: unknown, parse: (raw: unknown) => S): S {
   return { ...parse(rest), origin };
 }
 
-/**
- * Puts the step's source (absolute file, index in it) on the parsed step: the pick cache key. `templated` when
- * the step as written holds a placeholder: its key then hashes the interpolated target.
- */
-function withSource<S>(parsed: S, raw: unknown, root: string, source: { file?: string; index: number } | undefined, i: number): S {
+/** Puts the step's source (absolute file, index in it) on the parsed step: the lock key. */
+function withSource<S>(parsed: S, root: string, source: { file?: string; index: number } | undefined, i: number): S {
   const file = source?.file === undefined ? resolve(root) : resolve(dirname(resolve(root)), source.file);
-  const templated = JSON.stringify(raw).includes('${');
-  return { ...parsed, at: { file, index: source?.index ?? i, ...(templated ? { templated } : {}) } };
+  return { ...parsed, at: { file, index: source?.index ?? i } };
 }
 
 /**
