@@ -60,9 +60,9 @@ The rules below apply to both.
     If claim layout is truncated, scope with `within`.
     Bounds do not prove color or image appearance. `snapshot` still returns the accessibility tree.
     Specs and MCP batches classify their known targets and claims together in one request. Plain English
-    prompts without a position word are semantic, and a lowercase relation word ("left of", "below") is
-    spatial, without a request. Repeated prompt groups reuse the classification; new interactive prompts
-    need another request.
+    prompts without a word that can name a position or a size, such as left, below, first, next or larger,
+    are semantic, and a lowercase relation word ("left of", "below") is spatial, without a request.
+    Repeated prompt groups reuse the classification; new interactive prompts need another request.
     A request over the model limit splits into smaller requests.
   - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plain/*.json`; the path
@@ -181,7 +181,7 @@ steps-only flows; included steps use the root spec’s env/hooks. Run
 lock file (`*.lock.json` next to each spec and flow): commit it with the specs.
 `--mode auto-healing` (default) replays it and lets Jev repair changed steps;
 `--mode no-judge` replays it with no Jev call and no API key; `--mode judge`
-asks Jev for everything (`docs/running.mdx`, "Run modes", in the plain repository).
+asks Jev for everything (https://github.com/gabe4coding/plain/blob/main/docs/running.mdx#run-modes).
 
 ## Safety
 
