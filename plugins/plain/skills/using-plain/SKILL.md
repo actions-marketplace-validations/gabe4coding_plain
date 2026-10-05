@@ -7,6 +7,9 @@ description: Use when driving a website through the plain MCP tools (open, step,
 
 ## Overview
 
+These files name the tools by their short names (`open`, `step`, `batch`). Call each tool by the full name
+your tool list gives it, server prefix included (`mcp__<server>__batch`, never a bare `batch`).
+
 A tool error (`isError: true` with a text message) means the call itself failed. A step that ran and
 failed is a normal result with `status: "error"`.
 
