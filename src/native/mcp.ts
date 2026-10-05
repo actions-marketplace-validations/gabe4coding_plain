@@ -250,7 +250,7 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
       ...env,
       steps: transcript,
     };
-    const lock = writeSaved(file, doc, recorder.recorded, 0o600);
+    const lock = writeSaved(file, doc, recorder.recorded);
     return ok({ path: file, steps: transcript.length, ...lock, ...env });
   }));
 

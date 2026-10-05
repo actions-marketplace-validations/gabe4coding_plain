@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
@@ -46,24 +46,6 @@ test('writeSaved locks only the saved steps, removes a lock with no entry left, 
     assert.throws(() => writeSaved(file, { name: 'empty', steps: [] }, recorded), /No successful steps to save/);
     assert.equal(parse(readFileSync(file, 'utf8')).name, 'flow');
     assert.equal(readFileSync(lockPath(file), 'utf8'), '{}\n');
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('writeSaved gives an existing spec and lock its mode and replaces all their text', { skip: process.platform === 'win32' }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'plain-save-'));
-  try {
-    const file = join(dir, 'flow.yaml');
-    for (const path of [file, lockPath(file)]) {
-      writeFileSync(path, 'x'.repeat(4096));
-      chmodSync(path, 0o644);
-    }
-    writeSaved(file, { name: 'flow', steps }, recorded, 0o600);
-    assert.equal(statSync(file).mode & 0o777, 0o600);
-    assert.equal(statSync(lockPath(file)).mode & 0o777, 0o600);
-    assert.deepEqual(parse(readFileSync(file, 'utf8')), { name: 'flow', steps });
-    assert.equal(parseLock(readFileSync(lockPath(file), 'utf8'))?.size, 2);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

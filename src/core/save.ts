@@ -1,4 +1,4 @@
-import { closeSync, constants, fchmodSync, ftruncateSync, openSync, rmSync, writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { stringify } from 'yaml';
 import { entryKey, formatLock, lockPath, type LockEntry, type LockRef } from './lock.js';
 
@@ -53,10 +53,9 @@ export function writeSaved(
   file: string,
   doc: Record<string, unknown> & { steps: readonly unknown[] },
   recorded: readonly { ref: LockRef; entry: LockEntry }[],
-  mode?: number,
 ): { lock?: string } {
   if (!doc.steps.length) throw new Error('No successful steps to save');
-  write(file, stringify(doc), mode);
+  writeFileSync(file, stringify(doc));
   const entries = new Map(recorded.filter(({ ref }) => ref.at.index < doc.steps.length)
     .map(({ ref, entry }) => [entryKey(ref), entry] as const));
   const lockFile = lockPath(file);
@@ -64,25 +63,6 @@ export function writeSaved(
     rmSync(lockFile, { force: true });
     return {};
   }
-  write(lockFile, formatLock(entries), mode);
+  writeFileSync(lockFile, formatLock(entries));
   return { lock: lockFile };
-}
-
-/**
- * writeFileSync applies `mode` only to a file it creates. An existing file is narrowed first and emptied only after
- * that, so a chmod that fails (a file of another user) leaves it as it was.
- */
-function write(file: string, text: string, mode: number | undefined): void {
-  if (mode === undefined) {
-    writeFileSync(file, text);
-    return;
-  }
-  const fd = openSync(file, constants.O_WRONLY | constants.O_CREAT, mode);
-  try {
-    fchmodSync(fd, mode);
-    ftruncateSync(fd);
-    writeFileSync(fd, text);
-  } finally {
-    closeSync(fd);
-  }
 }
