@@ -34,7 +34,7 @@ The rules below apply to both.
 
 - A pick is accepted when Jev's confidence is ≥ 0.5 and the answer is not `none`. Otherwise the step is
   `inconclusive` and `detail` lists the top guesses with their probabilities.
-- Spec runs store reusable picks only at confidence ≥ 0.9 (probability fallback). Marginal accepted picks ask Jev again next run.
+- Picks below 0.9 confidence (probability fallback) are recorded as marginal: no-judge replays them, auto-healing asks Jev again next run.
 - A claim passes at p ≥ 0.9, fails at p ≤ 0.1, and is `inconclusive` in between. `optional: true` turns an
   inconclusive or error step into `skipped`.
 - `ask {claims, within?}` judges 1–16 claims in one Jev call without acting or recording: each is `yes`
@@ -177,9 +177,11 @@ steps-only flows; included steps use the root spec’s env/hooks. Run
 `npx -y -p @gabe4coding/plain@2.0.1 plain validate spec.yaml` before replay. For CI, add
 `--reporter junit:out/junit.xml --artifacts plain-results` (and
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
-`step`/`batch` cannot execute an `include`. Spec runs write a pick cache
-(`*.picks.json` next to each spec and flow): commit it with the specs, and run CI
-with `--picks read` (`docs/running.mdx`, "Pick cache", in the plain repository).
+`step`/`batch` cannot execute an `include`. Passing spec runs and `save` write a
+lock file (`*.lock.json` next to each spec and flow): commit it with the specs.
+`--mode auto-healing` (default) replays it and lets Jev repair changed steps;
+`--mode no-judge` replays it with no Jev call and no API key; `--mode judge`
+asks Jev for everything (`docs/running.mdx`, "Run modes", in the plain repository).
 
 ## Safety
 

@@ -56,10 +56,10 @@ profile: /tmp/plain-test-profile
 channel: chrome
 cdp: http://localhost:9222
 server: http://localhost:4723
-picks: read
+mode: no-judge
 `);
   const config = loadConfig(dir);
-  assert.equal(config.picks, 'read');
+  assert.equal(config.mode, 'no-judge');
   assert.equal(config.workers, 2);
   assert.equal(config.timeout, 0);
   assert.equal(config.headless, true);

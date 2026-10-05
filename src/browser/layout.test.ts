@@ -2,7 +2,6 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium, type Browser, type Page } from 'playwright';
 import { intelligence } from '../core/automation.js';
-import { makeEntry, matchEntry } from '../core/pick-cache.js';
 import { candidates } from './candidates.js';
 import { layoutSnapshot, spatialCandidates } from './layout.js';
 import { resolveLocators } from './locate.js';
@@ -103,23 +102,20 @@ test('spatial picks include non-candidate references and reference motion invali
   const [upper] = await resolveLocators(context, 'fill', ['the field immediately below the Shipping heading']);
   assert.equal(await upper.element!.getAttribute('aria-label'), 'Upper field');
   const cands = await spatialCandidates(page, await candidates(page, 'fill', 254));
-  const state = { url: 'https://example.test/', title: '', layout: await layoutSnapshot(page) };
-  assert.match(state.layout, /field "Upper field" is [^\n]*below main: heading "Shipping"/);
-  const entry = makeEntry(cands[0], cands, state, 0.99)!;
+  assert.match(await layoutSnapshot(page), /field "Upper field" is [^\n]*below main: heading "Shipping"/);
   await page.evaluate(() => { document.styleSheets[0].insertRule('#shipping { top:160px }', 1); });
   const changed = await spatialCandidates(page, await candidates(page, 'fill', 254));
   assert.deepEqual(changed, cands);
   const movedLayout = await layoutSnapshot(page);
   assert.match(movedLayout, /field "Upper field" is [^\n]*above main: heading "Shipping"/);
   assert.match(movedLayout, /field "Lower field" is [^\n]*below main: heading "Shipping"/);
-  assert.equal(matchEntry(entry, changed, { ...state, layout: movedLayout }), undefined);
   const [lower] = await resolveLocators(context, 'fill', ['the field immediately below the Shipping heading']);
   await lower.element!.fill('shipping details');
   assert.equal(await page.getByLabel('Lower field').inputValue(), 'shipping details');
   assert.equal(await page.getByLabel('Upper field').inputValue(), '');
 });
 
-test('a spatial target clicks the visually left button and a layout change invalidates a stored pick', async (t) => {
+test('a spatial target clicks the visually left button', async (t) => {
   await page.setContent(reversed);
   const { ask, pick } = intelligence;
   t.after(() => { intelligence.ask = ask; intelligence.pick = pick; });
@@ -132,13 +128,6 @@ test('a spatial target clicks the visually left button and a layout change inval
   const [resolved] = await resolveLocators(ctx(), 'click', ['the button on the left']);
   await resolved.element!.click();
   assert.equal(await page.locator('output').innerText(), 'B clicked');
-  const initial = await spatialCandidates(page, await candidates(page, 'click', 254));
-  const state = { url: 'https://example.test/', title: '' };
-  const entry = makeEntry(initial[1], initial, state, 0.99)!;
-  assert.ok(matchEntry(entry, initial, state));
-  await page.evaluate(() => { document.styleSheets[0].insertRule('.pair { flex-direction:row }', 1); });
-  const changed = await spatialCandidates(page, await candidates(page, 'click', 254));
-  assert.equal(matchEntry(entry, changed, state), undefined);
 });
 
 test('a CSS-only order change during settle discards the early spatial pick', async (t) => {

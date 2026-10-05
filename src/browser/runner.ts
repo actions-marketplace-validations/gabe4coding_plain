@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Spec } from '../core/spec.js';
 import { interpolate } from '../core/interpolate.js';
+import { parametersOf } from '../core/parameters.js';
 import { startHooks, type HooksRunner } from '../core/hooks.js';
 import { errorMessage, isFailure, label, type Status, type StepResult, type TestResult } from '../core/results.js';
-import { withCacheDump } from '../core/pick-cache.js';
 import { observerCalls } from '../suite/observe.js';
 import { specDeadline } from '../suite/spec-timeout.js';
 import type { CaptureTarget, RunObserver, SpecInfo } from '../suite/types.js';
@@ -42,8 +42,8 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
   }
 
   const target = captureTarget(session, !!opts.cdp);
-  const { picks, ...specInfo }: SpecInfo = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
-  session.ctx.picks = picks;
+  const { lock, ...specInfo }: SpecInfo = info ?? { file: spec.name, name: spec.name, tags: spec.tags ?? [], attempt: 0 };
+  session.ctx.lock = lock;
   const observe = observerCalls(observer, specInfo);
   const record = async (result: StepResult): Promise<void> => {
     const index = steps.push(result) - 1;
@@ -72,6 +72,7 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
     try {
       const interpolated = interpolate({ url: spec.url, steps: spec.steps }, { env: spec.env ?? {}, hooks: data }, spec.name);
       session.ctx.spec = { ...spec, url: interpolated.url };
+      session.ctx.parameters = parametersOf({ env: spec.env ?? {}, hooks: data });
       runSteps = interpolated.steps;
       prepareEvidence(session.ctx, runSteps);
     } catch (error) {
@@ -84,7 +85,7 @@ export async function runSpec(spec: Spec, opts: RunOptions, observer?: RunObserv
       session.ctx.upcoming = runSteps.slice(index + 1);
       // The timeout is outside runStepSafely: an optional step cut by it ends `error`, not `skipped`.
       let result = await deadline.step(() => runStepSafely(session.ctx, step), () => label(step));
-      result = withCacheDump(result, picks?.endStep(result.status));
+      lock?.endStep(result);
       const notes = session.drainNotes();
       if (notes.length) result = { ...result, detail: [result.detail, ...notes].filter(Boolean).join(' | ') };
       await record(result);

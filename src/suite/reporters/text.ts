@@ -59,10 +59,10 @@ export function textReporter(timing: boolean): RunObserver {
       // A summary line only for runs with retries or a stop. Every spec counts, skipped ones and load errors too.
       const needsSummary = report.specs.some((spec) => spec.flaky || spec.attempts.length > 1 || spec.skipReason);
       if (needsSummary && report.specs.length > 1) {
-        const { passed, failed, flaky, skipped, jevCalls, tokens, cachedPicks } = report.totals;
-        const cached = cachedPicks ? `, ${cachedPicks} cached pick${cachedPicks === 1 ? '' : 's'}` : '';
+        const { passed, failed, flaky, skipped, jevCalls, tokens, replayed, healed } = report.totals;
+        const locked = (replayed ? `, ${replayed} replayed` : '') + (healed ? `, ${healed} healed` : '');
         const seconds = (report.durationMs / 1000).toFixed(2);
-        console.log(`${passed} passed, ${failed} failed, ${flaky} flaky, ${skipped} skipped  (${jevCalls} Jev calls, ${tokens} tokens${cached}, ${seconds}s)`);
+        console.log(`${passed} passed, ${failed} failed, ${flaky} flaky, ${skipped} skipped  (${jevCalls} Jev calls, ${tokens} tokens${locked}, ${seconds}s)`);
       }
     },
   };

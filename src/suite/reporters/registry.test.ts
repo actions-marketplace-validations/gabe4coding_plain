@@ -34,7 +34,7 @@ test('registry rejects two stdout reporters, including duplicate names, before r
   }
 });
 
-test('JSON report preserves the full RunReport with schemaVersion 1 and creates parent directories', async () => {
+test('JSON report preserves the full RunReport with schemaVersion 2 and creates parent directories', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'plain-json-'));
   try {
     const file = path.join(dir, 'nested', 'run.json');
@@ -44,8 +44,8 @@ test('JSON report preserves the full RunReport with schemaVersion 1 and creates 
       stopped: 'max-tokens' as const };
     await jsonReporter(file).runEnd!({ report });
     const contents = await fs.readFile(file, 'utf8');
-    assert.ok(contents.startsWith('{\n  "schemaVersion": 1,'));
-    assert.deepEqual(JSON.parse(contents), { schemaVersion: 1, ...report });
+    assert.ok(contents.startsWith('{\n  "schemaVersion": 2,'));
+    assert.deepEqual(JSON.parse(contents), { schemaVersion: 2, ...report });
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });
 
@@ -66,7 +66,7 @@ test('repeatable CLI reporters create exactly one observer each, in order, and w
     });
     assert.deepEqual(lines, ['✔ Checkout  (2 Jev calls, 30 tokens)', '  ✔ expect "Order complete" page detail']);
     assert.match(await fs.readFile(xml, 'utf8'), /<testsuites name="plain browser"/);
-    assert.deepEqual(JSON.parse(await fs.readFile(json, 'utf8')), { schemaVersion: 1, ...report });
+    assert.deepEqual(JSON.parse(await fs.readFile(json, 'utf8')), { schemaVersion: 2, ...report });
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });
 

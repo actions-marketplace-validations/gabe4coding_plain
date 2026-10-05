@@ -1,5 +1,7 @@
 # Creates a Calendar event on the 15th of next month and finds it again with Search.
-# Start with Calendar's main view visible (Add and Search buttons), English (UK) locale.
+# English (UK) locale. Calendar reopens on the last screen it showed. The last steps close the event and Search,
+# so the next run starts on the main view and takes the same path (a replay with --mode no-judge needs that). The
+# optional first steps recover from a run that stopped halfway: an open event, Search, or an unsaved event.
 # The hook computes the date and a title unique to each run, so the spec works on any day and
 # leftovers from earlier runs never match. Each run adds one event to the simulator's calendar.
 # Set PLAIN_MOBILE_DEVICE to the booted iOS simulator's UDID.
@@ -12,7 +14,20 @@ hooks: ../hooks/ios-calendar.mjs
 env:
   device: $PLAIN_MOBILE_DEVICE
 steps:
-  - wait: Calendar's main view is visible with Add and Search buttons.
+  # An event opened from Search: its sheet shrinks on Cancel (its X button), and closing Search closes the rest.
+  - tap: the Cancel button of the event details sheet
+    optional: true
+  - tap: the Close button next to the Search field
+    optional: true
+  # An unsaved new event asks before it closes.
+  - tap: the Close button of the New Event sheet
+    optional: true
+  - tap: the Discard Changes button
+    optional: true
+  # Today also resets the month that a new event takes as its default date.
+  - tap: the Today button
+  # Scoped to the navigation bar: the day view below scrolls to the current time, which changes each run.
+  - wait: {that: "Calendar's main view is visible with Add and Search buttons.", within: the navigation bar with the Add and Search buttons}
   - tap: the Add button
   - fill:
       target: the event title text field
@@ -36,3 +51,7 @@ steps:
   - wait: The Events results list contains a ${hooks.title} event row.
   - tap: the ${hooks.title} event row in the Events results list
   - expect: The ${hooks.title} event is scheduled on ${hooks.date}.
+  # Back to the main view, where the next run starts.
+  - tap: the Cancel button of the event details sheet
+  - tap: the Close button next to the Search field
+  - tap: the Today button

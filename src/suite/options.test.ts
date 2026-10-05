@@ -155,11 +155,12 @@ test('usage, timeout and engine-only flag errors', () => {
   assert.throws(() => parsed(['--server', 'http://x'], 'desktop'), /--server is mobile-only/);
 });
 
-test('--picks is on by default, takes read or off, and comes from config `picks`', () => {
-  assert.equal(parsed([]).opts.picks, 'on');
-  assert.equal(parsed(['--picks', 'read']).opts.picks, 'read');
-  assert.equal(parsed(['--picks', 'off'], 'desktop').opts.picks, 'off');
-  assert.throws(() => parsed(['--picks', 'write']), /--picks must be one of on, read, off/);
-  const fromConfig = parseSuiteArgs(['case.yaml'], 'browser', {}, '/tmp/plain-options-absent', () => ({ picks: 'read' } as never));
-  assert.equal(fromConfig.opts.picks, 'read');
+test('--mode is auto-healing on every engine, and comes from config `mode`', () => {
+  assert.equal(parsed([]).opts.mode, 'auto-healing');
+  assert.equal(parsed(['--mode', 'no-judge']).opts.mode, 'no-judge');
+  assert.equal(parsed([], 'desktop').opts.mode, 'auto-healing');
+  assert.equal(parsed(['--mode', 'no-judge'], 'mobile').opts.mode, 'no-judge');
+  assert.throws(() => parsed(['--mode', 'replay']), /--mode must be one of judge, no-judge, auto-healing/);
+  const fromConfig = parseSuiteArgs(['case.yaml'], 'browser', {}, '/tmp/plain-options-absent', () => ({ mode: 'judge' } as never));
+  assert.equal(fromConfig.opts.mode, 'judge');
 });

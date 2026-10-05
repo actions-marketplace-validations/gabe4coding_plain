@@ -1,8 +1,10 @@
-import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError, type Intelligence, type Frame } from '../core/automation.js';
+import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError, type Intelligence, type Frame, type ResolvedTarget } from '../core/automation.js';
 import { timedInto, dumpDebug, errorMessage, type StepResult, type Status } from '../core/results.js';
-import type { PickAttempt, PickRef } from '../core/pick-cache.js';
 import { readAnswer } from '../core/read.js';
 import type { Step, StepSource } from '../core/spec.js';
+import { claimSlot, isTargetEntry, RECORD_AT, recordedStateNote, saveRecordedState, sha256, targetSlot, type LockAttempt, type LockRef, type TargetEntry } from '../core/lock.js';
+import { parameterize, type RunValues } from '../core/parameters.js';
+import { layoutRelations } from '../core/layout.js';
 import { decideAll } from '../jev/decide.js';
 import { evidenceForGroups } from '../jev/evidence.js';
 import { evidenceRoutes, prepareRoutes, promptGroups, routeNeedsLayout, type DescribedStep } from '../core/evidence.js';
@@ -41,6 +43,35 @@ const APPEAR_MS = 2000;
 const APPEAR_POLL_MS = 150;
 const MAX_WAIT_POLLS = 8;
 const WAIT_POLL_MS = 250;
+/** In no-judge, an `expect` is compared with its recorded passing state for at most this long. */
+const EXPECT_REPLAY_MS = 3000;
+
+/**
+ * A native candidate as the lock records it (src/core/lock.ts): its description without the value and the state
+ * flags that a step changes (a typed text, `[checked]`). Role, name and the ` in <container>` context stay.
+ */
+export const nativeIdentity = (desc: string): string =>
+  desc.replace(/ value="(?:[^"\\]|\\.)*"/g, '').replace(/ \[[^\]]*\]/g, '');
+
+/**
+ * The role and name of an identity, without its ` in <container>` context. An Android container is often named by
+ * all the text it holds (a contact list), which a run that adds a row changes.
+ */
+export const nativeShortIdentity = (identity: string): string => /^\S+(?: "(?:[^"\\]|\\.)*")?/.exec(identity)?.[0] ?? identity;
+
+/** A native lock entry's locator: the identity, and for one of several twins its place among them. */
+interface NativeLocator { identity: string; ordinal?: number; of?: number }
+
+/**
+ * A recorded passing state: the tree text and layout, not the window URL (it holds a process id), with the run's
+ * values as placeholders (src/core/parameters.ts), and the layout's relations, not its bounds (a bound moves by
+ * a point between two captures of the same screen).
+ */
+function nativeStateHash(snapshot: Frame<unknown>['snapshot'], parameters: RunValues): string {
+  const generic = (text: string) => parameterize(text, parameters);
+  return sha256(JSON.stringify([generic(snapshot.title), generic(snapshot.aria),
+    snapshot.layout === undefined ? null : generic(layoutRelations(snapshot.layout))]));
+}
 
 /**
  * Jev targeting, expect/wait polling and phase timing for the desktop and mobile engines. A subclass parses,
@@ -51,16 +82,22 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
   tokens = 0;
   /** What the whole flow is for (spec `goal:`, MCP `open {goal}`): every pick sees it, claims never do. */
   goal?: string;
-  /** This attempt's pick cache; spec runs only, never an MCP session. */
-  picks?: PickAttempt;
   /** The first whole-screen capture of the current step, before it acted: the MCP `changed` diffs against it. */
   firstSnapshot?: Frame<T>['snapshot'];
   /** The current step fills a secure text field: the MCP `save` writes an `${env.*}` placeholder, never its value. */
   filledSecret = false;
+  /** This attempt's lock (src/core/lock.ts); spec runs only, never an MCP session. */
+  lock?: LockAttempt;
+  /** The values this run filled in, written back as placeholders in what the lock records (src/core/parameters.ts). */
+  parameters: RunValues = [];
+  /** The step running now: its source and kind key the lock. */
+  private current?: { kind: string; at?: StepSource };
+  /** What the current step did with the lock: targets replayed, targets Jev healed. */
+  private locked = { replayed: 0, healed: 0 };
+  /** The step runs again after it failed with a replayed element: every target goes to Jev. */
+  private healing = false;
   /** Returned as the result's `ms`. */
   protected phaseMs: Record<string, number> = {};
-  /** Its source and kind key the pick cache. */
-  private currentStep?: S & { at?: StepSource };
   private lastStepEnd = 0;
   /** Which prompts need geometry (src/core/evidence.ts), queued per spec and per step. */
   private routes = evidenceRoutes();
@@ -96,35 +133,160 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
       this.timed('jev', () => evidenceForGroups(groups, request, (tokens) => this.track(tokens))).then((result) => result.spatial));
   }
 
+  /**
+   * Runs one step. In auto-healing, a step that did not pass with a replayed element runs once more with every
+   * target picked by Jev; its records replace the replayed ones when it passes.
+   */
   async run(step: S): Promise<StepResult> {
     const start = Date.now();
     this.phaseMs = {};
-    this.firstSnapshot = undefined;
-    this.filledSecret = false;
-    this.currentStep = step;
-    let result: StepResult;
-    try {
-      const valid = this.validate(step);
-      this.prepareEvidence([valid]);
-      result = isAssertion(valid) ? await this.assert(valid) : await this.act(valid, this.label(valid));
-    } catch (error) {
-      result = { step: this.label(step), status: 'error', detail: errorMessage(error) };
+    this.current = step as { kind: string; at?: StepSource };
+    this.locked = { replayed: 0, healed: 0 };
+    const once = async (): Promise<StepResult> => {
+      this.firstSnapshot = undefined;
+      this.filledSecret = false;
+      try {
+        const valid = this.validate(step);
+        this.prepareEvidence([valid]);
+        return isAssertion(valid) ? await this.assert(valid) : await this.act(valid, this.label(valid));
+      } catch (error) {
+        return { step: this.label(step), status: 'error', detail: errorMessage(error) };
+      }
+    };
+    let result = await once();
+    // A claim that Jev judged false is not healed: it would only be judged again at full cost.
+    if (result.status !== 'pass' && !isAssertion(step) && this.locked.replayed && this.lock?.mode === 'auto-healing') {
+      const failed = result.detail;
+      this.lock.restartStep();
+      this.healing = true;
+      try {
+        result = await once();
+      } finally {
+        this.healing = false;
+      }
+      const note = `replayed element failed: ${failed ?? result.status}`;
+      result = result.status === 'pass'
+        ? { ...result, detail: `${result.detail ? `${result.detail} ` : ''}(healed; ${note})` }
+        : { ...result, detail: `${result.detail ? `${result.detail} ` : ''}(Jev could not heal; ${note})` };
+      if (result.status === 'pass') this.locked.healed++;
     }
     if (step.optional && (result.status === 'error' || result.status === 'inconclusive')) result.status = 'skipped';
-    if (this.phaseMs.cached) result = { ...result, cached: true, detail: result.detail ? `${result.detail} (cached pick)` : '(cached pick)' };
     this.lastStepEnd = Date.now();
-    return { ...result, ms: { total: this.lastStepEnd - start, ...this.phaseMs } };
+    this.current = undefined;
+    const flags = { ...(this.locked.replayed ? { replayed: true } : {}), ...(this.locked.healed && result.status === 'pass' ? { healed: true } : {}) };
+    return { ...result, ...flags, ms: { total: this.lastStepEnd - start, ...this.phaseMs } };
   }
 
-  /** Resolves targets of one kind with one Jev request; pick cache hits skip Jev. */
-  async find(kind: K | 'region', targets: string[], regionPick = false) {
+  private refOf(slot: string): LockRef | undefined {
+    const step = this.current;
+    return step?.at && this.lock ? { at: step.at, kind: step.kind, slot } : undefined;
+  }
+
+  /** A description or claim with this run's values as placeholders. */
+  private generic(text: string): string {
+    return parameterize(text, this.parameters);
+  }
+
+  /**
+   * Resolves targets of one kind. With a lock that replays, a target whose recorded description matches exactly one
+   * candidate acts on it; the others share one Jev request, and each accepted pick is recorded.
+   */
+  async find(kind: K | 'region', targets: string[], regionPick = false): Promise<ResolvedTarget<T>[]> {
+    const lock = this.lock;
+    const results: ResolvedTarget<T>[] = new Array(targets.length);
+    let asked = targets.map((_, i) => i);
+    const missed = new Set<number>();
+    if (lock?.replays && !this.healing && this.current?.at) {
+      const entries = targets.map((target) => {
+        const entry = lock.lookup(this.refOf(targetSlot(this.generic(target)))!);
+        return entry && isTargetEntry(entry) && !(entry.marginal && lock.judges) ? entry : undefined;
+      });
+      // A spatial entry waits for its recorded layout: right after a tap, a sliding view is still moving.
+      const layoutReady = (frame: Frame<T>) => entries.every((entry) => entry?.layout === undefined ||
+        sha256(layoutRelations(this.generic(frame.snapshot.layout ?? ''), nativeShortIdentity((entry.locator as NativeLocator).identity))) === entry.layout);
+      const frame = entries.some(Boolean)
+        ? await this.replayFrame(kind, regionPick, entries.some((entry) => entry?.layout !== undefined), layoutReady) : undefined;
+      asked = [];
+      for (const [i, entry] of entries.entries()) {
+        const replayed = entry && frame ? this.replayTarget(frame, entry) : { element: null, detail: entry === undefined
+          ? 'no recorded element for this step' : 'nothing on the screen' };
+        if (replayed.element !== null) {
+          results[i] = { element: replayed.element, detail: replayed.detail, tokens: 0, usedJev: false, ...(frame!.approximate ? { approximate: true } : {}) };
+          this.locked.replayed++;
+        } else if (lock.judges) {
+          asked.push(i);
+          missed.add(i);
+        } else {
+          results[i] = { element: null, detail: `no-judge: ${replayed.detail}; run with --mode auto-healing or judge to record it`, tokens: 0, usedJev: false };
+        }
+      }
+      if (!asked.length) return results;
+    }
+    const { frame, resolved } = await this.pick(kind, asked.map((i) => targets[i]), regionPick);
+    for (const [j, target] of resolved.entries()) {
+      const i = asked[j];
+      results[i] = target;
+      if (missed.has(i) && target.element !== null) this.locked.healed++;
+      const ref = this.refOf(targetSlot(this.generic(targets[i])));
+      if (!ref || !target.candidate || target.element === null || !lock?.judges) continue;
+      const identity = this.generic(nativeIdentity(target.candidate.desc));
+      // Twins (Starts and Ends both "5 Oct 2026" in one container) are told apart by their order in the tree.
+      const twins = frame.candidates.filter((c) => this.generic(nativeIdentity(c.desc)) === identity);
+      const order = twins.length > 1 ? { ordinal: twins.indexOf(target.candidate), of: twins.length } : {};
+      const relations = frame.snapshot.layout === undefined ? undefined : layoutRelations(this.generic(frame.snapshot.layout), nativeShortIdentity(identity));
+      if (relations !== undefined) saveRecordedState(sha256(relations), { target: identity, relations });
+      lock.record(ref, { locator: { identity, ...order }, text: this.generic(target.candidate.desc),
+        ...(relations === undefined ? {} : { layout: sha256(relations) }),
+        ...((target.score ?? 0) < RECORD_AT ? { marginal: true as const } : {}) });
+    }
+    return results;
+  }
+
+  /** A settled capture to replay recorded elements in; looked at again for a moment while it is empty or not `ready`. */
+  private async replayFrame(kind: K | 'region', regionPick: boolean, spatial: boolean, ready: (frame: Frame<T>) => boolean): Promise<Frame<T>> {
     const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
-    const step = this.currentStep;
-    const picks = this.picks;
-    // Only a step loaded from a file has a source, so an MCP step never uses the pick cache.
-    const refs = picks && step?.at
-      ? targets.map((target): PickRef => ({ at: step.at!, kind: step.kind, target, goal: this.goal }))
-      : undefined;
+    const options = regionPick || spatial ? { ...(regionPick ? { regionPick } : {}), ...(spatial ? { spatial } : {}) } : undefined;
+    for (;;) {
+      const frame = await this.timed('capture', () => this.adapter.capture(kind, undefined, options));
+      if (!frame.approximate) this.firstSnapshot ??= frame.snapshot;
+      if ((frame.candidates.length && ready(frame)) || Date.now() >= deadline) return frame;
+      await this.timed('idle', () => new Promise((resolve) => setTimeout(resolve, APPEAR_POLL_MS)));
+    }
+  }
+
+  /**
+   * The candidate a recorded identity names, in the recorded layout for a spatial target: the one with its role
+   * and name when no other has them (as a browser locator prefers role and name), else the one with the whole
+   * identity, a twin among as many twins as were recorded.
+   */
+  private replayTarget(frame: Frame<T>, entry: TargetEntry): { element: T | null; detail: string } {
+    const { identity, ordinal, of } = entry.locator as NativeLocator;
+    const relations = layoutRelations(this.generic(frame.snapshot.layout ?? ''), nativeShortIdentity(identity));
+    if (entry.layout !== undefined && sha256(relations) !== entry.layout) {
+      const file = dumpDebug('lock-layout', { target: identity, relations });
+      return { element: null, detail: `the layout differs from the one ${entry.text} was picked in (spatial target) — layout: ${file}${recordedStateNote(entry.layout)}` };
+    }
+    const identities = frame.candidates.map((c) => this.generic(nativeIdentity(c.desc)));
+    const short = nativeShortIdentity(identity);
+    const named = frame.candidates.filter((_, i) => nativeShortIdentity(identities[i]) === short);
+    if (of === undefined && named.length === 1) {
+      const element = frame.elements.get(named[0].id);
+      if (element !== undefined) return { element, detail: `→ ${named[0].desc} (replayed)` };
+    }
+    const found = frame.candidates.filter((_, i) => identities[i] === identity);
+    // A twin is replayed only among as many twins as were recorded: one more or one fewer may shift the order.
+    const expected = of ?? 1;
+    if (found.length !== expected) {
+      return { element: null, detail: `recorded element ${entry.text} matched ${found.length} elements, ${expected} expected` };
+    }
+    const chosen = found[ordinal ?? 0];
+    const element = frame.elements.get(chosen.id);
+    return element === undefined ? { element: null, detail: 'candidate handle missing' } : { element, detail: `→ ${chosen.desc} (replayed)` };
+  }
+
+  /** Resolves targets of one kind with one Jev request. */
+  private async pick(kind: K | 'region', targets: string[], regionPick = false) {
+    const deadline = Date.now() + Math.min(APPEAR_MS, this.timeout);
     const spatial = await this.needsLayout(targets);
     const pick = (frame: Frame<T>) => resolveTargets({
       candidates: frame.candidates,
@@ -134,7 +296,6 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
         if (element === undefined) throw new Error('Candidate handle missing');
         return element;
       },
-      ...(refs ? { cached: (_target: string, i: number) => picks!.lookup(refs[i], frame.candidates, frame.snapshot) } : {}),
     }, targets, this.ai);
 
     for (;;) {
@@ -145,16 +306,7 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
       }
       const resolved = result!;
       this.trackResolved(resolved);
-      // Only the answer kept is recorded: an early capture's answer may have been discarded.
-      if (refs) for (const [i, target] of resolved.entries()) {
-        if (target.cached) {
-          picks!.hit(refs[i], frame.snapshot);
-          this.phaseMs.cached = (this.phaseMs.cached ?? 0) + 1;
-        } else if (target.candidate) {
-          picks!.accept(refs[i], target.candidate, frame.candidates, frame.snapshot, target.score ?? 0);
-        }
-      }
-      return frame.approximate ? resolved.map((target) => ({ ...target, approximate: true })) : resolved;
+      return { frame, resolved: frame.approximate ? resolved.map((target) => ({ ...target, approximate: true })) : resolved };
     }
   }
 
@@ -258,6 +410,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
    */
   private async assert(step: S & Assertion): Promise<StepResult> {
     const claims = step.kind === 'expect' ? step.expectations : [step.condition];
+    const ref = this.refOf(claimSlot(claims.map((claim) => this.generic(claim)), step.within === undefined ? undefined : this.generic(step.within)));
+    if (ref && this.lock && !this.lock.judges) return this.replayClaims(step, ref, claims);
     const deadline = Date.now() + this.timeout;
     let polls = 0;
     let lastSnapshotJson = '';
@@ -294,9 +448,43 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
       await this.timed('idle', () => new Promise((resolve) => setTimeout(resolve, pause)));
     } while (Date.now() < deadline);
     if (step.kind === 'wait' && status !== 'pass') status = 'inconclusive';
+    if (status === 'pass' && ref && lastSnapshot && this.lock?.judges) {
+      const hash = nativeStateHash(lastSnapshot, this.parameters);
+      this.lock.record(ref, { state: hash, spatial });
+      saveRecordedState(hash, { claims, state: lastSnapshot });
+    }
     const debug = status === 'pass' ? '' : ` — state: ${dumpDebug(step.kind, { claims, probabilities, state: lastSnapshot })}`;
     const detail = `p=${probabilities.map((p) => p.toFixed(2)).join(', ')} after ${polls} poll(s)${debug}`;
     return { step: this.label(step), status, detail };
+  }
+
+  /**
+   * no-judge `expect` and `wait`: pass when the screen (or the `within` region) shows the state recorded when Jev
+   * judged the claims true; inconclusive otherwise, with the state seen.
+   */
+  private async replayClaims(step: S & Assertion, ref: LockRef, claims: string[]): Promise<StepResult> {
+    const entry = this.lock!.lookup(ref);
+    if (!entry || isTargetEntry(entry)) {
+      return { step: this.label(step), status: 'inconclusive',
+        detail: 'no-judge: no recorded passing state for this step; run with --mode auto-healing or judge to record it' };
+    }
+    let region: T | undefined;
+    try {
+      region = step.within ? await this.region(step.within, false) : undefined;
+    } catch (error) {
+      return { step: this.label(step), status: 'inconclusive', detail: errorMessage(error) };
+    }
+    const deadline = Date.now() + (step.kind === 'expect' ? Math.min(EXPECT_REPLAY_MS, this.timeout) : this.timeout);
+    for (;;) {
+      const frame = await this.timed('capture', () => this.adapter.capture('region', region, entry.spatial ? { spatial: true } : undefined));
+      if (nativeStateHash(frame.snapshot, this.parameters) === entry.state) return { step: this.label(step), status: 'pass', detail: 'the recorded passing state (no-judge)' };
+      if (Date.now() >= deadline) {
+        const file = dumpDebug(step.kind, { claims, state: frame.snapshot });
+        return { step: this.label(step), status: 'inconclusive',
+          detail: `no-judge: the ${region === undefined ? 'screen' : 'region'} differs from the recorded passing state — state: ${file}${recordedStateNote(entry.state)}` };
+      }
+      await this.timed('idle', () => new Promise((resolve) => setTimeout(resolve, WAIT_POLL_MS)));
+    }
   }
 
   private judge(claims: string[]) {

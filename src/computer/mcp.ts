@@ -28,7 +28,8 @@ const DESCRIPTIONS = {
     'working directory; an existing file is overwritten without warning. Errors when no step has passed yet. ' +
     'A value typed into a macOS secure text field is never written: the step gets ${env.password} and the spec an `env` ' +
     'block, {password: $PASSWORD} (password2 and $PASSWORD_2 for a second value); the result lists that block. Set the ' +
-    'variables before replay. Windows and Linux password fields are not detected.',
+    'variables before replay. Windows and Linux password fields are not detected. ' +
+    'It also writes the lock file next to the spec (`lock` in the result), so `--mode no-judge` replays the spec with no Jev call.',
   close: 'Detach and run teardown. Leaves the desktop application running.',
 };
 

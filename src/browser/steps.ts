@@ -1,18 +1,20 @@
 import path from 'node:path';
-import { stripVTControlCharacters } from 'node:util';
 import type { Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Step } from '../core/spec.js';
 import type { Snapshot } from '../core/automation.js';
-import { label, dumpDebug, errorMessage, type Status, type StepResult } from '../core/results.js';
+import { label, dumpDebug, type Status, type StepResult } from '../core/results.js';
 import { decide, decideAll } from '../jev/decide.js';
 import { waitForMutation } from './page.js';
 import { type CandidateKind } from './candidates.js';
 import { mayNavigate, settlePage, waitHold } from './activity.js';
 import { resolveLocators, resolveOne } from './locate.js';
-import { judgeClaims, judgeRegion, judgeSettled, type Observed } from './judge-page.js';
+import { judgeClaims, judgeRegion, judgeSettled, observe, stateHash, type Observed } from './judge-page.js';
+import { claimSlot, isTargetEntry, recordedStateNote, saveRecordedState, type LockRef } from '../core/lock.js';
+import { parameterize } from '../core/parameters.js';
 import { sleep, timed, type StepContext } from './context.js';
 import { prepareEvidence, scrollEdge } from './evidence.js';
+import { actionError } from './action-error.js';
 
 type StepOf<K extends Step['kind']> = Extract<Step, { kind: K }>;
 
@@ -25,44 +27,54 @@ const MAX_IDLE_BETWEEN_POLLS_MS = 1500;
 const FILL_GRACE_MS = 200;
 const FILL_HOLD_MS = 500;
 
-/** runStep that never throws: an error becomes the result, and an optional step that misses is skipped. */
+/**
+ * runStep that never throws: an error becomes the result, and an optional step that misses is skipped. In
+ * auto-healing, a step that did not pass with a replayed locator runs once more with every target picked by Jev;
+ * its records replace the replayed ones when it passes.
+ */
 export async function runStepSafely(ctx: StepContext, step: Step, prepare: (step: Step) => Step = (s) => s): Promise<StepResult> {
-  let result: StepResult;
-  try {
-    result = await runStep(ctx, prepare(step));
-  } catch (error) {
-    result = { step: label(step), status: 'error', detail: actionError(error) };
+  const once = async (): Promise<StepResult> => {
+    try {
+      return await runStep(ctx, prepare(step));
+    } catch (error) {
+      return { step: label(step), status: 'error', detail: actionError(error) };
+    }
+  };
+  let result = await once();
+  // From the context, not the result: a step whose action threw has an error result without the flag. A claim
+  // that Jev judged false is not healed: it would only be judged again at full cost.
+  const claim = step.kind === StepKind.expect || step.kind === StepKind.wait;
+  if (result.status !== 'pass' && !claim && ctx.locked?.replayed && ctx.lock?.mode === 'auto-healing') {
+    const failed = result.detail;
+    ctx.lock.restartStep();
+    ctx.healing = true;
+    try {
+      result = await once();
+    } finally {
+      ctx.healing = false;
+    }
+    const note = `replayed locator failed: ${failed ?? result.status}`;
+    result = result.status === 'pass'
+      ? { ...result, healed: true, detail: `${result.detail ? `${result.detail} ` : ''}(healed; ${note})` }
+      : { ...result, detail: `${result.detail ? `${result.detail} ` : ''}(Jev could not heal; ${note})` };
   }
   const missed = result.status === 'inconclusive' || result.status === 'error';
   return step.optional && missed ? { ...result, status: 'skipped' } : result;
-}
-
-/** Call log lines that every attempt repeats and that never say why the action failed. */
-const ROUTINE_LOG = /^(\d+ × )?(waiting for|waiting \d+ms|retrying|attempting|scrolling into view|done scrolling|element is visible, enabled and stable|locator resolved to|navigating to)/;
-
-/**
- * A Playwright error without its call log, which repeats every retry (60 lines for one covered button): the first
- * line, plus the last log line that gives a reason, such as the element that intercepts pointer events.
- */
-function actionError(error: unknown): string {
-  const [head, log] = stripVTControlCharacters(errorMessage(error)).split('\nCall log:\n');
-  if (log === undefined) return head;
-  const reason = log.split('\n').map((line) => line.trim().replace(/^- /, ''))
-    .filter((line) => line && !ROUTINE_LOG.test(line)).at(-1);
-  return reason ? `${head.trim()} ${reason.slice(0, 300)}` : head.trim();
 }
 
 /** Runs one step; the result's `ms` holds its phase timings and `total`. */
 export async function runStep(ctx: StepContext, step: Step): Promise<StepResult> {
   ctx.ms = {};
   ctx.step = step;
+  ctx.locked = { replayed: 0, healed: 0 };
   prepareEvidence(ctx, [step]);
   const start = Date.now();
   if (!settlesFirst(step)) await timed(ctx, 'settle', () => waitHold(ctx.page));
   const result = await runKind(ctx, step);
   ctx.ms.total = Date.now() - start;
-  const cached = ctx.ms.cached ? { cached: true, detail: result.detail ? `${result.detail} (cached pick)` : '(cached pick)' } : {};
-  return { ...result, ...cached, ms: { ...ctx.ms } };
+  const { replayed, healed } = ctx.locked;
+  const flags = { ...(replayed ? { replayed: true } : {}), ...(healed && result.status === 'pass' ? { healed: true } : {}) };
+  return { ...result, ...flags, ms: { ...ctx.ms } };
 }
 
 /**
@@ -234,6 +246,7 @@ async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string
     await ctx.page.waitForSelector(step.condition.slice(4), { state: 'visible', timeout: ctx.timeout });
     return { step: stepLabel, status: 'pass' };
   }
+  if (replaysClaims(ctx)) return replayClaims(ctx, StepKind.wait, [step.condition], step.within, ctx.timeout, stepLabel);
   const deadline = Date.now() + ctx.timeout;
   let region: Locator | null = null;
   if (step.within) {
@@ -258,7 +271,7 @@ async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string
       if (!resolved.element) return { step: stepLabel, status: 'inconclusive', detail: resolved.detail };
       region = resolved.element;
     }
-    const { state, probabilities } = region
+    const { state, probabilities, spatial } = region
       ? await judgeRegion(ctx, region, step.condition, unchangedSinceNo)
       : await judgeSettled(ctx, [step.condition], unchangedSinceNo);
     if (probabilities === null) {
@@ -268,7 +281,10 @@ async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string
       lastProbability = probabilities[0];
       lastSnap = state.snap;
       ctx.ms.polls = ++polls;
-      if (decide(lastProbability, 'expect') === 'pass') return { step: stepLabel, status: 'pass', detail: detail() };
+      if (decide(lastProbability, 'expect') === 'pass') {
+        recordClaims(ctx, [step.condition], step.within, state, spatial);
+        return { step: stepLabel, status: 'pass', detail: detail() };
+      }
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
@@ -283,11 +299,13 @@ async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string
 
 /** All claims in one Jev call. */
 async function runExpect(ctx: StepContext, step: StepOf<'expect'>, stepLabel: string): Promise<StepResult> {
+  if (replaysClaims(ctx)) return replayClaims(ctx, StepKind.expect, step.expectations, step.within, Math.min(EXPECT_REPLAY_MS, ctx.timeout), stepLabel);
   const judged = await judgeClaims(ctx, step.expectations, step.within);
   if ('detail' in judged) return { step: stepLabel, status: 'inconclusive', detail: judged.detail };
 
   const { snap, probabilities } = judged;
   const status: Status = decideAll(probabilities);
+  if (status === 'pass') recordClaims(ctx, step.expectations, step.within, judged.state, judged.spatial);
   let detail = `p=${probabilities.map((p) => p.toFixed(2)).join(', ')} @ ${ctx.page.url()}`;
   if (snap.truncated) detail += ' (aria truncated at 60k chars)';
   if (status !== 'pass') {
@@ -296,4 +314,57 @@ async function runExpect(ctx: StepContext, step: StepOf<'expect'>, stepLabel: st
     detail += ` — state: ${file}`;
   }
   return { step: stepLabel, status, detail };
+}
+
+/** In no-judge, a claim is compared with its recorded passing state for at most this long after the page settled. */
+const EXPECT_REPLAY_MS = 3000;
+
+/** The claims and region with this run's values as placeholders: one entry per step whatever the data. */
+function claimRef(ctx: StepContext, claims: string[], within?: string): LockRef | undefined {
+  if (!ctx.step?.at) return undefined;
+  const generic = (text: string) => parameterize(text, ctx.parameters ?? []);
+  return { at: ctx.step.at, kind: ctx.step.kind, slot: claimSlot(claims.map(generic), within === undefined ? undefined : generic(within)) };
+}
+
+const replaysClaims = (ctx: StepContext): boolean => ctx.lock !== undefined && !ctx.lock.judges && ctx.step?.at !== undefined;
+
+/** The state Jev judged true, hashed, for a later no-judge run. */
+function recordClaims(ctx: StepContext, claims: string[], within: string | undefined, state: Observed, spatial: boolean): void {
+  const ref = claimRef(ctx, claims, within);
+  if (!ref || !ctx.lock?.judges) return;
+  const hash = stateHash(state, ctx.parameters);
+  ctx.lock.record(ref, { state: hash, spatial });
+  saveRecordedState(hash, { claims, state: state.snap, events: state.events });
+}
+
+/**
+ * no-judge `expect` and `wait`: pass when the page (or the `within` region, from its recorded locator) shows the
+ * state recorded when Jev judged the claims true, within `windowMs`; inconclusive otherwise, with the state seen.
+ */
+async function replayClaims(ctx: StepContext, kind: typeof StepKind.expect | typeof StepKind.wait, claims: string[],
+  within: string | undefined, windowMs: number, stepLabel: string): Promise<StepResult> {
+  const entry = ctx.lock!.lookup(claimRef(ctx, claims, within)!);
+  if (!entry || isTargetEntry(entry)) {
+    return { step: stepLabel, status: 'inconclusive',
+      detail: 'no-judge: no recorded passing state for this step; run with --mode auto-healing or judge to record it' };
+  }
+  let region: Locator | undefined;
+  if (within) {
+    const resolved = await resolveOne(ctx, 'region', within);
+    if (!resolved.element) return { step: stepLabel, status: 'inconclusive', detail: resolved.detail };
+    region = resolved.element;
+  }
+  await timed(ctx, 'settle', () => waitHold(ctx.page));
+  const deadline = Date.now() + windowMs;
+  for (;;) {
+    const observed = await observe(ctx, entry.spatial, region);
+    if (stateHash(observed, ctx.parameters) === entry.state) return { step: stepLabel, status: 'pass', detail: 'the recorded passing state (no-judge)' };
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      const file = dumpDebug(kind, { claims, state: observed.snap, events: observed.events });
+      return { step: stepLabel, status: 'inconclusive',
+        detail: `no-judge: the ${region ? 'region' : 'page'} differs from the recorded passing state — state: ${file}${recordedStateNote(entry.state)}` };
+    }
+    await timed(ctx, 'idle', () => waitForMutation(ctx.page, Math.min(MAX_IDLE_BETWEEN_POLLS_MS, remaining)).catch(() => {}));
+  }
 }

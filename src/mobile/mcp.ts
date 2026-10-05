@@ -29,7 +29,8 @@ const DESCRIPTIONS = {
     'file is overwritten without warning. Errors when no step has passed yet. A value typed into a password field ' +
     '(iOS secure text field, Android password="true") is never written: the step gets ${env.password} and the spec an ' +
     '`env` block, {password: $PASSWORD} (password2 and $PASSWORD_2 for a second value); the result lists that block. ' +
-    'Set the variables before replay.',
+    'Set the variables before replay. ' +
+    'It also writes the lock file next to the spec (`lock` in the result), so `--mode no-judge` replays the spec with no Jev call.',
   close: 'Run teardown and delete the Appium session. Preserves app data; does not uninstall the app.',
 };
 
