@@ -1,5 +1,5 @@
 import { intelligence, resolveTargets, judgeState, askSettled, HiddenTargetError, type Intelligence, type Frame, type ResolvedTarget } from '../core/automation.js';
-import { timedInto, dumpDebug, errorMessage, type StepResult, type Status } from '../core/results.js';
+import { timedInto, dumpDebug, errorMessage, noted, type StepResult, type Status } from '../core/results.js';
 import { readAnswer } from '../core/read.js';
 import type { Step, StepSource } from '../core/spec.js';
 import { claimSlot, isTargetEntry, RECORD_AT, recordedStateNote, saveRecordedState, sha256, targetSlot, type LockAttempt, type LockRef, type TargetEntry } from '../core/lock.js';
@@ -92,8 +92,11 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
   parameters: RunValues = [];
   /** The step running now: its source and kind key the lock. */
   private current?: { kind: string; at?: StepSource };
-  /** What the current step did with the lock: targets replayed, targets Jev healed. */
-  private locked = { replayed: 0, healed: 0 };
+  /**
+   * What the current step did with the lock: targets replayed, and for each target Jev healed, why its recorded
+   * element missed (or why the replayed element failed, when the step ran again).
+   */
+  private locked: { replayed: number; healed: string[] } = { replayed: 0, healed: [] };
   /** The step runs again after it failed with a replayed element: every target goes to Jev. */
   private healing = false;
   /** Returned as the result's `ms`. */
@@ -141,7 +144,7 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     const start = Date.now();
     this.phaseMs = {};
     this.current = step as { kind: string; at?: StepSource };
-    this.locked = { replayed: 0, healed: 0 };
+    this.locked = { replayed: 0, healed: [] };
     const once = async (): Promise<StepResult> => {
       this.firstSnapshot = undefined;
       this.filledSecret = false;
@@ -158,6 +161,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     if (result.status !== 'pass' && !isAssertion(step) && this.locked.replayed && this.lock?.mode === 'auto-healing') {
       const failed = result.detail;
       this.lock.restartStep();
+      // The result is the second attempt's, and it picks every target with Jev: nothing replayed.
+      this.locked.replayed = 0;
       this.healing = true;
       try {
         result = await once();
@@ -165,16 +170,17 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
         this.healing = false;
       }
       const note = `replayed element failed: ${failed ?? result.status}`;
-      result = result.status === 'pass'
-        ? { ...result, detail: `${result.detail ? `${result.detail} ` : ''}(healed; ${note})` }
-        : { ...result, detail: `${result.detail ? `${result.detail} ` : ''}(Jev could not heal; ${note})` };
-      if (result.status === 'pass') this.locked.healed++;
+      if (result.status === 'pass') this.locked.healed = [note];
+      else result = { ...result, detail: noted(result.detail, `Jev could not heal; ${note}`) };
     }
     if (step.optional && (result.status === 'error' || result.status === 'inconclusive')) result.status = 'skipped';
     this.lastStepEnd = Date.now();
     this.current = undefined;
-    const flags = { ...(this.locked.replayed ? { replayed: true } : {}), ...(this.locked.healed && result.status === 'pass' ? { healed: true } : {}) };
-    return { ...result, ...flags, ms: { total: this.lastStepEnd - start, ...this.phaseMs } };
+    const { replayed, healed } = this.locked;
+    // A target whose recorded element missed went to Jev, or the step ran again: the step is healed when it passes.
+    const heal = healed.length && result.status === 'pass'
+      ? { healed: true, detail: noted(result.detail, `healed; ${[...new Set(healed)].join('; ')}`) } : {};
+    return { ...result, ...(replayed ? { replayed: true } : {}), ...heal, ms: { total: this.lastStepEnd - start, ...this.phaseMs } };
   }
 
   private refOf(slot: string): LockRef | undefined {
@@ -195,7 +201,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     const lock = this.lock;
     const results: ResolvedTarget<T>[] = new Array(targets.length);
     let asked = targets.map((_, i) => i);
-    const missed = new Set<number>();
+    /** Why the recorded element of each target that goes to Jev missed. */
+    const missed = new Map<number, string>();
     if (lock?.replays && !this.healing && this.current?.at) {
       const entries = targets.map((target) => {
         const entry = lock.lookup(this.refOf(targetSlot(this.generic(target)))!);
@@ -215,7 +222,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
           this.locked.replayed++;
         } else if (lock.judges) {
           asked.push(i);
-          missed.add(i);
+          // Only a recorded element that missed is healed: with no entry or a marginal pick, Jev picks as in judge mode.
+          if (entry) missed.set(i, replayed.detail);
         } else {
           results[i] = { element: null, detail: `no-judge: ${replayed.detail}; run with --mode auto-healing or judge to record it`, tokens: 0, usedJev: false };
         }
@@ -226,7 +234,8 @@ export abstract class NativeSession<T, K extends string, S extends NativeStep, A
     for (const [j, target] of resolved.entries()) {
       const i = asked[j];
       results[i] = target;
-      if (missed.has(i) && target.element !== null) this.locked.healed++;
+      const miss = missed.get(i);
+      if (miss !== undefined && target.element !== null) this.locked.healed.push(miss);
       const ref = this.refOf(targetSlot(this.generic(targets[i])));
       if (!ref || !target.candidate || target.element === null || !lock?.judges) continue;
       const identity = this.generic(nativeIdentity(target.candidate.desc));

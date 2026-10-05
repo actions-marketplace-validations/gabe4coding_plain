@@ -98,6 +98,7 @@ test('desktop: judge records, no-judge replays with no Jev call, auto-healing he
   const healed = await s.run(renamed, 'auto-healing');
   assert.equal(healed.status, 'pass', JSON.stringify(healed.steps));
   assert.equal(healed.steps[1].healed, true);
+  assert.match(healed.steps[1].detail!, /\(healed; recorded element .*matched 0 elements, 1 expected\)$/);
   assert.equal(healed.steps[0].replayed, true);
   assert.equal(s.calls.pick, before.pick + 1);
   assert.match(s.lock(), /button \\"Submit\\"/);
@@ -116,7 +117,17 @@ test('desktop: a step that fails with its replayed element is healed by Jev', as
   };
   const healed = await s.run(app, 'auto-healing');
   assert.equal(healed.status, 'pass', JSON.stringify(healed.steps));
+  assert.equal(healed.steps[1].healed, true);
+  assert.equal(healed.steps[1].replayed, undefined, 'the passing attempt picked every target with Jev');
   assert.match(healed.steps[1].detail!, /\(healed; replayed element failed: Send is disabled\)/);
+});
+
+test('desktop: a step with no lock entry is a Jev pick, not a heal', async (t) => {
+  const s = setup(t);
+  const fresh = await s.run(new App(), 'auto-healing');
+  assert.equal(fresh.status, 'pass', JSON.stringify(fresh.steps));
+  assert.deepEqual(fresh.steps.map((step) => step.healed ?? false), [false, false, false]);
+  assert.doesNotMatch(JSON.stringify(fresh.steps), /healed/);
 });
 
 test('desktop: a value that changes each run keeps one entry per step and replays in no-judge', async (t) => {
