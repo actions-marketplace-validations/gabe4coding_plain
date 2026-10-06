@@ -45,8 +45,6 @@ interface ScanOptions {
   startId: number;
 }
 
-type ScannedCandidate = [desc: string, editable: boolean, state: string];
-
 /**
  * Runs inside the page or frame, so every helper lives in here. Walks the document, open shadow roots included,
  * tags each kept element with `data-jev-id` and describes it.
@@ -55,7 +53,7 @@ type ScannedCandidate = [desc: string, editable: boolean, state: string];
  * banner appended at the end of the body.
  */
 function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsOfThings, skipVisibility, layer, passwordMask, max, startId }: ScanOptions):
-  ScannedCandidate[] {
+  string[] {
   const DIALOG = 'dialog, [role=dialog], [role=alertdialog], [aria-modal=true]';
   const PAGE_CHROME = 'nav, footer, [role=navigation], [role=contentinfo]';
   const EXTRA = '[tabindex]:not([tabindex="-1"]), [contenteditable=""], [contenteditable=true], [contenteditable=plaintext-only], summary, label, [draggable=true]';
@@ -315,29 +313,15 @@ function scanCandidatesInPage({ selector, includeExtras, labelsOfToggles, listsO
     return describe(el);
   });
 
-  // A text field's value is what the user typed, not its identity (the pick cache ignores it); a button input's
-  // value is its label.
-  const TEXT_TYPES = new Set(['', 'text', 'email', 'password', 'search', 'tel', 'url', 'number', 'date', 'datetime-local', 'month', 'time', 'week']);
-  const editable = (el: Element) => el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable ||
-    (el instanceof HTMLInputElement && TEXT_TYPES.has((el.getAttribute('type') ?? '').toLowerCase()));
-  // UI state the description does not show, for the pick cache: a flip on an unchanged page is a change.
-  const state = (el: Element): string => [
-    (el as HTMLInputElement).checked ? 'checked' : '',
-    (el as HTMLOptionElement).selected ? 'selected' : '',
-    (el as HTMLInputElement).disabled ? 'disabled' : '',
-    ...['aria-checked', 'aria-pressed', 'aria-selected', 'aria-expanded', 'aria-current', 'aria-disabled']
-      .map((attribute) => el.hasAttribute(attribute) ? `${attribute}=${el.getAttribute(attribute)}` : ''),
-  ].filter(Boolean).join(' ');
-
   // Identical descriptions get an ordinal in DOM order, so "the first …" has exactly one answer.
   const counts = new Map<string, number>();
   for (const desc of descs) counts.set(desc, (counts.get(desc) ?? 0) + 1);
   const seen = new Map<string, number>();
-  return descs.map((desc, i): ScannedCandidate => {
+  return descs.map((desc, i) => {
     const ordinal = (seen.get(desc) ?? 0) + 1;
     seen.set(desc, ordinal);
     const numbered = counts.get(desc)! > 1 ? `${desc} #${ordinal}` : desc;
-    return [`${numbered}${context(kept[i])}`, editable(kept[i]), state(kept[i])];
+    return `${numbered}${context(kept[i])}`;
   });
 }
 
@@ -357,7 +341,7 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
   try {
     for (let frameIndex = 0; frameIndex < frames.length && found.length < max; frameIndex++) {
       const frame = frames[frameIndex];
-      let scanned: ScannedCandidate[];
+      let scanned: string[];
       try {
         if (await frameIsInert(frame, blockers)) continue;
         const layer = (await blockersIn(frame, blockers))?.layer ?? null;
@@ -366,9 +350,7 @@ export async function candidates(page: Page, kind: CandidateKind, max: number): 
         continue; // a detached or cross-origin frame
       }
       const prefix = frameIndex === 0 ? '' : `[iframe ${frameLabel(frame)}] `;
-      for (const [desc, editable, state] of scanned) {
-        found.push({ id: found.length, desc: prefix + desc, frameIndex, ...(editable ? { editable } : {}), ...(state ? { state } : {}) });
-      }
+      for (const desc of scanned) found.push({ id: found.length, desc: prefix + desc, frameIndex });
     }
   } finally {
     await releaseBlockers(blockers);

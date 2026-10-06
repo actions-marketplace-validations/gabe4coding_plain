@@ -20,8 +20,10 @@ export const StepResultSchema = z.object({
   status: StatusSchema,
   detail: z.string().optional(),
   ms: z.record(z.string(), z.number()).optional(),
-  /** A target came from the pick cache: no Jev pick for it. */
-  cached: z.boolean().optional(),
+  /** A target acted on its recorded locator (src/core/lock.ts): no Jev pick for it. */
+  replayed: z.boolean().optional(),
+  /** A recorded locator missed or failed, and Jev picked the element again (auto-healing). */
+  healed: z.boolean().optional(),
 });
 export type StepResult = z.infer<typeof StepResultSchema>;
 
@@ -29,6 +31,9 @@ export type StepResult = z.infer<typeof StepResultSchema>;
 export interface TestResult { name: string; status: Status; steps: StepResult[]; jevCalls: number; totalTokens: number }
 
 export const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/** A step detail with a note in parentheses at its end: "→ button "Go" (healed; …)". */
+export const noted = (detail: string | undefined, note: string): string => `${detail ? `${detail} ` : ''}(${note})`;
 
 /** Adds the time `fn` takes to ms[phase]; a phase adds up over the calls of one step. */
 export async function timedInto<T>(ms: Record<string, number>, phase: string, fn: () => Promise<T>): Promise<T> {

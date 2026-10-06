@@ -189,6 +189,7 @@ If Jev finds no `within` region, `snapshot`, `read` and `ask` return `found: fal
 
 - A relative `path` resolves against the working directory of the server.
 - `save` replaces a file that already exists, with no warning.
+- Before the first `open` call, the session has no steps. Then `save` returns an error and does not change any file.
 - The default `name` is `plain session`.
 - `url` is the URL of the first `open` call. Each `open` call becomes a `goto` step.
 - `goal` is the last goal that `open` received.
@@ -197,6 +198,10 @@ If Jev finds no `within` region, `snapshot`, `read` and `ask` return `found: fal
 - `save` never writes a value that the agent typed into a password field. The step gets `${env.password}`, and the
   spec gets `env: { password: $PASSWORD }`. A second password value gets `password2` and `$PASSWORD_2`. The
   result of `save` shows this `env` block.
+- `save` also writes the lock file of the spec, for example `specs/first-book.lock.json`. It holds the locators
+  and the passing states of the saved steps, and never a typed value. The result of `save` names it in `lock`.
+  Thus `plain --mode no-judge specs/first-book.yaml` replays the flow with no Jev call. Refer to
+  [run modes](running.mdx#run-modes).
 
 A saved spec looks like this:
 

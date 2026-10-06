@@ -6,22 +6,25 @@ description: Build and test plain from a checkout, run the opt-in native smoke t
 # Development
 
 This page is for contributors. To use plain, start with [getting started](getting-started.mdx).
-[CLAUDE.md](../CLAUDE.md) describes the architecture and the code conventions.
+[CLAUDE.md](../CLAUDE.md) gives coding agents a short overview, the daily commands, the rules for all tasks and the
+file to read for each task. [CODING_STANDARDS.md](../CODING_STANDARDS.md) contains the rules for code and tests,
+and a map of the source folders.
 
 ## Build and test
 
 ```sh
 npm ci
 npx playwright install chromium
-npm run build    # compile src/ to dist/ and write the generated plugin files again
+npm run build    # compile src/ to dist/, remove stale output and write the generated plugin files again
 npm test         # build, then run the tests in dist/**/*.test.js and scripts/*.test.mjs
 npm run check:docs
+npm run check:agent-notes
 npm run test:mods  # the session pane mod tests (claude plugin test). Needs the claude CLI. Not in npm test
 npm run verify   # the key-free gate: tests, docs, examples, package and plugin install
 ```
 
-`npm run verify` runs `npm test`, `npm run check:docs`, `npm run check:examples` and `npm run test:plugins`. The
-CI workflow runs the same command.
+`npm run verify` runs `npm test`, `npm run check:docs`, `npm run check:agent-notes`, `npm run check:examples` and
+`npm run test:plugins`. The CI workflow runs the same command.
 
 `npm run check:examples` validates the specs in `examples/`, `examples/mobile/` and `e2e/`. It also validates
 each full spec and config example in the user docs, with the CLI of its engine.
@@ -29,7 +32,12 @@ each full spec and config example in the user docs, with the CLI of its engine.
 `npm run check:docs` checks the user docs: README.md, `docs/*.mdx` and `examples/mobile/README.md`. Each file must
 compile as MDX and show correctly on GitHub. The text must follow the ASD-STE100 rules that a script can test, for
 example a maximum of 25 words in a sentence. All relative links and anchors must resolve. The CI workflow runs the
-same check. The full writing rules are in `CLAUDE.md`, in the section "Documentation".
+same check. The full writing rules are in `.claude/skills/writing-docs/SKILL.md`.
+
+`npm run check:agent-notes` checks the agent notes: `CLAUDE.md`, `CODING_STANDARDS.md`, each `CLAUDE.md` below the
+root and the skills in `.claude/skills/`. A file must not have more lines than its limit. Each path, cited section
+and named symbol in the files must exist. The full rules for these files are in
+`.claude/skills/writing-agent-notes/SKILL.md`.
 
 `npm test` needs no API key and no native SDK. It runs these tests:
 
@@ -58,9 +66,10 @@ The script stops at the first failure. In order, it runs:
 
 1. `npm run verify`.
 2. The live e2e suite, `node scripts/e2e.mjs`.
-3. The claims gate, `node scripts/benchmark-claims.mjs --gate`. A false pass fails it.
+3. The claims gate, `node scripts/benchmark-claims.mjs --gate`. A false pass or a Jev error fails it.
 4. The agent evals, `node scripts/eval-agent.mjs`, when the MCP tools, their results or the browser skill
    changed.
+5. The routing evals, `node scripts/eval-routing.mjs`, when an agent note changed.
 
 At the end, it lists the benchmarks that the changed files need. Compare each one with a run on main. The
 `validating-changes` skill in `.claude/skills/` gives the full procedure, also for the review of the code and
@@ -72,15 +81,20 @@ runs, also in a git worktree.
 
 ### Live e2e suite
 
-The live checks need a Jev key. They use no remote site. `e2e/site.mjs` serves all the pages on `127.0.0.1`
-from the process of the runner. Thus a failure comes from plain or Jev, not from the network.
+The live checks need a Jev key and a build. They use no remote site. `e2e/site.mjs` serves all the pages on
+`127.0.0.1` from the process of the runner. Thus a failure comes from plain or Jev, not from the network. The specs
+get the address of the site from `${env.site}`.
 
 - Each `e2e/*.yaml` spec must pass. A spec with the tag `expect-fail` must end `fail`. A pass there is a false
   pass.
 - A spec that passes only on a retry counts, but the runner lists it as flaky.
 - The runner also records a login through the MCP server and runs the saved spec again.
 
-To run one spec, use `node scripts/e2e.mjs --only forms`.
+To run one spec, use `node scripts/e2e.mjs --only forms`. To run the specs without the MCP check, add
+`--skip-mcp`. `npm run verify:live` builds, then runs the e2e suite and the claims gate.
+
+The totals of Jev calls and tokens include all attempts. With the default `--retries 1`, each spec that does not
+pass runs two times, also each `expect-fail` spec. To measure the Jev cost of a change, use `--retries 0`.
 
 ### Browser exploration
 
@@ -106,8 +120,28 @@ agent. It grades each run:
 - The number of tool calls must stay in the budget of the task.
 - A spec that the agent saves must pass when the CLI runs it.
 
-Each agent runs isolated from your own setup, with the skill and the MCP server of the checkout. The evals cost
-Claude and Codex usage. CI does not run them. Use `--agent claude` or `--only login` to run fewer.
+Each agent runs isolated from your own setup, with the skill and the MCP server of the checkout. Codex still reads
+your own skills in `~/.agents/skills`. The evals cost Claude and Codex usage. CI does not run them. Use
+`--agent claude` or `--only login` to run fewer.
+
+If a run fails, the eval prints the folder with the transcripts of the failed runs. A task can fail now and then
+with no change in plain. To find out if your change is the cause, compare main and your branch:
+
+1. Run the same task on main and on your branch at the same time, for example with `--only reference --runs 10`.
+   The failure rate of a task changes from hour to hour.
+2. Use the same environment for the two runs. `claude -p` gets the environment of the process that starts it,
+   also the `CLAUDE_CODE_*` variables of a Claude Code session.
+
+### Routing evals
+
+`CLAUDE.md` is short: for most rules, it sends the agent to another file. `node scripts/eval-routing.mjs` checks
+that a new agent still finds these rules. It asks each question in `scripts/routing-cases.json` to a real
+`claude -p` agent and a real `codex exec` agent, with read-only tools. The answer must match all the `expect`
+patterns of the case and none of its `forbid` patterns.
+
+Each agent runs isolated from your own setup, with the instruction files of the checkout. Settings that your
+organization manages still apply. The evals cost Claude and Codex usage. CI does not run them. If you change a route or a rule that an agent must find, add or change a
+case.
 
 ### Continuous integration
 
@@ -130,6 +164,8 @@ node --test --test-name-pattern "<name>" dist/jev/pick.test.js
 ## Build output
 
 The repository does not contain `dist/`. Run `npm run build` after a clone and after each change in `src/`.
+After it compiles, the build removes each file in `dist/` whose source in `src/` is gone. Thus the compiled test
+of a deleted source file does not run again.
 Then the launchers in `bin/` run the checkout, for example `node bin/plain.mjs examples/todo.yaml`.
 
 `npm run build` also writes the generated plugin files: the MCP configs, the npx shim, the plugin versions, the
@@ -140,7 +176,8 @@ with the change. The `Test` workflow fails if they are different from the build 
 
 The npm package `@gabe4coding/plain` contains `bin/`, the compiled `dist/` without tests, and the root lockfile as
 `npm-shrinkwrap.json`. Thus an install from npm uses the locked dependency graph. `npm pack` and `npm publish`
-compile a clean `dist/` first.
+compile a clean `dist/` first. The package name has a scope, because the name `plain` without a scope belongs to
+a different npm package.
 
 To release a version:
 
@@ -148,6 +185,11 @@ To release a version:
    `package-lock.json`.
 2. Run `npm run build`. The build writes the new version into the three plugins.
 3. Merge the pull request.
+
+Use semantic versioning. A change that removes or renames something users write or call needs a new major
+version. Examples are a CLI flag, a config key, a spec key, a step kind, an Action input and an MCP tool. The
+build also writes the version into the browser skill, so `scripts/validate.mjs` runs the agent evals for a
+version change.
 
 On each push to main, the `Publish` workflow compares the `package.json` version with npm. If npm does not have
 this version, the workflow runs `npm run verify`, publishes the package with provenance and pushes the tag
@@ -175,13 +217,14 @@ npm sets a trusted publisher only on a package that exists:
 
 ```text
 package.json                 all dependencies, the three CLI binaries, build and test scripts
-src/                         browser, desktop, mobile and shared code, with tests next to each module
+src/                         browser, desktop, mobile and shared code, most tests next to their module
 bin/                         CLI launchers, the bin entries of the npm package
 plugins/
   plain/               browser plugin: manifests, MCP config, skill
   plain-computer/      desktop plugin
   plain-mobile/        mobile plugin
 scripts/                     plugin build, smoke tests, benchmarks, evals, the validation loop
+  *-states/                  saved pages for the Jev benchmarks: large one-line JSON, leave out of repo-wide searches
 e2e/                         the live e2e suite: its local site and specs
 examples/                    browser specs against public demo sites; examples/mobile/ for mobile
 docs/                        user documentation; docs/benchmarks/ for benchmark reports
@@ -335,15 +378,32 @@ A pass on the simulator does not prove physical iPhone or React Native parity.
 
 ## Performance checks
 
-The benchmark scripts need live sites and an API key. Build first, then compare a change against a saved run:
+Build first. Most benchmarks ask Jev about saved pages or saved cases: they need an API key, but no site.
+`benchmark-mcp.mjs`, and `benchmark-steps.mjs` without `--e2e`, also need the public demo sites, so a site problem
+can fail a run. `benchmark-locators.mjs` needs no API key. `benchmark-snapshots.mjs` needs one only with `--live-jev`.
+
+To compare a change against a saved run, run `benchmark-steps.mjs` with `--e2e`:
 
 ```sh
-node scripts/benchmark-steps.mjs --runs 3 --out /tmp/new.json --compare /tmp/base.json
+node scripts/benchmark-steps.mjs --e2e --mode judge --runs 3 --out /tmp/new.json --compare /tmp/base.json
 node scripts/benchmark-mcp.mjs --cli dist/cli.js --gap 5000 --runs 2
 ```
 
 `benchmark-steps.mjs` reports the step overhead for each phase: the step time minus the page action time.
 `benchmark-mcp.mjs` times an agent-style MCP session, with think time between calls.
+
+With `--e2e`, `benchmark-steps.mjs` runs the specs of `e2e/` on the local site in `e2e/site.mjs`. A slow or failed
+step is then the result of plain or Jev, not of the network.
+
+- The specs with the `expect-fail` tag do not run. They fail on purpose, so their time is not step overhead.
+- To run only some specs, give their files, for example `e2e/login.yaml`.
+- Each run starts from a new copy of `e2e/` in a temporary folder. The lock files do not go into the repository.
+- In `no-judge` and `auto-healing` mode (the default), one judge run first writes the lock files that each run
+  replays. The script does not measure this judge run.
+- `--mode judge` sends each pick and claim to Jev. `--mode no-judge` measures the step overhead with no Jev call.
+
+If you run `benchmark-steps.mjs` without `--e2e`, give `--dir` a copy of `examples/`, for example `/tmp/examples`.
+In `judge` and `auto-healing` mode, the script writes lock files next to the specs that pass.
 
 Each area of the product has its own benchmark or eval:
 
@@ -354,8 +414,8 @@ node scripts/benchmark-agent.mjs --runs 3            # a real claude -p agent, c
 node scripts/benchmark-read.mjs --runs 2 --smart     # read vs smart snapshot on saved pages (scripts/read-states/, read-cases.json)
 node scripts/eval-browser-steps.mjs --variant v1     # step-time eval: examples + MCP session, overhead and same step statuses (.claude/hillclimb/, gitignored)
 node scripts/benchmark-claims.mjs --runs 3           # expect judging on saved pages (scripts/claim-cases.json); false passes must stay 0
-node scripts/benchmark-pick-cache.mjs --skip turing-click   # pick cache on stale saved pages; wrong/unconfirmed hits must stay 0
-node scripts/benchmark-steps.mjs --picks on --dir <scratch copy of examples>   # warm pick cache; never --dir examples
+node scripts/benchmark-locators.mjs [--url https://…]   # recorded locators: coverage, and changed pages (wrong hits must stay 0); no key
+node scripts/benchmark-steps.mjs --e2e --mode no-judge --runs 3   # step overhead with no Jev call: replays the lock files of a judge run
 ```
 
 Change the desktop planner only when `benchmark-planner.mjs` shows an improvement. [Performance](performance.mdx)
@@ -364,4 +424,5 @@ summarizes the results.
 ## Documentation changes
 
 If you change step kinds, thresholds, MCP tools, the env file loading or the plugin install steps, change the
-matching doc in the same commit. For thresholds and tool names, also change the plugin skill.
+matching doc in the same commit. For thresholds and tool names, also change the plugin skill. For the agent
+notes, follow `.claude/skills/writing-agent-notes/SKILL.md`.

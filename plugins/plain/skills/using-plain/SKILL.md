@@ -7,6 +7,9 @@ description: Use when driving a website through the plain MCP tools (open, step,
 
 ## Overview
 
+These files name the tools by their short names (`open`, `step`, `batch`). Call each tool by the full name
+your tool list gives it, server prefix included (`mcp__<server>__batch`, never a bare `batch`).
+
 A tool error (`isError: true` with a text message) means the call itself failed. A step that ran and
 failed is a normal result with `status: "error"`.
 
@@ -31,7 +34,7 @@ The rules below apply to both.
 
 - A pick is accepted when Jev's confidence is ≥ 0.5 and the answer is not `none`. Otherwise the step is
   `inconclusive` and `detail` lists the top guesses with their probabilities.
-- Spec runs store reusable picks only at confidence ≥ 0.9 (probability fallback). Marginal accepted picks ask Jev again next run.
+- Picks below 0.9 confidence (probability fallback) are recorded as marginal: no-judge replays them, auto-healing asks Jev again next run.
 - A claim passes at p ≥ 0.9, fails at p ≤ 0.1, and is `inconclusive` in between. `optional: true` turns an
   inconclusive or error step into `skipped`.
 - `ask {claims, within?}` judges 1–16 claims in one Jev call without acting or recording: each is `yes`
@@ -57,9 +60,9 @@ The rules below apply to both.
     If claim layout is truncated, scope with `within`.
     Bounds do not prove color or image appearance. `snapshot` still returns the accessibility tree.
     Specs and MCP batches classify their known targets and claims together in one request. Plain English
-    prompts without a position word are semantic, and a lowercase relation word ("left of", "below") is
-    spatial, without a request. Repeated prompt groups reuse the classification; new interactive prompts
-    need another request.
+    prompts without a word that can name a position or a size, such as left, below, first, next or larger,
+    are semantic, and a lowercase relation word ("left of", "below") is spatial, without a request.
+    Repeated prompt groups reuse the classification; new interactive prompts need another request.
     A request over the model limit splits into smaller requests.
   - `unsure` is not evidence either way: rephrase or split, as for `expect`.
 - Rejected picks and non-passing claims dump the exact state Jev saw to `$TMPDIR/plain/*.json`; the path
@@ -171,12 +174,14 @@ A third rephrasing of the same fact is never the next move.
 
 For saved tests, add `tags` and use `include: ./flows/login.yaml` for shared
 steps-only flows; included steps use the root spec’s env/hooks. Run
-`npx -y -p @gabe4coding/plain@2.0.1 plain validate spec.yaml` before replay. For CI, add
+`npx -y -p @gabe4coding/plain@3.0.0 plain validate spec.yaml` before replay. For CI, add
 `--reporter junit:out/junit.xml --artifacts plain-results` (and
 `--reporter text` to keep console results). These are YAML/CLI features; MCP
-`step`/`batch` cannot execute an `include`. Spec runs write a pick cache
-(`*.picks.json` next to each spec and flow): commit it with the specs, and run CI
-with `--picks read` (`docs/running.mdx`, "Pick cache", in the plain repository).
+`step`/`batch` cannot execute an `include`. Passing spec runs and `save` write a
+lock file (`*.lock.json` next to each spec and flow): commit it with the specs.
+`--mode auto-healing` (default) replays it and lets Jev repair changed steps;
+`--mode no-judge` replays it with no Jev call and no API key; `--mode judge`
+asks Jev for everything (https://github.com/gabe4coding/plain/blob/main/docs/running.mdx#run-modes).
 
 ## Safety
 

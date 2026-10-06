@@ -12,10 +12,6 @@ export const CandidateSchema = z.object({
   id: z.number(),
   desc: z.string(),
   frameIndex: z.number().optional(),
-  /** A browser text-entry field: the pick cache ignores its `value=`. */
-  editable: z.boolean().optional(),
-  /** The element's UI state in the browser (checked, expanded...), for the pick cache. Never sent to Jev. */
-  state: z.string().optional(),
   /** Rendered edges, requested for spatial targets: main viewport CSS pixels in the browser, screen coordinates on native. */
   bounds: z.object({ left: z.number(), top: z.number(), right: z.number(), bottom: z.number() }).optional(),
 });
@@ -56,8 +52,6 @@ export interface TargetAdapter<T> {
   candidates: Candidate[];
   state: { url: string; title: string; goal?: string; layout?: string; coordinates?: string };
   element(candidate: Candidate): T;
-  /** The candidate a stored pick strictly matches in this frame (src/core/pick-cache.ts). Pure. */
-  cached?(target: string, index: number): Candidate | undefined;
 }
 
 export interface ResolvedTarget<T> {
@@ -69,8 +63,7 @@ export interface ResolvedTarget<T> {
   /** What acceptance used: the confidence when the provider returned one, else the probability. */
   score?: number;
   approximate?: boolean;
-  cached?: boolean;
-  /** The accepted candidate, cached or picked, for the caller to record in the pick cache. */
+  /** The accepted candidate, for the caller to record in the lock (src/core/lock.ts). */
   candidate?: Candidate;
 }
 
@@ -78,19 +71,13 @@ export interface ResolvedTarget<T> {
 export type Intelligence = { pick: typeof pickElements; judge: typeof judge; describe?: typeof describeSnapshot; ask?: typeof ask };
 export const intelligence: Intelligence = { pick: pickElements, judge, describe: describeSnapshot, ask };
 
-/** Resolves each target to an element: a pick cache hit acts on the stored pick, the misses share one Jev request. */
+/** Resolves each target to an element, all in one Jev request. */
 export async function resolveTargets<T>(adapter: TargetAdapter<T>, targets: string[], ai = intelligence): Promise<ResolvedTarget<T>[]> {
   if (!adapter.candidates.length) return targets.map(() => ({ element: null, detail: 'no candidates', tokens: 0, usedJev: false }));
-  const hits = targets.map((target, i) => adapter.cached?.(target, i));
-  const asked = targets.filter((_, i) => !hits[i]);
-  const picks = asked.length ? await ai.pick(adapter.candidates, asked, adapter.state) : [];
-  let pickIndex = 0;
+  const picks = await ai.pick(adapter.candidates, targets, adapter.state);
   return targets.map((target, i) => {
-    const hit = hits[i];
-    if (hit) return { element: adapter.element(hit), detail: `→ ${hit.desc}`, tokens: 0, usedJev: false, cached: true, candidate: hit };
-
-    const isFirstPick = pickIndex === 0;
-    const pick = picks[pickIndex++];
+    const isFirstPick = i === 0;
+    const pick = picks[i];
     if (!pick) throw new Error('Jev returned fewer picks than targets');
     const { id, probability, confidence, probabilities, tokens } = pick;
     const candidate = adapter.candidates.find((c) => c.id === id);

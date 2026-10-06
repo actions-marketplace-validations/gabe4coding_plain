@@ -177,7 +177,7 @@ steps:
   - expect: "The preview contains the test message"
 ```
 
-Run `npx -y -p @gabe4coding/plain@2.0.1 plain-mobile <spec.yaml>` (the MCP server's package version).
+Run `npx -y -p @gabe4coding/plain@3.0.0 plain-mobile <spec.yaml>` (the MCP server's package version).
 Files run sequentially. On iOS use `platform: ios` and its UDID/bundle ID. Equivalent flows can
 share steps, but verify accessibility and navigation on each platform. Optional hooks use the
 shared isolated setup/teardown contract, with setup before opening and cleanup on failure.
@@ -186,11 +186,13 @@ runs; prepare starting state in explicit steps or hooks.
 
 For YAML suites, add `tags: [smoke]` and share steps with
 `include: ./flows/login.yaml` (a steps-only file; placeholders use root env/hooks).
-Keep flows outside spec input globs. Run `npx -y -p @gabe4coding/plain@2.0.1 plain-mobile validate spec.yaml`
+Keep flows outside spec input globs. Run `npx -y -p @gabe4coding/plain@3.0.0 plain-mobile validate spec.yaml`
 before replay; missing secrets are warnings and no session/model key is needed.
 For CI, use `--reporter jsonl --reporter junit:out/junit.xml --artifacts plain-results`.
-Commit the pick cache (`*.picks.json` next to specs and flows) and run CI with `--picks read`.
-Spec runs store reusable picks only at confidence >= 0.9 (probability fallback). Marginal accepted picks ask Jev again next run.
+Passing spec runs and `save` write a lock file (`*.lock.json` next to each spec and flow): commit it.
+`--mode auto-healing` (default) replays it and lets Jev repair changed steps; `--mode no-judge` replays it with
+no Jev call and no API key; `--mode judge` asks Jev for everything. Picks below 0.9 confidence are recorded as
+marginal: no-judge replays them, auto-healing asks Jev again.
 Runs stay sequential; screenshots are supported, browser traces are unavailable.
 `include` is expanded by the file loader, so it cannot be sent to MCP `step`.
 

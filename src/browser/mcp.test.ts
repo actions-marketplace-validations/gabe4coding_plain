@@ -14,10 +14,12 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 // Drives the real server over stdio, as a plugin host does. CSS targets avoid paid model calls.
 let client: Client;
 const scratch = mkdtempSync(join(tmpdir(), 'plain-mcp-test-'));
-before(async () => {
-  client = new Client({ name: 'plain-test', version: '0' });
-  await client.connect(new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../cli.js', import.meta.url)), '--headless', '--timeout', '500', 'mcp'] }));
-});
+async function startServer(name: string): Promise<Client> {
+  const started = new Client({ name, version: '0' });
+  await started.connect(new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../cli.js', import.meta.url)), '--headless', '--timeout', '500', 'mcp'] }));
+  return started;
+}
+before(async () => { client = await startServer('plain-test'); });
 after(async () => { await client.close(); rmSync(scratch, { recursive: true, force: true }); });
 
 async function call(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -194,8 +196,7 @@ test('a typed password reaches step changes and snapshots only as a mask', async
 
 test('save writes values typed into password fields as env references, never as literals', async () => {
   // Its own server: the shared one already holds the passwords of earlier tests.
-  const own = new Client({ name: 'plain-test-secrets', version: '0' });
-  await own.connect(new StdioClientTransport({ command: process.execPath, args: [fileURLToPath(new URL('../cli.js', import.meta.url)), '--headless', '--timeout', '500', 'mcp'] }));
+  const own = await startServer('plain-test-secrets');
   const ownCall = async (name: string, args: Record<string, unknown>) =>
     ((await own.callTool({ name, arguments: args })) as { structuredContent: Record<string, unknown> }).structuredContent;
   try {
@@ -221,6 +222,24 @@ test('save writes values typed into password fields as env references, never as 
     assert.deepEqual(spec.env, env);
     assert.deepEqual(spec.steps.slice(1).map((step: { fill: { value: string } }) => step.fill.value),
       ['tomsmith', '${env.password}', '${env.password}', '${env.password2}', '${hooks.pin}']);
+  } finally {
+    await own.close();
+  }
+});
+
+test('save before any open is an error and leaves an existing spec and its lock as they were', async () => {
+  // Its own server: the shared one already holds the steps of earlier tests.
+  const own = await startServer('plain-test-empty-save');
+  try {
+    const path = join(scratch, 'kept.yaml');
+    const lock = join(scratch, 'kept.lock.json');
+    writeFileSync(path, 'name: kept\n');
+    writeFileSync(lock, '{}\n');
+    const result = await own.callTool({ name: 'save', arguments: { path } });
+    assert.equal(result.isError, true);
+    assert.match((result.content as { text: string }[])[0].text, /No successful steps to save/);
+    assert.equal(readFileSync(path, 'utf8'), 'name: kept\n');
+    assert.equal(readFileSync(lock, 'utf8'), '{}\n');
   } finally {
     await own.close();
   }

@@ -47,7 +47,7 @@ Each option has a key with the same effect in the [config file](#configuration).
 | `--retries N` | `retries` | `0` | Extra attempts after a result that is not `pass`. |
 | `--bail [N]` | `bail` | `0` (off) | Stops new specs after N specs end without `pass`. `--bail` alone means `1`. |
 | `--max-tokens N` | `maxTokens` | No limit | Stops new specs and retries when completed attempts used N tokens. |
-| `--picks MODE` | `picks` | `on` | [Pick cache](#pick-cache) mode: `on`, `read` or `off`. |
+| `--mode MODE` | `mode` | `auto-healing` | [Run mode](#run-modes): `judge`, `no-judge` or `auto-healing`. |
 | `--profile DIR` | `profile` | None | Browser only. Uses a persistent browser profile folder. |
 | `--channel NAME` | `channel` | Bundled Chromium | Browser only. Uses an installed browser, for example `chrome`. |
 | `--cdp URL` | `cdp` | None | Browser only. Attaches to a Chrome that runs with remote debugging. |
@@ -137,61 +137,128 @@ Each run replaces it. All three CLIs share this file. Add `.plain/` to your `.gi
 - In all other cases, plain runs the selected specs whose final status was not `pass`. This includes
   skipped specs and load errors. Flaky passes are not included.
 
-## Pick cache
+## Run modes
 
-A spec run remembers high-confidence picks. If the page did not change, the next run reuses the pick.
-This avoids a new request to pick an element. Jev still judges claims (`expect`, `wait`) and classifies prompts.
-The cache works for browser, desktop and mobile spec runs, not for agent mode (MCP).
+A passing run records what each step needed from Jev in a lock file. A later run can replay the lock file
+with fewer Jev calls, or with no Jev call at all.
 
-| Mode | Behavior |
-|---|---|
-| `on` (default) | Uses stored picks and stores high-confidence picks of passed steps. |
-| `read` | Uses stored picks and never writes a file. Use it in CI. |
-| `off` | Does not use or write the cache. Jev picks each target. |
+```bash
+plain --mode judge tests/       # Jev picks and judges every step, then writes the lock files
+plain --mode no-judge tests/    # replays the lock files: no Jev call and no API key
+plain tests/                    # auto-healing: replays, and Jev repairs the steps that changed
+```
 
-### Pick files
+| Mode | Targets | Claims (`expect`, `wait`) | Writes lock files |
+|---|---|---|---|
+| `judge` | Jev picks each target. | Jev judges each claim. | Yes |
+| `no-judge` | Each target uses its recorded locator. A miss is `inconclusive`. | A claim passes only if the page shows its recorded passing state. | No |
+| `auto-healing` (default) | Each target uses its recorded locator. Jev picks if the locator misses or the step fails. | Jev judges each claim. | Yes |
 
-Each spec file gets a pick file next to it: `checkout.yaml` gets `checkout.picks.json`. An included flow
-`flows/login.yaml` gets `flows/login.picks.json`, and all specs that include it share that file.
+The modes work for browser, desktop and mobile specs. Agent mode (MCP) always asks Jev, and `save` writes the lock
+file of the saved spec. Refer to [agent mode](agent-mode.mdx#save-the-flow-as-a-spec).
 
-Commit the pick files with the specs. A diff shows which pick changed.
-In CI, use `--picks read` to keep the working tree unchanged.
+### Lock files
 
-If the step text has a placeholder (`${env.*}` or `${hooks.*}`), the pick file holds only hashes. Other entries hold
-the element description and the page address as plain text.
+Each spec file gets a lock file next to it: `checkout.yaml` gets `checkout.lock.json`. An included flow
+`flows/login.yaml` gets `flows/login.lock.json`, and all specs that include it share that file.
+Commit the lock files with the specs. A diff shows which step changed.
 
-### When plain uses a stored pick
+A lock file has one entry for each recorded step, keyed by the step position and text:
 
-plain uses a stored pick only when:
+- A browser target entry holds a Playwright locator, for example `getByRole('button', { name: 'Save', exact: true })`.
+- A desktop or mobile target entry holds the element description without its value and state, for example
+  `button "Save" in window "Editor"`.
+- A claim entry holds only a hash of the page state that Jev judged true. It holds no page text.
 
-- It is the first attempt of the spec. A retry always asks Jev.
-- The page has the same origin and path. The query and the hash part of the address can change.
-- The list of elements that Jev can pick from is the same. Element states (checked, selected, pressed, expanded,
-  disabled) are part of the list. Typed field text does not change semantic browser picks.
-- Spatial picks also require equal bounds of the candidates and an equal layout (text, values and bounds) of the reference elements.
-- Exactly one element has the stored description.
+plain writes each value that the run filled in (`${env.*}`, `${hooks.*}`) back as its placeholder. This applies to
+the keys, the locators, the descriptions and the hashed states. Thus a lock file holds no value from `env` or from
+setup. A run with other values, for example a title that a setup hook makes unique, uses the same entries.
 
-A new row, a dialog over the page, or a button with a new name (`Subscribe` becomes `Unsubscribe`) causes a miss.
-After a miss, Jev picks as usual. A step that used a stored pick has `(cached pick)` at the end of its detail and
-`cached: true` in the JSON report.
+```yaml
+  - tap: the ${hooks.title} event row    # locator: getByRole('row', { name: '${hooks.title} 15 Nov' })
+```
 
-### When entries change
+A value of four characters or more is replaced in any text. A shorter value is replaced only where no letter or
+digit is next to it: `15` in `15 Nov`, but not in `2015`. If the page shows a value in another format (`Sun 15 Nov`
+for `15 November`), that text is not replaced. Then a `no-judge` claim about it is `inconclusive`.
 
-- plain stores picks only from passed steps in a passed attempt, with confidence of at least 0.9.
-  If the provider gives no confidence, plain uses the probability.
-  A pick below 0.9 still acts at the pick threshold, but each run asks Jev again.
-- plain never stores a pick of one of many identical elements (a target that ends with ` #2`), or a pick
-  that Jev rejected.
-- If an attempt does not pass, plain deletes the stored picks that it used. If the retry passes, its picks
-  replace them. If a step that used stored picks does not pass, its detail names a debug file with these picks
-  (`cache: <file>.json`).
-- plain ignores a pick file from another Jev model, or from a version of plain with another element
-  description format. The next passing run writes a new file.
+### What plain records
 
-To reset the cache, delete the pick file or one entry in it, or run once with `--picks off`. If you move a step to
-a new position, it gets a new entry. The old entry stays in the file until you delete it.
+plain writes the entries of a step only when the step passed and the whole attempt passed. A failed attempt does
+not change the lock file. Thus, the lock file always comes from a passing run.
 
-[Pick cache benchmark](benchmarks/pick-cache.md) gives the measured savings.
+In the browser, the locator must match exactly one element on the page, and that element must be the picked one.
+plain tries these, in this order:
+
+1. A test id, the role and name, the label, the placeholder, the `id`, a stable attribute, the text, the tag.
+2. The same inside the nearest row, list item, card or dialog that holds a unique text. In that container, the
+   position of an unnamed control is also possible.
+3. For a link, all links with the same name and the same `href`. A replay clicks the first of them.
+
+An element in an iframe also records a locator for each iframe on the way to it.
+On desktop and mobile, the description must be unique on the screen.
+If no locator or description is unique, plain records nothing for the target.
+
+A pick with a confidence below 0.9 is recorded as `marginal`. If the provider gives no confidence, plain uses the
+probability. A `no-judge` run replays a marginal pick. An `auto-healing` run asks Jev again each time.
+
+A spatial target (`the field below the Shipping heading`) also records a hash of the relative positions on the page:
+which element is above, below, left of or right of which. A scroll does not change them. A moved heading does.
+
+### When plain replays a step
+
+A browser target replays its locator when the locator matches exactly one element within 2 seconds after the page
+settles. For `click`, `hover`, `fill` and `check`, the element must also accept the action within 2 seconds. A
+covered or disabled element is a miss. A desktop or mobile target replays when exactly one element on the screen has
+the recorded description. A spatial target also requires the same relative positions. plain looks again for up to 2 seconds while an
+animation ends.
+
+A replayed step has `(replayed)` at the end of its detail and `replayed: true` in the JSON report.
+
+In `no-judge` mode, a claim passes when the page shows the state that Jev judged true in the recorded run.
+In the browser, plain compares the address path, the page title, the accessibility tree and the events (downloads,
+dialogs, console errors). For a spatial claim, plain also compares the relative positions of the elements. On desktop and mobile, plain compares the window
+title, the accessibility tree and, for a spatial claim, the relative positions of the elements. If the claim has `within`, plain compares only that region.
+`expect` compares for up to 3 seconds. `wait` compares until the timeout. If the state does not match, the step
+is `inconclusive`, and its detail names a debug file with the state that plain saw. If the same computer recorded
+the lock file, the detail also names a file with the recorded state (`recorded:`). Compare the two files.
+
+Text that changes on each run (a clock, a counter, a generated number) makes a `no-judge` claim `inconclusive`.
+Scope these claims with `within` to a region that does not
+change.
+
+### How auto-healing repairs a step
+
+In `auto-healing` mode, Jev repairs a step when:
+
+- The recorded locator misses.
+- The step does not pass with the recorded locator. Then plain runs the step once more, and Jev picks each target.
+
+If the step then passes, its detail ends with `(healed; …)` and the JSON report has `healed: true`. The note tells
+why Jev picked again, for example
+`(healed; recorded locator getByRole('button', { name: 'Go', exact: true }) matched no element)`. When the attempt
+passes, plain writes the new locator to the lock file. If the step still does not pass, the spec fails.
+
+A step that plain runs once more has `healed: true` but not `replayed: true`, because Jev picks each target. A
+target with no recorded locator, or with a marginal pick, is not a repair. Jev picks it as in `judge` mode, and the
+step does not show `healed`.
+
+An `expect` or `wait` that Jev judged false does not run again. A retry (`--retries`) does not replay the lock
+file: Jev picks each target again, because the failed attempt possibly acted on a wrong element.
+
+Jev judges every claim in `auto-healing` mode, so a passing run is as strict as a `judge` run.
+
+### Use the modes
+
+1. Run `plain --mode judge` or `plain` on your computer. Commit the lock files.
+2. In CI, run `plain --mode no-judge` for fast runs with no API key. Run `plain` (auto-healing) when the pages can
+   change.
+3. If a `no-judge` step is `inconclusive`, run `plain` on your computer. Then commit the changed lock file.
+
+An `auto-healing` run in CI writes the healed lock files to the CI working copy only.
+
+To record a step again, delete its entry or the lock file, and run in `judge` mode. If you move a step to a new
+position, it gets a new entry. The old entry stays in the file until you delete it.
 
 ## Configuration
 

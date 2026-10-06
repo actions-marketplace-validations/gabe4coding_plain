@@ -1,7 +1,8 @@
 import type { Page } from 'playwright';
 import type { Spec, Step } from '../core/spec.js';
 import { timedInto } from '../core/results.js';
-import type { PickAttempt } from '../core/pick-cache.js';
+import type { LockAttempt } from '../core/lock.js';
+import type { RunValues } from '../core/parameters.js';
 
 /** What a browser step runs against. */
 export interface StepContext {
@@ -15,10 +16,19 @@ export interface StepContext {
   track: (tokens: number) => void;
   /** Phase timings of the current step, reset by runStep. */
   ms: Record<string, number>;
-  /** This attempt's pick cache; spec runs only, never an MCP session. */
-  picks?: PickAttempt;
-  /** The step running now: its source and kind key the pick cache. */
+  /** This attempt's lock (src/core/lock.ts); spec runs only, never an MCP session. */
+  lock?: LockAttempt;
+  /** The step running now: its source and kind key the lock. */
   step?: Step;
+  /** The values this run filled in, written back as placeholders in what the lock records (src/core/parameters.ts). */
+  parameters?: RunValues;
+  /**
+   * What the current step did with the lock, reset by runStep: targets replayed, and for each target Jev healed,
+   * why its recorded locator missed.
+   */
+  locked?: { replayed: number; healed: string[] };
+  /** The step runs again after it failed with a replayed locator: every target goes to Jev. */
+  healing?: boolean;
   /** The interpolated steps after it in a spec run or an MCP batch: an expect asks the next expects' claims too. */
   upcoming?: Step[];
 }

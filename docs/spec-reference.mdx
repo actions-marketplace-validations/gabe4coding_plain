@@ -242,7 +242,7 @@ page needs more time, add a `wait` step.
 - A new tab becomes the active page. The next step waits until it loads.
 - If a step finds no element to choose from, it looks again for up to 2 s.
 
-A run can reuse the element that Jev picked in the last passing run. See the [pick cache](running.mdx#pick-cache).
+A run can replay the element that Jev picked in the last passing run. See [run modes](running.mdx#run-modes).
 
 ## Step results
 
@@ -281,7 +281,7 @@ Identical descriptions get `#1`, `#2` in page order.
 Jev classifies each distinct prompt group as semantic or spatial once per browser session.
 Some groups need no request:
 
-- An English prompt without a word that can name a position, such as left, below, first or next, is semantic.
+- An English prompt without a word that can name a position or a size, such as left, below, first, next or larger, is semantic.
 - An English prompt with a relation word in lowercase outside quotes, such as left, above or between, is spatial.
 
 A prompt in another language, or a capitalized name such as `the Left field`, goes to Jev.
@@ -291,7 +291,7 @@ The classification uses resolved targets and claims. Later interactive prompts n
 An uncertain classification requests spatial evidence. A spatial target also gets rendered bounds for candidates and reference elements, such as headings.
 These bounds use main viewport CSS pixels and include iframes and open shadow roots. Tree order does not establish visual order.
 The reference capture includes at most 254 text elements and controls.
-[Pick cache](running.mdx#pick-cache) describes the checks before reuse.
+A recorded spatial target replays only while the layout is the same. See [run modes](running.mdx#run-modes).
 
 Over about 1000 candidates, plain drops the last ones (iframes, `nav` and `footer` first). On such a
 page, use `within` or `css=`.

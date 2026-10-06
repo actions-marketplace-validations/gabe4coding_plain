@@ -9,19 +9,21 @@
 //                   runs it.
 // Local only (it costs Claude and Codex usage), never in CI. Each agent runs isolated from the user's setup:
 // Claude with --strict-mcp-config and no setting sources, Codex with a temporary CODEX_HOME that holds only the
-// test server and a link to the user's Codex login.
+// test server and a link to the user's Codex login, and an empty HOME, as Codex also reads the user's skills in
+// ~/.agents/skills. The plain server keeps the user's HOME in both, for its key file and the Playwright browsers.
 //
 //   node scripts/eval-agent.mjs [--agent claude,codex] [--only <task,task>] [--runs 1] [--jobs 3]
 //                               [--claude-model sonnet] [--codex-model <model>] [--out result.json]
 //
 // Needs the agent CLIs, a Jev key and a build (npm run build). Exit 1 when any run fails a check.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { startSite, USER } from '../e2e/site.mjs';
+import { codexEnv, collect } from './agent-cli.mjs';
 
 const { values } = parseArgs({ options: {
   agent: { type: 'string', default: 'claude,codex' },
@@ -161,7 +163,7 @@ async function grade(spec, outcome, dir) {
     else if (!/expect|wait/.test(readFileSync(saved, 'utf8'))) problems.push('the saved spec checks nothing (no expect or wait)');
     else if (spec.secret && readFileSync(saved, 'utf8').includes(spec.secret)) problems.push('the saved spec holds the literal password');
     else {
-      const code = await new Promise((done) => spawn(process.execPath, [cli, '--headless', '--picks', 'off', '--reporter', 'text', saved],
+      const code = await new Promise((done) => spawn(process.execPath, [cli, '--headless', '--mode', 'judge', '--reporter', 'text', saved],
         { env: { ...env, ...spec.replayEnv }, stdio: 'inherit' }).on('exit', done));
       if (code !== 0) problems.push(`the saved spec did not pass on replay (exit ${code})`);
     }
@@ -209,18 +211,10 @@ function runClaude(prompt, dir) {
 }
 
 function runCodex(prompt, dir) {
-  // An empty Codex home: no user plugins or apps (an installed plain would shadow this checkout), hooks or memories.
-  const home = join(dir, 'codex-home');
-  const userHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
-  mkdirSync(home);
-  symlinkSync(join(userHome, 'auth.json'), join(home, 'auth.json'));
+  // An empty Codex home and HOME: an installed plain would shadow this checkout, and with the account's apps and remote
+  // plugins the agent misses plain's tools among hundreds.
   const toml = (value) => JSON.stringify(value);
-  writeFileSync(join(home, 'config.toml'), [
-    // The account's apps and remote plugins add hundreds of tools, and the agent then misses plain's.
-    '[features]',
-    'apps = false',
-    'plugins = false',
-    'remote_plugin = false',
+  const agentEnv = codexEnv(dir, [
     '[mcp_servers.pw]',
     `command = ${toml(server.command)}`,
     `args = [${server.args.map(toml).join(', ')}]`,
@@ -230,12 +224,14 @@ function runCodex(prompt, dir) {
     'startup_timeout_sec = 120',
     '[mcp_servers.pw.env]',
     `PLAIN_E2E_SITE = ${toml(site.url)}`,
+    // Not the empty HOME of the agent: plain finds its key file (~/.config/plain/.env) and the browsers there.
+    `HOME = ${toml(homedir())}`,
     ...['TYPESAFE_API_KEY', 'AI_GATEWAY_API_KEY', 'JEV_PROVIDER'].filter((name) => env[name])
       .map((name) => `${name} = ${toml(env[name])}`),
-  ].join('\n') + '\n', { mode: 0o600 });
+  ]);
   const args = ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'read-only', '--cd', dir,
     ...(values['codex-model'] ? ['-m', values['codex-model']] : []), `${readFileSync(skillFile, 'utf8')}\n\n# Task\n\n${prompt}`];
-  return collect('codex', args, { cwd: dir, env: { ...process.env, CODEX_HOME: home }, stdin: 'ignore' }, (events) => {
+  return collect('codex', args, { cwd: dir, env: agentEnv, stdin: 'ignore' }, (events) => {
     const calls = [];
     let answer = '';
     let done = false;
@@ -251,25 +247,6 @@ function runCodex(prompt, dir) {
       if (type === 'turn.failed') return { failed: error?.message ?? 'turn failed', calls, answer };
     }
     return done ? { calls, answer: lastLine(answer) } : { failed: 'no turn.completed event', calls, answer };
-  });
-}
-
-/** Runs an agent CLI, parses its JSON lines with `parse`; the process's own failure becomes `failed`. */
-function collect(command, args, { cwd, env: childEnv = process.env, stdin = 'ignore' }, parse) {
-  const started = Date.now();
-  return new Promise((done) => {
-    const child = spawn(command, args, { cwd, env: childEnv, stdio: [stdin, 'pipe', 'pipe'] });
-    let out = '';
-    let err = '';
-    child.stdout.on('data', (chunk) => (out += chunk));
-    child.stderr.on('data', (chunk) => (err += chunk));
-    child.on('error', (error) => done({ failed: `${command}: ${error.message}`, calls: [], answer: '' }));
-    child.on('close', (code) => {
-      const events = out.split('\n').flatMap((line) => { try { return [JSON.parse(line)]; } catch { return []; } });
-      const parsed = { ...parse(events), transcript: out };
-      if (!parsed.failed && code !== 0) parsed.failed = `${command} exited ${code}: ${err.trim().split('\n').at(-1) ?? ''}`;
-      done({ ms: Date.now() - started, ...parsed });
-    });
   });
 }
 

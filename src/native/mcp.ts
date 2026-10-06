@@ -1,11 +1,12 @@
-import { writeFileSync } from 'node:fs';
+import { LockStore } from '../core/lock.js';
+import { SecretNames, writeSaved } from '../core/save.js';
 import { resolve, dirname, relative } from 'node:path';
 import { z } from 'zod';
-import { stringify } from 'yaml';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { Intelligence, Snapshot } from '../core/automation.js';
 import { interpolate } from '../core/interpolate.js';
+import { parametersOf } from '../core/parameters.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from '../core/snapshot-view.js';
 import { startHooks, placeholderPaths, type HooksRunner, type HookSpec } from '../core/hooks.js';
 import { isFailure, type StepResult, type Status } from '../core/results.js';
@@ -51,8 +52,10 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
   let opened = false;
   let spec = config.spec;
   let transcript: Record<string, unknown>[] = [];
+  /** What each passing step needed from Jev, keyed by its transcript position: `save` writes it as the lock file. */
+  let recorder = new LockStore('judge').attempt();
   /** Each value typed into a secure text field, with the `env` key that `save` writes in its place. */
-  let secretKeys = new Map<string, string>();
+  let secrets = new SecretNames();
   let hooks: HooksRunner<S> | undefined;
   let data: Record<string, unknown> = {};
   let results: StepResult[] = [];
@@ -86,7 +89,9 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     async open(next, attach) {
       await close();
       transcript = [];
-      secretKeys = new Map();
+      recorder = new LockStore('judge').attempt();
+      session.lock = recorder;
+      secrets = new SecretNames();
       results = [];
       overall = 'pass';
       spec = next;
@@ -148,27 +153,24 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     const parsed = session.parse(step);
     const tokensBefore = session.tokens;
     const ownBaseline = await screenBefore(parsed as { kind: string; within?: string });
-    const result = await session.run(withPlaceholders(parsed));
+    // The position the step takes in the transcript if it passes; the file is set by `save`.
+    session.parameters = parametersOf({ env: {}, hooks: data });
+    const result = await session.run({ ...withPlaceholders(parsed), at: { file: '', index: transcript.length } } as typeof parsed);
+    recorder.endStep(result);
     results.push(result);
     if (isFailure(result.status)) overall = result.status;
-    if (result.status === 'pass') transcript.push(asSaved(step, parsed as { kind: string; value?: string }));
+    if (result.status === 'pass') transcript.push(await asSaved(step, parsed as { kind: string; value?: string }));
     const changed = CHANGES_ENABLED ? await changesSince(ownBaseline ?? session.firstSnapshot ?? lastScreen) : {};
     return ok({ ...result, jevTokens: session.tokens - tokensBefore, ...changed });
   }));
 
   /**
    * The step as written, except a literal typed into a secure text field, or a value that was typed into one before
-   * (a confirm field that is not secure): that becomes an `${env.*}` placeholder. A value with a placeholder stays.
+   * (a confirm field that is not secure): that becomes an `${env.*}` placeholder (SecretNames in src/core/save.ts).
    */
-  function asSaved(step: Record<string, unknown>, parsed: { kind: string; value?: string }): Record<string, unknown> {
-    if (parsed.kind !== 'fill' || !parsed.value || parsed.value.includes('${')) return step;
-    let key = secretKeys.get(parsed.value);
-    if (!key) {
-      if (!session.filledSecret) return step;
-      key = secretKeys.size ? `password${secretKeys.size + 1}` : 'password';
-      secretKeys.set(parsed.value, key);
-    }
-    return { ...step, fill: { ...(step.fill as Record<string, unknown>), value: `\${env.${key}}` } };
+  async function asSaved(step: Record<string, unknown>, parsed: { kind: string; value?: string }): Promise<Record<string, unknown>> {
+    if (parsed.kind !== 'fill') return step;
+    return secrets.savedFill(step, parsed.value, () => session.filledSecret);
   }
 
   server.registerTool('find', {
@@ -238,11 +240,8 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
     inputSchema: { path: z.string().min(1), name: z.string().min(1).optional() },
   }, ({ path, name }) => queue(async () => {
     requireOpen();
-    if (!transcript.length) throw new Error('No successful steps to save');
     const file = resolve(path);
-    // password: $PASSWORD, password2: $PASSWORD_2, ...
-    const secrets = [...secretKeys.values()].map((key, i) => [key, i ? `$PASSWORD_${i + 1}` : '$PASSWORD']);
-    const env = secrets.length ? { env: Object.fromEntries(secrets) } : {};
+    const env = secrets.env();
     const doc = {
       name: name ?? spec.name,
       ...config.saved(spec),
@@ -251,8 +250,8 @@ export function createNativeServer<S extends Spec>(config: NativeServerConfig<S>
       ...env,
       steps: transcript,
     };
-    writeFileSync(file, stringify(doc), { mode: 0o600 });
-    return ok({ path: file, steps: transcript.length, ...env });
+    const lock = writeSaved(file, doc, recorder.recorded);
+    return ok({ path: file, steps: transcript.length, ...lock, ...env });
   }));
 
   server.registerTool('close', { description: config.describe.close, inputSchema: {} }, () => queue(async () => {
