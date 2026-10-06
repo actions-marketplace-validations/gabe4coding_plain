@@ -65,5 +65,13 @@
       "\\b(move|moving|split)",
       "narrow|folder|module"
     ]
+  },
+  {
+    "id": "native-tests",
+    "question": "I changed the save tool in src/native/mcp.ts. Which test files cover it?",
+    "expect": [
+      "computer/session\\.test\\.ts",
+      "mobile/session\\.test\\.ts"
+    ]
   }
 ]

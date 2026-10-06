@@ -46,6 +46,8 @@ Plain MDX that GitHub still renders.
 - No JSX components, `import`/`export`, `{/* */}` or `<!-- -->` comments, or `<https://…>` autolinks.
 - In prose, `{`, `}`, `<` and `>` go inside inline code. HTML only where Markdown cannot do it (a centered
   image), with every tag closed (`<img … />`, `<br />`).
+- Keep each inline code span on one line: `check:docs` reads one line at a time, so a span that wraps is
+  checked as prose (a `;` in it fails the semicolon rule).
 - Relative links use the `.mdx` name and a GitHub heading slug. Renaming a heading means fixing every link to it
   (`grep -rn "<file>.mdx#<old-slug>"` over the repo, including the skills and `docs/benchmarks`).
 - `.github/workflows/test.yml` greps `docs/ci.mdx` for the Playwright image tag: keep the tag in that file and in
