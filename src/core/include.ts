@@ -33,7 +33,7 @@ export function expandIncludes(rawSteps: unknown[], file: string): unknown[] {
       if (step === null || typeof step !== 'object' || Array.isArray(step)) return [step];
       const mapping = step as Record<string, unknown>;
       if ('origin' in mapping) throw invalid(fromFile, 'origin: reserved for included steps');
-      if ('at' in mapping) throw invalid(fromFile, "at: reserved for the loader (the pick cache's step source)");
+      if ('at' in mapping) throw invalid(fromFile, "at: reserved for the loader (the step source that lock files key on)");
       const location: Source = { file: fromFile === root ? undefined : relativeName(fromFile), index };
       if (!('include' in mapping)) {
         const origin = fromFile === root ? {} : { origin: relativeName(fromFile) };

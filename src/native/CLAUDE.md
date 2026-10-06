@@ -32,3 +32,5 @@
   accepted picks, and `assert` records or (no-judge) compares the hashed passing state; `run` reruns a step that
   failed with a replayed element (auto-healing). The MCP `save` writes the session's records as the lock file.
 - Native engines require `--workers 1`.
+- Tests: `session.ts` and `mcp.ts` are tested through each platform, in `src/computer/session.test.ts` and
+  `src/mobile/session.test.ts`; the run modes in `lock.test.ts`.
