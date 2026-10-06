@@ -9,7 +9,8 @@
 //                   runs it.
 // Local only (it costs Claude and Codex usage), never in CI. Each agent runs isolated from the user's setup:
 // Claude with --strict-mcp-config and no setting sources, Codex with a temporary CODEX_HOME that holds only the
-// test server and a link to the user's Codex login.
+// test server and a link to the user's Codex login, and an empty HOME, as Codex also reads the user's skills in
+// ~/.agents/skills. The plain server keeps the user's HOME in both, for its key file and the Playwright browsers.
 //
 //   node scripts/eval-agent.mjs [--agent claude,codex] [--only <task,task>] [--runs 1] [--jobs 3]
 //                               [--claude-model sonnet] [--codex-model <model>] [--out result.json]
@@ -17,12 +18,12 @@
 // Needs the agent CLIs, a Jev key and a build (npm run build). Exit 1 when any run fails a check.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { startSite, USER } from '../e2e/site.mjs';
-import { codexHome, collect } from './agent-cli.mjs';
+import { codexEnv, collect } from './agent-cli.mjs';
 
 const { values } = parseArgs({ options: {
   agent: { type: 'string', default: 'claude,codex' },
@@ -210,10 +211,10 @@ function runClaude(prompt, dir) {
 }
 
 function runCodex(prompt, dir) {
-  // An empty Codex home: an installed plain would shadow this checkout, and with the account's apps and remote
+  // An empty Codex home and HOME: an installed plain would shadow this checkout, and with the account's apps and remote
   // plugins the agent misses plain's tools among hundreds.
   const toml = (value) => JSON.stringify(value);
-  const home = codexHome(dir, [
+  const agentEnv = codexEnv(dir, [
     '[mcp_servers.pw]',
     `command = ${toml(server.command)}`,
     `args = [${server.args.map(toml).join(', ')}]`,
@@ -223,12 +224,14 @@ function runCodex(prompt, dir) {
     'startup_timeout_sec = 120',
     '[mcp_servers.pw.env]',
     `PLAIN_E2E_SITE = ${toml(site.url)}`,
+    // Not the empty HOME of the agent: plain finds its key file (~/.config/plain/.env) and the browsers there.
+    `HOME = ${toml(homedir())}`,
     ...['TYPESAFE_API_KEY', 'AI_GATEWAY_API_KEY', 'JEV_PROVIDER'].filter((name) => env[name])
       .map((name) => `${name} = ${toml(env[name])}`),
   ]);
   const args = ['exec', '--json', '--skip-git-repo-check', '--sandbox', 'read-only', '--cd', dir,
     ...(values['codex-model'] ? ['-m', values['codex-model']] : []), `${readFileSync(skillFile, 'utf8')}\n\n# Task\n\n${prompt}`];
-  return collect('codex', args, { cwd: dir, env: { ...process.env, CODEX_HOME: home }, stdin: 'ignore' }, (events) => {
+  return collect('codex', args, { cwd: dir, env: agentEnv, stdin: 'ignore' }, (events) => {
     const calls = [];
     let answer = '';
     let done = false;
