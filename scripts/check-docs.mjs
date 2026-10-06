@@ -1,6 +1,7 @@
 // Checks the user docs against the rules in .claude/skills/writing-docs/SKILL.md: each file compiles as MDX 3
 // (GFM + frontmatter), stays GitHub-safe, follows the mechanical ASD-STE100 rules, and every relative link and heading
-// anchor resolves. Links are also checked in the files that point into the docs (benchmarks, skills, CLAUDE.md).
+// anchor resolves. Links are also checked in the files that point into the docs (benchmarks, skills, CLAUDE.md,
+// CODING_STANDARDS.md).
 //   node scripts/check-docs.mjs            # all user docs
 //   node scripts/check-docs.mjs docs/x.mdx # only these files (links into them are not re-scanned)
 import { compile } from '@mdx-js/mdx';
@@ -24,6 +25,7 @@ const userDocs = [
 // Not rewritten to these rules, but their links into the docs must keep working.
 const linkOnly = [
   join(root, 'CLAUDE.md'),
+  join(root, 'CODING_STANDARDS.md'),
   ...walk(join(root, 'docs/benchmarks'), (n) => n.endsWith('.md')),
   ...walk(join(root, 'plugins'), (n) => n.endsWith('.md')).filter((f) => f.includes('/skills/')),
 ];

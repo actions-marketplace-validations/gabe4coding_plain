@@ -1,9 +1,10 @@
+Before you change code (`src/`, `scripts/`, `bin/`, `plugins/`, `mods/`, `e2e/`, `examples/`, `package.json`), read
+`CODING_STANDARDS.md`.
+
 ## Validation (mandatory)
 
 Before any pull request, and before you report a change as done, follow the `validating-changes` skill
-(`.claude/skills/validating-changes/SKILL.md`; Codex reads the same file through `.agents/skills/`). Its core is
-`node scripts/validate.mjs`; a `PreToolUse` hook (`.claude/settings.json`, `.codex/hooks.json`,
-`scripts/pr-gate.mjs`) blocks `gh pr create` until that passed on exactly the files of HEAD.
+(`.claude/skills/validating-changes/SKILL.md`).
 
 - Evidence that counts: integration tests at a real boundary, the live e2e suite, evals and real agent runs.
   Unit tests only for pure logic with edge cases.
@@ -13,15 +14,13 @@ Before any pull request, and before you report a change as done, follow the `val
 
 ## Commands
 
-Build (TypeScript, ESM, `src/` → `dist/`, `tsc` per `tsconfig.json`; strict, plus no unused locals/parameters,
-explicit `override`, no implicit returns):
+Build (`src/` → `dist/`):
 
 ```
 npm run build
 ```
 
-Test (`node:test`; specs live next to their module as `src/**/*.test.ts`, compiled to `dist/**/*.test.js`; tests of
-`scripts/` are `scripts/*.test.mjs`, run as they are):
+Test:
 
 ```
 npm test                                                    # build + node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'
@@ -56,20 +55,16 @@ node dist/cli.js validate tests/                         # schemas/includes/plac
 node dist/cli.js --list --tag smoke tests/                # list selected specs; spec env still required
 ```
 
-- Flags, config file and precedence: `docs/running.mdx`. Real browser (`--profile`, `--channel`, `--cdp`):
-  `docs/agent-mode.mdx`.
-- API key and env files: `docs/getting-started.mdx`. Spec runs check for a key just before execution;
-  `validate` and `--list` need none; MCP mode keeps serving and the first Jev call returns the message as a tool
-  error.
+- Spec runs check for a key just before execution; `validate` and `--list` need none; MCP mode keeps serving and
+  the first Jev call returns the message as a tool error.
 - Benchmarks and area evals: `docs/development.mdx`, "Performance checks"; method and results in
   `docs/benchmarks/`. Compare a change against a saved run of main.
 
-`dist/` is gitignored, never committed: build after a clone and after each `src/` change. The npm package
-`@gabe4coding/plain` (scoped: the unscoped `plain` belongs to another package) ships `bin/`, `dist/` without tests and the root lockfile as `npm-shrinkwrap.json` (`files` in
-`package.json`; `scripts/pack.mjs` runs on `prepack`/`postpack`). `bin/plain.mjs` runs `dist/cli.js` and
-installs Chromium on first run. Releases: `.github/workflows/publish.yml` publishes the `package.json` version on a
-push to main when npm lacks it, then tags `v<version>`; `action.yml` and the `Dockerfile` install that npm release
-(`docs/development.mdx`, "Releases").
+Build after a clone and after each `src/` change. The npm package `@gabe4coding/plain` (scoped: the unscoped
+`plain` belongs to another package) ships the root lockfile as `npm-shrinkwrap.json` (`scripts/pack.mjs` runs on
+`prepack`/`postpack`). `bin/plain.mjs` runs `dist/cli.js` and installs Chromium on first run. Releases:
+`.github/workflows/publish.yml` publishes the `package.json` version on a push to main when npm lacks it, then tags
+`v<version>`; `action.yml` and the `Dockerfile` install that npm release (`docs/development.mdx`, "Releases").
 
 ## Architecture
 
@@ -91,45 +86,26 @@ Source layout (tests sit next to their module; details live in each module's com
 - `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
   `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
 - `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`),
-  `steps.ts` (step handlers), `activity.ts` (settling, request tracking), `settled-ask.ts`, `locate.ts` (targets: replay, heal, record),
-  `record-locator.ts` (the Playwright locator a passing pick records),
-  `judge-page.ts` (claims), `candidates.ts`, `frames.ts`, `layer.ts`, `page.ts` (snapshots, DOM clock),
-  `evidence.ts` (observation routing), `layout.ts` (read-only rendered bounds), `context-options.ts`, `notes.ts` (console noise), `mcp.ts` (the browser MCP server).
+  `steps.ts` (step handlers), `activity.ts` (settling, request tracking), `settled-ask.ts`, `locate.ts` (targets:
+  replay, heal, record), `record-locator.ts` (the Playwright locator a passing pick records), `judge-page.ts`
+  (claims), `candidates.ts`, `frames.ts`, `layer.ts`, `page.ts` (snapshots, DOM clock), `evidence.ts` (observation
+  routing), `layout.ts` (read-only rendered bounds), `context-options.ts`, `notes.ts` (console noise), `mcp.ts`
+  (the browser MCP server).
 - `src/native/` — the shared desktop/mobile core; `src/computer/` and `src/mobile/` — each platform on top of it.
   Each of these three folders has its own `CLAUDE.md` (also `AGENTS.md`): read it before you change that engine.
 - `src/suite/` — what all three CLIs share for spec suites: `run-suite.ts`, `types.ts`, `options.ts`, `config.ts`,
   `schedule.ts`, `select.ts`, `validate.ts`, `last-run.ts`, `artifacts.ts`, `spec-timeout.ts`, `reporters/`.
 
-Rules that cross modules:
-
-- When the recorded locator format (`src/browser/record-locator.ts`) or the claim state hash (`stateHash` in
-  `src/browser/judge-page.ts`) changes, bump `LOCK_VERSION` in `src/core/lock.ts`, so old lock files are ignored.
-- MCP servers use stdout as the JSON-RPC channel: all logging goes to `console.error`.
-- Plugins live at `plugins/plain/` (browser), `plugins/plain-computer/` (desktop) and
-  `plugins/plain-mobile/` (mobile). Keep identity/version/description aligned across each plugin's manifests
-  (layout in `docs/development.mdx`, "Plugin packaging"). Browser skill: `plugins/plain/skills/using-plain/`.
-- The plugins hold no runtime code: their MCP configs run `node bin/npx.mjs -y --package=@gabe4coding/plain@<version>`
-  (the shim is `scripts/plugin-npx.mjs`: `cmd /c npx` on Windows, an npm alias inside a checkout of this repo), pinned to the `package.json` version, so a
-  plugin from a clone still runs the npm release. Plugin version = package version.
-- One root `package.json` and lockfile own all dependencies and all CLI binaries. Never add per-plugin package
-  manifests, symlinks or parent-directory runtime imports. Never edit the files `npm run build` generates: the
-  plugins' MCP configs, `bin/npx.mjs`, versions, `@gabe4coding/plain@<version>` in the skills, `LICENSE` and `hooks/`.
-- `mods/session-pane/` — a Claude Code mod that draws each plugin's MCP tool results; `hooks/session-pane/` holds
-  `model.ts` (pure state), `view.ts` (pure tree) and `register.ts` (the only mods API user).
-  `scripts/build-plugins.mjs` copies `hooks/` into each plugin; never edit `plugins/*/hooks/`. Not compiled by
-  `tsc`, not in the npm package, invisible to Codex. Tests: `npm run test:mods` (needs the `claude` CLI).
-
 ## Documentation
 
-User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`, for humans first. Before you write or
-change one, follow the `writing-docs` skill (`.claude/skills/writing-docs/SKILL.md`): format, ASD-STE100 language
-and content rules. Contributor detail goes in `docs/development.mdx` or in this file, never in a user doc.
+User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`. Before you write or change one, follow
+the `writing-docs` skill (`.claude/skills/writing-docs/SKILL.md`).
 
 When to update: a change to step kinds, spec keys, CLI flags, config keys, defaults, thresholds, statuses, exit
 codes, MCP tools or arguments, env loading, or plugin install steps lands in its owner doc in the same change (and
 in the plugin skill, for thresholds and tool names). Remove a fact from the docs when the code drops it.
 
-One owner per topic. Other docs link to the owner and do not repeat it:
+One owner per topic:
 
 | Topic | Owner |
 |---|---|
@@ -156,12 +132,5 @@ One owner per topic. Other docs link to the owner and do not repeat it:
   plugins that depend on plain, not here.
 - Specs never hold literal credentials: put them in the spec's `env` block as `$VAR` references, used in steps as
   `${env.*}`.
-- `examples/*.yaml` run against public demo sites; `examples/fixtures/` and `examples/hooks/` back the
-  `login-dataset.yaml` example. They are user demos, checked offline only (`check:examples`).
-- `e2e/` is the live gate: every page it needs lives in `e2e/site.mjs`, never on a remote site, so a failure is
-  plain's or Jev's. Phrase its targets and claims so one clear answer exists; when Jev misses on such a page,
-  suspect the product (what Jev is shown) before the wording.
 - Per `plugins/plain/skills/using-plain/SKILL.md`: test environments only, stop before the last irreversible step
   (payment, booking, sending), never bypass bot protection.
-- Desktop and mobile: Appium and platform drivers are host prerequisites; never auto-install apps or reset app
-  data. Browser-only steps must fail explicitly on desktop and mobile.
