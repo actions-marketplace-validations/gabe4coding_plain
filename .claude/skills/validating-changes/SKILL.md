@@ -28,9 +28,10 @@ Before you run anything, check that the change carries the evidence `CODING_STAN
 node scripts/validate.mjs
 ```
 
-It runs `npm run verify`, the live e2e (`scripts/e2e.mjs`), the claims gate and, when the MCP surface or the
-browser skill changed, the agent evals (`scripts/eval-agent.mjs`, Claude and Codex). It stops at the first
-failure and writes the stamp only when all pass.
+It runs `npm run verify`, the live e2e (`scripts/e2e.mjs`), the claims gate, the agent evals
+(`scripts/eval-agent.mjs`, Claude and Codex) when the MCP surface or the browser skill changed, and the routing
+evals (`scripts/eval-routing.mjs`) when an agent note changed. It stops at the first failure and writes the stamp
+only when all pass.
 
 - On a failure, find the cause and fix it. Never weaken a gate to get green (`CODING_STANDARDS.md`, "Tests").
 - A live check that passes only on a retry is a finding. Name it in the report. Do not hide it.
@@ -38,7 +39,7 @@ failure and writes the stamp only when all pass.
 
 ## 4. Area evals
 
-`validate.mjs` ends with the area evals the changed files call for. For each one:
+`scripts/validate.mjs` ends with the area evals the changed files call for. For each one:
 
 1. Run it on main first: `git worktree add /tmp/pw-main origin/main`, `npm ci && npm run build` there, run the
    eval with `--out /tmp/base.json`.
@@ -56,6 +57,8 @@ and for correctness: edge cases, error paths, a step that could pass when it sho
 
 - Check the diff against `CODING_STANDARDS.md`, "Docs that follow the code". Follow the `writing-docs` skill for
   any user doc you touch.
+- If the change touched an agent note, or taught you something an agent would get wrong again, follow the
+  `writing-agent-notes` skill.
 - `check:docs` and `check:examples` already ran in `verify`. They do not check facts: read the code for those.
 
 ## 7. Report
