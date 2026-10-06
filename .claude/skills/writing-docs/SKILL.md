@@ -9,7 +9,8 @@ User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`. They ar
 QA engineer who writes, runs or debugs specs, or uses the plugins with an agent. Contributor detail goes in
 `docs/development.mdx`, `CLAUDE.md` or `CODING_STANDARDS.md`, never in a user doc. Out of this set:
 `docs/benchmarks/**` (dated measurement records, kept as `.md`, not rewritten after the fact), the plugin skills
-(agent-facing; the plugin loader needs `.md`), `CLAUDE.md` and `CODING_STANDARDS.md`.
+(agent-facing; the plugin loader needs `.md`), and the agent notes (`CLAUDE.md`, `CODING_STANDARDS.md`: the
+`writing-agent-notes` skill).
 
 One owner per topic (table below). Other docs link to the owner and do not repeat it. A desktop or mobile doc
 states only what differs from the browser docs and links to them for the rest. Which code changes must update a

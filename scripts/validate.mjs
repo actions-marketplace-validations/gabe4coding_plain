@@ -6,10 +6,13 @@
 //   3. claims eval --gate      live Jev, saved pages: false passes must stay 0
 //   4. agent evals             real claude -p and codex exec runs; only when the MCP tools, their results or the
 //                              browser skill changed (--agents on|off forces it)
+//   5. routing evals           fresh claude -p and codex exec agents must find the rules behind the routes of the
+//                              agent notes; only when a note, a skill or the eval changed (--routing on|off forces it)
 // Then it lists the area evals the changed files call for, which need a judgment (compare with main), and writes
-// the stamp scripts/pr-gate.mjs checks. Live steps need a Jev key; agent evals need the claude and codex CLIs.
+// the stamp scripts/pr-gate.mjs checks. Live steps need a Jev key; agent and routing evals need the claude and codex
+// CLIs.
 //
-//   node scripts/validate.mjs [--base origin/main] [--agents auto|on|off]
+//   node scripts/validate.mjs [--base origin/main] [--agents auto|on|off] [--routing auto|on|off]
 import { spawn, execFileSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,14 +22,20 @@ import { workingTree, writeStamp } from './validation-stamp.mjs';
 const { values } = parseArgs({ options: {
   base: { type: 'string', default: 'origin/main' },
   agents: { type: 'string', default: 'auto' },
+  routing: { type: 'string', default: 'auto' },
 } });
 if (!['auto', 'on', 'off'].includes(values.agents)) throw new Error('--agents must be auto, on or off');
+if (!['auto', 'on', 'off'].includes(values.routing)) throw new Error('--routing must be auto, on or off');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 
 // What an agent sees of the browser engine: tool shapes, results and the skill that teaches them.
 const AGENT_SURFACE = [/^src\/browser\/mcp\.ts$/, /^src\/core\/(mcp-result|read|aria-changes|snapshot-view)\.ts$/,
   /^plugins\/plain\/skills\//];
+// What an agent reads to find a rule: the agent notes (CLAUDE.md, also AGENTS.md, at any depth), the skills of this
+// repo, and the routing eval itself.
+const NOTES_SURFACE = [/(^|\/)(CLAUDE|AGENTS)\.md$/, /^CODING_STANDARDS\.md$/, /^\.(claude|agents)\/skills\//,
+  /^scripts\/(routing-cases\.json|eval-routing\.mjs|agent-cli\.mjs)$/];
 // Area evals: a change here can make Jev's answers or the step time worse without failing a gate.
 const AREA_EVALS = [
   [/^src\/(jev\/(pick|describe|ask)|browser\/(candidates|locate)|core\/automation)\.ts$/,
@@ -58,12 +67,15 @@ function run(label, command, args) {
 }
 
 const changed = changedFiles();
-const agentEvals = values.agents === 'on' || (values.agents === 'auto' && changed.some((f) => AGENT_SURFACE.some((re) => re.test(f))));
+const touches = (surface) => changed.some((f) => surface.some((re) => re.test(f)));
+const agentEvals = values.agents === 'on' || (values.agents === 'auto' && touches(AGENT_SURFACE));
+const routingEvals = values.routing === 'on' || (values.routing === 'auto' && touches(NOTES_SURFACE));
 const steps = [
   ['key-free gate', 'npm', ['run', 'verify']],
   ['live e2e', process.execPath, ['scripts/e2e.mjs']],
   ['claims gate', process.execPath, ['scripts/benchmark-claims.mjs', '--gate']],
   ...(agentEvals ? [['agent evals', process.execPath, ['scripts/eval-agent.mjs']]] : []),
+  ...(routingEvals ? [['routing evals', process.execPath, ['scripts/eval-routing.mjs']]] : []),
 ];
 for (const [label, command, args] of steps) {
   if (!(await run(label, command, args))) {
@@ -75,7 +87,8 @@ for (const [label, command, args] of steps) {
 const areaEvals = AREA_EVALS.filter(([re]) => changed.some((f) => re.test(f))).map(([, how]) => how);
 writeStamp(workingTree(), { base: values.base, ran: steps.map(([label]) => label), areaEvals });
 console.log(`\nVALIDATION PASSED: ${steps.map(([label]) => label).join(', ')}.` +
-  (agentEvals ? '' : ' Agent evals not needed: no MCP tool, result or browser skill change.'));
+  (agentEvals ? '' : ' Agent evals not needed: no MCP tool, result or browser skill change.') +
+  (routingEvals ? '' : ' Routing evals not needed: no agent note change.'));
 if (areaEvals.length) console.log(`\nArea evals still to run and compare (the skill says how):\n${areaEvals.map((how) => `  - ${how}`).join('\n')}`);
 console.log('\nThen finish the review steps of the validating-changes skill. The stamp covers the current files: ' +
   'if you change a file after this, run this again before the pull request.');

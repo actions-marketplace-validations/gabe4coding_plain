@@ -23,7 +23,8 @@ Each change carries its own proof; choose the strongest that fits:
 |---|---|
 | New or changed browser behavior a user sees | A spec in `e2e/` (page in `e2e/site.mjs`); a negative case tagged `expect-fail` when a false pass is possible |
 | Jev-facing input (candidates, snapshot, prompts, thresholds) | A case in the matching eval data (`scripts/*-cases.json`, saved states) |
-| MCP tool, result shape or browser skill | An `eval-agent.mjs` task when no task covers it |
+| MCP tool, result shape or browser skill | A `scripts/eval-agent.mjs` task when no task covers it |
+| A route or a rule an agent must find in an agent note | A case in `scripts/routing-cases.json` |
 | Suite, reporters, config, CLI flags | An integration test that runs the CLI or `runSuite` on real files |
 | Desktop or mobile engine | A test with the injected adapter, and the native smoke when you can run it |
 | Pure logic with edge cases | A unit test is fine here, and only here |
@@ -42,8 +43,9 @@ Each change carries its own proof; choose the strongest that fits:
 - Thresholds and tool names also go in the plugin skills (`plugins/*/skills/`); for desktop and mobile, also the
   supported steps.
 - Remove a fact from the docs when the code drops it.
-- Agent-facing text follows too: this file and the engine notes (`src/{native,computer,mobile}/CLAUDE.md`) when the
-  layout or a cross-module rule changes, `CLAUDE.md` when a command or a route in its table changes.
+- Agent notes follow too: this file and the engine notes (`src/{native,computer,mobile}/CLAUDE.md`) when the
+  layout or a cross-module rule changes, `CLAUDE.md` when a command or a route in its table changes. Follow the
+  `writing-agent-notes` skill.
 
 ## Runtime: model, lock files, MCP output, desktop and mobile
 
@@ -59,7 +61,7 @@ Each change carries its own proof; choose the strongest that fits:
 
 - One root `package.json` and lockfile own all dependencies and all CLI binaries. Never add per-plugin package
   manifests, symlinks or parent-directory runtime imports.
-- The plugins hold no runtime code: their MCP configs run the npm release through `bin/npx.mjs` (source:
+- The plugins hold no runtime code: their MCP configs run the npm release through `plugins/*/bin/npx.mjs` (source:
   `scripts/plugin-npx.mjs`), also in a clone. Layout: `docs/development.mdx`, "Plugin packaging".
 - Never edit the files `npm run build` generates in `plugins/*/` (`scripts/build-plugins.mjs`): the MCP configs,
   `bin/npx.mjs`, versions, `@gabe4coding/plain@<version>` in the skills, `LICENSE` and `hooks/`. Edit their
