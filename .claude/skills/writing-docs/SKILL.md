@@ -11,9 +11,30 @@ QA engineer who writes, runs or debugs specs, or uses the plugins with an agent.
 `docs/benchmarks/**` (dated measurement records, kept as `.md`, not rewritten after the fact), the plugin skills
 (agent-facing; the plugin loader needs `.md`), `CLAUDE.md` and `CODING_STANDARDS.md`.
 
-Which doc owns which topic, and when a code change must update a doc: see the table in `CLAUDE.md`,
-section "Documentation". One owner per topic. Other docs link to the owner and do not repeat it. A desktop or
-mobile doc states only what differs from the browser docs and links to them for the rest.
+One owner per topic (table below). Other docs link to the owner and do not repeat it. A desktop or mobile doc
+states only what differs from the browser docs and links to them for the rest. Which code changes must update a
+doc: `CODING_STANDARDS.md`, "Docs that follow the code".
+
+## Doc owners
+
+| Topic | Owner |
+|---|---|
+| Landing page: pitch, quick start, one spec, docs table, usage rules (keep it near 100 lines) | `README.md` |
+| Requirements, API key and env files, plugin install (Claude Code, Codex), run from a checkout, env var table | `docs/getting-started.mdx` |
+| Browser spec format, top-level keys, all step kinds, includes, browser context, what Jev sees, placeholders | `docs/spec-reference.mdx` |
+| Writing targets and claims, thresholds, fixing `inconclusive` | `docs/phrasing.mdx` |
+| Hooks | `docs/hooks.mdx` |
+| All CLI flags, config file and keys, precedence, selection, retries, bail, budgets, run modes and lock files, `validate`, exit codes | `docs/running.mdx` |
+| Report formats | `docs/reporting.mdx` |
+| Screenshots, traces, debug dumps | `docs/artifacts.mdx` |
+| GitHub Action (inputs table from `action.yml`), GitLab, Docker | `docs/ci.mdx` |
+| Browser MCP tools, `save`, `changed`, `read`, real browser (profile, channel, CDP) | `docs/agent-mode.mdx` |
+| Snapshot modes | `docs/snapshots.mdx` |
+| Desktop engine: setup, spec and step differences, tools, plan/do | `docs/computer-use.mdx` |
+| Mobile engine: Appium setup, spec and step differences, gestures, tools, discovery | `docs/mobile-use.mdx` |
+| How to run the runnable mobile examples | `examples/mobile/README.md` |
+| Benchmark summary and links to `docs/benchmarks/*.md` | `docs/performance.mdx` |
+| Build, tests, native smoke tests, packaging, benchmark commands | `docs/development.mdx` |
 
 ## Format
 
