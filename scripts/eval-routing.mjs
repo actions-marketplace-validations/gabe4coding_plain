@@ -15,12 +15,12 @@
 //                                 [--claude-model sonnet] [--codex-model <model>] [--out result.json]
 //
 // Needs the agent CLIs; no Jev key or build. Exit 1 when any run fails.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { codexHome, collect } from './agent-cli.mjs';
+import { codexEnv, collect } from './agent-cli.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CASES_FILE = join(root, 'scripts/routing-cases.json');
@@ -160,11 +160,9 @@ function isolationLeaks(init) {
 }
 
 function runCodex(prompt, values, dir) {
-  const home = join(dir, 'home');
-  mkdirSync(home);
   const args = ['exec', '--json', '--sandbox', 'read-only', '--cd', root,
     ...(values['codex-model'] ? ['-m', values['codex-model']] : []), prompt];
-  const env = { ...process.env, CODEX_HOME: codexHome(dir), HOME: home };
+  const env = codexEnv(dir);
   return collect('codex', args, { cwd: root, env }, (events) => {
     const reads = [];
     let answer = '';
