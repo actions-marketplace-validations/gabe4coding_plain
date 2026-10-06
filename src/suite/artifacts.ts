@@ -155,7 +155,8 @@ export function artifactsObserver(opts: SuiteOptions, engine?: Engine): RunObser
     async stepEnd(event) {
       const capture = captures.get(event.target);
       if (!ready || !capture) return;
-      // Every labelled dump in the detail: `state: <file>` (claims), `candidates: <file>` (picks), `cache: <file>`.
+      // Every labelled dump in the detail: `state: <file>` (claims), `candidates: <file>` (picks), `layout: <file>`
+      // (spatial targets).
       for (const match of (event.result.detail ?? '').matchAll(/\b[a-z]+:\s+(.+?\.json)(?=\s*(?:\||—|$))/g)) {
         const source = match[1];
         if (path.isAbsolute(source) && path.dirname(source) === DUMP_DIR)
