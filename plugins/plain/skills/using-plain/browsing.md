@@ -47,8 +47,10 @@ Each of these is a step: run it with `step`, or inside a `batch`.
 ## The user's real browser
 
 A session starts as a fresh browser with no logins. Signed-in sessions need the server started with
-`--profile` and `--channel chrome`, or `--cdp` to attach to a running Chrome (see `docs/agent-mode.mdx` in the
-plain repository, github.com/gabe4coding/plain; the plugin does not ship the docs). You cannot change that from inside a session: if the task needs the user's accounts, say so and stop.
+`--profile` and `--channel chrome`, or `--cdp` to attach to a running Chrome. See
+[Your real browser](https://github.com/gabe4coding/plain/blob/main/docs/agent-mode.mdx#your-real-browser).
+The plugin does not ship the docs. You cannot change that from inside a session: if the task needs the user's
+accounts, say so and stop.
 
 Anything you do in a real browser happens in the user's accounts. Stop before payment, booking, sending,
 posting or deleting.
