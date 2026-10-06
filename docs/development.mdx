@@ -379,20 +379,31 @@ A pass on the simulator does not prove physical iPhone or React Native parity.
 ## Performance checks
 
 Build first. Most benchmarks ask Jev about saved pages or saved cases: they need an API key, but no site.
-`benchmark-steps.mjs` and `benchmark-mcp.mjs` also need the public demo sites, so a site problem can fail a run.
-`benchmark-locators.mjs` needs no API key. `benchmark-snapshots.mjs` needs one only with `--live-jev`.
+`benchmark-mcp.mjs`, and `benchmark-steps.mjs` without `--e2e`, also need the public demo sites, so a site problem
+can fail a run. `benchmark-locators.mjs` needs no API key. `benchmark-snapshots.mjs` needs one only with `--live-jev`.
 
-To compare a change against a saved run, run `benchmark-steps.mjs` on a copy of `examples/`. It writes lock files
-next to the specs.
+To compare a change against a saved run, run `benchmark-steps.mjs` with `--e2e`:
 
 ```sh
-cp -R examples /tmp/examples
-node scripts/benchmark-steps.mjs --dir /tmp/examples --runs 3 --out /tmp/new.json --compare /tmp/base.json
+node scripts/benchmark-steps.mjs --e2e --mode judge --runs 3 --out /tmp/new.json --compare /tmp/base.json
 node scripts/benchmark-mcp.mjs --cli dist/cli.js --gap 5000 --runs 2
 ```
 
 `benchmark-steps.mjs` reports the step overhead for each phase: the step time minus the page action time.
 `benchmark-mcp.mjs` times an agent-style MCP session, with think time between calls.
+
+With `--e2e`, `benchmark-steps.mjs` runs the specs of `e2e/` on the local site in `e2e/site.mjs`. A slow or failed
+step is then the result of plain or Jev, not of the network.
+
+- The specs with the `expect-fail` tag do not run. They fail on purpose, so their time is not step overhead.
+- To run only some specs, give their files, for example `e2e/login.yaml`.
+- Each run starts from a new copy of `e2e/` in a temporary folder. The lock files do not go into the repository.
+- In `no-judge` and `auto-healing` mode (the default), one judge run first writes the lock files that each run
+  replays. The script does not measure this judge run.
+- `--mode judge` sends each pick and claim to Jev. `--mode no-judge` measures the step overhead with no Jev call.
+
+If you run `benchmark-steps.mjs` without `--e2e`, give `--dir` a copy of `examples/`, for example `/tmp/examples`.
+In `judge` and `auto-healing` mode, the script writes lock files next to the specs that pass.
 
 Each area of the product has its own benchmark or eval:
 
@@ -404,7 +415,7 @@ node scripts/benchmark-read.mjs --runs 2 --smart     # read vs smart snapshot on
 node scripts/eval-browser-steps.mjs --variant v1     # step-time eval: examples + MCP session, overhead and same step statuses (.claude/hillclimb/, gitignored)
 node scripts/benchmark-claims.mjs --runs 3           # expect judging on saved pages (scripts/claim-cases.json); false passes must stay 0
 node scripts/benchmark-locators.mjs [--url https://…]   # recorded locators: coverage, and changed pages (wrong hits must stay 0); no key
-node scripts/benchmark-steps.mjs --mode no-judge --dir <scratch copy of examples>   # replay after a judge run; never --dir examples
+node scripts/benchmark-steps.mjs --e2e --mode no-judge --runs 3   # step overhead with no Jev call: replays the lock files of a judge run
 ```
 
 Change the desktop planner only when `benchmark-planner.mjs` shows an improvement. [Performance](performance.mdx)
