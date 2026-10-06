@@ -101,7 +101,7 @@ async function pickChunk(candidates: Candidate[], instructions: string[], page: 
     instructions,
     // One `id: description` line per element: JSON objects cost tokens per key and pick no better; bounds only in
     // the criteria, since a second copy here lowers spatial confidence. An iframe element's description starts with
-    // its frame. `editable` and `state` are for the pick cache only.
+    // its frame.
     elements: candidates.map(({ id, desc }) => `${id}: ${desc}`).join('\n'),
   };
   const questions: Question[] = instructions.map((_, i) => ({
