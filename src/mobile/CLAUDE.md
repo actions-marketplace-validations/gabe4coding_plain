@@ -2,8 +2,7 @@
 
 Built on the native core (`src/native/CLAUDE.md`).
 
-- `adapter.ts` provides the injectable `MobileAdapter` and the lazy WebdriverIO `AppiumAdapter`. Appium and
-  platform drivers are external host prerequisites; never auto-install apps or reset app data. Explicit
+- `adapter.ts` provides the injectable `MobileAdapter` and the lazy WebdriverIO `AppiumAdapter`. Explicit
   `platform`, `device` (UDID/ADB serial) and installed `app` are required.
 - `tree.ts` normalizes native XCUITest/UiAutomator2 XML into shared candidates/snapshots. `isRoleMarker()`,
   applied in `mobileFrame()`, drops a Jetpack Compose role-marker child from candidates when its clickable
@@ -33,9 +32,6 @@ Built on the native core (`src/native/CLAUDE.md`).
 - `discovery.ts` implements session-free local `list_devices`/`list_apps` through ADB and simctl/plutil, with
   injected commands for tests. Discovery targets the MCP host, not remote Appium; physical iPhone discovery is not
   supported. Keep discovery scope, pagination and setup diagnostics synchronized in the mobile docs/skill.
-- The mobile plugin follows the same portable/Codex/Claude layout, root dependency ownership, generated runtime and
-  marketplace conventions. Keep tool names, supported steps and thresholds aligned in `docs/mobile-use.mdx` and its
-  skill.
 - Mobile adds tap/longpress/swipe and supports selected shared steps; reject browser/desktop-only vocabulary
   explicitly. Android Back/Enter do not have generic iOS equivalents. Native context only; no webview switching.
 - Regular tests use injected intelligence and a local Appium HTTP fixture with real WebdriverIO. The opt-in device
