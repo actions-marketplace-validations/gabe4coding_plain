@@ -23,10 +23,7 @@ test('fill finds empty and plaintext-only editable hosts and Playwright can fill
     <div contenteditable="invalid" aria-label="Invalid"></div>`));
   const found = await candidates(page, 'fill', 254);
   assert.deepEqual(found.map(c => c.desc), ['div aria-label="Body"', 'div aria-label="Notes"']);
-  for (const candidate of found) {
-    assert.equal(candidate.editable, true);
-    await elementById(page, candidate.id).fill('Research');
-  }
+  for (const candidate of found) await elementById(page, candidate.id).fill('Research');
   assert.equal(await page.locator('[aria-label=Body]').innerText(), 'Research');
   assert.equal(await page.locator('[aria-label=Notes]').innerText(), 'Research');
   assert.equal(await page.locator('[aria-label=Locked]').innerText(), '');

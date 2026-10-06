@@ -12,10 +12,6 @@ export const CandidateSchema = z.object({
   id: z.number(),
   desc: z.string(),
   frameIndex: z.number().optional(),
-  /** A browser text-entry field: the pick cache ignores its `value=`. */
-  editable: z.boolean().optional(),
-  /** The element's UI state in the browser (checked, expanded...), for the pick cache. Never sent to Jev. */
-  state: z.string().optional(),
   /** Rendered edges, requested for spatial targets: main viewport CSS pixels in the browser, screen coordinates on native. */
   bounds: z.object({ left: z.number(), top: z.number(), right: z.number(), bottom: z.number() }).optional(),
 });
