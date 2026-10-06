@@ -20,7 +20,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # The same key-free gate an agent runs before it reports a change done (CLAUDE.md "Validation").
+      # The same key-free gate an agent runs before it reports a change done (validating-changes skill).
       - run: npm run verify
       - name: Check generated plugin files
         shell: bash

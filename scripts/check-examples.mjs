@@ -1,7 +1,7 @@
 // Checks every spec a user can copy or run, without a key or a session: examples/*.yaml, examples/mobile/*.yaml,
-// e2e/*.yaml, and each full spec and config example in the user docs (CLAUDE.md "Documentation": full spec
-// examples must pass `validate`, config examples must pass `--list`). Each spec goes to the CLI of its engine:
-// `platform:` is mobile, `app:` is desktop, the rest is the browser. Build first (npm run build).
+// e2e/*.yaml, and each full spec and config example in the user docs (.claude/skills/writing-docs/SKILL.md
+// "Content": full spec examples must pass `validate`, config examples must pass `--list`). Each spec goes to the CLI
+// of its engine: `platform:` is mobile, `app:` is desktop, the rest is the browser. Build first (npm run build).
 //   node scripts/check-examples.mjs
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';

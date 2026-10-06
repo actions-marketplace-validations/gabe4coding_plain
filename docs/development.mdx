@@ -6,7 +6,9 @@ description: Build and test plain from a checkout, run the opt-in native smoke t
 # Development
 
 This page is for contributors. To use plain, start with [getting started](getting-started.mdx).
-[CLAUDE.md](../CLAUDE.md) describes the architecture and the code conventions.
+[CLAUDE.md](../CLAUDE.md) gives coding agents a short overview, the daily commands, the rules for all tasks and the
+file to read for each task. [CODING_STANDARDS.md](../CODING_STANDARDS.md) contains the rules for code and tests,
+and a map of the source folders.
 
 ## Build and test
 
@@ -58,7 +60,7 @@ The script stops at the first failure. In order, it runs:
 
 1. `npm run verify`.
 2. The live e2e suite, `node scripts/e2e.mjs`.
-3. The claims gate, `node scripts/benchmark-claims.mjs --gate`. A false pass fails it.
+3. The claims gate, `node scripts/benchmark-claims.mjs --gate`. A false pass or a Jev error fails it.
 4. The agent evals, `node scripts/eval-agent.mjs`, when the MCP tools, their results or the browser skill
    changed.
 
@@ -72,15 +74,17 @@ runs, also in a git worktree.
 
 ### Live e2e suite
 
-The live checks need a Jev key. They use no remote site. `e2e/site.mjs` serves all the pages on `127.0.0.1`
-from the process of the runner. Thus a failure comes from plain or Jev, not from the network.
+The live checks need a Jev key and a build. They use no remote site. `e2e/site.mjs` serves all the pages on
+`127.0.0.1` from the process of the runner. Thus a failure comes from plain or Jev, not from the network. The specs
+get the address of the site from `${env.site}`.
 
 - Each `e2e/*.yaml` spec must pass. A spec with the tag `expect-fail` must end `fail`. A pass there is a false
   pass.
 - A spec that passes only on a retry counts, but the runner lists it as flaky.
 - The runner also records a login through the MCP server and runs the saved spec again.
 
-To run one spec, use `node scripts/e2e.mjs --only forms`.
+To run one spec, use `node scripts/e2e.mjs --only forms`. To run the specs without the MCP check, add
+`--skip-mcp`. `npm run verify:live` builds, then runs the e2e suite and the claims gate.
 
 ### Browser exploration
 
@@ -140,7 +144,8 @@ with the change. The `Test` workflow fails if they are different from the build 
 
 The npm package `@gabe4coding/plain` contains `bin/`, the compiled `dist/` without tests, and the root lockfile as
 `npm-shrinkwrap.json`. Thus an install from npm uses the locked dependency graph. `npm pack` and `npm publish`
-compile a clean `dist/` first.
+compile a clean `dist/` first. The package name has a scope, because the name `plain` without a scope belongs to
+a different npm package.
 
 To release a version:
 
