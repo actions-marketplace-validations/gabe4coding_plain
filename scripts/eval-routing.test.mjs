@@ -61,3 +61,13 @@ test('notes-over-limit: raising the limit alone does not pass, moving rules to a
   assert.deepEqual(grade(testCase, 'Remove no-ops, then move each one-folder rule to that folder\'s CLAUDE.md ' +
     '(.claude/skills/writing-agent-notes/SKILL.md, "Size limits"). Raise the limit only as a last step.'), []);
 });
+
+test('doc-language: the STE rules of the writing-docs skill pass, under any of their names', () => {
+  const testCase = loadCases().find((c) => c.id === 'doc-language');
+  assert.deepEqual(grade(testCase, 'The `writing-docs` skill, "Language": at most 25 words per sentence. ' +
+    'Run `npm run check:docs`: it enforces the mechanical STE rules.'), []);
+  assert.deepEqual(grade(testCase, 'ASD-STE100, in .claude/skills/writing-docs/SKILL.md.'), []);
+  assert.notDeepEqual(grade(testCase, 'Use the ASD-STE100 rules.'), []);
+  assert.notDeepEqual(grade(testCase, 'Follow the writing-docs skill and keep the sentences short.'), []);
+  assert.notDeepEqual(grade(testCase, 'The writing-docs skill: write in a steady style.'), []);
+});

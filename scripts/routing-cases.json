@@ -33,7 +33,8 @@
     "id": "doc-language",
     "question": "I am adding a paragraph to docs/phrasing.mdx. Which language rules apply?",
     "expect": [
-      "ASD-STE100|Simplified Technical English"
+      "writing-docs",
+      "ASD-STE100|Simplified Technical English|\\bSTE\\b"
     ]
   },
   {
