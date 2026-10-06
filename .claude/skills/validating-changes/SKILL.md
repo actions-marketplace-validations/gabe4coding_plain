@@ -78,12 +78,12 @@ In Codex, run `codex exec review --base origin/main`. Then check each point your
 ## 6. Docs and agent-facing text
 
 - A change to step kinds, keys, flags, config, defaults, thresholds, statuses, exit codes, MCP tools or env
-  loading lands in its owner doc (table in `CLAUDE.md` "Documentation") in the same change. Follow the
+  loading lands in its owner doc (table in the `writing-docs` skill, "Doc owners") in the same change. Follow the
   `writing-docs` skill for any user doc you touch.
 - Tool names and thresholds also go in the plugin skills under `plugins/*/skills/`.
-- Module comments describe the new behavior when a module changes. `CLAUDE.md` (layout), `CODING_STANDARDS.md`
-  (cross-module rules) and the engine notes (`src/{native,computer,mobile}/CLAUDE.md`) change when the layout or a
-  cross-module rule changes.
+- Module comments describe the new behavior when a module changes. `CODING_STANDARDS.md` (source layout,
+  cross-module rules) and the engine notes (`src/{native,computer,mobile}/CLAUDE.md`) change when the layout or a
+  cross-module rule changes; `CLAUDE.md` changes when a command or a route in its table changes.
 - `check:docs` and `check:examples` already ran in `verify`. They do not check facts: read the code for those.
 
 ## 7. Report

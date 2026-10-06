@@ -1,136 +1,48 @@
-Before you change code (`src/`, `scripts/`, `bin/`, `plugins/`, `mods/`, `e2e/`, `examples/`, `package.json`), read
-`CODING_STANDARDS.md`.
+plain runs natural-language test specs (YAML) on three engines: browser (`src/browser/`), desktop (`src/computer/`)
+and mobile (`src/mobile/`); desktop and mobile share the native core in `src/native/`. Playwright (browser) or the
+engine's adapter (desktop, mobile) performs actions; Jev (TypeSafe's model, via `@typesafe-ai/sdk` or the Vercel AI
+SDK gateway) is the only decision maker. It picks the element a natural-language target describes (Choice) and
+judges whether a natural-language claim holds (Noul) against the accessibility tree. Specs have no CSS selectors
+except a browser-only `css=` escape hatch. The model is pinned (`MODEL_BY_PROVIDER` in `src/jev/provider.ts`):
+thresholds and phrasing advice were tuned against it.
 
 ## Validation (mandatory)
 
 Before any pull request, and before you report a change as done, follow the `validating-changes` skill
 (`.claude/skills/validating-changes/SKILL.md`).
 
-- Evidence that counts: integration tests at a real boundary, the live e2e suite, evals and real agent runs.
-  Unit tests only for pure logic with edge cases.
-- Never weaken a gate to get green (thresholds, expected statuses, `optional`, skipped tests, eval checks).
-- CI is the last gate, not the first: `Test` runs `npm run verify`; `Live` runs the e2e and the claims gate with
-  the `TYPESAFE_API_KEY` secret on pull requests that touch the runtime. Agent evals run only locally.
-
 ## Commands
 
-Build (`src/` → `dist/`):
-
 ```
-npm run build
-```
-
-Test:
-
-```
+npm run build                                               # src/ → dist/; after a clone and after each src/ change
 npm test                                                    # build + node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'
-npm run check:docs                                          # MDX, STE rules, links and anchors of the user docs
-npm run check:examples                                      # validate examples/, e2e/ and the doc YAML, per engine
-npm run test:plugins                                        # npm pack, then run each plugin's npx MCP command on the tarball
-npm run verify                                              # all of the above: the key-free gate CI runs
 node --test dist/browser/runner.test.js                     # one file, after a build
 node --test --test-name-pattern "<name>" dist/jev/pick.test.js   # one test case
+npm run verify                                              # the key-free gate CI runs: tests, docs, examples, plugins
+node scripts/validate.mjs                                   # the whole validation loop + the pre-PR stamp
 ```
 
-No test in the regular suite needs a Jev API key: the `jev/` and `core/spec` tests exercise pure functions with
-injected env objects, and `browser/runner.test.ts` drives real headless Chromium against `data:text/html` URLs.
+No test in the regular suite needs a Jev API key.
 
-Live checks (Jev key, build first). No remote site: `e2e/site.mjs` serves the pages on `127.0.0.1` from the runner
-process, and the `e2e/*.yaml` specs reach it through `${env.site}`. A spec tagged `expect-fail` must end `fail`.
-
-```
-node scripts/e2e.mjs [--only forms] [--skip-mcp]            # e2e specs + MCP open/batch/ask/read/save/replay
-node scripts/benchmark-claims.mjs --gate                    # exit 1 on a false pass or a Jev error
-npm run verify:live                                         # build + both of the above
-node scripts/eval-agent.mjs [--agent claude,codex] [--only login]   # graded claude -p / codex exec runs; local only
-node scripts/validate.mjs                                   # the whole loop + the pre-PR stamp
-```
-
-Run a spec, or start the MCP server (`src/cli.ts` dispatches on the first positional):
-
-```
-node dist/cli.js [--headless] [--timeout 15000] examples/login.yaml [more.yaml ...]
-node dist/cli.js --headless mcp
-node dist/cli.js validate tests/                         # schemas/includes/placeholders, no key or session
-node dist/cli.js --list --tag smoke tests/                # list selected specs; spec env still required
-```
-
-- Spec runs check for a key just before execution; `validate` and `--list` need none; MCP mode keeps serving and
-  the first Jev call returns the message as a tool error.
-- Benchmarks and area evals: `docs/development.mdx`, "Performance checks"; method and results in
-  `docs/benchmarks/`. Compare a change against a saved run of main.
-
-Build after a clone and after each `src/` change. The npm package `@gabe4coding/plain` (scoped: the unscoped
-`plain` belongs to another package) ships the root lockfile as `npm-shrinkwrap.json` (`scripts/pack.mjs` runs on
-`prepack`/`postpack`). `bin/plain.mjs` runs `dist/cli.js` and installs Chromium on first run. Releases:
-`.github/workflows/publish.yml` publishes the `package.json` version on a push to main when npm lacks it, then tags
-`v<version>`; `action.yml` and the `Dockerfile` install that npm release (`docs/development.mdx`, "Releases").
-
-## Architecture
-
-Playwright performs actions; Jev (TypeSafe's model, via `@typesafe-ai/sdk` or the Vercel AI SDK gateway) is the
-only decision maker. It picks the element a natural-language target describes (Choice) and judges whether a
-natural-language claim holds (Noul) against the page's accessibility tree. Specs have no CSS selectors except a
-`css=` escape hatch. The model is pinned (`MODEL_BY_PROVIDER` in `src/jev/provider.ts`): thresholds and phrasing
-advice were tuned against it.
-
-Source layout (tests sit next to their module; details live in each module's comments):
-
-- `src/cli.ts` — the browser CLI entry (`plain`); `src/computer/cli.ts` and `src/mobile/cli.ts` are the other two.
-- `src/core/` — engine-independent: spec schemas and loading (`spec.ts`, `include.ts`, `interpolate.ts`,
-  `step-kind.ts`, `unknown-key.ts`), the shared targeting/judging boundary (`automation.ts`), results, labels and
-  debug dumps (`results.ts`), hooks (`hooks.ts`, `hooks-child.ts`), run modes and lock files (`lock.ts`), what every
-  MCP `save` writes: secret placeholders, the spec and its lock (`save.ts`), `read`, snapshot views and `changed`
-  diffs (`aria-changes.ts`), and the spatial evidence shared by all engines: prompt routes (`evidence.ts`, with
-  `src/jev/evidence.ts`) and layout text (`layout.ts`).
-- `src/jev/` — the model: `provider.ts` (keys, env files, pinned models), `ask.ts` (the one request path, retries,
-  `warmUp`), `pick.ts`, `judge.ts`, `decide.ts` (thresholds), `describe.ts` (smart snapshot classification).
-- `src/browser/` — Playwright: `session.ts` (launch, listeners, popups, downloads), `runner.ts` (`runSpec`),
-  `steps.ts` (step handlers), `activity.ts` (settling, request tracking), `settled-ask.ts`, `locate.ts` (targets:
-  replay, heal, record), `record-locator.ts` (the Playwright locator a passing pick records), `judge-page.ts`
-  (claims), `candidates.ts`, `frames.ts`, `layer.ts`, `page.ts` (snapshots, DOM clock), `evidence.ts` (observation
-  routing), `layout.ts` (read-only rendered bounds), `context-options.ts`, `notes.ts` (console noise), `mcp.ts`
-  (the browser MCP server).
-- `src/native/` — the shared desktop/mobile core; `src/computer/` and `src/mobile/` — each platform on top of it.
-  Each of these three folders has its own `CLAUDE.md` (also `AGENTS.md`): read it before you change that engine.
-- `src/suite/` — what all three CLIs share for spec suites: `run-suite.ts`, `types.ts`, `options.ts`, `config.ts`,
-  `schedule.ts`, `select.ts`, `validate.ts`, `last-run.ts`, `artifacts.ts`, `spec-timeout.ts`, `reporters/`.
-
-## Documentation
-
-User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`. Before you write or change one, follow
-the `writing-docs` skill (`.claude/skills/writing-docs/SKILL.md`).
-
-When to update: a change to step kinds, spec keys, CLI flags, config keys, defaults, thresholds, statuses, exit
-codes, MCP tools or arguments, env loading, or plugin install steps lands in its owner doc in the same change (and
-in the plugin skill, for thresholds and tool names). Remove a fact from the docs when the code drops it.
-
-One owner per topic:
-
-| Topic | Owner |
-|---|---|
-| Landing page: pitch, quick start, one spec, docs table, usage rules (keep it near 100 lines) | `README.md` |
-| Requirements, API key and env files, plugin install (Claude Code, Codex), run from a checkout, env var table | `docs/getting-started.mdx` |
-| Browser spec format, top-level keys, all step kinds, includes, browser context, what Jev sees, placeholders | `docs/spec-reference.mdx` |
-| Writing targets and claims, thresholds, fixing `inconclusive` | `docs/phrasing.mdx` |
-| Hooks | `docs/hooks.mdx` |
-| All CLI flags, config file and keys, precedence, selection, retries, bail, budgets, run modes and lock files, `validate`, exit codes | `docs/running.mdx` |
-| Report formats | `docs/reporting.mdx` |
-| Screenshots, traces, debug dumps | `docs/artifacts.mdx` |
-| GitHub Action (inputs table from `action.yml`), GitLab, Docker | `docs/ci.mdx` |
-| Browser MCP tools, `save`, `changed`, `read`, real browser (profile, channel, CDP) | `docs/agent-mode.mdx` |
-| Snapshot modes | `docs/snapshots.mdx` |
-| Desktop engine: setup, spec and step differences, tools, plan/do | `docs/computer-use.mdx` |
-| Mobile engine: Appium setup, spec and step differences, gestures, tools, discovery | `docs/mobile-use.mdx` |
-| How to run the runnable mobile examples | `examples/mobile/README.md` |
-| Benchmark summary and links to `docs/benchmarks/*.md` | `docs/performance.mdx` |
-| Build, tests, native smoke tests, packaging, benchmark commands | `docs/development.mdx` |
-
-## Constraints
+## Rules for every task
 
 - This repo is site-agnostic. Site-specific skills, environment facts, and regression specs belong in downstream
   plugins that depend on plain, not here.
-- Specs never hold literal credentials: put them in the spec's `env` block as `$VAR` references, used in steps as
-  `${env.*}`.
-- Per `plugins/plain/skills/using-plain/SKILL.md`: test environments only, stop before the last irreversible step
-  (payment, booking, sending), never bypass bot protection.
+- Specs never hold literal credentials, also the YAML examples in docs: put them in the spec's `env` block as `$VAR`
+  references, used in steps as `${env.*}`.
+- When you run plain against a site (per `plugins/plain/skills/using-plain/SKILL.md`): test environments only, stop
+  before the last irreversible step (payment, booking, sending), never bypass bot protection.
+
+## Where to read more
+
+| Before you … | Read |
+|---|---|
+| change code (`src/`, `scripts/`, `bin/`, `plugins/`, `mods/`, `e2e/`, `examples/`, `package.json`) | `CODING_STANDARDS.md` |
+| change the native, desktop or mobile engine | the `CLAUDE.md` (also `AGENTS.md`) in `src/native/`, `src/computer/` or `src/mobile/` |
+| write or change a user doc (`README.md`, `docs/*.mdx`, `examples/mobile/README.md`) | the `writing-docs` skill (`.claude/skills/writing-docs/SKILL.md`) |
+| open or update a pull request, or report a change as done | the `validating-changes` skill |
+| run a spec, `validate`, `--list` or the MCP server from a checkout | `docs/running.mdx`; `docs/development.mdx`, "Build output" |
+| run the live checks (e2e, claims gate, agent evals) or check what CI runs | `docs/development.mdx`, "Validation before a pull request" |
+| run benchmarks or area evals | `docs/development.mdx`, "Performance checks"; results in `docs/benchmarks/` |
+| release a version or change the npm package or plugin packaging | `docs/development.mdx`, "Releases" and "Plugin packaging" |
+| use the plain MCP tools | the `using-plain` skill (`plugins/plain/skills/using-plain/SKILL.md`) |
