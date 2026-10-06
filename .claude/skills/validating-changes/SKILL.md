@@ -33,18 +33,26 @@ It runs `npm run verify`, the live e2e (`scripts/e2e.mjs`), the claims gate, the
 evals (`scripts/eval-routing.mjs`) when an agent note changed. It stops at the first failure and writes the stamp
 only when all pass.
 
+- Before the final run, rebase the branch on `origin/main`: a later update changes the files, and the stamp no
+  longer matches.
 - On a failure, find the cause and fix it. Never weaken a gate to get green (`CODING_STANDARDS.md`, "Tests").
+- If an agent eval fails, run the same task on main and on the branch, at the same time
+  (`docs/development.mdx`, "Agent evals"), before you call it a regression or a known flake.
 - A live check that passes only on a retry is a finding. Name it in the report. Do not hide it.
 - A missing Jev key or agent CLI is a blocker to report, not a pass. Ask the user.
+- The end of the output repeats each check's result lines and names the file with the full output. Take the
+  numbers for the report from there.
 
 ## 4. Area evals
 
-`scripts/validate.mjs` ends with the area evals the changed files call for. For each one:
+`scripts/validate.mjs` ends with the area evals the changed files call for, each with its command and how to
+compare it. For each one:
 
 1. Run it on main first: `git worktree add /tmp/pw-main origin/main`, `npm ci && npm run build` there, run the
-   eval with `--out /tmp/base.json`.
-2. Run it on the branch with `--compare /tmp/base.json`.
-3. Judge the delta. False passes and wrong cache hits must stay 0. Any metric that gets worse needs a reason in
+   eval with `--out /tmp/base.json` when the script takes `--out`.
+2. Run it on the branch. Add `--compare /tmp/base.json` only when the script's usage line lists it; otherwise
+   write a second file with `--out` and compare the two.
+3. Judge the delta. False passes and wrong locator hits must stay 0. Any metric that gets worse needs a reason in
    the report, or a fix.
 
 ## 5. Review the diff
