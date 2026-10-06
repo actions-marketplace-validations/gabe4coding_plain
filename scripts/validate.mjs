@@ -52,8 +52,8 @@ const AREA_EVALS = [
   [/^src\/computer\/planner\.ts$/,
     'node scripts/benchmark-planner.mjs --runs 3   (--out on main, --compare on the branch; change only when it improves)'],
   [/^src\/browser\/(activity|settled-ask|steps|session|runner)\.ts$/,
-    'node scripts/benchmark-steps.mjs --runs 3 --dir <scratch copy of examples>   (--out on main, --compare on the branch; ' +
-    'public demo sites; step overhead must not grow)'],
+    'node scripts/benchmark-steps.mjs --e2e --mode judge --runs 3   (--out on main, --compare on the branch; ' +
+    'local site; step overhead must not grow)'],
   [/^src\/core\/snapshot-view\.ts$/, 'node scripts/benchmark-snapshots.mjs   (no --out: compare the two printed results)'],
   [/^src\/(computer|native)\//, 'npm run test:computer:mac   (on macOS; permissions: docs/development.mdx, "Desktop on macOS")'],
   [/^src\/(mobile|native)\//, 'npm run test:mobile:android and npm run test:mobile:ios   ' +
