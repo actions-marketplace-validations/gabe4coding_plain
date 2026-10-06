@@ -81,7 +81,8 @@ async function checkSpecs() {
       notes.push(`${spec.file} passed only on a retry (flaky): look at its first attempt`);
     }
   }
-  console.log(`specs: ${report.specs.length}, jev calls ${report.totals.jevCalls}, tokens ${report.totals.tokens}`);
+  console.log(`specs: ${report.specs.length}, jev calls ${report.totals.jevCalls}, tokens ${report.totals.tokens}` +
+    ` (all attempts: with --retries ${values.retries}, a spec that does not pass runs again)`);
   await checkNoJudge(files, report);
 }
 

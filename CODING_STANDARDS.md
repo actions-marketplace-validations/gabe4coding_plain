@@ -31,6 +31,8 @@ Each change carries its own proof; choose the strongest that fits:
 
 - Prefer real Chromium on `data:` URLs or the local site, the MCP server over stdio, and the Appium HTTP fixture
   over mocks. Do not add a test that only restates the implementation.
+- A check with live Jev needs a page from the local site (`e2e/site.mjs`), not a `data:` URL: Jev sees the page
+  URL, and a `data:` URL holds the whole page.
 - `e2e/` uses no remote site, so a failure there is plain's or Jev's. Phrase its targets and claims so one clear
   answer exists; when Jev misses on such a page, suspect the product (what Jev is shown) before the wording.
 - Never weaken a gate to get green (thresholds, expected statuses, `optional`, skipped tests, eval checks).
@@ -73,7 +75,8 @@ Each change carries its own proof; choose the strongest that fits:
 
 ## Source layout
 
-Tests sit next to their module; details live in each module's comments.
+Most tests sit next to their module. Code that several callers share is often tested through them: before you add
+a test, search the `*.test.ts` files for the exports you changed. Details live in each module's comments.
 
 - `src/cli.ts`, `src/computer/cli.ts`, `src/mobile/cli.ts` — the `plain`, `plain-computer` and `plain-mobile` CLIs.
 - `src/core/` — engine-independent: spec schemas and loading, what every engine shows Jev (`automation.ts`),
@@ -82,7 +85,7 @@ Tests sit next to their module; details live in each module's comments.
 - `src/jev/` — the model: providers and keys, the one request path (`ask.ts`), picks, judgments, thresholds
   (`decide.ts`), snapshot classification.
 - `src/browser/` — the Playwright engine: session, runner, step handlers, settling, targets (`locate.ts`: replay,
-  heal, record), claims, snapshots, the browser MCP server (`mcp.ts`).
+  heal, record; tested in `lock.test.ts`), claims, snapshots, the browser MCP server (`mcp.ts`).
 - `src/native/` — the core desktop and mobile share; `src/computer/` and `src/mobile/` — each platform on top of it.
 - `src/suite/` — what the three CLIs share for spec suites: options, config, selection, scheduling and retries,
   `validate`, reporters, artifacts.
