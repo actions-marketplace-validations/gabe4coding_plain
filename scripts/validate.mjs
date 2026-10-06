@@ -47,7 +47,7 @@ const AREA_EVALS = [
     'node scripts/benchmark-locators.mjs   (coverage must not drop; wrong hits must stay 0)'],
   [/^src\/computer\/planner\.ts$/, 'node scripts/benchmark-planner.mjs --runs 3   (change only when it improves)'],
   [/^src\/browser\/(activity|settled-ask|steps|session|runner)\.ts$/,
-    'node scripts/benchmark-steps.mjs --runs 3 --compare <main run>   (step overhead must not grow)'],
+    'node scripts/benchmark-steps.mjs --e2e --mode judge --runs 3 --compare <main run>   (local site; step overhead must not grow)'],
   [/^src\/core\/snapshot-view\.ts$/, 'node scripts/benchmark-snapshots.mjs   (compare with main)'],
   [/^src\/(computer|native)\//, 'npm run test:computer:mac   (on macOS, with Accessibility permission)'],
   [/^src\/(mobile|native)\//, 'npm run test:mobile:android and npm run test:mobile:ios   (with a device or simulator)'],
