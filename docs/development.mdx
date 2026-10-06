@@ -18,12 +18,13 @@ npx playwright install chromium
 npm run build    # compile src/ to dist/ and write the generated plugin files again
 npm test         # build, then run the tests in dist/**/*.test.js and scripts/*.test.mjs
 npm run check:docs
+npm run check:agent-notes
 npm run test:mods  # the session pane mod tests (claude plugin test). Needs the claude CLI. Not in npm test
 npm run verify   # the key-free gate: tests, docs, examples, package and plugin install
 ```
 
-`npm run verify` runs `npm test`, `npm run check:docs`, `npm run check:examples` and `npm run test:plugins`. The
-CI workflow runs the same command.
+`npm run verify` runs `npm test`, `npm run check:docs`, `npm run check:agent-notes`, `npm run check:examples` and
+`npm run test:plugins`. The CI workflow runs the same command.
 
 `npm run check:examples` validates the specs in `examples/`, `examples/mobile/` and `e2e/`. It also validates
 each full spec and config example in the user docs, with the CLI of its engine.
@@ -32,6 +33,11 @@ each full spec and config example in the user docs, with the CLI of its engine.
 compile as MDX and show correctly on GitHub. The text must follow the ASD-STE100 rules that a script can test, for
 example a maximum of 25 words in a sentence. All relative links and anchors must resolve. The CI workflow runs the
 same check. The full writing rules are in `.claude/skills/writing-docs/SKILL.md`.
+
+`npm run check:agent-notes` checks the agent notes: `CLAUDE.md`, `CODING_STANDARDS.md`, each `CLAUDE.md` below the
+root and the skills in `.claude/skills/`. A file must not have more lines than its limit. Each path, cited section
+and named symbol in the files must exist. The full rules for these files are in
+`.claude/skills/writing-agent-notes/SKILL.md`.
 
 `npm test` needs no API key and no native SDK. It runs these tests:
 
@@ -63,6 +69,7 @@ The script stops at the first failure. In order, it runs:
 3. The claims gate, `node scripts/benchmark-claims.mjs --gate`. A false pass or a Jev error fails it.
 4. The agent evals, `node scripts/eval-agent.mjs`, when the MCP tools, their results or the browser skill
    changed.
+5. The routing evals, `node scripts/eval-routing.mjs`, when an agent note changed.
 
 At the end, it lists the benchmarks that the changed files need. Compare each one with a run on main. The
 `validating-changes` skill in `.claude/skills/` gives the full procedure, also for the review of the code and
@@ -112,6 +119,17 @@ agent. It grades each run:
 
 Each agent runs isolated from your own setup, with the skill and the MCP server of the checkout. The evals cost
 Claude and Codex usage. CI does not run them. Use `--agent claude` or `--only login` to run fewer.
+
+### Routing evals
+
+`CLAUDE.md` is short: for most rules, it sends the agent to another file. `node scripts/eval-routing.mjs` checks
+that a new agent still finds these rules. It asks each question in `scripts/routing-cases.json` to a real
+`claude -p` agent and a real `codex exec` agent, with read-only tools. The answer must match all the `expect`
+patterns of the case and none of its `forbid` patterns.
+
+Each agent runs isolated from your own setup, with the instruction files of the checkout. Settings that your
+organization manages still apply. The evals cost Claude and Codex usage. CI does not run them. If you change a route or a rule that an agent must find, add or change a
+case.
 
 ### Continuous integration
 
@@ -369,4 +387,5 @@ summarizes the results.
 ## Documentation changes
 
 If you change step kinds, thresholds, MCP tools, the env file loading or the plugin install steps, change the
-matching doc in the same commit. For thresholds and tool names, also change the plugin skill.
+matching doc in the same commit. For thresholds and tool names, also change the plugin skill. For the agent
+notes, follow `.claude/skills/writing-agent-notes/SKILL.md`.

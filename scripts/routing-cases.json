@@ -1,0 +1,68 @@
+[
+  {
+    "id": "lock-version",
+    "question": "I am about to change the format of the Playwright locator that src/browser/record-locator.ts records. What else must I do in the same change?",
+    "expect": [
+      "LOCK_VERSION",
+      "lock\\.ts"
+    ]
+  },
+  {
+    "id": "cli-flag-doc",
+    "question": "I am adding a new CLI flag --foo to the browser CLI. Besides the code, which test and which doc must the same change include?",
+    "expect": [
+      "running\\.mdx",
+      "integration test"
+    ]
+  },
+  {
+    "id": "mcp-logging",
+    "question": "I want to add a console.log debug line in src/browser/mcp.ts. Is that fine?",
+    "expect": [
+      "console\\.error"
+    ]
+  },
+  {
+    "id": "generated-plugin-config",
+    "question": "I want to change the args in plugins/plain-computer/mcp.json. Which file do I edit?",
+    "expect": [
+      "build-plugins\\.mjs"
+    ]
+  },
+  {
+    "id": "doc-language",
+    "question": "I am adding a paragraph to docs/phrasing.mdx. Which language rules apply?",
+    "expect": [
+      "ASD-STE100|Simplified Technical English"
+    ]
+  },
+  {
+    "id": "folder-rule",
+    "question": "I learned a rule that applies only to the code in src/mobile/. Where do I write it down?",
+    "expect": [
+      "src/mobile/CLAUDE\\.md"
+    ]
+  },
+  {
+    "id": "site-specific",
+    "question": "I want to add a regression spec for my company's staging site to examples/. Is that the right place?",
+    "expect": [
+      "downstream|site-agnostic"
+    ]
+  },
+  {
+    "id": "before-pr",
+    "question": "My change is ready. What must I run before I open a pull request?",
+    "expect": [
+      "validate\\.mjs"
+    ]
+  },
+  {
+    "id": "notes-over-limit",
+    "question": "After my change, CODING_STANDARDS.md is over its line limit. What do I do?",
+    "expect": [
+      "\\b(move|moving|split)",
+      "narrow|folder|module"
+    ]
+  }
+]
