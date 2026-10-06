@@ -24,15 +24,19 @@ export function collect(command, args, { cwd, env = process.env, stdin = 'ignore
 }
 
 /**
- * A Codex home in `dir` that holds only the user's Codex login and `config` (TOML lines): no user config, plugins,
- * apps, AGENTS.md, hooks or memories. Codex still reads the user's skills in ~/.agents/skills.
+ * The environment of a `codex exec` run isolated from the user's setup. Its Codex home in `dir` holds only the
+ * user's Codex login and `config` (TOML lines): no user config, plugins, apps, AGENTS.md, hooks or memories. Its
+ * HOME is empty, as Codex also reads the user's skills in ~/.agents/skills. Codex passes that HOME on to the MCP
+ * servers it starts.
  */
-export function codexHome(dir, config = []) {
-  const home = join(dir, 'codex-home');
-  const userHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
+export function codexEnv(dir, config = []) {
+  const codexHome = join(dir, 'codex-home');
+  const home = join(dir, 'home');
+  const userCodexHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
+  mkdirSync(codexHome);
   mkdirSync(home);
-  symlinkSync(join(userHome, 'auth.json'), join(home, 'auth.json'));
-  writeFileSync(join(home, 'config.toml'), [
+  symlinkSync(join(userCodexHome, 'auth.json'), join(codexHome, 'auth.json'));
+  writeFileSync(join(codexHome, 'config.toml'), [
     // The account's apps and remote plugins add hundreds of tools.
     '[features]',
     'apps = false',
@@ -40,5 +44,5 @@ export function codexHome(dir, config = []) {
     'remote_plugin = false',
     ...config,
   ].join('\n') + '\n', { mode: 0o600 });
-  return home;
+  return { ...process.env, CODEX_HOME: codexHome, HOME: home };
 }
