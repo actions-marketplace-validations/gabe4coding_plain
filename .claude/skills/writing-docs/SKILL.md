@@ -7,9 +7,9 @@ description: Use before you write or change a user doc in the plain repo (README
 
 User docs are `README.md`, `docs/*.mdx` and `examples/mobile/README.md`. They are for humans first: a developer or
 QA engineer who writes, runs or debugs specs, or uses the plugins with an agent. Contributor detail goes in
-`docs/development.mdx` or `CLAUDE.md`, never in a user doc. Out of this set: `docs/benchmarks/**` (dated
-measurement records, kept as `.md`, not rewritten after the fact), the plugin skills (agent-facing; the plugin
-loader needs `.md`) and `CLAUDE.md`.
+`docs/development.mdx`, `CLAUDE.md` or `CODING_STANDARDS.md`, never in a user doc. Out of this set:
+`docs/benchmarks/**` (dated measurement records, kept as `.md`, not rewritten after the fact), the plugin skills
+(agent-facing; the plugin loader needs `.md`), `CLAUDE.md` and `CODING_STANDARDS.md`.
 
 Which doc owns which topic, and when a code change must update a doc: see the table in `CLAUDE.md`,
 section "Documentation". One owner per topic. Other docs link to the owner and do not repeat it. A desktop or
@@ -69,5 +69,5 @@ npm run check:docs
 `title`/`description` frontmatter whose title is the H1 (`.mdx` files), uses no JSX/comments/autolinks, and passes
 the mechanical STE rules (sentences of 25 words or fewer, no modals, contractions, semicolons, filler words or
 Latin abbreviations). It also checks that every relative link and anchor resolves, also in `CLAUDE.md`,
-`docs/benchmarks/` and the skills. It does not check facts or word choice: validate the YAML examples and read the
-code for those.
+`CODING_STANDARDS.md`, `docs/benchmarks/` and the skills. It does not check facts or word choice: validate the YAML
+examples and read the code for those.
