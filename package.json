@@ -34,7 +34,7 @@
     "npm-shrinkwrap.json"
   ],
   "scripts": {
-    "build": "tsc && node scripts/build-plugins.mjs",
+    "build": "tsc && node scripts/prune-dist.mjs && node scripts/build-plugins.mjs",
     "prepack": "node scripts/pack.mjs prepack",
     "postpack": "node scripts/pack.mjs postpack",
     "test": "npm run build && node --test 'dist/**/*.test.js' 'scripts/*.test.mjs'",
