@@ -77,6 +77,17 @@ save a flow. Install only the plugins that you need.
 
 You can use a local clone path in place of `gabe4coding/plain`.
 
+To install from a shell or a script, use the `claude plugin` command:
+
+```sh
+claude plugin marketplace add gabe4coding/plain
+claude plugin install plain@plain-marketplace
+claude plugin install plain-computer@plain-marketplace
+claude plugin install plain-mobile@plain-marketplace
+```
+
+After an install from a shell, start a new Claude Code session to load the plugins.
+
 Each plugin starts its MCP server with `npx`, at the plain package version of the plugin. On the first
 start, npx installs this version. The browser plugin also installs Chromium. The first connection can take one or
 two minutes. If it times out, run `/mcp` to connect again when the installation is complete.

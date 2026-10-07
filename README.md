@@ -30,6 +30,16 @@ agent mode, run modes and lock files, what Jev costs, and how it compares with a
 
 You need Node 22 or newer, npm, and a [TypeSafe](https://typesafe.ai) API key (a Vercel AI Gateway key also works).
 
+To let your coding agent do the setup, give it this prompt:
+
+```text
+Set up plain for me. Read https://raw.githubusercontent.com/gabe4coding/plain/main/docs/getting-started.mdx and do its steps for this agent host.
+Ask me which engines I need: browser, desktop or mobile. If the API key is missing, tell me which file to put it in and wait. Do not ask me to paste the key in chat.
+Then run the first browser spec of the guide to check the setup, and tell me if I must start a new session.
+```
+
+To do the setup yourself:
+
 1. Put the key in `~/.config/plain/.env`. All plugins and CLIs read this file.
 
    ```dotenv
