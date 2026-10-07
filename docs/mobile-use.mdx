@@ -20,19 +20,44 @@ You need:
 - A running Appium server with the driver for your platform.
 - A booted simulator or emulator, or a connected test device, with the app under test installed.
 
-Install Appium and your drivers, then start the server:
+Install Appium and the driver for your platform:
 
 ```sh
 npm install -g appium
 appium driver install uiautomator2 # Android host: Android SDK, Java and adb
 appium driver install xcuitest     # iOS host: macOS and Xcode
-appium                             # listens on http://127.0.0.1:4723
 ```
+
+Then do these checks in this order. If a check fails, fix the cause and do the check again.
+
+1. Check the platform tools:
+   - Android: run `appium driver doctor uiautomator2`. Continue when it reports 0 required fixes.
+   - iOS: `xcode-select -p` must show a folder in Xcode, and `xcodebuild -version` must show the Xcode version.
+2. Make sure that a device is booted. On Android, `adb devices -l` must show it with the state `device`. On an iOS
+   simulator, `xcrun simctl list devices booted` must show it.
+3. Make sure that the app under test is installed on the device. plain does not install it.
+4. Start the server with `appium`. It listens on `http://127.0.0.1:4723`. Keep it open while you run specs.
+
+Each required fix of the Android doctor tells what to install or set. The optional fixes are not necessary for plain.
+`appium driver doctor xcuitest` also checks the iOS host. But its optional checks for physical devices can run for
+many minutes, thus an agent can wait on it for a long time.
+
+To start an Android emulator, find its name with `emulator -list-avds`. Then run `emulator -avd <name>`.
+If the list is empty, create an emulator. Refer to
+[Create and manage virtual devices](https://developer.android.com/studio/run/managing-avds).
+
+To boot an iOS simulator, find its UDID with `xcrun simctl list devices available`. Then run `xcrun simctl boot <udid>`.
+If the list is empty, install a simulator runtime with `xcodebuild -downloadPlatform iOS`.
+
+If a coding agent does the setup, do these steps yourself:
+
+- Install Xcode from the App Store with an Apple ID, and open it one time.
+- Type the password for a `sudo` command.
+- Accept the Xcode and Android SDK licenses.
 
 Use versions that agree with the upstream
 [Android requirements](https://github.com/appium/appium-uiautomator2-driver) and
 [iOS requirements](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/requirements/).
-If the setup does not work, run `appium driver doctor uiautomator2` or `appium driver doctor xcuitest`.
 A physical iPhone needs a signed WebDriverAgent: read
 [iOS provisioning](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/provisioning-profile/).
 

@@ -33,9 +33,9 @@ You need Node 22 or newer, npm, and a [TypeSafe](https://typesafe.ai) API key (a
 To let your coding agent do the setup, give it this prompt:
 
 ```text
-Set up plain for me. Read https://raw.githubusercontent.com/gabe4coding/plain/main/docs/getting-started.mdx and do its steps for this agent host.
-Ask me which engines I need: browser, desktop or mobile. If the API key is missing, tell me which file to put it in and wait. Do not ask me to paste the key in chat.
-Then run the first browser spec of the guide to check the setup, and tell me if I must start a new session.
+Set up plain for me. Read https://raw.githubusercontent.com/gabe4coding/plain/main/docs/getting-started.mdx and ask me which engines I need: browser, desktop or mobile. Then do the guide's steps for this agent host and the setup pages it links for my engines, and install the tools that are missing.
+Ask me before a step that needs sudo, an Apple ID, a license or a system permission. If the API key is missing, tell me which file to put it in and wait. Do not ask me to paste the key in chat.
+At the end, run the first browser spec of the guide to check the setup. Tell me what is still missing, and if I must start a new session.
 ```
 
 To do the setup yourself:
