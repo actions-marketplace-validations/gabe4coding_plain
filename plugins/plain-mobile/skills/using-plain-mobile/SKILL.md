@@ -11,6 +11,9 @@ Stop before the final irreversible action (payment, booking, sending); never byp
 
 ## Open and inspect
 
+This file names the tools by their short names (`list_devices`, `open`, `step`). Call each tool by the full name
+your tool list gives it, server prefix included (`mcp__<server>__step`, never a bare `step`).
+
 A tool error (`isError: true` with a text message) means the call itself failed. A step that ran and
 failed is a normal result with `status: "error"`. `screenshot` returns a PNG image block.
 
