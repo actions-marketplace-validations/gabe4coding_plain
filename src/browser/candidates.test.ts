@@ -157,3 +157,20 @@ test('a filled password field is described with a mask, never its value; an empt
     'input[type=password] value="[filled]" aria-label="Shadow"',
   ]);
 });
+
+test('a short cap keeps a trailing dialog and page controls, and drops extras, nav and footer', async () => {
+  // DOM order is the opposite of the kept order: nav first, the dialog last, a pointer card between the controls.
+  // draggable=false and tabindex=-1 are not click targets.
+  await page.goto(html(`<nav><a href="/n">Nav</a><a href="/n">Nav</a></nav>
+    <div style="cursor:pointer">Card</div><button>Save</button><a href="/more">More</a>
+    <div draggable="true">Tile</div><div draggable="false">Still</div><span tabindex="-1">Skip</span>
+    <footer><a href="/f">Foot</a></footer><dialog open><button>Accept</button></dialog>`));
+  const names = async (max: number) => (await candidates(page, 'click', max)).map((c) => c.desc.split(' context:')[0]);
+  assert.deepEqual(await names(20), [
+    'button "Accept"', 'button "Save"', 'a "More" href=/more', 'div "Card"', 'div "Tile"',
+    'a "Nav" href=/n #1', 'a "Nav" href=/n #2', 'a "Foot" href=/f',
+  ]);
+  const kept = await candidates(page, 'click', 2);
+  assert.deepEqual(kept.map((c) => c.desc.split(' context:')[0]), ['button "Accept"', 'button "Save"']);
+  assert.equal(await elementById(page, kept[0].id).innerText(), 'Accept');
+});
