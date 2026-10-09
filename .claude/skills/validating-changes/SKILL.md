@@ -78,3 +78,6 @@ Then report to the user, and put the same summary in the pull request descriptio
 - Area eval deltas against main.
 - What did not run, and why (no device, no key, not on macOS).
 - Findings: flaky checks, gaps you saw but did not fix.
+
+After you push, wait for CI with `gh pr checks <number> --watch` (it returns when all checks end), not with a
+sleep loop. On a red check, read its log with `gh run view <run-id> --log-failed`.
