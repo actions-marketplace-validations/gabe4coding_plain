@@ -73,5 +73,13 @@
       "computer/session\\.test\\.ts",
       "mobile/session\\.test\\.ts"
     ]
+  },
+  {
+    "id": "ci-wait",
+    "question": "I pushed my branch and opened a pull request in this repo. How do I wait until CI finishes?",
+    "expect": [
+      "gh pr checks",
+      "--watch"
+    ]
   }
 ]
