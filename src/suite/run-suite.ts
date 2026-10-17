@@ -1,13 +1,14 @@
 import { provider, MODEL_BY_PROVIDER } from '../jev/provider.js';
 import { warmUp } from '../jev/ask.js';
 import { LockStore } from '../core/lock.js';
-import { errorMessage } from '../core/results.js';
+import { errorMessage, type Status } from '../core/results.js';
 import { artifactsObserver } from './artifacts.js';
 import { createReporters } from './reporters/index.js';
 import { select, listSelected } from './select.js';
 import { schedule, checkSchedule } from './schedule.js';
 import { writeLastRun } from './last-run.js';
-import type { Artifact, Attempt, Loaded, RunObserver, RunReport, SpecReport, SuiteEngine, SuiteOptions } from './types.js';
+import type { Artifact } from '../core/run-contract.js';
+import type { Attempt, Loaded, RunObserver, RunReport, SpecReport, SuiteEngine, SuiteOptions } from './types.js';
 
 type LoadOutcome<S> = { loaded: Loaded<S> } | { report: SpecReport };
 type NamedObserver = { name: string; observer: RunObserver };
@@ -65,7 +66,7 @@ export async function runSuite<S>(engine: SuiteEngine<S>, opts: SuiteOptions, se
       const handle = lock?.attempt(attemptNumber);
       const info = { file: loaded.file, name: loaded.name, tags: loaded.tags, attempt: attemptNumber, ...(handle ? { lock: handle } : {}) };
       const captured: Artifact[] = [];
-      let status = 'error';
+      let status: Status = 'error';
       try {
         const result = await engine.run(loaded.spec, sessionObserver(observers, notify, captured), info);
         status = result.status;

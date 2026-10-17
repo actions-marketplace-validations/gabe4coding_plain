@@ -4,13 +4,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { StepKind } from './step-kind.js';
 import type { Step } from './spec.js';
-import type { Candidate } from './automation.js';
+import type { Candidate } from './candidate.js';
 
 export const StatusSchema = z.enum(['pass', 'fail', 'inconclusive', 'error', 'skipped']);
 export type Status = z.infer<typeof StatusSchema>;
 
 /** Every status but pass and skipped: it stops a run and fails the spec. */
 export const isFailure = (status: Status): boolean => status !== 'pass' && status !== 'skipped';
+
+/**
+ * The status hooks teardown gets, from the step results so far: the first failure, as a spec run stops there;
+ * `pass` when no step failed, also when no step ran. In agent mode steps go on after a failure, and a later pass
+ * must not hide it.
+ */
+export const overallStatus = (results: readonly { status: Status }[]): Status =>
+  results.find((result) => isFailure(result.status))?.status ?? 'pass';
 
 /** Where rejected picks and failed claims are dumped; the artifacts observer copies from here. */
 export const DUMP_DIR = path.join(os.tmpdir(), 'plain');
@@ -30,7 +38,7 @@ export type StepResult = z.infer<typeof StepResultSchema>;
 /** One run of one spec, by any engine. */
 export interface TestResult { name: string; status: Status; steps: StepResult[]; jevCalls: number; totalTokens: number }
 
-export const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+export { errorMessage } from './error-message.js';
 
 /** A step detail with a note in parentheses at its end: "→ button "Go" (healed; …)". */
 export const noted = (detail: string | undefined, note: string): string => `${detail ? `${detail} ` : ''}(${note})`;

@@ -7,16 +7,17 @@ import { parseStep, type Spec, type Step } from '../core/spec.js';
 import { interpolate } from '../core/interpolate.js';
 import { parametersOf } from '../core/parameters.js';
 import { startHooks, placeholderPaths, type HooksRunner } from '../core/hooks.js';
-import type { StepResult } from '../core/results.js';
+import { overallStatus, type StepResult } from '../core/results.js';
 import { LockStore } from '../core/lock.js';
 import { SecretNames, writeSaved } from '../core/save.js';
 import type { Snapshot } from '../core/automation.js';
-import { ariaChanges, CHANGES_ENABLED, CHANGES_NOTE, type AriaChanges } from '../core/aria-changes.js';
+import { ariaChanges, changesEnabled, changesNote, type AriaChanges } from '../core/aria-changes.js';
 import { snapshotView, SnapshotOptions, SNAPSHOT_MODES_DESCRIPTION } from '../core/snapshot-view.js';
-import { readAnswer, READ_ENABLED, READ_DESCRIPTION } from '../core/read.js';
+import { readAnswer, readEnabled, READ_DESCRIPTION } from '../core/read.js';
 import { serialQueue } from '../core/serial-queue.js';
 import { jsonResult as ok, askResult, AskClaims, ASK_DESCRIPTION } from '../core/mcp-result.js';
-import { openSession, closeSharedBrowser, type Session, type RunOptions } from './session.js';
+import { openSession, closeSharedBrowser, type Session } from './session.js';
+import type { RunOptions } from './run-options.js';
 import { runStep, runStepSafely } from './steps.js';
 import { resolveOne } from './locate.js';
 import { askPage } from './judge-page.js';
@@ -80,8 +81,7 @@ const BATCH_DESCRIPTION = 'Run 1–16 steps in order in one browser tool call (c
   'Stops on the first non-pass, including optional steps returning skipped; later steps are not attempted. ' +
   'Returns status, indexed results with per-step tokens/URL/notes, completed (passing steps), remaining, stoppedAt (zero-based or null), and total jevTokens. ' +
   'Passing steps are recorded individually for save; completed actions are not rolled back. ' +
-  'Batch every action you can write now. End the batch only when choosing the next action or its value needs a result you have not read yet.' +
-  CHANGES_NOTE.replace('the action', 'the whole batch');
+  'Batch every action you can write now. End the batch only when choosing the next action or its value needs a result you have not read yet.';
 
 const SNAPSHOT_DESCRIPTION =
   'Accessibility tree of the current page (url, title, aria), or of one region of it when `within` names one ' +
@@ -123,7 +123,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
    * file, so the saved spec replays in no-judge at once (src/core/lock.ts).
    */
   const recorder = new LockStore('judge').attempt();
-  /** Every step result, pass or not: what teardown sees. */
+  /** Every step result since the hooks lease began, pass or not: what teardown sees. */
   const results: StepResult[] = [];
   let totalTokens = 0;
   const track = (tokens: number): void => void (totalTokens += tokens);
@@ -147,7 +147,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   /** Releases the hooks lease. A teardown error propagates: a failing cleanup must not be silent. */
   async function runTeardown(): Promise<void> {
     const runner = hooksRunner;
-    if (runner?.has.teardown) await runner.teardown({ spec, data, result: { status: results.at(-1)?.status ?? 'pass', steps: results } });
+    if (runner?.has.teardown) await runner.teardown({ spec, data, result: { status: overallStatus(results), steps: results } });
     runner?.close();
     hooksRunner = null;
     hooksFile = null;
@@ -157,6 +157,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   async function loadHooks(hooksPath: string): Promise<void> {
     const file = resolve(spec.dir, hooksPath);
     if (hooksFile) await runTeardown(); // a second flow releases the first lease
+    results.length = 0; // an earlier flow's failure is not this lease's status
     let runner: HooksRunner | null = null;
     try {
       runner = await startHooks(file);
@@ -208,7 +209,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
 
   /** The page before an action, for `changed`; null when that is off or the page cannot be read. */
   async function look(): Promise<PageCapture | null> {
-    if (!CHANGES_ENABLED || !session) return null;
+    if (!changesEnabled() || !session) return null;
     return snapshot(session.ctx.page).catch(() => null);
   }
 
@@ -256,7 +257,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   }));
 
   server.registerTool('step', {
-    description: STEP_DESCRIPTION + CHANGES_NOTE,
+    description: STEP_DESCRIPTION + changesNote(),
     inputSchema: { step: z.record(z.string(), z.unknown()) },
   }, ({ step }) => queue(async () => {
     activeSession();
@@ -267,7 +268,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
   }));
 
   server.registerTool('batch', {
-    description: BATCH_DESCRIPTION,
+    description: BATCH_DESCRIPTION + changesNote().replace('the action', 'the whole batch'),
     inputSchema: { steps: z.array(z.record(z.string(), z.unknown())).min(1).max(16) },
   }, ({ steps }, { signal }) => queue(async () => {
     signal.throwIfAborted();
@@ -332,7 +333,7 @@ export async function serveMcp(opts: RunOptions): Promise<void> {
     return ok({ ...view, region: captured.region, ...usage });
   }));
 
-  if (READ_ENABLED) server.registerTool('read', {
+  if (readEnabled()) server.registerTool('read', {
     description: READ_DESCRIPTION + ' `within` also takes css=.',
     inputSchema: { question: z.string().min(1), within: z.string().min(1).optional() },
     annotations: { readOnlyHint: true },
