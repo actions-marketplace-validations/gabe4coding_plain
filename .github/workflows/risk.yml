@@ -1,0 +1,260 @@
+# Risk tier of each pull request: the deterministic rules of .github/scripts/risk_tier.py.
+# Shadow week: advisory and NOT a required check. It posts the tier as the "risk tier" check
+# and as a risk:* label, and never merges, approves or fails a PR.
+# Kill switch: the repo variable AUTOMERGE=off makes every PR T2-hard.
+#
+# Trust: on `pull_request` GitHub runs the PR's own copy of this file, so a PR could post any tier.
+# The tier job therefore runs on `pull_request_target`: this file, the rules and the classifier come
+# from the base branch, and the PR head is fetched as data only (git diff and git show). No step runs
+# a file of the PR, and Python runs isolated (-I), so a json.py or uv.toml in the PR is not loaded.
+# Only the classifier tests run the PR's code, on `pull_request`, with a read-only token.
+# A consumer of the tier must read the "risk tier" check of this workflow, never a label or a check
+# a `pull_request` run posted: a PR can forge those.
+#
+# Reviewer: a pass needs all three on the current head. A completed "Greptile Review" check from
+# greptile-apps with conclusion success. The latest issue comment from greptile-apps[bot] (type Bot)
+# whose body is a Greptile summary, whose last-reviewed commit is this head, and whose Confidence
+# Score is 4/5 or 5/5. No inline comment from that bot on this head (commit_id) badged P0 or P1.
+# A pass never lowers the tier. Anything missing, unparseable, from another author, or tied to
+# another SHA is not a pass and raises the tier one step, stopping at T2-hard. HOLD stays HOLD.
+# That includes a successful check alone. Labels are never read. `check_run` runs this job again
+# when Greptile finishes. The fetches are GET with github.token. Write stays only so this job can
+# post the advisory label and the "risk tier" check.
+name: risk
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  check_run:
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: risk-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.check_run.pull_requests[0].number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # The tests of the PR's own classifier: PR code, so a read-only token and no stored credentials.
+    if: github.event_name == 'pull_request'
+    name: risk (classifier tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --no-config --no-project --python 3.12 --with pyyaml==6.0.2 --with pytest -- python -m pytest -q .github/scripts
+
+  tier:
+    if: github.event_name == 'pull_request_target' || (github.event_name == 'check_run' && github.event.check_run.name == 'Greptile Review' && github.event.check_run.app.slug == 'greptile-apps')
+    name: risk
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read           # Greptile's summary comments
+      pull-requests: write   # read inline comments; post the risk:* label
+      checks: write          # read Greptile's check; write the "risk tier" check run
+    steps:
+      - name: Resolve the pull request
+        id: pr
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 -I - "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/coord.json" "$GITHUB_OUTPUT" <<'PY'
+          import json, os, re, subprocess, sys
+
+          ev = json.load(open(sys.argv[1]))
+          dest, output = sys.argv[2], sys.argv[3]
+          name, repo = os.environ["EVENT_NAME"], os.environ["REPO"]
+
+          def sha(value, what):
+              if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", value):
+                  sys.exit(f"bad {what}")
+              return value.lower()
+
+          def pr_number(value):
+              if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                  sys.exit("bad pull request number")
+              return value
+
+          def gh_json(path):
+              proc = subprocess.run(["gh", "api", path], check=True, capture_output=True, text=True)
+              return json.loads(proc.stdout)
+
+          def emit(skip, coord=None):
+              json.dump(coord or {"skip": True}, open(dest, "w"))
+              with open(output, "a") as fh:
+                  fh.write(f"skip={'true' if skip else 'false'}\n")
+                  if coord and not skip:
+                      fh.write(f"number={coord['number']}\n")
+                      fh.write(f"base={coord['base_sha']}\n")
+                      fh.write(f"head={coord['head_sha']}\n")
+
+          def from_pr(pr, head):
+              return {
+                  "number": pr_number(pr["number"]),
+                  "base_sha": sha(pr["base"]["sha"], "base"),
+                  "head_sha": sha(head, "head"),
+                  "title": pr.get("title") or "",
+                  "branch": (pr.get("head") or {}).get("ref") or "",
+                  "body": pr.get("body") or "",
+              }
+
+          if name == "pull_request_target":
+              pr = ev["pull_request"]
+              emit(False, from_pr(pr, pr["head"]["sha"]))
+          elif name == "check_run":
+              check = ev["check_run"]
+              reviewed = sha(check.get("head_sha") or "", "check head")
+              listed = check.get("pull_requests") or []
+              number = pr_number(listed[0]["number"]) if listed else None
+              if number is None:
+                  found = gh_json(f"repos/{repo}/commits/{reviewed}/pulls")
+                  if not found:
+                      emit(True)
+                      sys.exit(0)
+                  number = pr_number(found[0]["number"])
+              # Current head of the PR, not an older commit the check happened to finish on.
+              pr = gh_json(f"repos/{repo}/pulls/{number}")
+              emit(False, from_pr(pr, pr["head"]["sha"]))
+          else:
+              sys.exit(f"unexpected event {name}")
+          PY
+
+      # The base commit: this file, .github/risk.yml and the classifier as that commit has them.
+      # Credentials stay for the fetch below. No step runs a file of the PR.
+      - uses: actions/checkout@v4
+        if: steps.pr.outputs.skip != 'true'
+        with:
+          ref: ${{ steps.pr.outputs.base }}
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        if: steps.pr.outputs.skip != 'true'
+
+      - name: Fetch the PR head as data
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+        run: |
+          git fetch --no-tags --quiet origin "+refs/pull/$PR/head:refs/remotes/pr/head"
+          git cat-file -e "$HEAD_SHA^{commit}"
+
+      - name: Greptile check runs on the current head
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+        run: |
+          gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" \
+            --jq '.check_runs[] | {name,status,conclusion,head_sha,app:{slug:(.app.slug // "")}}' \
+            > "$RUNNER_TEMP/checks.jsonl"
+          python3 -I - "$RUNNER_TEMP/checks.jsonl" "$RUNNER_TEMP/checks.json" <<'PY'
+          import json, sys
+          text = open(sys.argv[1], encoding="utf-8").read()
+          dec, rows, idx = json.JSONDecoder(), [], 0
+          while idx < len(text):
+              while idx < len(text) and text[idx].isspace():
+                  idx += 1
+              if idx >= len(text):
+                  break
+              row, idx = dec.raw_decode(text, idx)
+              rows.append(row)
+          json.dump(rows, open(sys.argv[2], "w"))
+          PY
+
+      - name: Greptile comments on the pull request
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.pr.outputs.number }}
+        run: |
+          gh api --paginate "repos/$REPO/issues/$PR/comments?per_page=100" \
+            --jq '.[] | {user:{login:.user.login,type:.user.type},body,created_at,updated_at}' \
+            > "$RUNNER_TEMP/comments.jsonl"
+          gh api --paginate "repos/$REPO/pulls/$PR/comments?per_page=100" \
+            --jq '.[] | {user:{login:.user.login,type:.user.type},body,commit_id,created_at,updated_at}' \
+            > "$RUNNER_TEMP/review-comments.jsonl"
+          python3 -I - "$RUNNER_TEMP/comments.jsonl" "$RUNNER_TEMP/comments.json" \
+            "$RUNNER_TEMP/review-comments.jsonl" "$RUNNER_TEMP/review-comments.json" <<'PY'
+          import json, sys
+          def fold(src, dest):
+              text = open(src, encoding="utf-8").read()
+              dec, rows, idx = json.JSONDecoder(), [], 0
+              while idx < len(text):
+                  while idx < len(text) and text[idx].isspace():
+                      idx += 1
+                  if idx >= len(text):
+                      break
+                  row, idx = dec.raw_decode(text, idx)
+                  rows.append(row)
+              json.dump(rows, open(dest, "w"))
+          fold(sys.argv[1], sys.argv[2])
+          fold(sys.argv[3], sys.argv[4])
+          PY
+
+      - name: Classify
+        id: tier
+        if: steps.pr.outputs.skip != 'true'
+        env:
+          BASE_SHA: ${{ steps.pr.outputs.base }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+          AUTOMERGE: ${{ vars.AUTOMERGE }}
+        run: |
+          uv run --no-config --no-project --python 3.12 --with pyyaml==6.0.2 -- python -I .github/scripts/risk_tier.py \
+            --rules .github/risk.yml --base "$BASE_SHA" --head "$HEAD_SHA" \
+            --pr-json "$RUNNER_TEMP/coord.json" --checks-file "$RUNNER_TEMP/checks.json" \
+            --comments-file "$RUNNER_TEMP/comments.json" \
+            --review-comments-file "$RUNNER_TEMP/review-comments.json" \
+            --automerge="$AUTOMERGE" --note="Rules and classifier from the base branch ($BASE_SHA)." \
+            --json "$RUNNER_TEMP/risk.json" --markdown "$RUNNER_TEMP/risk.md"
+          python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print("tier="+d["tier"]); print("label="+d["label"])' \
+            "$RUNNER_TEMP/risk.json" >> "$GITHUB_OUTPUT"
+          if [ "$AUTOMERGE" = "off" ]; then echo "::notice title=risk::AUTOMERGE=off: every PR is T2-hard."; fi
+          cat "$RUNNER_TEMP/risk.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Label
+        if: steps.pr.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ steps.pr.outputs.number }}
+          LABEL: ${{ steps.tier.outputs.label }}
+        run: |
+          for old in $(gh api "repos/$REPO/issues/$PR/labels" --jq '.[].name | select(startswith("risk:"))'); do
+            [ "$old" = "$LABEL" ] || gh api -X DELETE "repos/$REPO/issues/$PR/labels/$old" > /dev/null
+          done
+          gh api "repos/$REPO/issues/$PR/labels" -f "labels[]=$LABEL" > /dev/null
+
+      - name: Check run "risk tier"
+        if: steps.pr.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+        run: |
+          python3 -I - "$RUNNER_TEMP/risk.json" "$RUNNER_TEMP/risk.md" > "$RUNNER_TEMP/check.json" <<'PY'
+          import json, os, sys
+          d = json.load(open(sys.argv[1]))
+          # Shadow week: T0/T1 success, T2 and HOLD neutral. Never a failure.
+          conclusion = "success" if d["tier"] in ("T0", "T1") else "neutral"
+          print(json.dumps({"name": "risk tier", "head_sha": os.environ["HEAD_SHA"], "status": "completed",
+                            "conclusion": conclusion,
+                            "output": {"title": f"{d['tier']}: {d['meaning']}", "summary": open(sys.argv[2]).read()[:60000]}}))
+          PY
+          gh api "repos/$REPO/check-runs" --input "$RUNNER_TEMP/check.json" > /dev/null

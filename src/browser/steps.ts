@@ -2,9 +2,12 @@ import path from 'node:path';
 import type { Locator } from 'playwright';
 import { StepKind } from '../core/step-kind.js';
 import type { Step } from '../core/spec.js';
-import type { Snapshot } from '../core/automation.js';
+import { intelligence, type Snapshot } from '../core/automation.js';
 import { label, dumpDebug, noted, type Status, type StepResult } from '../core/results.js';
+import { ask } from '../jev/ask.js';
 import { decide, decideAll } from '../jev/decide.js';
+import { explainFailure, imageBackend } from '../jev/explain.js';
+import { SPLIT_TEXT_HINT, splitTextHint } from './split-text.js';
 import { waitForMutation } from './page.js';
 import { type CandidateKind } from './candidates.js';
 import { mayNavigate, settlePage, waitHold } from './activity.js';
@@ -244,12 +247,13 @@ async function runDrag(ctx: StepContext, step: StepOf<'drag'>, stepLabel: string
  * An unchanged state after a clear "no" is not asked again; a grey-zone answer is, since a borderline
  * probability can flip on the next try.
  */
-async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string): Promise<StepResult> {
+async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string, replay = true): Promise<StepResult> {
   if (step.condition.startsWith('css=')) {
     await ctx.page.waitForSelector(step.condition.slice(4), { state: 'visible', timeout: ctx.timeout });
     return { step: stepLabel, status: 'pass' };
   }
-  if (replaysClaims(ctx)) return replayClaims(ctx, StepKind.wait, [step.condition], step.within, ctx.timeout, stepLabel);
+  if (replay && replaysClaims(ctx)) return replayClaims(ctx, StepKind.wait, [step.condition], step.within, ctx.timeout, stepLabel,
+    () => runWait(ctx, step, stepLabel, false));
   const deadline = Date.now() + ctx.timeout;
   let region: Locator | null = null;
   if (step.within) {
@@ -263,7 +267,7 @@ async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string
   let lastProbability = 0;
   let lastSnap: Snapshot | null = null;
   let lastKey: string | null = null;
-  const keyOf = (observed: Observed) => JSON.stringify([observed.snap, observed.events]);
+  const keyOf = (observed: Observed) => JSON.stringify([observed.snap, observed.events, observed.fullAria]);
   const unchangedSinceNo = (observed: Observed) => keyOf(observed) === lastKey && decide(lastProbability, 'expect') === 'fail';
   const detail = () => `p=${lastProbability.toFixed(2)} after ${polls} poll(s)${skipped > 0 ? `, ${skipped} unchanged` : ''}`;
 
@@ -301,8 +305,9 @@ async function runWait(ctx: StepContext, step: StepOf<'wait'>, stepLabel: string
 }
 
 /** All claims in one Jev call. */
-async function runExpect(ctx: StepContext, step: StepOf<'expect'>, stepLabel: string): Promise<StepResult> {
-  if (replaysClaims(ctx)) return replayClaims(ctx, StepKind.expect, step.expectations, step.within, Math.min(EXPECT_REPLAY_MS, ctx.timeout), stepLabel);
+async function runExpect(ctx: StepContext, step: StepOf<'expect'>, stepLabel: string, replay = true): Promise<StepResult> {
+  if (replay && replaysClaims(ctx)) return replayClaims(ctx, StepKind.expect, step.expectations, step.within, Math.min(EXPECT_REPLAY_MS, ctx.timeout), stepLabel,
+    () => runExpect(ctx, step, stepLabel, false));
   const judged = await judgeClaims(ctx, step.expectations, step.within);
   if ('detail' in judged) return { step: stepLabel, status: 'inconclusive', detail: judged.detail };
 
@@ -310,13 +315,54 @@ async function runExpect(ctx: StepContext, step: StepOf<'expect'>, stepLabel: st
   const status: Status = decideAll(probabilities);
   if (status === 'pass') recordClaims(ctx, step.expectations, step.within, judged.state, judged.spatial);
   let detail = `p=${probabilities.map((p) => p.toFixed(2)).join(', ')} @ ${ctx.page.url()}`;
-  if (snap.truncated) detail += ' (aria truncated at 60k chars)';
+  if (judged.longContext) detail += ' (long context)';
+  else if (snap.truncated) detail += ' (aria truncated at 60k chars)';
   if (status !== 'pass') {
-    // What Jev saw, so the author can tune the claims against the real state.
-    const file = dumpDebug(StepKind.expect, { expectations: step.expectations, probabilities, state: snap });
+    const missed = step.expectations.filter((_, i) => decide(probabilities[i], 'expect') !== 'pass');
+    // What the verdict used, so the author can tune the claims against that state.
+    const seen = judged.longContext && judged.state.fullAria
+      ? { ...snap, aria: judged.state.fullAria, truncated: false } : snap;
+    const file = dumpDebug(StepKind.expect, { expectations: step.expectations, probabilities, state: seen });
     detail += ` — state: ${file}`;
+    const advice = await failureAdvice(ctx, missed, judged.state.fullAria ?? snap.aria, step.within !== undefined);
+    if (advice.line) detail += ` — ${advice.line}`;
+    if (advice.hint) detail += ` — ${advice.hint}`;
+    if (advice.tokens > 0) ctx.track(advice.tokens);
   }
   return { step: stepLabel, status, detail };
+}
+
+/** Playwright's own cap for one screenshot. A hung page must not hold the step. */
+const SCREENSHOT_TIMEOUT_MS = 10_000;
+
+/**
+ * A failed check can name what the viewport shows and when the tree splits the claim's words.
+ * Neither line changes `status`. A screenshot or model error leaves the detail without that line.
+ */
+async function failureAdvice(ctx: StepContext, claims: string[], aria: string, scoped: boolean): Promise<{ line?: string; hint?: string; tokens: number }> {
+  const hint = claims.some((claim) => splitTextHint(claim, aria)) ? SPLIT_TEXT_HINT : undefined;
+  // A `within` claim is about one region. The screenshot is the whole viewport, so it must not say the claim holds.
+  if (scoped) return { hint, tokens: 0 };
+  const explained = await explainMisses(ctx, claims);
+  return { line: explained?.line, hint, tokens: explained?.tokens ?? 0 };
+}
+
+async function explainMisses(ctx: StepContext, claims: string[]): Promise<{ line: string; tokens: number } | null> {
+  if (!claims.length) return null;
+  let png: Uint8Array;
+  try {
+    png = await ctx.page.screenshot({ type: 'png', timeout: SCREENSHOT_TIMEOUT_MS });
+  } catch {
+    return null;
+  }
+  try {
+    if (intelligence.explain) return await intelligence.explain(claims, png);
+    const supported = imageBackend();
+    if (supported === null) return null;
+    return await explainFailure(claims, png, { supported, ask });
+  } catch {
+    return null;
+  }
 }
 
 /** In no-judge, a claim is compared with its recorded passing state for at most this long after the page settled. */
@@ -337,7 +383,12 @@ function recordClaims(ctx: StepContext, claims: string[], within: string | undef
   if (!ref || !ctx.lock?.judges) return;
   const hash = stateHash(state, ctx.parameters);
   ctx.lock.record(ref, { state: hash, spatial });
-  saveRecordedState(hash, { claims, state: state.snap, events: state.events });
+  saveRecordedState(hash, { claims, state: hashedSnap(state), events: state.events });
+}
+
+/** The tree the lock hashed. The uncut text is what a later no-judge run compares. */
+function hashedSnap(state: Observed): Snapshot {
+  return state.fullAria === undefined ? state.snap : { ...state.snap, aria: state.fullAria, truncated: false };
 }
 
 /**
@@ -345,8 +396,14 @@ function recordClaims(ctx: StepContext, claims: string[], within: string | undef
  * state recorded when Jev judged the claims true, within `windowMs`; inconclusive otherwise, with the state seen.
  */
 async function replayClaims(ctx: StepContext, kind: typeof StepKind.expect | typeof StepKind.wait, claims: string[],
-  within: string | undefined, windowMs: number, stepLabel: string): Promise<StepResult> {
-  const entry = ctx.lock!.lookup(claimRef(ctx, claims, within)!);
+  within: string | undefined, windowMs: number, stepLabel: string, reverify: () => Promise<StepResult>): Promise<StepResult> {
+  const lock = ctx.lock;
+  const ref = claimRef(ctx, claims, within);
+  if (!lock || !ref) {
+    return { step: stepLabel, status: 'inconclusive',
+      detail: 'no-judge: no recorded passing state for this step; run with --mode auto-healing or judge to record it' };
+  }
+  const entry = lock.lookup(ref);
   if (!entry || isTargetEntry(entry)) {
     return { step: stepLabel, status: 'inconclusive',
       detail: 'no-judge: no recorded passing state for this step; run with --mode auto-healing or judge to record it' };
@@ -364,6 +421,9 @@ async function replayClaims(ctx: StepContext, kind: typeof StepKind.expect | typ
     if (stateHash(observed, ctx.parameters) === entry.state) return { step: stepLabel, status: 'pass', detail: 'the recorded passing state (no-judge)' };
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
+      // A version 1 hash can miss because the uncut tree is hashed. Judge the claim instead of calling the page different.
+      const source = ctx.step?.at?.file;
+      if (source && lock.staleClaims(source)) return reverify();
       const file = dumpDebug(kind, { claims, state: observed.snap, events: observed.events });
       return { step: stepLabel, status: 'inconclusive',
         detail: `no-judge: the ${region ? 'region' : 'page'} differs from the recorded passing state — state: ${file}${recordedStateNote(entry.state)}` };
