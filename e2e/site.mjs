@@ -94,6 +94,14 @@ status();`),
   document.querySelector('#article-preview').textContent = 'Article body: ' + document.querySelector('[aria-label="Article body"]').textContent;
   document.querySelector('#notes-preview').textContent = 'Notes: ' + document.querySelector('[aria-label="Notes"]').textContent;
 };`),
+  // Base UI ids from React useId: new on every load, as in a real app.
+  '/generated-ids': () => page('Memos', `<h1>Memos</h1>
+<article><p>Buy milk</p><button aria-haspopup="menu"><svg width="16" height="16"><circle cx="8" cy="8" r="2"/></svg></button></article>
+<article><p>Call the plumber</p><button aria-haspopup="menu"><svg width="16" height="16"><circle cx="8" cy="8" r="2"/></svg></button></article>
+<p role="status"></p>`, `for (const button of document.querySelectorAll('article button')) {
+  button.id = 'base-ui-_r_' + (36 + Math.floor(Math.random() * 1260)).toString(36) + '_';
+  button.onclick = () => document.querySelector('[role=status]').textContent = 'Menu open for: ' + button.previousElementSibling.textContent;
+}`),
   '/candidate-dialog': () => page('Store dialog', `<h1>Store</h1><main inert>
 ${Array.from({ length: 180 }, (_, i) => `<button>Browse product ${i}</button>`).join('')}
 <button onclick="document.querySelector('#result').textContent='Background selected'">Continue</button>
