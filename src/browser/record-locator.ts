@@ -54,8 +54,13 @@ export type RecordResult =
 const TESTID_ATTRS = ['data-testid', 'data-test-id', 'data-test', 'data-qa', 'data-cy'];
 /** `value` only on elements that do not take typing: a field's value is what a step changes. */
 const STABLE_ATTRS = ['name', 'href', 'title', 'alt', 'value'];
-/** Ids that frameworks generate per render: React `:r1:`, Ember, long numbers or hex runs. */
-const GENERATED_ID = /^:|^ember\d|^react|\d{3,}|[0-9a-f]{8,}/i;
+/** Ids from React `useId` (`:r1:`, `«r1»`, `_r_1_`) and the component kits on it: new on every load. */
+const USE_ID = /:r[0-9a-z]*:|«r[0-9a-z]*»|_r_[0-9a-z]*_|^(?:base-ui|radix|headlessui)-/i;
+/**
+ * Ids not worth a locator: `useId` ones, Ember's, and long numbers or hex runs, which are often generated too. A
+ * fixed id of that shape loses only the id strategy; another one still finds its element.
+ */
+const GENERATED_ID = new RegExp(`${USE_ID.source}|^:|^ember\\d|^react|\\d{3,}|[0-9a-f]{8,}`, 'i');
 const MAX_SCOPE_TEXTS = 10;
 const MAX_SCOPES = 3;
 const MAX_TEXT = 80;
@@ -293,17 +298,28 @@ async function sameLinks(locator: Locator, jevId: string, href: string): Promise
 }
 
 /**
- * A hash of the element's markup without plain's own attributes: what tells two unnamed icon buttons apart. The
- * run's values are placeholders in it, so a card with this run's title has the shape it had with the last one.
+ * Attributes that hold an element id: a `useId` one changes the markup on every load. A fixed one (`panel-123`)
+ * stays, so it still tells two icon buttons apart.
+ */
+const ID_ATTRS = ['id', 'for', 'aria-controls', 'aria-labelledby', 'aria-describedby', 'aria-owns', 'aria-activedescendant'];
+
+/**
+ * A hash of the element's markup without plain's own attributes and generated ids: what tells two unnamed icon
+ * buttons apart. The run's values are placeholders in it, so a card with this run's title has the shape it had with
+ * the last one.
  */
 export async function shapeOf(locator: Locator, parameters: RunValues = []): Promise<string> {
-  const markup = await locator.evaluate((el) => {
+  const markup = await locator.evaluate((el, { idAttrs, generated }) => {
     const copy = el.cloneNode(true) as Element;
+    const unstable = new RegExp(generated, 'i');
     for (const node of [copy, ...copy.querySelectorAll('*')]) {
-      for (const attr of [...node.attributes]) if (attr.name.startsWith('data-jev') || attr.name.startsWith('data-plain')) node.removeAttribute(attr.name);
+      for (const attr of [...node.attributes]) {
+        if (attr.name.startsWith('data-jev') || attr.name.startsWith('data-plain') ||
+          (idAttrs.includes(attr.name) && unstable.test(attr.value))) node.removeAttribute(attr.name);
+      }
     }
     return copy.outerHTML;
-  });
+  }, { idAttrs: ID_ATTRS, generated: USE_ID.source });
   return createHash('sha256').update(parameterize(markup, parameters)).digest('hex');
 }
 

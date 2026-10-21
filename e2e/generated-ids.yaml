@@ -1,0 +1,8 @@
+name: replay an icon button whose generated id changes on every load
+url: ${env.site}
+env:
+  site: $PLAIN_E2E_SITE
+steps:
+  - goto: /generated-ids
+  - click: the menu button of the "Call the plumber" memo
+  - expect: 'the status shows "Menu open for: Call the plumber"'

@@ -24,7 +24,7 @@ const { values } = parseArgs({ options: { url: { type: 'string', multiple: true 
 const KINDS = ['click', 'fill', 'select', 'check'];
 const SITE_PAGES = ['/spatial-controls', '/spatial-reference', '/spatial-values', '/spatial-names', '/spatial', '/field-state',
   '/candidate-editor', '/candidate-dialog', '/consent', '/overlay', '/cookie-bar', '/login', '/secure', '/forms', '/dialogs',
-  '/frames', '/files', '/drag', '/boxes', '/waits', '/where'];
+  '/frames', '/files', '/drag', '/boxes', '/waits', '/where', '/generated-ids'];
 
 // ---- the orders page and its changes ---------------------------------------------------------------------------
 const ORDERS = [
@@ -34,8 +34,9 @@ const ORDERS = [
   { id: '#1044', who: 'Ada Lovelace', status: 'Refunded', total: '€7.00' },
 ];
 const PRODUCTS = [{ name: 'Espresso cup', price: '€9' }, { name: 'Moka pot', price: '€35' }, { name: 'Milk jug', price: '€14' }];
-const orderRow = (o) => `<tr data-key="row${o.id}"><td>${o.id}</td><td>${o.who}</td><td>${o.status}</td><td>${o.total}</td>
+const orderRow = (o, useId, i) => `<tr data-key="row${o.id}"><td>${o.id}</td><td>${o.who}</td><td>${o.status}</td><td>${o.total}</td>
   <td><a href="#" data-key="view${o.id}">View</a> <button data-key="edit${o.id}">Edit</button>
+  <button id="base-ui-_r_${useId}${i}_" aria-haspopup="menu" data-key="more${o.id}"><svg width="12" height="12"></svg></button>
   <button aria-label="Delete order" data-key="del${o.id}">🗑</button></td></tr>`;
 const MINUS = '<svg width="12" height="12"><path d="M0 6h12"/></svg>';
 const PLUS = '<svg width="12" height="12"><path d="M0 6h12M6 0v12"/></svg>';
@@ -43,7 +44,7 @@ const card = (p, swapIcons = false) => `<article data-key="card${p.name}"><h3>${
   <button data-key="add${p.name}">Add to cart</button><input type="number" aria-label="Quantity" value="1" data-key="qty${p.name}">
   ${swapIcons ? `<button data-key="plus${p.name}">${PLUS}</button><button data-key="minus${p.name}">${MINUS}</button>`
     : `<button data-key="minus${p.name}">${MINUS}</button><button data-key="plus${p.name}">${PLUS}</button>`}</article>`;
-function ordersPage({ orders = ORDERS, products = PRODUCTS, editLabel = 'Edit', idSuffix = 'k3j9x2', swapIcons = false } = {}) {
+function ordersPage({ orders = ORDERS, products = PRODUCTS, editLabel = 'Edit', idSuffix = 'k3j9x2', useId = 'a', swapIcons = false } = {}) {
   return `<!doctype html><title>Orders</title><body>
   <nav><a href="#" data-key="nav-home">Home</a> <a href="#" data-key="nav-orders">Orders</a>
     <button data-testid="account-menu" data-key="account"><svg width="16" height="16"></svg></button></nav>
@@ -52,7 +53,7 @@ function ordersPage({ orders = ORDERS, products = PRODUCTS, editLabel = 'Edit', 
     <select aria-label="Status" data-key="status"><option>All</option><option>Paid</option><option>Pending</option></select>
     <label><input type="checkbox" data-key="mine"> Only mine</label><button data-key="go">Search</button></form>
   <table><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th></th></tr></thead>
-  <tbody>${orders.map(orderRow).join('').replaceAll('>Edit<', `>${editLabel}<`)}</tbody></table>
+  <tbody>${orders.map((o, i) => orderRow(o, useId, i)).join('').replaceAll('>Edit<', `>${editLabel}<`)}</tbody></table>
   <div><a href="#" data-key="page-1">1</a> <a href="#" data-key="page-2">2</a> <a href="#" data-key="next">Next</a></div>
   <section><h2>Shop</h2>${products.map((p) => card(p, swapIcons)).join('')}</section>
   <div onclick="1" data-key="more">Show more</div></main></body>`;
@@ -64,6 +65,8 @@ const CHANGES = {
   reordered: () => ordersPage({ orders: [...ORDERS].reverse(), products: [...PRODUCTS].reverse() }),
   'status-changed': () => ordersPage({ orders: ORDERS.map((o) => (o.id === '#1043' ? { ...o, status: 'Paid' } : o)) }),
   'id-regenerated': () => ordersPage({ idSuffix: 'p0w7qa' }),
+  // React useId ids (Base UI) differ on every load.
+  'use-id-regenerated': () => ordersPage({ useId: 'b' }),
   renamed: () => ordersPage({ editLabel: 'Modify' }),
   'duplicate-row': () => ordersPage({ orders: [...ORDERS, ORDERS[1]] }),
   // Two unnamed icon buttons trade places: a position-based locator must miss, not click the other one.
