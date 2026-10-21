@@ -42,6 +42,28 @@ test('a named control gets its role and name; a test id comes first', async () =
   assert.deepEqual(email.locator.parts, [{ by: 'role', role: 'textbox', name: 'Email' }]);
 });
 
+test('an id that a framework generates per load is never recorded; a hand-written id is', async () => {
+  const card = (id: string) => `<article><h3>Draft</h3><button id="${id}" data-key="more"><svg></svg></button><button><svg></svg></button></article>`;
+  const recordMore = async (html: string) => {
+    await page.setContent(html);
+    const found = await candidates(page, 'click', 254);
+    const keys = await Promise.all(found.map((c) => page.locator(`[data-jev-id="${c.id}"]`).getAttribute('data-key')));
+    return recordLocator(page, found[keys.indexOf('more')]);
+  };
+  for (const id of [':r1:', '«r3»', '_r_6n_', 'base-ui-_r_6n_', 'radix-:r2:', 'headlessui-menu-button-1']) {
+    const recorded = await recordMore(card(id));
+    assert.ok(recorded.ok, `${id}: ${recorded.ok || recorded.reason}`);
+    assert.ok(!recorded.locator.parts.some((part) => part.by === 'id'), `${id}: ${recorded.text}`);
+    assert.equal(await keyAt(recorded.locator), 'more');
+    // The next load generates another id: the position-based locator still holds the same shape.
+    await page.setContent(card(`${id}x`));
+    assert.equal(await shapeOf(toLocator(page, recorded.locator.parts)), recorded.locator.shape, id);
+  }
+  const stable = await recordMore(card('draft-menu'));
+  assert.ok(stable.ok);
+  assert.deepEqual(stable.locator.parts, [{ by: 'id', value: 'draft-menu' }]);
+});
+
 test('a repeated link is scoped by its row, and the scope survives a new row above it', async () => {
   const row = (id: string, key: string) => `<tr><td>${id}</td><td>Paid</td><td><a href="#" data-key="${key}">View</a></td></tr>`;
   await page.setContent(`<table>${row('#1041', 'a')}${row('#1042', 'b')}</table>`);

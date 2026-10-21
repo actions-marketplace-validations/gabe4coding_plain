@@ -198,6 +198,8 @@ In the browser, the locator must match exactly one element on the page, and that
 plain tries these, in this order:
 
 1. A test id, the role and name, the label, the placeholder, the `id`, a stable attribute, the text, the tag.
+   plain skips an `id` that a framework generates on each page load, such as React `useId` or a `base-ui-`,
+   `radix-` or `headlessui-` id.
 2. The same inside the nearest row, list item, card or dialog that holds a unique text. In that container, the
    position of an unnamed control is also possible.
 3. For a link, all links with the same name and the same `href`. A replay clicks the first of them.
